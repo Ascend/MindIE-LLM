@@ -6,40 +6,40 @@
 
 - 下表展示Qwen模型各版本支持的特性
 
-| 模型及参数量      | 800I A2 Tensor Parallelism | 300I DUO Tensor Parallelism | FP16 | BF16 | Flash Attention | Paged Attention | W8A8量化 | W8A16量化 | KV cache量化 | 稀疏量化（仅支持300I DUO） | MOE量化 | MindIE Service | TGI | 长序列 | prefix_cache | FA3量化 | functioncall | Multi LoRA| W4A16量化 |
-| ----------------- |----------------------------|--------------------| ---- | ---- | --------------- | --------------- | -------- | --------- | ------------ | -------- | ------- | -------------- | --- | ------ | ---------- | --- | --- | --- |---------|
-| Qwen2-7B          | 支持world size 1,2,4,8       | 支持world size 2,4,8 | ✓    | ✓    | ✕               | ✓               | ✓        | ✕         | ✕            | ✓        | ✕       | ✓              | ✕   | ✕      | ✕       | ✕ | ✕ | ✕ |    ✕     |
-| Qwen2-72B         | 支持world size 1,2,4,8       | 支持world size 2,4,8 | ✓    | ✓    | ✕               | ✓               | ✓        | ✓         | ✓            | ✓        | ✕       | ✓              | ✕   | ✓      | ✓       | ✕ | ✓ | ✓ |   ✕      |
-| gte-Qwen2-7B      | 支持world size 1,2,4         | ✕                  | ✓    | ✕    | ✕               | ✓               | ✕        | ✕         | ✕            | ✕        | ✕       | ✕              | ✕   | ✕      | ✕       | ✕ | ✕ | ✕ |     ✕    |
-| Qwen2.5-0.5B      | 支持world size 1,2,4,8       | 支持world size 2,4,8 | ✓    | ✓    | ✕               | ✓               | ✕        | ✕         | ✕            | ✕        | ✕       | ✕              | ✕   | ✕      | ✕       | ✕ | ✕ | ✕ |    ✕     |
-| Qwen2.5-1.5B      | 支持world size 1,2,4,8       | 支持world size 2,4,8 | ✓    | ✓    | ✕               | ✓               | ✕        | ✕         | ✕            | ✕        | ✕       | ✕              | ✕   | ✕      | ✕       | ✕ | ✕ | ✕ |    ✕     |
-| Qwen2.5-7B        | 支持world size 1,2,4,8       | 支持world size 2,4,8 | ✓    | ✓    | ✕               | ✓               | ✓        | ✕         | ✕            | ✓        | ✕       | ✓              | ✕   | ✕      | ✓       | ✕ | ✓ | ✕ |     ✕    |
-| Qwen2.5-14B       | 支持world size 2,4,8         | 支持world size 2,4,8 | ✓    | ✓    | ✕               | ✓               | ✓        | ✕         | ✕            | ✓        | ✕       | ✓              | ✕   | ✕      | ✕       | ✕ | ✓ | ✕ |    ✕     |
-| Qwen2.5-32B       | 支持world size 4,8           | ✕                  | ✓    | ✓    | ✕               | ✓               | ✓        | ✕         | ✕            | ✕        | ✕       | ✓              | ✕   | ✕      | ✕       | ✕ | ✓ | ✕ |     ✕    |
-| Qwen2.5-72B       | 支持world size 8             | ✕                  | ✓    | ✓    | ✕               | ✓               | ✕        | ✕         | ✕            | ✕        | ✕       | ✓              | ✕   | ✕      | ✕       | ✓ | ✓ | ✕ |    ✓     |
-| QwenCode2.5-7B          | ✕       | 支持world size 2,4,8 | ✓    | ✕    | ✕               | ✓               | ✕        | ✕         | ✕            | ✓        | ✕       | ✓              | ✕   | ✕      | ✓       | ✕ | ✕ | ✕ |    ✕     |
-| QwenCode2.5-32B          | 支持world size 4,8       |   ✕      |  ✕   | ✓    | ✕               | ✓               | ✕        | ✕         | ✕            | ✕        | ✕       | ✕              | ✕   | ✕      | ✕       | ✕ | ✕ | ✕ |     ✕    |
-| Qwen3-32B       | 支持world size 4             |   支持world size 4      |  ✕   | ✓    | ✕               | ✓               | ✓        | ✕         | ✕            | ✓        | ✕       | ✓              | ✕   | ✕      | ✕       | ✕ | ✕ | ✕ |     ✕    |
-| Qwen3-14B       | 支持world size 2             |   支持world size 2      |  ✓  | ✓    | ✕               | ✓               | ✓        | ✕         | ✕            | ✓        | ✕       | ✓             | ✕   | ✕      | ✕       | ✕ | ✕ | ✕ |     ✕    |
-| Qwen3-8B        | 支持world size 1             |  支持world size 1      |  ✓   | ✓    | ✕               | ✓               | ✕        | ✕         | ✕            | ✓        | ✕       | ✓              | ✕   | ✕      | ✕       | ✕ | ✕ | ✕ |     ✕    |
-| Qwen3-4B        |       ✕       |   支持world size 1      |  ✓   | ✕    | ✕               | ✓               | ✕        | ✕         | ✕            | ✕        | ✕       | ✓             | ✕   | ✕      | ✕       | ✕ | ✕ | ✕ |     ✕    |
-| Qwen3-30B-A3B        |支持world size 2,4|   支持world size 2,4      |  ✕   | ✓    | ✕               | ✓               | ✓        | ✕         | ✕            | ✕        | ✕       | ✓             | ✕   | ✕      | ✕       | ✕ | ✕ | ✕ |     ✕    |
-| Qwen3-235B-A22B      |支持world size 16|   ✕      |  ✕   | ✓    | ✕               | ✓               | ✓        | ✕         | ✕            | ✕        | ✕       | ✓             | ✕   | ✕      | ✕       | ✕ | ✕ | ✕ |     ✕    |
+| 模型及参数量      | 800I A2 Tensor Parallelism | 300I DUO Tensor Parallelism | FP16 | BF16 | Paged Attention | W8A8量化 | W8A16量化 | KV cache量化 | 稀疏量化（仅支持300I DUO） | MOE量化 | MindIE Service |长序列 | prefix_cache | FA3量化 | functioncall | Multi LoRA|
+| ----------------- |----------------------------|--------------------| ---- | ---- | --------------- | --------------- | -------- | --------- | ------------ | -------- | ------- | -------------- | --- | ------ | ---------- |---------|
+| Qwen2-7B-Instruct          | 支持world size 1,2,4,8       | 支持world size 2,4,8 | ✓    | ✓   | ✓               | ✓        | ✕         | ✕            | ✓        | ✕       | ✓              | ✓      | ✓       | ✕ | ✕ | ✓ |
+| Qwen2-72B-Instruct         | 支持world size 1,2,4,8       | 支持world size 2,4,8 | ✓    | ✓   | ✓               | ✓        | ✓         | ✓            | ✓        | ✕       | ✓              | ✓      | ✓       | ✕ | ✓ | ✓ |
+| gte-Qwen2-7B-Instruct      | 支持world size 1,2,4         | ✕                  | ✓    | ✕    | ✓               | ✕        | ✕         | ✕            | ✕        | ✕       | ✕                | ✕      | ✕       | ✕ | ✕ | ✕ |
+| Qwen2.5-0.5B-Instruct      | 支持world size 1,2,4,8       | 支持world size 2,4,8 | ✓    | ✓    | ✓               | ✕        | ✕         | ✕            | ✕        | ✕       | ✕                 | ✓      | ✓       | ✕ | ✕ | ✓ |
+| Qwen2.5-1.5B-Instruct      | 支持world size 1,2,4,8       | 支持world size 2,4,8 | ✓    | ✓    | ✓               | ✕        | ✕         | ✕            | ✕        | ✕       | ✓                | ✓      | ✓       | ✕ | ✕ | ✓ |
+| Qwen2.5-7B-Instruct        | 支持world size 1,2,4,8       | 支持world size 2,4,8 | ✓    | ✓    | ✓               | ✓        | ✕         | ✕            | ✓        | ✕       | ✓                 | ✓      | ✓       | ✕ | ✓ | ✓ |
+| Qwen2.5-14B-Instruct       | 支持world size 2,4,8         | 支持world size 2,4,8 | ✓    | ✓    | ✓               | ✓        | ✕         | ✕            | ✓        | ✕       | ✓                | ✓      | ✓       | ✕ | ✓ | ✓ |
+| Qwen2.5-32B-Instruct       | 支持world size 4,8           | ✕                  | ✓    | ✓    | ✓               | ✓        | ✕         | ✕            | ✕        | ✕       | ✓                 | ✓      | ✓       | ✕ | ✓ | ✓ |
+| Qwen2.5-72B-Instruct       | 支持world size 8             | ✕                  | ✓    | ✓    | ✓               | ✕        | ✕         | ✕            | ✕        | ✕       | ✓                 | ✓      | ✓       | ✓ | ✓ | ✓ |
+| QwenCode2.5-7B          | ✕       | 支持world size 2,4,8 | ✓    | ✕    | ✓               | ✕        | ✕         | ✕            | ✓        | ✕       | ✓                 | ✓      | ✓       | ✕ | ✕ | ✕ |
+| QwenCode2.5-32B          | 支持world size 4,8       |   ✕      |  ✕   | ✓    | ✓               | ✕        | ✕         | ✕            | ✕        | ✕       | ✕                | ✓      | ✓       | ✕ | ✕ | ✕ |
+| Qwen3-32B       | 支持world size 4             |   支持world size 4      |  ✓   | ✓    | ✓               | ✓        | ✕         | ✕            | ✓        | ✕       | ✓                | ✓      | ✓       | ✕ | ✓ | ✓ |
+| Qwen3-14B       | 支持world size 2             |   支持world size 2      |  ✓  | ✓    | ✓               | ✓        | ✕         | ✕            | ✓        | ✕       | ✓                | ✓      | ✓       | ✕ | ✓ | ✓ |
+| Qwen3-8B        | 支持world size 1             |  支持world size 1      |  ✓   | ✓    | ✓               | ✕        | ✕         | ✕            | ✓        | ✕       | ✓                |✓      | ✓       | ✕ | ✓ | ✓ |
+| Qwen3-4B        |       支持world size 1       |   支持world size 1      |  ✓   | ✓     | ✓               | ✕        | ✕         | ✕            | ✕        | ✕       | ✓               | ✓      | ✓       | ✕      | ✓ | ✓ |
+| Qwen3-30B-A3B        |支持world size 2,4|   支持world size 2,4      |  ✕   | ✓     | ✓               | ✓        | ✕         | ✕            | ✕        | ✕       | ✓               | ✓      | ✓       | ✕ | ✓ | ✕ |
+| Qwen3-235B-A22B      |支持world size 16|   ✕      |  ✕   | ✓    | ✓               | ✓        | ✕         | ✕            | ✕        | ✕       | ✓               | ✓      | ✓       | ✕ | ✓ | ✕ |
+| Qwen3-Coder-30B-A3B-Instruct        |支持world size 2,4|   支持world size 2,4      |  ✕   | ✓     | ✓               | ✓        | ✕         | ✕            | ✕        | ✕       | ✓               | ✓      | ✓       | ✕ | ✓ | ✕ |
+| Qwen3-Coder-480B-A35B-Instruct      |支持world size 16|   ✕      |  ✕   | ✓    | ✓               | ✓        | ✕         | ✕            | ✕        | ✕       | ✓               | ✓     | ✓       | ✕ | ✓ | ✕ |
 
 注：表中所示支持的world size为对话测试可跑通的配置，实际运行时还需考虑输入序列长度带来的显存占用。
 
 - 模型支持的张量并行维度（Tensor Parallelism）可以通过查看模型的`config.json`文件中的 **KV头的数量** (`num_key_value_heads` 或者类似字段)来判断模型支持多少维度的张量并行。
-> 例如 `Qwen2-0.5B` 的 `"num_key_value_heads"` 为 2，表明其只支持world size 1,2 
+> 例如 `Qwen2-0.5B-Instruct` 的 `"num_key_value_heads"` 为 2，表明其只支持world size 1,2 
 
-> 例如 `Qwen2.5-32B` 的 `"num_key_value_heads"` 为 8，表明其理论支持world size 1,2,4,8（不考虑显存占用）
+> 例如 `Qwen2.5-32B-Instruct` 的 `"num_key_value_heads"` 为 8，表明其理论支持world size 1,2,4,8（不考虑显存占用）
 
 - Qwen2/2.5系列模型在800I A2仅支持bfloat16浮点类型，300I DUO仅支持float16浮点类型。
 ## 开源权重
 #### Qwen2
-- [Qwen2-7B](https://huggingface.co/Qwen/Qwen2-7B/tree/main)
 - [Qwen2-7B-Instruct](https://huggingface.co/Qwen/Qwen2-7B-Instruct/tree/main)
 - [gte-Qwen2-7B-Instruct](https://huggingface.co/Alibaba-NLP/gte-Qwen2-7B-instruct/tree/main)
-- [Qwen2-72B](https://huggingface.co/Qwen/Qwen2-72B/tree/main)
 - [Qwen2-72B-Instruct](https://huggingface.co/Qwen/Qwen2-72B-Instruct/tree/main)
 #### Qwen2.5
 - [Qwen2.5-0.5B-Instruct](https://huggingface.co/Qwen/Qwen2.5-0.5B-Instruct/tree/main)
