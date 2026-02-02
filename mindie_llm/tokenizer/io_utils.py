@@ -286,7 +286,6 @@ def is_s3_compatible_url(url):
         query_lower = query.lower()
         path_count = sum(1 for p in path.strip('/').split('/') if p)
         if not scheme or not netloc:
-            logger.warning(f"Invalid URL structure: {url}")
             return False
         # 1. Check for standard S3 URL patterns using regex
         if any(pattern.match(netloc_lower) for pattern in _STANDARD_S3_PATTERNS):
