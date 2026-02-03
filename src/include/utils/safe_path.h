@@ -48,6 +48,7 @@ public:
     SafePath(std::string path,
              PathType pathType,
              std::string mode,
+             fs::perms maxPermission,
              uint64_t sizeLimitation = 0,
              std::string suffix = "");
 
@@ -57,25 +58,30 @@ private:
     std::string path_;
     PathType pathType_;
     std::string mode_;
+    fs::perms maxPermission_;
     uint64_t sizeLimitation_;
     std::string suffix_;
 
+    Result ExpandHome();
+    fs::path LexicallyNormalize(const fs::path& path) const;
+    fs::path LongestExistingPrefix(const fs::path& abs) const;
     Result NormalizePath();
     Result CheckPathWhenExist(SoftLinkLevel softLinkLevel);
     Result CheckPathWhenNotExist(SoftLinkLevel softLinkLevel);
 
-    Result CheckPathExist(const std::string& path) const;
-    Result IsFile();
-    Result IsDir();
-    Result CheckSoftLink(const std::string& path, SoftLinkLevel level, std::string& resolvedPath) const;
-    Result CheckPermission(const std::string& path) const;
-    Result CheckWriterForGroupOthers(const std::string& path) const;
-    Result CheckMode(const std::string& path) const;
-    Result CheckSpecialChars();
-    Result CheckPathLength();
-    Result CheckFileSuffix();
-    Result CheckFileSize();
-    Result CheckDirSize();
+    Result CheckPathExist() const;
+    Result IsFile() const;
+    Result IsDir() const;
+    Result CheckSoftLink(SoftLinkLevel level);
+    Result CheckOwner() const;
+    Result CheckMaxPermission() const;
+    Result CheckPermission() const;
+    Result CheckMode() const;
+    Result CheckSpecialChars() const;
+    Result CheckPathLength() const;
+    Result CheckFileSuffix() const;
+    Result CheckFileSize() const;
+    Result CheckDirSize() const;
 };
 
 } // namespace mindie_llm

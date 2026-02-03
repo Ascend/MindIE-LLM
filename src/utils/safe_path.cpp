@@ -26,6 +26,7 @@ namespace mindie_llm {
 static constexpr size_t MAX_PATH_LENGTH = 4096;
 static constexpr size_t MAX_LAST_NAME_LENGTH = 255;
 static constexpr size_t MAX_DIR_DEPTH = 32;
+static const std::string IGNORE_CHECK = "0";
 
 static const std::map<std::string, int> modeMap = {
     {"r",   R_OK},            // 只读
@@ -50,36 +51,18 @@ Result ChangePermission(const std::string& path, const fs::perms& permission)
     return Result::OK();
 }
 
-Result MakeDirs(const std::string& pathStr)
-{
-    if (fs::exists(pathStr)) {
-        return Result::OK();
-    }
-    fs::path path(pathStr);
-    size_t depth = static_cast<size_t>(std::distance(path.begin(), path.end()));
-    if (depth > MAX_DIR_DEPTH) {
-        return Result::Error(ResultCode::RISK_ALERT,
-            "Exceeded max directory depth: " + std::to_string(MAX_DIR_DEPTH));
-    }
-    try {
-        fs::create_directories(path);
-        ChangePermission(path, PERM_750);
-    } catch (const fs::filesystem_error &e) {
-        return Result::Error(ResultCode::IO_FAILURE, "Failed to create directories for " + pathStr + ": " + e.what());
-    }
-    return Result::OK();
-}
-
 SafePath::SafePath(std::string path,
                    PathType pathType,
                    std::string mode,
+                   fs::perms maxPermission,
                    uint64_t sizeLimitation,
                    std::string suffix)
     : path_(std::move(path)),
       pathType_(pathType),
       mode_(std::move(mode)),
+      maxPermission_(maxPermission),
       sizeLimitation_(sizeLimitation),
-      suffix_(suffix) {}
+      suffix_(std::move(suffix)) {}
 
 Result SafePath::Check(std::string& checkedPath, bool pathExist, SoftLinkLevel softLinkLevel)
 {
@@ -95,89 +78,114 @@ Result SafePath::Check(std::string& checkedPath, bool pathExist, SoftLinkLevel s
     return r;
 }
 
-Result SafePath::NormalizePath()
+Result SafePath::ExpandHome()
 {
-    if (!path_.empty() && path_[0] == '~') {
-        std::string home;
-        Result r = EnvVar::GetInstance().Get("HOME", "/root/", home);
-        if (!r.IsOk()) {
-            return r;
-        }
-        if (path_.size() == 1) {
-            path_ = home;
-        } else if (path_[1] == '/') {
-            path_ = home + path_.substr(1);
-        }
+    if (path_.empty() || path_[0] != '~') {
+        return Result::OK();
     }
-    fs::path abs = fs::absolute(path_);
-    fs::path existing;
-    for (auto it = abs.begin(); it != abs.end(); ++it) {
-        fs::path trial = existing / *it;
-        if (fs::exists(trial)) {
-            existing = trial;
+    if (path_.size() > 1 && path_[1] != '/') {
+        return Result::OK();
+    }
+    std::string home;
+    EnvVar::GetInstance().Get("HOME", "/root/", home);
+    if (path_.size() == 1) {
+        path_ = home;
+    } else {
+        path_ = home + path_.substr(1);
+    }
+    return Result::OK();
+}
+
+fs::path SafePath::LongestExistingPrefix(const fs::path& abs) const
+{
+    fs::path current;
+    for (const auto& part : abs) {
+        fs::path next = current / part;
+        if (fs::exists(next)) {
+            current = next;
         } else {
             break;
         }
     }
+    return current;
+}
+
+fs::path SafePath::LexicallyNormalize(const fs::path& path) const
+{
     fs::path result;
+    for (const auto& part : path) {
+        if (part == ".") {
+            continue;
+        }
+        if (part == "..") {
+            if (!result.empty() &&
+                result.filename() != "..") {
+                result = result.parent_path();
+            } else {
+                result /= part;
+            }
+        } else {
+            result /= part;
+        }
+    }
+    return result;
+}
+
+Result SafePath::NormalizePath()
+{
+    Result r = ExpandHome();
+    if (!r.IsOk()) {
+        return r;
+    }
+    fs::path abs = fs::absolute(path_);
+    fs::path existing = LongestExistingPrefix(abs);
+    fs::path base;
     try {
         if (!existing.empty()) {
-            result = fs::canonical(existing);
+            base = fs::canonical(existing);
         } else {
-            result = fs::absolute(abs.root_path());
+            base = fs::absolute(abs.root_path());
         }
     } catch (...) {
-        result = fs::absolute(abs.root_path());
+        base = fs::absolute(abs.root_path());
     }
-    if (existing != abs) {
-        fs::path suffix;
-        auto abs_it = abs.begin();
-        auto ex_it  = existing.begin();
-        while (abs_it != abs.end() && ex_it != existing.end() && *abs_it == *ex_it) {
-            ++abs_it;
-            ++ex_it;
-        }
-        for (; abs_it != abs.end(); ++abs_it) {
-            suffix /= *abs_it;
-        }
-        result /= suffix;
-        fs::path normalized;
-        for (auto &part : result) {
-            std::string s = part.string();
-            if (s == ".") {
-                continue;
-            }
-            if (s == "..") {
-                if (!normalized.empty()) {
-                    normalized = normalized.parent_path();
-                }
-            } else {
-                normalized /= part;
-            }
-        }
-        result = normalized;
+    fs::path remaining;
+    auto abs_it = abs.begin();
+    auto ex_it  = existing.begin();
+    while (abs_it != abs.end() && ex_it != existing.end() && *abs_it == *ex_it) {
+        ++abs_it;
+        ++ex_it;
     }
-    path_ = result.string();
+    for (; abs_it != abs.end(); ++abs_it) {
+        if (abs_it->empty()) {
+            continue;
+        }
+        remaining /= *abs_it;
+    }
+    fs::path result = LexicallyNormalize(base / remaining);
+    std::string s = result.string();
+    if (s.size() > 1 && s.back() == fs::path::preferred_separator) {
+        s.pop_back();
+    }
+    path_ = s;
     return Result::OK();
 }
 
 Result SafePath::CheckPathWhenExist(SoftLinkLevel softLinkLevel)
 {
-    std::string resolvedPath;
-    Result r = CheckPathExist(path_);
+    Result r = CheckPathExist();
     if (!r.IsOk()) {
         return r;
     }
-    r = CheckSoftLink(path_, softLinkLevel, resolvedPath);
-    if (!r.IsOk()) {
-        return r;
-    }
-    path_ = resolvedPath;
     r = CheckSpecialChars();
     if (!r.IsOk()) {
         return r;
     }
     r = CheckPathLength();
+    if (!r.IsOk()) {
+        return r;
+    }
+    r = CheckSoftLink(softLinkLevel);
     if (!r.IsOk()) {
         return r;
     }
@@ -207,24 +215,12 @@ Result SafePath::CheckPathWhenExist(SoftLinkLevel softLinkLevel)
             path_ += "/";
         }
     }
-    return CheckPermission(path_);
+    return CheckPermission();
 }
 
 Result SafePath::CheckPathWhenNotExist(SoftLinkLevel softLinkLevel)
 {
-    std::string resolvedPath;
-    fs::path parentDir = fs::path(path_).parent_path();
-
-    Result r = CheckPathExist(parentDir.string());
-    if (!r.IsOk()) {
-        return r;
-    }
-    r = CheckSoftLink(parentDir.string(), softLinkLevel, resolvedPath);
-    if (!r.IsOk()) {
-        return r;
-    }
-    parentDir = resolvedPath;
-    r = CheckSpecialChars();
+    Result r = CheckSpecialChars();
     if (!r.IsOk()) {
         return r;
     }
@@ -232,10 +228,14 @@ Result SafePath::CheckPathWhenNotExist(SoftLinkLevel softLinkLevel)
     if (!r.IsOk()) {
         return r;
     }
-    return CheckPermission(parentDir);
+    r = CheckSoftLink(softLinkLevel);
+    if (!r.IsOk()) {
+        return r;
+    }
+    return Result::OK();
 }
 
-Result SafePath::IsFile()
+Result SafePath::IsFile() const
 {
     if (!fs::is_regular_file(path_)) {
         return Result::Error(ResultCode::TYPE_MISMATCH, "The path is not file: " + path_);
@@ -243,7 +243,7 @@ Result SafePath::IsFile()
     return Result::OK();
 }
 
-Result SafePath::IsDir()
+Result SafePath::IsDir() const
 {
     if (!fs::is_directory(path_)) {
         return Result::Error(ResultCode::TYPE_MISMATCH, "The path is not directory: " + path_);
@@ -251,40 +251,29 @@ Result SafePath::IsDir()
     return Result::OK();
 }
 
-Result SafePath::CheckPathExist(const std::string& path) const
+Result SafePath::CheckPathExist() const
 {
-    if (!fs::exists(path)) {
-        return Result::Error(ResultCode::NONE_ARGUMENT, "Path not found: " + path);
+    if (!fs::exists(path_)) {
+        return Result::Error(ResultCode::NONE_ARGUMENT, "Path not found: " + path_);
     }
     return Result::OK();
 }
 
-Result SafePath::CheckSoftLink(const std::string& path, SoftLinkLevel level, std::string& resolvedPath) const
+Result SafePath::CheckSoftLink(SoftLinkLevel level)
 {
-    if (!fs::is_symlink(path)) {
-        resolvedPath = path;
+    if (!fs::is_symlink(path_)) {
         return Result::OK();
     }
     if (level == SoftLinkLevel::STRICT) {
-        return Result::Error(ResultCode::RISK_ALERT, "Found symlink path: " + path);
+        return Result::Error(ResultCode::RISK_ALERT, "Found symlink path: " + path_);
     }
-    resolvedPath = fs::read_symlink(path).string();
+    std::string resolvedPath = fs::read_symlink(path_).string();
+    std::cout << "Found symlink path: " << path_ << ", using real path: " << resolvedPath << std::endl;
+    path_ = resolvedPath;
     return Result::OK();
 }
 
-Result SafePath::CheckWriterForGroupOthers(const std::string& path) const
-{
-    struct stat st;
-    if (lstat(path.c_str(), &st) != 0) {
-        return Result::Error(ResultCode::NO_PERMISSION, "Cannot stat path: " + path);
-    }
-    if ((st.st_mode & static_cast<mode_t>(S_IWGRP)) != 0 || (st.st_mode & static_cast<mode_t>(S_IWOTH)) != 0) {
-        return Result::Error(ResultCode::RISK_ALERT, "Path writable by group or others: " + path);
-    }
-    return Result::OK();
-}
-
-Result SafePath::CheckMode(const std::string& path) const
+Result SafePath::CheckMode() const
 {
     auto it = modeMap.find(mode_);
     if (it == modeMap.end()) {
@@ -293,31 +282,90 @@ Result SafePath::CheckMode(const std::string& path) const
             "Unsupported mode: " + mode_ + ". Only supported modes are: " + keys);
     }
     int accessMode = it->second;
-    if (access(path.c_str(), accessMode) != 0) {
+    if (access(path_.c_str(), accessMode) != 0) {
         return Result::Error(ResultCode::NO_PERMISSION,
-            "Insufficient permissions for mode '" + mode_ + "' on path: " + path);
+            "Insufficient permissions for mode '" + mode_ + "' on path: " + path_);
     }
     return Result::OK();
 }
 
-Result SafePath::CheckPermission(const std::string& path) const
+Result SafePath::CheckMaxPermission() const
 {
-    uid_t uid = geteuid();
-    if (uid != 0) {
-        // 不是 root 用户才检查写权限
-        Result r = CheckWriterForGroupOthers(path);
-        if (!r.IsOk()) {
-            return r;
-        }
+    if (maxPermission_ == fs::perms::unknown) {
+        return Result::Error(ResultCode::INVALID_ARGUMENT, "Maximum permission is not configured");
     }
-    Result r = CheckMode(path);
+    struct ::stat st;
+    if (lstat(path_.c_str(), &st) != 0) {
+        return Result::Error(ResultCode::NO_PERMISSION, "Cannot stat path: " + path_);
+    }
+    mode_t actualPerm = st.st_mode & static_cast<mode_t>(0777);
+    mode_t maxPerm = static_cast<mode_t>(maxPermission_);
+    uid_t current_uid = ::getuid();
+    if (((actualPerm & ~maxPerm) == 0) || current_uid == 0) {
+        return Result::OK();
+    }
+    std::ostringstream ossCheckMaxPermission;
+    ossCheckMaxPermission << "Path permission exceeds maximum allowed: " << path_
+                          << ", actual=0" << std::oct << actualPerm
+                          << ", limit=0" << std::oct << maxPerm;
+    std::string isCheckPermission;
+    EnvVar::GetInstance().Get(MINDIE_CHECK_INPUTFILES_PERMISSION, DEFAULT_CHECK_PERM, isCheckPermission);
+    if (isCheckPermission != IGNORE_CHECK) {
+        return Result::Error(ResultCode::NO_PERMISSION, ossCheckMaxPermission.str());
+    } else {
+        std::cout << ossCheckMaxPermission.str()
+            << ", permission check is disabled by env "
+            << MINDIE_CHECK_INPUTFILES_PERMISSION
+            << ", excessive permission is ignored, this may introduce security risks" << std::endl;
+        return Result::OK();
+    }
+}
+
+Result SafePath::CheckOwner() const
+{
+    struct ::stat st;
+    if (lstat(path_.c_str(), &st) != 0) {
+        return Result::Error(ResultCode::NO_PERMISSION, "Cannot stat path: " + path_);
+    }
+    uid_t current_uid = ::getuid();
+    if ((current_uid == st.st_uid) || (current_uid == 0)) {
+        return Result::OK();
+    }
+    std::ostringstream ossCheckOwner;
+    ossCheckOwner << "path owner uid mismatch: path=" << path_
+                  << ", current_uid=" << std::to_string(static_cast<unsigned long>(current_uid))
+                  << ", path_uid=" << std::to_string(static_cast<unsigned long>(st.st_uid));
+    std::string isCheckPermission;
+    EnvVar::GetInstance().Get(MINDIE_CHECK_INPUTFILES_PERMISSION, DEFAULT_CHECK_PERM, isCheckPermission);
+    if (isCheckPermission != IGNORE_CHECK) {
+        return Result::Error(ResultCode::NO_PERMISSION, ossCheckOwner.str());
+    } else {
+        std::cout << ossCheckOwner.str()
+            << ", permission check is disabled by env "
+            << MINDIE_CHECK_INPUTFILES_PERMISSION
+            << ", owner mismatch is ignored, this may introduce security risks" << std::endl;
+        return Result::OK();
+    }
+}
+
+Result SafePath::CheckPermission() const
+{
+    Result r = CheckOwner();
+    if (!r.IsOk()) {
+        return r;
+    }
+    r = CheckMode();
+    if (!r.IsOk()) {
+        return r;
+    }
+    r = CheckMaxPermission();
     if (!r.IsOk()) {
         return r;
     }
     return Result::OK();
 }
 
-Result SafePath::CheckSpecialChars()
+Result SafePath::CheckSpecialChars() const
 {
     const std::regex VALID_PATH_PATTERN(R"(^(?!.*\.\.)[a-zA-Z0-9_./-]+$)");
     if (!std::regex_match(path_, VALID_PATH_PATTERN)) {
@@ -326,7 +374,7 @@ Result SafePath::CheckSpecialChars()
     return Result::OK();
 }
 
-Result SafePath::CheckPathLength()
+Result SafePath::CheckPathLength() const
 {
     if (path_.length() > MAX_PATH_LENGTH) {
         return Result::Error(ResultCode::RISK_ALERT,
@@ -347,7 +395,7 @@ Result SafePath::CheckPathLength()
     return Result::OK();
 }
 
-Result SafePath::CheckFileSuffix()
+Result SafePath::CheckFileSuffix() const
 {
     if (!suffix_.empty() && !IsSuffix(path_, suffix_)) {
         return Result::Error(ResultCode::INVALID_ARGUMENT, path_ + " is not a " + suffix_ + " file.");
@@ -355,32 +403,62 @@ Result SafePath::CheckFileSuffix()
     return Result::OK();
 }
 
-Result SafePath::CheckFileSize()
+Result SafePath::CheckFileSize() const
 {
     if (sizeLimitation_ == 0) {
         return Result::OK();
     }
-    auto size = fs::file_size(path_);
-    if (size > sizeLimitation_) {
-        return Result::Error(ResultCode::RISK_ALERT, "File size exceeds limit: " + std::to_string(sizeLimitation_));
+    try {
+        auto size = fs::file_size(path_);
+        if (size > sizeLimitation_) {
+            return Result::Error(ResultCode::RISK_ALERT, "File size exceeds limit: " + std::to_string(sizeLimitation_));
+        }
+    } catch (const fs::filesystem_error& e) {
+        return Result::Error(ResultCode::IO_FAILURE, "Failed to get file size for " + path_ + ": " + e.what());
     }
     return Result::OK();
 }
 
-Result SafePath::CheckDirSize()
+Result SafePath::CheckDirSize() const
 {
     if (sizeLimitation_ == 0) {
         return Result::OK();
     }
-    size_t totalSize = 0;
-    for (auto& p : fs::recursive_directory_iterator(path_)) {
-        if (fs::is_regular_file(p.path())) {
-            totalSize += fs::file_size(p.path());
-            if (totalSize > sizeLimitation_) {
-                return Result::Error(ResultCode::RISK_ALERT, "Directory size exceeds limit");
+    try {
+        size_t totalSize = 0;
+        for (auto& p : fs::recursive_directory_iterator(path_)) {
+            if (fs::is_regular_file(p.path())) {
+                totalSize += fs::file_size(p.path());
+                if (totalSize > sizeLimitation_) {
+                    return Result::Error(ResultCode::RISK_ALERT, "Directory size exceeds limit");
+                }
             }
         }
+    } catch (const fs::filesystem_error& e) {
+        return Result::Error(ResultCode::IO_FAILURE, "Failed to traverse directory " + path_ + ": " + e.what());
     }
+    return Result::OK();
+}
+
+Result MakeDirs(const std::string& pathStr)
+{
+    if (fs::exists(pathStr)) {
+        return Result::OK();
+    }
+    std::string makingPath;
+    SafePath checkDir(pathStr, PathType::DIR, "w", PERM_750);
+    Result r = checkDir.Check(makingPath, false);
+    if (!r.IsOk()) {
+        return r;
+    }
+    try {
+        fs::create_directories(makingPath);
+    } catch (const fs::filesystem_error &e) {
+        return Result::Error(
+            ResultCode::IO_FAILURE, "Failed to create directories for " + makingPath + ": " + e.what()
+        );
+    }
+    ChangePermission(makingPath, PERM_750);
     return Result::OK();
 }
 

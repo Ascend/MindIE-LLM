@@ -56,7 +56,7 @@ void GetJsonModelConfig(struct ModelDeployConfig &modelConfig)
 {
     std::string modelConfigPath = modelConfig.modelWeightPath + "/config.json";
     Json configJsonData;
-    mindie_llm::Result r = mindie_llm::LoadJson(modelConfigPath, configJsonData);
+    Result r = LoadJson(modelConfigPath, configJsonData);
     if (!r.IsOk()) {
         MINDIE_LLM_LOG_ERROR(r.message());
         modelConfig.modelWeightPath.clear();
@@ -79,7 +79,7 @@ void GetJsonModelConfig(struct ModelDeployConfig &modelConfig)
     std::string modelGenerationConfigPath = modelConfig.modelWeightPath + "/generation_config.json";
 
     Json generationConfigJsonData;
-    r = mindie_llm::LoadJson(modelGenerationConfigPath, generationConfigJsonData);
+    r = LoadJson(modelGenerationConfigPath, generationConfigJsonData);
     if (!r.IsOk()) {
         MINDIE_LLM_LOG_WARN(r.message());
         return;
@@ -480,8 +480,8 @@ bool ModelDeployConfigManager::CheckParam()
                 LLM_MANAGER_CONFIG_FAILED);
             initFlag = false;
         }
-        mindie_llm::SafePath modelWeightPath(modelParam.modelWeightPath, mindie_llm::PathType::DIR, "r");
-        mindie_llm::Result r = modelWeightPath.Check(modelParam.modelWeightPath);
+        SafePath modelWeightPath(modelParam.modelWeightPath, PathType::DIR, "r", PERM_750);
+        Result r = modelWeightPath.Check(modelParam.modelWeightPath);
         if (!r.IsOk()) {
             MINDIE_LLM_LOG_ERROR(r.message());
             initFlag = false;
@@ -494,8 +494,8 @@ bool ModelDeployConfigManager::CheckParam()
     for (auto &loraParam : loraModules_) {
         std::string loraName = loraParam.loraName;
         initFlag = CheckModelNameLength(loraName, "loraName");
-        mindie_llm::SafePath modelWeightPath(loraParam.loraPath, mindie_llm::PathType::DIR, "r");
-        mindie_llm::Result r = modelWeightPath.Check(loraParam.loraPath);
+        SafePath modelWeightPath(loraParam.loraPath, PathType::DIR, "r", PERM_750);
+        Result r = modelWeightPath.Check(loraParam.loraPath);
         if (!r.IsOk()) {
             MINDIE_LLM_LOG_ERROR(r.message());
             initFlag = false;

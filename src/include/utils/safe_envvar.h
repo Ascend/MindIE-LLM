@@ -21,8 +21,10 @@ inline const char *MINDIE_LOG_LEVEL = "MINDIE_LOG_LEVEL";
 inline const char *MINDIE_LOG_TO_FILE = "MINDIE_LOG_TO_FILE";
 inline const char *MINDIE_LOG_TO_STDOUT = "MINDIE_LOG_TO_STDOUT";
 inline const char *MIES_INSTALL_PATH = "MIES_INSTALL_PATH";
+inline const char *MINDIE_CHECK_INPUTFILES_PERMISSION = "MINDIE_CHECK_INPUTFILES_PERMISSION";
 
 const std::string DEFAULT_MIES_INSTALL_PATH = "/usr/local/Ascend/mindie/latest/mindie-service";
+const std::string DEFAULT_CHECK_PERM = "";
 
 
 class EnvVar {
