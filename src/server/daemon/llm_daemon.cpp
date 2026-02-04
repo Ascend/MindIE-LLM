@@ -337,11 +337,11 @@ void RunEP(std::unordered_map<std::string, std::string> commandLineArgsMap)
         while (!g_processExit) {
             std::unique_lock<std::mutex> lock(g_exitMtx);
             g_exitCv.wait(lock, []() { return g_processExit; });
+            ep.GetHealthcheckerInstance().EnqueueErrorMessage(
+                GenerateDaemonErrCode(ERROR, SUBMODLE_FEATURE_INIT, SUBPROCESS_ERROR),
+                SUBMODLE_NAME_DAEMON);
             if (g_processExit && g_expertParallel) {
                 ULOG_INFO(SUBMODLE_NAME_DAEMON, "Update Status By ErrorItem");
-                ep.GetHealthcheckerInstance().EnqueueErrorMessage(
-                    GenerateDaemonErrCode(ERROR, SUBMODLE_FEATURE_INIT, SUBPROCESS_ERROR),
-                    SUBMODLE_NAME_DAEMON);
                 g_processExit = false;
             }
         }

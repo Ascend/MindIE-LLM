@@ -110,6 +110,8 @@ public:
 
     PDRoleStatus GetPDRoleStatus() const;
 
+    bool IsLlmEngineReady() const;
+    
     void SetPDRoleStatus(PDRoleStatus status);
 
     void UpdatePDRole(const std::string &role);

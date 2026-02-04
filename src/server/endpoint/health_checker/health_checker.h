@@ -1,3 +1,4 @@
+
 /*
  * Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
  * MindIE is licensed under Mulan PSL v2.
@@ -10,8 +11,8 @@
  * See the Mulan PSL v2 for more details.
  */
 
-#ifndef OCK_ENDPOINT_HEALTH_CHECKER_WRAPPER_H
-#define OCK_ENDPOINT_HEALTH_CHECKER_WRAPPER_H
+#ifndef OCK_HEALTH_CHECKER_H
+#define OCK_HEALTH_CHECKER_H
 
 #include <vector>
 #include <shared_mutex>
@@ -40,37 +41,19 @@ enum ServiceStatus : uint32_t {
     SERVICE_BUSY = 5
 };
 
-enum EndpointStatusCode : uint32_t {
-    STATUS_CODE_INIT = 0b111,
-    STATUS_CODE_NORMAL = 0b000,
-    STATUS_CODE_PAUSE = 0b100,
-    STATUS_CODE_ABNORMAL = 0b001,
-    STATUS_CODE_READY = 0b010,
-    STATUS_CODE_ABNORMAL_PAUSE = 0b101,
-    STATUS_CODE_ABNORMAL_READY = 0b011
-};
-
 struct ErrorItem {
-    struct Addition {
-        std::string deviceIP;
-        int deviceID;
-        Addition() : deviceIP(""), deviceID(-1) {}
-        Addition(const std::string &deviceIP, const int &deviceID) : deviceIP(deviceIP), deviceID(deviceID) {}
-    };
-
     int64_t timestamp;
     std::string errCode;
     std::string createdBy;
-    Addition addition;
     ErrorItem()
         : timestamp(
             std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch())
             .count()),
-          errCode(""), createdBy(""), addition() {}
-    ErrorItem(const std::string &errCode, const std::string &createdBy, const std::string &deviceIP,
-              const int &deviceID, const std::chrono::time_point<std::chrono::system_clock> &timestamp)
+          errCode(""), createdBy("") {}
+    ErrorItem(const std::string &errCode, const std::string &createdBy,
+        const std::chrono::time_point<std::chrono::system_clock> &timestamp)
         : timestamp(std::chrono::duration_cast<std::chrono::milliseconds>(timestamp.time_since_epoch()).count()),
-          errCode(errCode), createdBy(createdBy), addition(deviceIP, deviceID) {}
+          errCode(errCode), createdBy(createdBy) {}
 };
 
 class HealthChecker {
@@ -78,16 +61,13 @@ public:
     static HealthChecker &GetInstance();
     ~HealthChecker();
     ServiceStatus GetServiceStatus();
-    EndpointStatusCode GetEndpointStatusCode();
     void GetStatusAndErrorList(ServiceStatus &status, std::vector<ErrorItem> &errorList);
     void UpdateNpuDeviceIds(const std::set<int> &npuDeviceIds);
-    void UpdateStatusByCode(const EndpointStatusCode &code);
+    void UpdateStatus(const ServiceStatus &status);
     void EnqueueErrorMessage(
-        const std::string &errCode, const std::string &createdBy, const std::string &deviceIP = "",
-        const int &deviceID = -1,
+        const std::string &errCode, const std::string &createdBy,
         const std::chrono::time_point<std::chrono::system_clock> &timestamp = std::chrono::system_clock::now());
     void PrintNpuDeviceIds();
-    std::string CodeToString(const EndpointStatusCode &code) const;
     std::string StatusToString(const ServiceStatus &status) const;
     bool Start();
     void Stop();
@@ -99,20 +79,21 @@ public:
 
 private:
     std::atomic<ServiceStatus> mServiceStatus;
-    std::atomic<EndpointStatusCode>
-        mEndpointStatusCode; // Status code bits: [PAUSE(bit 2), READY(bit 1), ABNORMAL(bit 0)]
     int mChipPerCard = 1;    // A2: 1, A3: 2
     mindie_llm::ConcurrentDeque<ErrorItem> mErrorList;
     std::set<int> mNpuDeviceCardIds;
     std::string mEngineName;
-    std::shared_mutex mNpuDevicesMutex;
+    mutable std::shared_mutex mNpuDevicesMutex;
     std::thread mCheckerThread;
     std::atomic<bool> mRunning;
+    std::mutex mStatusMutex; // 状态锁
     std::unordered_map<int, std::vector<int>> statusTransferMap;
     static constexpr int checkIntervalSeconds = 5;
     static constexpr int maxErrorListSize = 100;
 
     void CheckServiceStatus();
+    bool WaitForLlmEngineReady();
+    void PerformPeriodicHealthCheck();
     void GetChipPerCard();
     void UpdateErrorList(
         const std::string &errCode, const std::string &createdBy, const std::string &deviceIP, const int &deviceID,
@@ -120,13 +101,25 @@ private:
 
     bool CheckErrorListEmpty();
     // npu monitor for self health check
-    bool CheckModelInstanceStarted() const;
-    std::vector<int> GetAicoreUsages(int npuId) const;
     std::string ExecuteCommand(const std::string &cmd) const;
-    std::vector<int> ParseAicoreUsage(const std::string &output) const;
-    bool CheckAllNpuAicoreUsage();
-    bool CheckVirtualInfer() const;
-    bool IsValidStatusTransition(const EndpointStatusCode &from, const EndpointStatusCode &to);
+    ServiceStatus CheckSimulateTask();
+    void HandleHealthStatus();
+    bool IsValidStatusTransition(const ServiceStatus &from, const ServiceStatus &to);
+
+    // 虚推相关方法
+    std::shared_ptr<ISimulateExecutor> CreateSimulateExecutor();
+    bool StartSimulateTask();
+    bool CreateAndInitSimulateRunner();
+    bool InitNpuDeviceCardIds();
+
+    // 虚推执行器和任务运行器
+    std::shared_ptr<ISimulateExecutor> mSimulateExecutor;
+    std::unique_ptr<SimulateTaskRunner> mSimulateRunner;
+    std::atomic<bool> mSimulateTaskStarted{false};
+
+    // 虚推探测开关和阈值
+    int mNPUThreshold = 0;  // 默认为0，表示不开启虚推健康探测
+    std::atomic<bool> mSimulateTaskEnable{false};
 
 private:
     HealthChecker();

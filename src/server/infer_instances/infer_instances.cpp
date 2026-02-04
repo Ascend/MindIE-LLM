@@ -731,5 +731,19 @@ void InferInstance::UpdatePDRole(const std::string &role)
     }
 }
 
+bool InferInstance::IsLlmEngineReady() const
+{
+    if (llmManagers_.empty()) {
+        return false;
+    }
+    // 检查所有 LlmManager 是否都已就绪
+    for (const auto &manager : llmManagers_) {
+        if (manager == nullptr || !manager->IsLlmEngineReady()) {
+            return false;
+        }
+    }
+    return true;
+}
+
 std::shared_ptr<InferInstance> GetInferInstance() { return InferInstance::GetInstance(); }
 } // namespace mindie_llm

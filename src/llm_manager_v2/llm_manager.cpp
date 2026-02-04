@@ -168,5 +168,13 @@ bool LlmManagerV2::ExecuteRecoverCommand(RecoverCommandInfo &commandInfo)
     return impl_->ExecuteRecoverCommand(commandInfo);
 }
 
+bool LlmManagerV2::IsLlmEngineReady() const
+{
+    if (impl_ == nullptr) {
+        return false;
+    }
+    return impl_->IsLlmEngineReady();
+}
+
 LlmManagerV2::~LlmManagerV2() = default;
 } // namespace mindie_llm

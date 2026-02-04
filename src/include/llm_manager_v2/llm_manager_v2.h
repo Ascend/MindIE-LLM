@@ -102,6 +102,10 @@ public:
 
     bool ExecuteRecoverCommand(RecoverCommandInfo &commandInfo);
 
+    /// Check if LlmEngine is fully ready to accept requests
+    /// \return true if Engine is fully started and ready, false otherwise
+    bool IsLlmEngineReady() const;
+
     ~LlmManagerV2();
 private:
     std::shared_ptr<LlmManagerImpl> impl_;

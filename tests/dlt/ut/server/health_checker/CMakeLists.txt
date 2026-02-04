@@ -1,2 +1,1 @@
 build_test(server_health_checker ut "mindie_llm_utils;mindieservice_endpoint_static;mindieservice_infer_instances;dl;" "${PROJECT_SOURCE_DIR}/src/server/include;${PROJECT_SOURCE_DIR}/src/include;${PROJECT_SOURCE_DIR}/src/include/config;${PROJECT_SOURCE_DIR}/src/include/utils;${PROJECT_SOURCE_DIR}/src/server/endpoint;${PROJECT_SOURCE_DIR}/src/server/endpoint/utils;${PROJECT_SOURCE_DIR}/src/server/endpoint/health_checker;${PROJECT_SOURCE_DIR}/src/server/infer_instances;${PROJECT_SOURCE_DIR}/src/config_manager;${PROJECT_SOURCE_DIR}/tests/dlt/ut/server/utils")
-

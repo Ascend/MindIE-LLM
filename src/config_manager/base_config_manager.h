@@ -149,6 +149,8 @@ private:
 
     void InitLayerwiseDisaggregatedConfigFromJson(Json &serveJsonData);
 
+    void LoadOptionalParameters(Json& serverParamsJsonData);
+    
     std::string GetIPAddress(Json &serveJsonData);
 
     std::string GetManagementIPAddress(Json &serveJsonData);

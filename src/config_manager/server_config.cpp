@@ -46,6 +46,7 @@ static std::vector<ParamSpec> g_serverParamsConstraint = {
     {"metricsTlsCaFile", "array", false},
     {"metricsTlsPk", "string", false},
     {"fullTextEnabled", "bool", false},
+    {"npuUsageThreshold", "uint32_t", false},
     {"inferMode", "string", true},
     {"allowAllZeroIpListening", "bool", true},
     {"openAiSupport", "string", false},
@@ -309,10 +310,25 @@ bool ServerConfigManager::InitFromJson()
     serverConfig_.e2eTimeout = serverParamsJsonData["e2eTimeout"];
     serverConfig_.fullTextEnabled = ParamChecker::GetBoolParamValue(serverParamsJsonData, "fullTextEnabled", false);
     serverConfig_.distDPServerEnabled = serverParamsJsonData["distDPServerEnabled"];
+    
+    LoadOptionalParameters(serverParamsJsonData);
+    InitLayerwiseDisaggregatedConfigFromJson(serverParamsJsonData);
+    return initFlag;
+}
+
+void ServerConfigManager::LoadOptionalParameters(Json& serverParamsJsonData)
+{
     if (serverParamsJsonData.contains("maxRequestLength")) {
         serverConfig_.maxRequestLength = serverParamsJsonData["maxRequestLength"];
         CHECK_CONFIG_VALIDATION(initFlag, ParamChecker::CheckMaxMinValue<uint32_t>(serverConfig_.maxRequestLength, 100U,
                                                                                   1U, "serverConfig.maxRequestLength"));
+    }
+    if (serverParamsJsonData.contains("healthCheck") &&
+        serverParamsJsonData["HealthCheckConfig"].contains("npuUsageThreshold")) {
+        serverConfig_.npuUsageThreshold = serverParamsJsonData["healthCheck"]["npuUsageThreshold"];
+        CHECK_CONFIG_VALIDATION(initFlag,
+            ParamChecker::CheckMaxMinValue<uint32_t>(serverConfig_.npuUsageThreshold, 100U,
+            0U, "serverConfig.npuUsageThreshold"));
     }
     if (serverParamsJsonData.contains("inferMode")) {
         serverConfig_.inferMode = serverParamsJsonData["inferMode"];
@@ -339,7 +355,8 @@ bool ServerConfigManager::InitFromJson()
             InitHttpsConfigFromJson(serverParamsJsonData, checkManagement);
         } catch (const nlohmann::json::type_error &e) {
             std::cout << "JSON type error: " << "[ServerConfigManager::InitFromJson] " << e.what() << std::endl;
-            return false;
+            initFlag = false;
+            return;
         }
     }
     if (serverParamsJsonData.contains("openAiSupport") &&
@@ -348,9 +365,6 @@ bool ServerConfigManager::InitFromJson()
     } else {
         serverConfig_.openAiSupportedvLLM = true;
     }
-
-    InitLayerwiseDisaggregatedConfigFromJson(serverParamsJsonData);
-    return initFlag;
 }
 
 bool ServerConfigManager::CheckParam()

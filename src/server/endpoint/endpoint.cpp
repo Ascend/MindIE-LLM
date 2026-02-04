@@ -138,18 +138,14 @@ int EndPoint::StartEndpoint()
 
 int EndPoint::StartHealthChecker()
 {
-    if (mExpertParallel) {
-        ULOG_INFO(SUBMODLE_NAME_ENDPOINT, "mExpertParallel is true, healthchecker init");
-        if (!HealthChecker::GetInstance().Start()) {
-            ULOG_ERROR(SUBMODLE_NAME_ENDPOINT, GenerateEndpointErrCode(ERROR, SUBMODLE_FEATURE_INIT, INIT_ERROR),
-                "Failed to start healtchecker wrapper");
-            ULOG_AUDIT("system", MINDIE_SERVER, "Start mindie server", "fail");
-            return -1;
-        }
-        mHealthcheckerStarted = true;
-    } else {
-        ULOG_INFO(SUBMODLE_NAME_ENDPOINT, "mExpertParallel is false, healthchecker init skipped");
+    ULOG_INFO(SUBMODLE_NAME_ENDPOINT, "healthchecker init and start");
+    if (!HealthChecker::GetInstance().Start()) {
+        ULOG_ERROR(SUBMODLE_NAME_ENDPOINT, GenerateEndpointErrCode(ERROR, SUBMODLE_FEATURE_INIT, INIT_ERROR),
+            "Failed to start healtchecker wrapper");
+        ULOG_AUDIT("system", MINDIE_SERVER, "Start mindie server", "fail");
+        return -1;
     }
+    mHealthcheckerStarted = true;
     return 0;
 }
 

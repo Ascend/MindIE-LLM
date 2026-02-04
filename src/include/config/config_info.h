@@ -45,6 +45,7 @@ struct ServerConfig {
     int32_t metricsPort = 1027;
     bool allowAllZeroIpListening = false;
     uint32_t maxLinkNum = 1000U;
+    uint32_t npuUsageThreshold = 10U;
     bool httpsEnabled = true;
     bool fullTextEnabled = false;
     bool pluginEnabled = false;

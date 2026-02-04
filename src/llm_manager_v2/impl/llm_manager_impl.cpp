@@ -1216,6 +1216,11 @@ Status LlmManagerImpl::LaunchLlmEngine(Role pdRole)
     InitEngineDPProcessGroup(schedulerConfig); // 初始化分布式多DP进程通信资源
     llmEnginePtr_->StartEngineThread(); // 启动Engine调度线程
 
+    // 标记Engine已就绪。请求会进入Scheduler队列，调度线程会按正常流程处理
+    // 无需等待线程启动，因为队列和调度机制本身是线程安全的
+    llmEngineReady_.store(true, std::memory_order_release);
+    MINDIE_LLM_LOG_INFO("[LaunchLlmEngine] Engine started and ready to accept requests.");
+
     // 注意，一定要在BatchSchduler初始化成功后再改变pdRole，以保证Scheduler初始化失败时，角色信息保持不变
     pdRole_ = pdRole;
     if (pdRole_ == Role::FlexP) {
