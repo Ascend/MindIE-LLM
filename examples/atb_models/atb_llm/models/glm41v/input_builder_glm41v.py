@@ -79,6 +79,26 @@ class Glm41vInputBuilder(InputBuilder):
         shm_name_save_path = os.path.join(shm_name_save_dir, "shm_name.txt")
         return shm_name_save_path
 
+    @staticmethod
+    def check_image_and_video_concurrency(content: List[Dict]):
+        """
+        Check for concurrent presence of image and video content in the same prompt.
+
+        Validates that the content list does not contain both image and video entries.
+
+        Args:
+            content: List of dictionaries representing content items. Each dictionary may contain
+                    the image or video keys to indicate content type.
+
+        Raises:
+            ValueError: When both image and video content types are detected in the same prompt.
+        """
+        if any(item.get(IMAGE) for item in content) \
+            and any(item.get(VIDEO) for item in content):
+            msg = "Image and video cannot exist in single prompt at the same time."
+            logger.error(msg, ErrorCode.ATB_MODELS_PARAM_INVALID)
+            raise ValueError(msg)
+
     def generate_position_ids(self, input_ids):
         position_ids = np.arange(len(input_ids), dtype=np.int64)
         if np.any(np.equal(input_ids, self.image_start_token_id)):
@@ -97,11 +117,9 @@ class Glm41vInputBuilder(InputBuilder):
             for i in range(_SHM_TOKEN_LEN):
                 input_tokens[boi_pos + i + 1] = self.image_token_id
             input_type_group = self._get_token_type(input_tokens)
-            llm_pos_ids_list = []
             video_frame_num = 1
             st_idx = 0
             for modality_type, start_idx, end_idx in input_type_group:
-                st_idx = llm_pos_ids_list[-1].max() + 1 if len(llm_pos_ids_list) > 0 else 0
                 if modality_type == IMAGE:
                     llm_grid_t, llm_grid_h, llm_grid_w = (
                         image_grid_thw[image_index][0].item(),
@@ -127,7 +145,7 @@ class Glm41vInputBuilder(InputBuilder):
                     text_len = end_idx - start_idx
                     st_idx += text_len
                     video_frame_num = 1
-            position_ids[-1] = position_ids[-1] - st_idx
+            position_ids[-1] = st_idx - 1
         return position_ids
 
     def make_context(
@@ -146,8 +164,10 @@ class Glm41vInputBuilder(InputBuilder):
         shm_name_save_path = kwargs.get('shm_name_save_path', None)
         conversation_list = [] 
         for single_conversation in conversation:
+            content = single_conversation[CONTENT]
+            self.check_image_and_video_concurrency(content)
             message_list = []
-            for item in single_conversation[CONTENT]:
+            for item in content:
                 if item.get(IMAGE, None):
                     img_fname = item[IMAGE]
                     img = safe_open_image(PIL.Image, img_fname)
