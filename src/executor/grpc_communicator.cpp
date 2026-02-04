@@ -20,6 +20,7 @@
 
 using grpc::Server;
 using grpc::ServerBuilder;
+
 namespace fs = std::experimental::filesystem;
 namespace mindie_llm {
 bool ReadFileToString(const fs::path &filePath, std::string &outContent)
@@ -154,6 +155,9 @@ bool GRPCCommunicator::InitMaster(int respHandlerThreadCount)
         std::string localAddr = FormatGrpcAddress(masterIP_, multiNodesInferPort_);
         pthread_setname_np(pthread_self(), "GRPCServer");
         ServerBuilder builder;
+        builder.AddChannelArgument(GRPC_ARG_MAX_CONCURRENT_STREAMS, maxConcurrentStreams);
+        builder.SetMaxReceiveMessageSize(grpcSendReceiveBufSize);
+        builder.SetMaxSendMessageSize(grpcSendReceiveBufSize);
         std::shared_ptr<grpc::ServerCredentials> creds;
         if (interNodeTLSEnabled_) {
             std::vector<grpc::experimental::IdentityKeyCertPair> identityKeyCertPairList = {
@@ -226,6 +230,10 @@ bool GRPCCommunicator::InitSlave()
     while (retryCount++ < maxRetries) {
         try {
             MINDIE_LLM_LOG_INFO("GRPCCommunicator: attempting connection to server at IP = " + masterIP_ + ", port = " + multiNodesInferPort_);
+            grpc::ChannelArguments channelArgs;
+            channelArgs.SetInt(GRPC_ARG_MAX_CONCURRENT_STREAMS, maxConcurrentStreams);
+            channelArgs.SetInt(GRPC_ARG_MAX_RECEIVE_MESSAGE_LENGTH, grpcSendReceiveBufSize);
+            channelArgs.SetInt(GRPC_ARG_MAX_SEND_MESSAGE_LENGTH, grpcSendReceiveBufSize);
             std::shared_ptr<grpc::ChannelCredentials> creds;
             if (interNodeTLSEnabled_) {
                 std::vector<grpc::experimental::IdentityKeyCertPair> identityKeyCertPairList = {
@@ -260,7 +268,8 @@ bool GRPCCommunicator::InitSlave()
             } else {
                 creds = grpc::InsecureChannelCredentials();
             }
-            channel_ = grpc::CreateChannel(FormatGrpcAddress(masterIP_, multiNodesInferPort_), creds);
+            channel_ =
+                grpc::CreateCustomChannel(FormatGrpcAddress(masterIP_, multiNodesInferPort_), creds, channelArgs);
             stub_ = MasterService::NewStub(channel_);
             context_ = std::make_unique<grpc::ClientContext>();
             slaveStream_ = stub_->RegisterAndCommunicate(context_.get());
@@ -324,10 +333,17 @@ void GRPCCommunicator::StartWorkerThread()
     slaveWorkerThread_ = std::thread([this] {
         pthread_setname_np(pthread_self(), "GRPCSlave");
         MasterToSlaveMsg task;
-        while (slaveStream_->Read(&task)) {
-            int targetDPRank = task.target_dp_rank();
-            ExecuteRequest request = task.execute_request();
-            HandleRequestFromMaster(request, targetDPRank);
+        try {
+            while (slaveStream_->Read(&task)) {
+                int targetDPRank = task.target_dp_rank();
+                ExecuteRequest request = task.execute_request();
+                HandleRequestFromMaster(request, targetDPRank);
+            }
+            MINDIE_LLM_LOG_INFO("gRPC Slave Worker Thread: stream closed by server");
+        } catch (const std::exception &e) {
+            MINDIE_LLM_LOG_ERROR("gRPC Slave Worker Thread Exception: " + std::string(e.what()));
+        } catch (...) {
+            MINDIE_LLM_LOG_ERROR("gRPC Slave Worker Thread unknown exception");
         }
     });
 }
