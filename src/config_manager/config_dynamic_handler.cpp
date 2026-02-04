@@ -83,7 +83,7 @@ std::vector<std::string> DynamicConfigHandler::splitString(const std::string& s,
 
 std::string DynamicConfigHandler::getConfigFilePath() const
 {
-    const char *miesInstallPath = std::getenv("MIES_INSTALL_PATH");
+    const char *miesInstallPath = std::getenv("MINDIE_LLM_HOME_PATH");
     if (miesInstallPath != nullptr) {
         return std::string(miesInstallPath) + "/conf/config.json";
     }

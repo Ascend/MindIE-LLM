@@ -785,7 +785,7 @@ class TestGeneratorTorch(unittest.TestCase):
         expect_msg = ("The length of `model_name` should be in range of [1, 256]. If you are using MindIE as a"
                       " service framework, `model_name` is loaded from "
                       "$BackendConfig.ModelDeployConfig.ModelConfig.modelName "
-                      "in ${MIES_INSTALL_PATH}/conf/config.json.")
+                      "in ${MINDIE_LLM_HOME_PATH}/conf/config.json.")
         with self.assertRaises(ValueError) as cm:
             check_model_config(model_config)
         self.assertIn(expect_msg, str(cm.exception))
@@ -800,7 +800,7 @@ class TestGeneratorTorch(unittest.TestCase):
         expect_msg = ("`max_position_embeddings` must be greater than 0. If you are using MindIE as a service framework,"
                       " `max_position_embeddings` is derived from "
                       "$BackendConfig.ModelDeployConfig.ModelConfig.max_position_embeddings in "
-                      "${MIES_INSTALL_PATH}/conf/config.json.")
+                      "${MINDIE_LLM_HOME_PATH}/conf/config.json.")
         with self.assertRaises(ValueError) as cm:
             check_model_config(model_config)
         self.assertIn(expect_msg, str(cm.exception))

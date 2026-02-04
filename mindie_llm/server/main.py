@@ -55,7 +55,7 @@ def main():
 
     # Set environment variables
     env = os.environ.copy()
-    env["MIES_INSTALL_PATH"] = str(pkg_root)
+    env["MINDIE_LLM_HOME_PATH"] = str(pkg_root)
 
     lib_str = "lib"
     lib_dir = pkg_root / lib_str

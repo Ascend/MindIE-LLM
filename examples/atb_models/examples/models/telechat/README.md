@@ -85,8 +85,8 @@ python examples/models/telechat/convert_quant_weights.py --model_path {浮点权
   - telechat-12b-v2模型由于hidden_size变大，传block_size时需要更改为96。
 
 # 服务化推理
-- telechat-12b-v2模型由于hidden_size变大，传block_size时需要更改为96；服务化推理时需要将${MIES_INSTALL_PATH}/conf/config.json文件中的`cacheBlockSize`参数设置为96。
-- telechat-12b-v2模型依赖本地模型文件；服务化推理时需要将${MIES_INSTALL_PATH}/conf/config.json文件中的`trustRemoteCode`参数设置为`true`。
+- telechat-12b-v2模型由于hidden_size变大，传block_size时需要更改为96；服务化推理时需要将${MINDIE_LLM_HOME_PATH}/conf/config.json文件中的`cacheBlockSize`参数设置为96。
+- telechat-12b-v2模型依赖本地模型文件；服务化推理时需要将${MINDIE_LLM_HOME_PATH}/conf/config.json文件中的`trustRemoteCode`参数设置为`true`。
 - 服务化推理使用详情请参考MindIE官网
 
 ## 精度测试

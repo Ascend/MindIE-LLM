@@ -112,9 +112,9 @@ TEST_F(ServerConfigManagerTest, testParamFuncsFail)
 
 TEST_F(ServerConfigManagerTest, InitFromJson)
 {
-    const char* envVal = std::getenv("MIES_INSTALL_PATH");
+    const char* envVal = std::getenv("MINDIE_LLM_HOME_PATH");
     if (envVal != nullptr) {
-        std::cout << "MIES_INSTALL_PATH is: " << envVal << std::endl;
+        std::cout << "MINDIE_LLM_HOME_PATH is: " << envVal << std::endl;
     }
     std::string homePath;
     GetHomePath(homePath);
