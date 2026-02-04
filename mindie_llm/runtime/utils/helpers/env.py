@@ -33,7 +33,7 @@ class EnvVar:
     bind_cpu: bool = os.getenv("BIND_CPU", "1") == "1"
     cpu_binding_num: Optional[str] = os.getenv("CPU_BINDING_NUM", None)
     rank_table_file: str = os.getenv("RANK_TABLE_FILE", "")
-    master_ip: Optional[str] = os.getenv("MASTER_IP", None)
+    master_ip: Optional[str] = os.getenv("MASTER_IP", "127.0.0.1")
     master_port: Optional[str] = os.getenv("MASTER_PORT", None)
 
     def __post_init__(self) -> None:
@@ -56,6 +56,13 @@ class EnvVar:
                 raise ValueError("ASCEND_RT_VISIBLE_DEVICES should be in format "
                                  "{device_id},{device_id},...,{device_id}") from e
 
+        # Check rank table file structure
+        self.check_rank_table(self.rank_table_file)
+        
+        if self.rank_table_file:
+            rank_table_file = json.load(safe_open(self.rank_table_file, 'r', encoding='utf-8'))
+            self.master_ip = rank_table_file[SERVER_LIST][0]['container_ip']
+        
         if self.master_ip is not None and not self.is_valid_ip(self.master_ip):
             raise ValueError(f"MASTER_IP '{self.master_ip}' is invalid")
 
@@ -64,8 +71,6 @@ class EnvVar:
         if self.master_port is not None and (self.master_port < 0 or self.master_port > 65535):
             raise ValueError(f"MASTER_PORT {self.master_port} must be in range [0, 65535]")
 
-        # Check rank table file structure
-        self.check_rank_table(self.rank_table_file)
 
     @staticmethod
     def is_valid_ip(ip: str) -> bool:
