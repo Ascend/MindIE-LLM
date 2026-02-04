@@ -32,7 +32,7 @@ from mindie_llm.utils.log.logging import logger, message_filter
 
 
 DEFAULT_CONFIG_PATH = os.path.join(
-    os.environ.get("ATB_SPEED_HOME_PATH"), 'atb_llm', 'conf', 'config.json'
+    os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'conf', 'config.json'
 )
 
 
