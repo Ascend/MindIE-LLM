@@ -293,7 +293,7 @@ class _NPUNodeInfo:
             "Ascend910B2C",
             "Ascend910B3",
             "Ascend910B4",
-            "Ascend910B4_1",
+            "Ascend910B4-1",
         }:
             return DeviceType.ASCEND_910B
         elif self.soc_name in {
