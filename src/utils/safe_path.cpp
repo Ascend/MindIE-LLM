@@ -15,6 +15,7 @@
 #include <unistd.h>
 #include <pwd.h>
 #include <grp.h>
+#include <cstring>
 #include <iostream>
 #include <sys/stat.h>
 
@@ -37,6 +38,12 @@ static const std::map<std::string, int> modeMap = {
     {"a+",  R_OK | W_OK},     // 读写追加
     {"x",   X_OK}             // 只可执行
 };
+
+const char* GetBasename(const char* path)
+{
+    const char* p = std::strrchr(path, '/');
+    return p ? p + 1 : path;
+}
 
 Result ChangePermission(const std::string& path, const fs::perms& permission)
 {

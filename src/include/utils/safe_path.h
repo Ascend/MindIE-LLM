@@ -30,6 +30,7 @@ inline constexpr size_t SIZE_1MB = 1024 * 1024;
 inline constexpr size_t SIZE_20MB = 20 * 1024 * 1024;
 inline constexpr size_t SIZE_500MB = 500 * 1024 * 1024;
 
+const char* GetBasename(const char* path);
 Result ChangePermission(const std::string& path, const fs::perms& permission);
 Result MakeDirs(const std::string& pathStr);
 

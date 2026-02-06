@@ -53,12 +53,86 @@ void RemoveSpaces(std::string& text)
     text.erase(newEnd, text.end());
 }
 
+void TrimSpaces(std::string& text)
+{
+    // 去掉字符串前面的空格
+    text.erase(text.begin(),
+               std::find_if(text.begin(), text.end(),
+                            [](unsigned char c) {
+                                return !std::isspace(c);
+                            }));
+    // 去掉字符串后面的空格
+    text.erase(std::find_if(text.rbegin(), text.rend(),
+                            [](unsigned char c) {
+                                return !std::isspace(c);
+                            }).base(),
+               text.end());
+}
+
 bool IsSuffix(const std::string& str, const std::string& suffix)
 {
     if (str.length() < suffix.length()) {
         return false;
     }
     return str.compare(str.length() - suffix.length(), suffix.length(), suffix) == 0;
+}
+
+void ToLower(std::string& str)
+{
+    std::transform(str.begin(), str.end(), str.begin(), [](unsigned char c) { return std::tolower(c); });
+}
+
+void ToUpper(std::string& str)
+{
+    std::transform(str.begin(), str.end(), str.begin(), [](unsigned char c) { return std::toupper(c); });
+}
+
+std::unordered_map<std::string, std::string> ParseKeyValueString(
+    const std::string& input,
+    const std::unordered_set<std::string>& validValues, const std::string& defaultKey,
+    char pairDelimiter, char kvDelimiter)
+{
+    std::unordered_map<std::string, std::string> result;
+    std::vector<std::string> segments;
+    Split(input, pairDelimiter, segments);
+    for (auto& seg : segments) {
+        TrimSpaces(seg);
+        ToLower(seg);
+        if (seg.empty()) {
+            continue;
+        }
+        size_t pos = seg.find(kvDelimiter);
+        std::string key, value;
+        if (pos != std::string::npos) {
+            key = seg.substr(0, pos);
+            value = seg.substr(pos + 1);
+        } else {
+            key = defaultKey;
+            value = seg;
+        }
+        if (validValues.empty() || validValues.count(value) > 0) {
+            result[key] = value;
+        }
+    }
+    return result;
+}
+
+std::unordered_map<std::string, std::string>ParseArgs(const std::string& str)
+{
+    std::unordered_map<std::string, std::string> result;
+    std::istringstream iss(str);
+    std::string arg;
+    std::string value;
+    while (iss >> arg) {
+        if (arg.empty() || arg[0] != '-') {
+            throw std::runtime_error("Invalid argument: " + arg);
+        }
+        if (!(iss >> value)) {
+            throw std::runtime_error("Missing value for argument: " + arg);
+        }
+        result[arg] = value;
+    }
+    return result;
 }
 
 } // namespace mindie_llm
