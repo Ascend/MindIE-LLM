@@ -277,7 +277,7 @@ static void InitLoraConfigFromJson(const Json &modelJsonData, std::vector<ModelD
                       << "Please verify that `baseModelName` "
                       << "is defined in $BackendConfig.ModelDeployConfig.ModelConfig.modelName, "
                       << "which is loaded from $BackendConfig.ModelDeployConfig.LoraModules.baseModelName "
-                      << "in ${MIES_INSTALL_PATH}/conf/config.json.");
+                      << "in ${MINDIE_LLM_HOME_PATH}/conf/config.json.");
         } else {
             loraBaseCorrespondence.at(loraBaseModel).push_back(loraName);
         }
@@ -285,7 +285,7 @@ static void InitLoraConfigFromJson(const Json &modelJsonData, std::vector<ModelD
         if (uniqueLoraNames.find(loraName) != uniqueLoraNames.end()) {
             MINDIE_LLM_LOG_WARN("The `name` in `LoraModules` is duplicated and `path` is set to the first one. "
                       << "Please check $BackendConfig.ModelDeployConfig.LoraModules "
-                      << "in ${MIES_INSTALL_PATH}/conf/config.json.");
+                      << "in ${MINDIE_LLM_HOME_PATH}/conf/config.json.");
         } else {
             uniqueLoraNames.insert(loraName);
             loraNamePaths.insert(std::make_pair(loraName, loraPath));

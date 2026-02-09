@@ -44,7 +44,7 @@ protected:
             mindieLlmPath = mindieLlmPathEnv;
         }
 
-        const char* mindieMiesPathEnv = getenv("MIES_INSTALL_PATH");
+        const char* mindieMiesPathEnv = getenv("MINDIE_LLM_HOME_PATH");
         if (mindieMiesPathEnv != nullptr) {
             mindieMiesPath = mindieMiesPathEnv;
         }

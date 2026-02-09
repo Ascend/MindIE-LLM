@@ -42,7 +42,7 @@ def check_model_config(model_config):
         message = "The length of `model_name` should be in range of [1, 256]. " \
                   "If you are using MindIE as a service framework, " \
                   "`model_name` is loaded from $BackendConfig.ModelDeployConfig.ModelConfig.modelName " \
-                  "in ${MIES_INSTALL_PATH}/conf/config.json."
+                  "in ${MINDIE_LLM_HOME_PATH}/conf/config.json."
         logger.error(message, ErrorCode.TEXT_GENERATOR_PARAM_OUT_OF_RANGE)
         raise ValueError(message)
 
@@ -52,7 +52,7 @@ def check_model_config(model_config):
                   "If you are using MindIE as a service framework, " \
                   "`max_position_embeddings` is derived from " \
                   "$BackendConfig.ModelDeployConfig.ModelConfig.max_position_embeddings " \
-                  "in ${MIES_INSTALL_PATH}/conf/config.json."
+                  "in ${MINDIE_LLM_HOME_PATH}/conf/config.json."
         logger.error(message, ErrorCode.TEXT_GENERATOR_PARAM_OUT_OF_RANGE)
         raise ValueError(message)
 

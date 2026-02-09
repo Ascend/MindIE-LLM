@@ -26,8 +26,8 @@ EDGE = 'master'
 class TestCertUtil(unittest.TestCase):
 
     def setUp(self):
-        self.original_mies_install_path = os.getenv("MIES_INSTALL_PATH")
-        os.environ["MIES_INSTALL_PATH"] = "/fake/mies/install"
+        self.original_mies_install_path = os.getenv("MINDIE_LLM_HOME_PATH")
+        os.environ["MINDIE_LLM_HOME_PATH"] = "/fake/mies/install"
         self.temp_dir = tempfile.mkdtemp()
         self.test_cert_file = os.path.join(self.temp_dir, "test.crt")
         self.test_pass_file = os.path.join(self.temp_dir, "passwd.txt")
@@ -45,9 +45,9 @@ class TestCertUtil(unittest.TestCase):
 
     def tearDown(self):
         if self.original_mies_install_path is None:
-            os.environ.pop("MIES_INSTALL_PATH", None)
+            os.environ.pop("MINDIE_LLM_HOME_PATH", None)
         else:
-            os.environ["MIES_INSTALL_PATH"] = self.original_mies_install_path
+            os.environ["MINDIE_LLM_HOME_PATH"] = self.original_mies_install_path
 
         if os.path.exists(self.test_cert_file):
             os.remove(self.test_cert_file)
@@ -87,7 +87,7 @@ class TestCertUtil(unittest.TestCase):
         mock_path_join.assert_called_once_with(
             "/fake/mies/install", "lib", "libhse_cryption.so"
         )
-        mock_getenv.assert_called_once_with("MIES_INSTALL_PATH")
+        mock_getenv.assert_called_once_with("MINDIE_LLM_HOME_PATH")
         mock_open_fun.assert_called_once_with(self.test_pass_file)
         mock_lib.Decrypt.assert_called_once_with(
             b"fake_cipher_text",

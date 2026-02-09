@@ -4,9 +4,9 @@
 
 path="${BASH_SOURCE[0]}"
 mies_path=$(cd $(dirname $path); pwd )
-export MIES_INSTALL_PATH=${mies_path}/latest
-export LD_LIBRARY_PATH=$(find "${MIES_INSTALL_PATH}/lib" -type d | tr '\n' ':' | sed 's/:$//'):${LD_LIBRARY_PATH}
-export PYTHONPATH=${MIES_INSTALL_PATH}/bin:${PYTHONPATH}
+export MINDIE_LLM_HOME_PATH=${mies_path}/latest
+export LD_LIBRARY_PATH=$(find "${MINDIE_LLM_HOME_PATH}/lib" -type d | tr '\n' ':' | sed 's/:$//'):${LD_LIBRARY_PATH}
+export PYTHONPATH=${MINDIE_LLM_HOME_PATH}/bin:${PYTHONPATH}
 export ATB_OPERATION_EXECUTE_ASYNC=1
 export TASK_QUEUE_ENABLE=1
 export HCCL_BUFFSIZE=120

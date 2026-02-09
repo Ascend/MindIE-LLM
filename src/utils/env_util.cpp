@@ -20,7 +20,7 @@ constexpr size_t MAX_ENV_LENGTH = 256; // 环境变量长度最大为256个字�
 
 EnvUtil::EnvUtil()
 {
-    vars["MIES_INSTALL_PATH"] = GetEnvByName("MIES_INSTALL_PATH");
+    vars["MINDIE_LLM_HOME_PATH"] = GetEnvByName("MINDIE_LLM_HOME_PATH");
     vars["MIES_CONFIG_JSON_PATH"] = GetEnvByName("MIES_CONFIG_JSON_PATH");
     vars["MIES_MEMORY_DETECTOR_MODE"] = GetEnvByName("MIES_MEMORY_DETECTOR_MODE");
     vars["MIES_PROFILER_MODE"] = GetEnvByName("MIES_PROFILER_MODE");

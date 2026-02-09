@@ -52,7 +52,7 @@ class TestServerMain(unittest.TestCase):
         self.assertEqual(exec_argv, [str(daemon_path)])
 
         # env checks
-        self.assertEqual(exec_env["MIES_INSTALL_PATH"], str(pkg_root))
+        self.assertEqual(exec_env["MINDIE_LLM_HOME_PATH"], str(pkg_root))
         self.assertIn(str(lib_dir), exec_env["LD_LIBRARY_PATH"])
         self.assertIn("grpc", exec_env["LD_LIBRARY_PATH"])
         self.assertIn(str(lib_dir), exec_env["PYTHONPATH"])

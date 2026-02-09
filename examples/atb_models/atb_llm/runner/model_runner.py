@@ -233,7 +233,7 @@ class ModelRunner:
             self.lora_adapter = json.loads(lora_modules)
         elif os.path.exists(lora_adapter_json_path):
             print_log(rank, logger.warning, "The usage of lora_adapter.json will be depreciated by 2026/06/30. " \
-                "Please specifying LoRA modules within ${MIES_INSTALL_PATH}/conf/config.json.")
+                "Please specifying LoRA modules within ${MINDIE_LLM_HOME_PATH}/conf/config.json.")
             lora_adapter_json_path = file_utils.standardize_path(lora_adapter_json_path, check_link=False)
             file_utils.check_file_safety(lora_adapter_json_path)
             with file_utils.safe_open(lora_adapter_json_path, mode="r", encoding="utf-8") as f:
