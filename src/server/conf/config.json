@@ -49,7 +49,7 @@
         "layerwiseDisaggregatedCrtlPort" : [10001,10002],
         "HealthCheckConfig" :
         {
-            "npuUsageThreshold" : 10
+            "npuUsageThreshold" : 0
         }
     },
 

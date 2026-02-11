@@ -323,12 +323,12 @@ void ServerConfigManager::LoadOptionalParameters(Json& serverParamsJsonData)
         CHECK_CONFIG_VALIDATION(initFlag, ParamChecker::CheckMaxMinValue<uint32_t>(serverConfig_.maxRequestLength, 100U,
                                                                                   1U, "serverConfig.maxRequestLength"));
     }
-    if (serverParamsJsonData.contains("healthCheck") &&
+    if (serverParamsJsonData.contains("HealthCheckConfig") &&
         serverParamsJsonData["HealthCheckConfig"].contains("npuUsageThreshold")) {
-        serverConfig_.npuUsageThreshold = serverParamsJsonData["healthCheck"]["npuUsageThreshold"];
+        serverConfig_.npuUsageThreshold = serverParamsJsonData["HealthCheckConfig"]["npuUsageThreshold"];
         CHECK_CONFIG_VALIDATION(initFlag,
             ParamChecker::CheckMaxMinValue<uint32_t>(serverConfig_.npuUsageThreshold, 100U,
-            0U, "serverConfig.npuUsageThreshold"));
+            0U, "serverConfig.HealthCheckConfig.npuUsageThreshold"));
     }
     if (serverParamsJsonData.contains("inferMode")) {
         serverConfig_.inferMode = serverParamsJsonData["inferMode"];

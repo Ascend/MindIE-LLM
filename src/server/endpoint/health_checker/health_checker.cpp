@@ -272,9 +272,15 @@ void HealthChecker::CheckServiceStatus()
 
     // 虚推健康探测是否开启
     if (!mSimulateTaskEnable.load()) {
-        ULOG_WARN(SUBMODLE_NAME_HEALTHCHECKER,
-            GenerateHealthCheckerErrCode(WARNING, SUBMODLE_FEATURE_SECURE, CHECK_ERROR),
+        ULOG_INFO(SUBMODLE_NAME_HEALTHCHECKER,
             "HealthChecker: Simulate infer health task is not enabled");
+        return;
+    }
+
+    // 边云协同场景不开启健康检查
+    if (mindie_llm::ConfigManager::GetInstance().IslayerwiseDisaggregated()) {
+        ULOG_INFO(SUBMODLE_NAME_HEALTHCHECKER,
+            "HealthChecker: Simulate infer health task disabled in layerwise-disaggregated mode");
         return;
     }
 
