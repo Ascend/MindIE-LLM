@@ -13,6 +13,7 @@ import os
 import json
 import math
 from enum import Enum
+import queue
 from typing import List, Optional, Tuple
 from dataclasses import asdict
 
@@ -188,12 +189,12 @@ class FlashDeepseekv2ForCausalLM(FlashForCausalLM):
             self.prefix_cache_enable = True
             self.layerwise.load_list = []
             if self.layerwise.split_type == DistributedType.CLOUD:
-                start_layer = self.layerwise.start_num
-                end_layer = self.config.num_hidden_layers - self.layerwise.end_num
+                start_layer = self.layerwise.edge_start_layer_count
+                end_layer = self.config.num_hidden_layers - self.layerwise.edge_end_layer_count
                 self.layerwise.load_list = list(range(start_layer, end_layer))
             else:
-                self.layerwise.load_list = [i for i in range(0, self.layerwise.start_num)]
-                start_layers = self.config.num_hidden_layers - self.layerwise.end_num
+                self.layerwise.load_list = [i for i in range(0, self.layerwise.edge_start_layer_count)]
+                start_layers = self.config.num_hidden_layers - self.layerwise.edge_end_layer_count
                 other_load_list = [i for i in range(start_layers, self.config.num_hidden_layers)]
                 self.layerwise.load_list.extend(other_load_list)
             self.model = FlashDeepseekV2Model(
@@ -207,8 +208,10 @@ class FlashDeepseekv2ForCausalLM(FlashForCausalLM):
             self.layerwise.ascend_weight_internal = []
             self.layerwise.acl_inputs_prefill = None
             self.layerwise.acl_inputs_decode = None
+            self.layerwise.acl_inputs_prefill_queue = queue.Queue()
             self.layerwise.acl_param_prefill = None
             self.layerwise.acl_param_decode = None
+            self.layerwise.acl_param_prefill_queue = queue.Queue()
             self.layerwise.p_out_hidden = None
             self.layerwise.acl_inputs_prefill_pre = None
             self.layerwise.acl_param_prefill_pre = None
@@ -550,6 +553,12 @@ class FlashDeepseekv2ForCausalLM(FlashForCausalLM):
                 logger.warning(msg)
                 config.models.deepseekv2.h3p.enable_shared_expert_overlap = False
 
+            if self.layerwise_disaggregated:
+                if self.layerwise.split_type != DistributedType.CLOUD:
+                    msg = "H3P moe dp optimization only takes effect on cloud side."
+                    logger.warning(msg)
+                    config.models.deepseekv2.h3p.enable_qkvdown_dp = False
+
             self.enable_qkvdown_dp = config.models.deepseekv2.h3p.enable_qkvdown_dp
             self.enable_gating_dp = config.models.deepseekv2.h3p.enable_gating_dp
             self.enable_shared_expert_dp = config.models.deepseekv2.h3p.enable_shared_expert_dp
@@ -622,10 +631,12 @@ class FlashDeepseekv2ForCausalLM(FlashForCausalLM):
             else:
                 self.acl_internal_decoder_operation = torch.classes.ModelTorch.ModelTorch(
                     CPP_DEEPSEEKV2_MODEL_CLASS_NAME)
+                layers_num = self.config.num_hidden_layers - \
+                    self.layerwise.edge_start_layer_count - self.layerwise.edge_end_layer_count
                 self.encode_op_list = [torch.classes.ModelTorch.ModelTorch(CPP_DEEPSEEKV2_MODEL_CLASS_NAME) 
-                    for _ in range(self.config.num_hidden_layers - self.layerwise.start_num - self.layerwise.end_num)]
+                    for _ in range(layers_num)]
                 self.encode_op_prefix_cache_list = [torch.classes.ModelTorch.ModelTorch(CPP_DEEPSEEKV2_MODEL_CLASS_NAME)
-                    for _ in range(self.config.num_hidden_layers - self.layerwise.start_num - self.layerwise.end_num)]
+                    for _ in range(layers_num)]
 
     def init_padding_idx(self):
         self.attn_padding_idx = self.placeholder
@@ -777,16 +788,16 @@ class FlashDeepseekv2ForCausalLM(FlashForCausalLM):
         modify_ascend_params["layerwiseMode"] = mode
         if mode == 0:
             modify_ascend_params[START_ID] = 0
-            modify_ascend_params[END_ID] = self.layerwise.start_num
+            modify_ascend_params[END_ID] = self.layerwise.edge_start_layer_count
             modify_ascend_params[KVCACHE_QUANT_LAYERS] = \
-                    [self.kvcache_quant_layers[i] for i in range(self.layerwise.start_num)]
+                    [self.kvcache_quant_layers[i] for i in range(self.layerwise.edge_start_layer_count)]
             modify_ascend_params[MOE_PACK_QUANT_TYPE] = wrapper.moe_pack_type if wrapper.moe_pack_type else 0
         elif mode == 1:
-            modify_ascend_params[START_ID] = self.layerwise.start_num
-            modify_ascend_params[END_ID] = self.config.num_hidden_layers - self.layerwise.end_num
-            start_layer = self.layerwise.load_list.index(self.layerwise.start_num)
+            modify_ascend_params[START_ID] = self.layerwise.edge_start_layer_count
+            modify_ascend_params[END_ID] = self.config.num_hidden_layers - self.layerwise.edge_end_layer_count
+            start_layer = self.layerwise.load_list.index(self.layerwise.edge_start_layer_count)
             end_layer = self.layerwise.load_list.index(self.config.num_hidden_layers - \
-                                                       self.layerwise.end_num - 1) + 1
+                                                       self.layerwise.edge_end_layer_count - 1) + 1
             modify_ascend_params[KVCACHE_QUANT_LAYERS] = [self.kvcache_quant_layers[i] \
                 for i in range(start_layer, end_layer)]
             if wrapper:
@@ -794,9 +805,10 @@ class FlashDeepseekv2ForCausalLM(FlashForCausalLM):
             else:
                 modify_ascend_params[MOE_PACK_QUANT_TYPE] = wrapper_list[-1].moe_pack_type
         elif mode == 2:
-            modify_ascend_params[START_ID] = self.config.num_hidden_layers - self.layerwise.end_num
+            modify_ascend_params[START_ID] = self.config.num_hidden_layers - self.layerwise.edge_end_layer_count
             modify_ascend_params[END_ID] = self.config.num_hidden_layers
-            start_layer = self.layerwise.load_list.index(self.config.num_hidden_layers - self.layerwise.end_num)
+            start_layer = self.layerwise.load_list.index(self.config.num_hidden_layers -
+                                                         self.layerwise.edge_end_layer_count)
             end_layer = self.layerwise.load_list.index(self.config.num_hidden_layers - 1) + 1
             modify_ascend_params[KVCACHE_QUANT_LAYERS] = [self.kvcache_quant_layers[i] \
                 for i in range(start_layer, end_layer)]
@@ -812,17 +824,18 @@ class FlashDeepseekv2ForCausalLM(FlashForCausalLM):
         end_layer = 0
         if mode == 0:
             start_layer = 0
-            end_layer = self.layerwise.start_num
+            end_layer = self.layerwise.edge_start_layer_count
         elif mode == 1:
             if is_prefill:
                 start_layer = self.layerwise.load_list.index(layer_no)
                 end_layer = self.layerwise.load_list.index(layer_no) + 1
             else:
-                start_layer = self.layerwise.load_list.index(self.layerwise.start_num)
+                start_layer = self.layerwise.load_list.index(self.layerwise.edge_start_layer_count)
                 end_layer = self.layerwise.load_list.index(
-                    self.config.num_hidden_layers - self.layerwise.end_num - 1) + 1
+                    self.config.num_hidden_layers - self.layerwise.edge_end_layer_count - 1) + 1
         else:
-            start_layer = self.layerwise.load_list.index(self.config.num_hidden_layers - self.layerwise.end_num)
+            start_layer = self.layerwise.load_list.index(self.config.num_hidden_layers -
+                                                         self.layerwise.edge_end_layer_count)
             end_layer = self.layerwise.load_list.index(self.config.num_hidden_layers - 1) + 1
         for i in range(start_layer, end_layer):
             layer = self.model.layers[i]
@@ -840,7 +853,8 @@ class FlashDeepseekv2ForCausalLM(FlashForCausalLM):
         else:
             if self.layerwise.split_type == DistributedType.CLOUD:
                 self.layerwise.weight_wrappers = []
-                for i in range(self.layerwise.start_num, self.config.num_hidden_layers - self.layerwise.end_num):
+                for i in range(self.layerwise.edge_start_layer_count, self.config.num_hidden_layers -
+                               self.layerwise.edge_end_layer_count):
                     self.layerwise.weight_wrappers.append(
                         self.get_layerwise_weights(mode=1, layer_no=i, is_prefill=True))
             else:
@@ -1157,16 +1171,19 @@ class FlashDeepseekv2ForCausalLM(FlashForCausalLM):
                 self.acl_head_encoder_operation_prefixcache.set_weight(weight_wrapper_head.weights[:])
                 self.acl_tail_encoder_operation_prefixcache.set_weight(weight_wrapper_tail.weights[:])
             else:
-                for layer in range(0, self.config.num_hidden_layers - self.layerwise.end_num - \
-                        self.layerwise.start_num):
+                for layer in range(0, self.config.num_hidden_layers - self.layerwise.edge_end_layer_count - \
+                        self.layerwise.edge_start_layer_count):
                     encoder_internal_param = self.get_layerwsie_ascend_param(
                         encoder_param, 1, self.layerwise.weight_wrappers[layer]
                     )
-                    encoder_internal_param[START_ID] = self.layerwise.start_num + layer
-                    encoder_internal_param[END_ID] = self.layerwise.start_num + layer + 1
+                    encoder_internal_param[START_ID] = self.layerwise.edge_start_layer_count + layer
+                    encoder_internal_param[END_ID] = self.layerwise.edge_start_layer_count + layer + 1
+                    encoder_internal_param["cloudLastLayerId"] = \
+                        self.config.num_hidden_layers - self.layerwise.edge_end_layer_count - 1
                     encoder_internal_param["numHiddenLayers"] = 1
                     encoder_internal_param[KVCACHE_QUANT_LAYERS] = [
-                        self.kvcache_quant_layers[self.layerwise.load_list.index(self.layerwise.start_num + layer)]]
+                        self.kvcache_quant_layers[self.layerwise.load_list.index(
+                            self.layerwise.edge_start_layer_count + layer)]]
                     self.encode_op_list[layer].set_param(json.dumps({**encoder_internal_param}))
                     self.encode_op_list[layer].set_weight(self.layerwise.weight_wrappers[layer].weights[:])
                     
@@ -1178,6 +1195,8 @@ class FlashDeepseekv2ForCausalLM(FlashForCausalLM):
                 decoder_internal_param = self.get_layerwsie_ascend_param(
                     decoder_param, 1, wrapper_list=self.layerwise.weight_wrappers
                 )
+                decoder_internal_param["cloudLastLayerId"] = \
+                    self.config.num_hidden_layers - self.layerwise.edge_end_layer_count - 1
                 self.acl_internal_decoder_operation.set_param(json.dumps({**decoder_internal_param}))
                 self.acl_internal_decoder_operation.set_weight([weight_tensor \
                     for wrapper in self.layerwise.weight_wrappers \
@@ -1633,9 +1652,14 @@ class FlashDeepseekv2ForCausalLM(FlashForCausalLM):
             torch.npu.synchronize()
             perf_time_start = time.time()
         self.expert_array = self.placeholder
-        final_hidden_states = torch.empty([self.token_size, self.config.hidden_size],
-                                          dtype=self.dtype,
-                                          device=input_ids.device)
+
+        final_hidden_states_token_size = self.token_size
+        if self.layerwise_disaggregated and self.layerwise.split_type == DistributedType.CLOUD:
+            final_hidden_states_token_size = local_token_size
+
+        final_hidden_states = torch.empty([final_hidden_states_token_size, self.config.hidden_size],
+                                            dtype=self.dtype,
+                                            device=input_ids.device)
 
         is_ep = (self.ep_level == ExpertParallelDegree.DYNAMIC_EP or \
             (self.ep_level == ExpertParallelDegree.MIX_EP and is_prefill))
@@ -2177,6 +2201,35 @@ class FlashDeepseekv2ForCausalLM(FlashForCausalLM):
             acl_inputs_mtp.append(self.dense_allgather_unpad_idx)
         return acl_inputs_mtp
 
+    def layerwise_get_input_param(self, is_prefill, is_end_layer):
+        if is_prefill:
+            if self.layerwise.acl_inputs_prefill is None:
+                self.layerwise.acl_inputs_prefill = self.layerwise.acl_inputs_prefill_queue.get(timeout=900)
+                self.layerwise.acl_param_prefill = self.layerwise.acl_param_prefill_queue.get(timeout=900)
+            prefill_input = self.layerwise.acl_inputs_prefill
+            prefill_param = self.layerwise.acl_param_prefill
+            if is_end_layer:
+                self.layerwise.acl_inputs_prefill = None
+                self.layerwise.acl_param_prefill = None
+            return prefill_input, prefill_param
+        else:
+            decode_input = self.layerwise.acl_inputs_decode
+            decode_param = self.layerwise.acl_param_decode
+            if is_end_layer:
+                self.layerwise.acl_inputs_decode = None
+                self.layerwise.acl_param_decode = None
+            return decode_input, decode_param
+
+    def layerwise_save_input_param(self, inputs, runtime_param, is_prefill):
+        # input[0] is hidden and needs to be replaced each time; no caching is required.
+        inputs_copy = [None] + inputs[1:]
+        if is_prefill:
+            self.layerwise.acl_inputs_prefill_queue.put(inputs_copy)
+            self.layerwise.acl_param_prefill_queue.put(runtime_param)
+        else:
+            self.layerwise.acl_inputs_decode = inputs_copy
+            self.layerwise.acl_param_decode = runtime_param
+               
     def forward_layerwise_disaggregated_edge(
             self,
             input_ids: torch.Tensor,
@@ -2207,45 +2260,29 @@ class FlashDeepseekv2ForCausalLM(FlashForCausalLM):
             if not is_prefill:
                 out_hidden = self.execute_ascend_operator(acl_inputs, acl_param, is_prefill,
                                                             split_part=LwdLayerStatus.EDGE_START_LAYER)
-                self.layerwise.acl_inputs_decode = self.copy_input(self.layerwise.acl_inputs_decode, acl_inputs)
-                self.layerwise.acl_param_decode = acl_param
-                self.layerwise.acl_inputs_decode[0] = None
+                self.layerwise_save_input_param(acl_inputs, acl_param, is_prefill)
                 acl_inputs = []
             else:
                 out_hidden = self.execute_ascend_operator(acl_inputs, acl_param, is_prefill,
                                                           split_part=LwdLayerStatus.EDGE_START_LAYER)
-                if layerwise_disaggregated_exe_stage.is_long_seq and self.layerwise.acl_inputs_prefill is not None:
-                    self.layerwise.acl_inputs_prefill_pre = self.copy_input(self.layerwise.acl_inputs_prefill_pre, \
-                                            self.layerwise.acl_inputs_prefill)
-                    self.layerwise.acl_inputs_prefill_pre[0] = None
-                    self.layerwise.acl_param_prefill_pre = self.layerwise.acl_param_prefill
-                self.layerwise.acl_inputs_prefill = self.copy_input(self.layerwise.acl_inputs_prefill, acl_inputs)
-                self.layerwise.acl_param_prefill = acl_param
-                self.layerwise.acl_inputs_prefill[0] = None
+                self.layerwise_save_input_param(acl_inputs, acl_param, is_prefill)
                 acl_inputs = []
             return out_hidden
         if layerwise_disaggregated_exe_stage.end_exec_layer == 1:
             if not is_prefill:
-                self.layerwise.acl_inputs_decode[0] = out_hidden
-                logits = self.execute_ascend_operator(self.layerwise.acl_inputs_decode,
-                                                        self.layerwise.acl_param_decode, is_prefill,
-                                                        split_part=LwdLayerStatus.EDGE_END_LAYER)
-                self.layerwise.acl_inputs_decode = []
+                last_input, last_param = self.layerwise_get_input_param(is_prefill, True)
+                last_input[0] = out_hidden
+                logits = self.execute_ascend_operator(last_input, last_param, is_prefill,
+                                                      split_part=LwdLayerStatus.EDGE_END_LAYER)
             else:
                 if layerwise_disaggregated_exe_stage.is_long_seq and \
-                    layerwise_disaggregated_exe_stage.long_seq_start_idx != 0:
+                    layerwise_disaggregated_exe_stage.long_seq_start_idx != 0 and \
+                        not layerwise_disaggregated_exe_stage.request_dp_empty:
                     self.has_prefixcache = True
-                if layerwise_disaggregated_exe_stage.is_long_seq and \
-                    not layerwise_disaggregated_exe_stage.end_of_generate_token:
-                    self.layerwise.acl_inputs_prefill_pre[0] = out_hidden
-                    logits = self.execute_ascend_operator(self.layerwise.acl_inputs_prefill_pre,
-                                                            self.layerwise.acl_param_prefill_pre, is_prefill,
-                                                            split_part=LwdLayerStatus.EDGE_END_LAYER)
-                else:    
-                    self.layerwise.acl_inputs_prefill[0] = out_hidden
-                    logits = self.execute_ascend_operator(self.layerwise.acl_inputs_prefill,
-                                                            self.layerwise.acl_param_prefill, is_prefill,
-                                                            split_part=LwdLayerStatus.EDGE_END_LAYER)
+                last_input, last_param = self.layerwise_get_input_param(is_prefill, True)  
+                last_input[0] = out_hidden
+                logits = self.execute_ascend_operator(last_input, last_param, is_prefill,
+                                                      split_part=LwdLayerStatus.EDGE_END_LAYER)
             return logits
             
         return out_hidden
@@ -2302,13 +2339,14 @@ class FlashDeepseekv2ForCausalLM(FlashForCausalLM):
                 if i > layerwise_disaggregated_exe_stage.start_exec_layer:
                     acl_inputs[0] = out_hidden
                 if layerwise_disaggregated_exe_stage.is_long_seq and \
-                    layerwise_disaggregated_exe_stage.long_seq_start_idx != 0:
+                    layerwise_disaggregated_exe_stage.long_seq_start_idx != 0 and \
+                        not layerwise_disaggregated_exe_stage.request_dp_empty:
                     self.has_prefixcache = True
                 out_hidden = self.execute_ascend_operator(acl_inputs, acl_param, is_prefill,
                                                     split_part=LwdLayerStatus.CLOUD_MIDDLE_LAYER, layer_index=i)
             self.layerwise.p_out_hidden = out_hidden
-            self.layerwise.acl_inputs_prefill = self.copy_input(self.layerwise.acl_inputs_prefill, acl_inputs)
-            self.layerwise.acl_inputs_prefill[0] = None
+            # acl_inputs[0] is hidden and needs to be replaced each time; no caching is required.
+            self.layerwise.acl_inputs_prefill = [None] + acl_inputs[1:]
             self.layerwise.acl_param_prefill = acl_param
         
         return out_hidden 
@@ -2354,7 +2392,8 @@ class FlashDeepseekv2ForCausalLM(FlashForCausalLM):
             self.free_operation_inputs(is_prefill)
         else:
             if self.layerwise.split_type == DistributedType.CLOUD:
-                for i in range(self.config.num_hidden_layers - self.layerwise.start_num - self.layerwise.end_num):
+                for i in range(self.config.num_hidden_layers - self.layerwise.edge_start_layer_count -
+                               self.layerwise.edge_end_layer_count):
                     acl_inputs[0] = out_hidden
                     out_hidden = self.execute_ascend_operator(
                                         acl_inputs, acl_param, is_prefill,
@@ -2803,16 +2842,16 @@ class FlashDeepseekv2ForCausalLM(FlashForCausalLM):
             if self.layerwise_disaggregated:
                 if self.layerwise.split_type == DistributedType.EDGE:
                     start_cache_num = self.layerwise.load_list.index(
-                        self.config.num_hidden_layers - self.layerwise.end_num)
+                        self.config.num_hidden_layers - self.layerwise.edge_end_layer_count)
                     end_cache_num = self.layerwise.load_list.index(self.config.num_hidden_layers - 1) + 1
-                    k_caches_sp1, k_caches_sp3 = [k_caches[i] for i in range(self.layerwise.start_num)], \
+                    k_caches_sp1, k_caches_sp3 = [k_caches[i] for i in range(self.layerwise.edge_start_layer_count)], \
                         [k_caches[i] for i in range(start_cache_num, end_cache_num)]
-                    v_caches_sp1, v_caches_sp3 = [v_caches[i] for i in range(self.layerwise.start_num)], \
+                    v_caches_sp1, v_caches_sp3 = [v_caches[i] for i in range(self.layerwise.edge_start_layer_count)], \
                         [v_caches[i] for i in range(start_cache_num, end_cache_num)]
                 else:
-                    start_cache_num = self.layerwise.load_list.index(self.layerwise.start_num)
+                    start_cache_num = self.layerwise.load_list.index(self.layerwise.edge_start_layer_count)
                     end_cache_num = self.layerwise.load_list.index(
-                        self.config.num_hidden_layers - self.layerwise.end_num - 1) + 1
+                        self.config.num_hidden_layers - self.layerwise.edge_end_layer_count - 1) + 1
                     k_caches_sp2 = [k_caches[i] for i in range(start_cache_num, end_cache_num)]
                     v_caches_sp2 = [v_caches[i] for i in range(start_cache_num, end_cache_num)]
             if not self.layerwise_disaggregated:
@@ -2850,8 +2889,8 @@ class FlashDeepseekv2ForCausalLM(FlashForCausalLM):
                     self.acl_tail_encoder_operation_prefixcache.set_kv_cache(k_caches_sp3, v_caches_sp3)
                 else:
                     self.acl_internal_decoder_operation.set_kv_cache(k_caches_sp2, v_caches_sp2)
-                    for layer in range(self.config.num_hidden_layers - self.layerwise.start_num - \
-                                       self.layerwise.end_num):
+                    for layer in range(self.config.num_hidden_layers - self.layerwise.edge_start_layer_count - \
+                                       self.layerwise.edge_end_layer_count):
                         self.encode_op_list[layer].set_kv_cache([k_caches[layer]], [v_caches[layer]])
                         self.encode_op_prefix_cache_list[layer].set_kv_cache([k_caches[layer]], [v_caches[layer]])
 

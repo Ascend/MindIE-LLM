@@ -294,14 +294,11 @@ class EdgeCloudCtrlComm:
         self.decode_comm_finish = False
         self.prefill_comm_finish = False
         self.prefill_comm_finish_tcp_count = 0
-        self.prefill_comm_finish_irecv = False
 
         self.prefill_recv_msg = ''
         self.decode_recv_msg = ''
         self.prefill_send_msg = ''
         self.decode_send_msg = ''
-        self.parse_msg_cnt = 0
-        self.to_msg_cnt = 0
         
         self.multi_nodes_infer_enabled = False
         self.multi_nodes_is_master = False
@@ -312,6 +309,13 @@ class EdgeCloudCtrlComm:
         self.dp_size = 1
 
         self.tls_config = tls_config
+
+    @staticmethod
+    def shape_to_msg(shape):
+        if shape is None or len(shape) != 2:
+            return None
+        msg = f"pull|{json.dumps(list(shape))}|0"
+        return msg
 
     def init_role(self, role, server_ip, server_port):
         self.role = role
@@ -455,17 +459,3 @@ class EdgeCloudCtrlComm:
         self.multi_nodes_ctrl_client.send("ok")
         logger.info(f"[layerwiseDisaggregated-{self.rank}] recv multi nodes decision {decision}.")
         return decision
-
-    def parse_shape(self, data):
-        if not data.startswith("pull"):
-            return []
-        h_shape_d = list(json.loads(data.split('|')[1]))
-        self.parse_msg_cnt += 1
-        return h_shape_d
-
-    def shape_to_msg(self, shape):
-        if shape is None or len(shape) != 2:
-            return None
-        msg = f"pull|{json.dumps(list(shape))}|0"
-        self.to_msg_cnt += 1
-        return msg

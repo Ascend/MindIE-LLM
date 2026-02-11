@@ -274,10 +274,11 @@ class ModelRunner:
                 TLS_CRL_PATH: kwargs.get(TLS_CRL_PATH, ''),
                 TLS_CRL_FILES: kwargs.get(TLS_CRL_FILES, ''),
             }
-            self.data_comm = EdgeCloudDataComm(self.dtype)
+            batch_p_num = kwargs.get('batch_p_num', 1)
+            self.data_comm = EdgeCloudDataComm(self.dtype, batch_p_num)
             self.ctrl_comm = EdgeCloudCtrlComm(tls_config)
-            self.time_counter = CloudCutPolicy(self.layerwise_disaggregated_role_type, model_name_or_path)
-            self.chunk_prefill_manager = ChunkPrefilPolicy(model_name_or_path)
+            self.time_counter = CloudCutPolicy(self.layerwise_disaggregated_role_type, model_name_or_path, batch_p_num)
+            self.chunk_prefill_manager = ChunkPrefilPolicy(model_name_or_path, batch_p_num)
             self.prefill_input_lengths = None
             self.edge_pre_chunk_length = 0
             self.prefill_total_seq_len = 0
@@ -591,7 +592,7 @@ class ModelRunner:
                         self.data_comm.prefill_seq_len_queue.put(self.edge_pre_chunk_length)
                         logger.info(f"[layerwiseDisaggregated] edge rank {self.rank}, put {self.edge_pre_chunk_length}")
                     self.edge_pre_chunk_length = int(hidden.shape[0])
-                    if layerwise_disaggregated_exe_stage.long_seq_end_idx == self.prefill_total_seq_len:
+                    if layerwise_disaggregated_exe_stage.is_last_chunk:
                         self.data_comm.prefill_seq_len_queue.put(self.edge_pre_chunk_length)
                         logger.info(f"[layerwiseDisaggregated] edge rank {self.rank}, "
                                     f"end put {self.edge_pre_chunk_length}")
@@ -605,6 +606,8 @@ class ModelRunner:
                         layerwise_disaggregated_exe_stage.long_seq_start_idx == 0):
                     self.data_comm.p_shape[self.data_comm.recv_index] = self.data_comm.prefill_seq_len_queue.get()
                     self.data_comm.recv_hidden('p', self.data_comm.p_shape)
+                    logger.info(f"[layerwiseDisaggregated] edge rank {self.rank} prefill recv start first part, "
+                                f"the data length is: {self.data_comm.p_shape}")
                 return hidden
             else:
                 tmp = self.data_comm.data_wait_after_recv('p')
@@ -618,7 +621,7 @@ class ModelRunner:
                 if not self.data_comm.prefill_seq_len_queue.empty():
                     self.data_comm.p_shape[self.data_comm.recv_index] = self.data_comm.prefill_seq_len_queue.get()
                     self.data_comm.recv_hidden('p', self.data_comm.p_shape)
-                    logger.info(f"[layerwiseDisaggregated] edge rank {self.rank} prefill recv start, "
+                    logger.info(f"[layerwiseDisaggregated] edge rank {self.rank} prefill recv start post part, "
                                 f"self.data_comm.p_shape: {self.data_comm.p_shape}")
                 
                 return res
@@ -774,9 +777,10 @@ class ModelRunner:
                 hidden = self.data_comm.broadcast_hidden(tmp, self.data_comm.p_shape, 'p')
                 logger.info(f"[layerwiseDisaggregated] cloud rank {self.rank} prefill recv {hidden.shape}")
                 if layerwise_disaggregated_exe_stage.is_long_seq and \
-                    layerwise_disaggregated_exe_stage.long_seq_end_idx != self.prefill_total_seq_len:
+                    not layerwise_disaggregated_exe_stage.is_last_chunk: # 不是最后一个序列
                     prefill_seq_len = layerwise_disaggregated_exe_stage.long_seq_next_end_idx - \
                                         layerwise_disaggregated_exe_stage.long_seq_end_idx
+                    prefill_seq_len = prefill_seq_len if prefill_seq_len > 0 else 1 # 至少长度应为1
                     self.data_comm.prefill_seq_len_queue.put(prefill_seq_len)
                     logger.info(f"[layerwiseDisaggregated] cloud rank {self.rank}, "
                                 f"queue input is {prefill_seq_len}")
@@ -828,9 +832,9 @@ class ModelRunner:
                 input_ids = kwargs.get("input_ids")
                 is_prefill = kwargs.get("is_prefill")
                 if is_prefill:
-                    batch_size = len(input_lengths)
+                    batch_size = len(input_lengths) * self.mapping.attn_dp.group_size
                 else:
-                    batch_size = len(input_ids)
+                    batch_size = len(input_ids) * self.mapping.attn_dp.group_size
                 out_dict = {OUT_HIDDEN: torch.ones([len(input_ids), self.model.hidden_size],
                                                     dtype=self.dtype, device=self.device)}
                 kwargs.update(out_dict)

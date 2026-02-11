@@ -83,8 +83,6 @@ class EdgeCloudDataComm:
         self.lock = threading.Lock()
         self.flag_pre_recv = True
 
-        self.need_set_decode_device = False
-        self.need_set_prefill_device = False
         self.set_decode_device_done = False
         self.set_prefill_device_done = False
 
@@ -379,7 +377,7 @@ class EdgeCloudDataComm:
             
         if self.rank == src_rank: # 对应的卡才进行收发
             if mode == 'p':
-                if self.role == CLOUD and not self.set_prefill_device_done and self.need_set_prefill_device:
+                if self.role == CLOUD and not self.set_prefill_device_done:
                     torch.npu.set_device(torch.device(f"npu:{self.rank}"))
                     self.set_prefill_device_done = True
                 self.target_p[recv_index] = self.out_hidden_p[recv_index][:shape[recv_index], :]
@@ -391,7 +389,7 @@ class EdgeCloudDataComm:
                 self.ret_p[recv_index] = ret
                 logger.info(f"[rank-{self.rank}] prefill start async recv, shape={shape[recv_index]}")
             else:
-                if self.role == CLOUD and not self.set_decode_device_done and self.need_set_decode_device:
+                if self.role == CLOUD and not self.set_decode_device_done:
                     torch.npu.set_device(torch.device(f"npu:{self.rank}"))
                     self.set_decode_device_done = True
                 self.target_d = self.out_hidden_d[:shape, :]

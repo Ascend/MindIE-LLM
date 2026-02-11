@@ -235,7 +235,6 @@ class TestEdgeCloudCtrlComm(unittest.TestCase):
         EdgeCloudCtrlComm.decode_comm_finish = False
         EdgeCloudCtrlComm.prefill_comm_finish = False
         EdgeCloudCtrlComm.prefill_comm_finish_tcp_count = 0
-        EdgeCloudCtrlComm.prefill_comm_finish_irecv = False
 
         EdgeCloudCtrlComm.prefill_recv_msg = ''
         EdgeCloudCtrlComm.decode_recv_msg = ''
@@ -337,11 +336,6 @@ class TestEdgeCloudCtrlComm(unittest.TestCase):
         comm.decode_client.is_client_connected.return_value = False
         result = comm.is_edge_cloud_ctrl_comm_success()
         self.assertFalse(result)
-
-    def test_parse_shape(self):
-        comm = EdgeCloudCtrlComm({})
-        self.assertEqual(comm.parse_shape(" "), [])
-        self.assertEqual(comm.parse_shape("pull|[1,2,3,4]"), [1, 2, 3, 4])
 
     def test_shape_to_msg(self):
         comm = EdgeCloudCtrlComm({})

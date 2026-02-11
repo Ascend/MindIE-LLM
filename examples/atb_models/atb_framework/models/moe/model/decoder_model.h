@@ -131,10 +131,12 @@ public:
     std::string moeEpRankTableFile = "";
     std::string moeEpBackend = "";
 
+    /// The following variables will only be used when layerwiseDisaggregated is enabled.
     int32_t layerwiseMode = -1;
     int32_t hiddenSize = 0;
     int32_t startLayerId = 0;
     int32_t endLayerId = 0;
+    int32_t cloudLastLayerId = 60;
     bool layerwiseDisaggregated = false;
     bool skipWordEmbedding = false;
     bool isInternalLayer = false;

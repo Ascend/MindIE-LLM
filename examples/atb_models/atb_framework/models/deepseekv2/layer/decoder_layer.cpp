@@ -296,13 +296,13 @@ std::vector<std::string> ConstructIntertensorList(const DecoderLayerParam &param
     AddAttentionTensor(param, intermediateTensorList, deepseekV2IntermediateCandidates);
     if (param.ffnAllreduce || param.hasFfnComm) {
         // 大ep场景下，开启h3p qkvdown dp时moe层不需要intermediate_mlp_out，最后一层除外
-        if (!(param.enableQkvdownDp && !param.isLastLayer && param.ffnStreamNum > 1)) {
+        if (!(param.enableQkvdownDp && !param.isLastLayer && !param.isCloudLastLayer && param.ffnStreamNum > 1)) {
             atb_speed::common::AddTensorToList(deepseekV2IntermediateCandidates,
                 "ffn_need_padding", intermediateTensorList);
         }
     }
     if (param.ffnAllGather) {
-        if (!param.enableQkvdownDp || param.isLastLayer) {
+        if (!param.enableQkvdownDp || param.isLastLayer || param.isCloudLastLayer) {
             atb_speed::common::AddTensorToList(deepseekV2IntermediateCandidates,
                 "ffn_allgather", intermediateTensorList);
         }
@@ -1268,8 +1268,8 @@ atb::Status SetMlpResidualAdd(atb::GraphParam &opGraph, const DecoderLayerParam 
         ((param.hasAttnComm) && (param.hasFfnComm) ?
             "intermediate_moe_out_with_shared_with_padding" : "intermediate_moe_out_with_shared")};
         mlpResidualAddOutTensorNames = {param.ffnAllGather || param.ffnReduceScatter ?
-        ((param.enableQkvdownDp && !param.isLastLayer) ? "out_decoder_layer" : "intermediate_mlp_out") :
-        "out_decoder_layer"};
+        ((param.enableQkvdownDp && !param.isLastLayer && !param.isCloudLastLayer) ?
+         "out_decoder_layer" : "intermediate_mlp_out") : "out_decoder_layer"};
     }
     mlpResidualAddNode.inTensorIds = atb_speed::common::GetTensorIdxList(tensorMap, mlpResidualAddInTensorNames);
     mlpResidualAddNode.outTensorIds = atb_speed::common::GetTensorIdxList(tensorMap, mlpResidualAddOutTensorNames);
@@ -1360,8 +1360,8 @@ int64_t SetMlpResidualAddNanToNum(atb::GraphParam &opGraph, const DecoderLayerPa
             "intermediate_dense_tp_rs_addout" : "out_decoder_layer"};
     } else {
         mlpResidualAddOutTensorNames = {param.ffnAllGather || param.ffnReduceScatter ? \
-                          ((param.enableQkvdownDp && !param.isLastLayer) ? "out_decoder_layer" : \
-                           "intermediate_mlp_out") : "out_decoder_layer"};
+                          ((param.enableQkvdownDp && !param.isLastLayer && !param.isCloudLastLayer) ? \
+                          "out_decoder_layer" : "intermediate_mlp_out") : "out_decoder_layer"};
     }
 
     nanToNumNode.inTensorIds = atb_speed::common::GetTensorIdxList(tensorMap, mlpResidualAddOutTensorNames);
@@ -1875,13 +1875,13 @@ atb::Status SetPostMoeProcess(std::map<std::string, uint32_t> &tensorMap,
             CHECK_OPERATION_STATUS_RETURN(SetFFNPadding(opGraph, param, tensorMap));
         }
         // h3p qkvdown dp move moe allgather to mla, without last moe
-        if (!param.enableQkvdownDp || param.isLastLayer) {
+        if (!param.enableQkvdownDp || param.isLastLayer || param.isCloudLastLayer) {
             CHECK_OPERATION_STATUS_RETURN(SetTPAllGatherNode(opGraph, param, tensorMap));
         }
     }
     if (param.hasFfnComm) {
         // h3p qkvdown dp move moe gather to mla, without last moe
-        if (!param.enableQkvdownDp || param.isLastLayer) {
+        if (!param.enableQkvdownDp || param.isLastLayer || param.isCloudLastLayer) {
             CHECK_OPERATION_STATUS_RETURN(SetFFNUnPadding(opGraph, param, tensorMap));
         }
     }
@@ -1906,8 +1906,8 @@ atb::Status DecoderLayer(DecoderLayerParam &param, atb::Operation **operation)
     CHECK_OPERATION_STATUS_RETURN(SetPostMoeProcess(tensorMap, param, opGraph));
     opGraph.inferShapeFunc = [=] (const atb::SVector<atb::TensorDesc> &inTensorDescs,
                                  atb::SVector<atb::TensorDesc> &outTensorDescs) {
-        if ((param.mapping.Get(base::ATTN_DP).IsEnabled() || param.mapping.Get(base::ATTN_CP).IsEnabled()) && \
-            param.isLastLayer && !param.enableDpOut) {
+        if (((param.mapping.Get(base::ATTN_DP).IsEnabled() || param.mapping.Get(base::ATTN_CP).IsEnabled()) && \
+            param.isLastLayer && !param.enableDpOut) || (param.enableQkvdownDp && param.isCloudLastLayer)) {
             outTensorDescs.at(0) = inTensorDescs.at(atb_speed::common::GetTensorIdx(tensorMap, "in_final_state"));
         } else if (param.mapping.Get(base::ATTN_DP).IsEnabled() && param.isLastLayer && \
             param.enableDpOut && param.lmHeadLocalTp) {

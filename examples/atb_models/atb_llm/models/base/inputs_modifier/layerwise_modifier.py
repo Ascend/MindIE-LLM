@@ -7,6 +7,7 @@
 # EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
 # MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
 # See the Mulan PSL v2 for more details.
+import queue
 from typing import List
 from atb_llm.models.base.flash_causal_lm import LayerWiseAttr, LwdLayerStatus, DistributedType
 
@@ -19,8 +20,12 @@ class LayerwiseModifier:
     """
     def __init__(self, attr: LayerWiseAttr):
         self.attr = attr
-        self.acl_edge_inputs = [None, None]
-        self.acl_edge_params = [None, None]
+        self.acl_edge_decode_input = None
+        self.acl_edge_prefill_input = None
+        self.acl_edge_prefill_input_queue = queue.Queue()
+        self.acl_edge_decode_param = None
+        self.acl_edge_prefill_param = None
+        self.acl_edge_prefill_param_queue = queue.Queue()
         self.acl_cloud_inputs = None
         self.acl_cloud_params = None
         self.acl_cloud_inner_hidden = None 
@@ -35,6 +40,34 @@ class LayerwiseModifier:
     @staticmethod      
     def to_index(is_prefill):
         return 1 if is_prefill else 0
+    
+    def get_input_param(self, is_prefill, is_end_layer):
+        if is_prefill:
+            if self.acl_edge_prefill_input is None:
+                self.acl_edge_prefill_input = self.acl_edge_prefill_input_queue.get(timeout=900)
+                self.acl_edge_prefill_param = self.acl_edge_prefill_param_queue.get(timeout=900)
+            prefill_input = self.acl_edge_prefill_input
+            prefill_param = self.acl_edge_prefill_param
+            if is_end_layer:
+                self.acl_edge_prefill_input = None
+                self.acl_edge_prefill_param = None
+            return prefill_input, prefill_param
+        else:
+            decode_input = self.acl_edge_decode_input
+            decode_param = self.acl_edge_decode_param
+            if is_end_layer:
+                self.acl_edge_decode_input = None
+                self.acl_edge_decode_param = None
+            return decode_input, decode_param
+
+    def save_input_param(self, inputs, runtime_param, is_prefill):
+        if is_prefill:
+            self.acl_edge_prefill_input_queue.put([None] + inputs[1:])
+            self.acl_edge_prefill_param_queue.put(runtime_param)
+        else:
+            # input[0] is hidden and needs to be replaced each time; no caching is required.
+            self.acl_edge_decode_input = [None] + inputs[1:]
+            self.acl_edge_decode_param = runtime_param
 
     def modify_inputs(
             self,
@@ -52,31 +85,16 @@ class LayerwiseModifier:
         if self.attr.split_type == DistributedType.EDGE:
             if exe_stage is None:
                 return
-            index = LayerwiseModifier.to_index(is_prefill)
             if exe_stage.start_exec_layer == 0:
-                # 缓存输入在长序列场景下实现prefill阶段chunk穿插
-                if exe_stage.is_long_seq and is_prefill:
-                    self.acl_edge_inputs_prefill_pre = self.acl_edge_inputs[index]
-                    self.acl_edge_params_prefill_pre = self.acl_edge_params[index]
                 # 首层需要缓存输入
-                self.acl_edge_inputs[index] = [None] + inputs[1:]
-                self.acl_edge_params[index] = runtime_param.copy()
+                self.save_input_param(inputs, runtime_param, is_prefill)
             if exe_stage.end_exec_layer == 1:
                 # 尾层需要替换输入
-                if exe_stage.is_long_seq and is_prefill and not exe_stage.end_of_generate_token:
-                    self.acl_edge_inputs_prefill_pre[0] = out_hidden
-                    inputs[:] = self.acl_edge_inputs_prefill_pre
-                    runtime_param.clear()
-                    runtime_param.update(self.acl_edge_params_prefill_pre)
-                else:
-                    self.acl_edge_inputs[index][0] = out_hidden
-                    inputs[:] = self.acl_edge_inputs[index]
-                    runtime_param.clear()
-                    runtime_param.update(self.acl_edge_params[index])
-                # 原则上需要清理，防止请求打完后内存泄漏
-                if exe_stage.end_of_generate_token:
-                    self.acl_edge_inputs[index] = None
-                    self.acl_edge_params[index] = None
+                last_input, last_param = self.get_input_param(is_prefill, True)
+                last_input[0] = out_hidden
+                inputs[:] = last_input
+                runtime_param.clear()
+                runtime_param.update(last_param)
         else:
             if exe_stage is None or not is_prefill:
                 inputs[0] = out_hidden
