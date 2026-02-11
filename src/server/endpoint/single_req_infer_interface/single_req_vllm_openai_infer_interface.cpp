@@ -332,7 +332,7 @@ bool SingleReqVllmOpenAiInferInterface::ValidMessagesArray(OrderedJson &body, Or
                 return false;
             }
             std::string contents = paramItem[contentKey];
-            if (contents.length() == 0) {
+            if (paramItem[roleKey] != "tool" && contents.length() == 0) {
                 msg = "Request param content len should not be 0";
                 return false;
             }
