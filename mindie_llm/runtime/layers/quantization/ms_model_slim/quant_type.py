@@ -29,4 +29,3 @@ class QuantType(str, Enum):
     W8A8_MIX = "W8A8_MIX"
     W8A8_MXFP8 = "W8A8_MXFP8"
     W4A8_DYNAMIC = "W4A8_DYNAMIC"
-    W8A8SC = "W8A8SC"

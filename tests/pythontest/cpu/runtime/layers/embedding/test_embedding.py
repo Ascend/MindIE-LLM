@@ -21,8 +21,6 @@ from mindie_llm.runtime.layers.quantization.unquantized import (
 )
 from mindie_llm.runtime.layers.parameter import BaseParameter, ColumnParameter
 from mindie_llm.runtime.utils.distributed import set_parallel_info_manager
-from mindie_llm.runtime.model_runner.forward_context import set_forward_context, ForwardContext
-from mindie_llm.runtime.model_runner.forward_context_exp import BatchDescriptor
 
 
 class TestVocabParallelEmbedding(unittest.TestCase):
@@ -46,20 +44,6 @@ class TestVocabParallelEmbedding(unittest.TestCase):
     def tearDown(self):
         """Clean up after tests."""
         set_parallel_info_manager(None)
-        set_forward_context(None)
-
-    def _set_forward_context(self):
-        """Helper method to set up forward context for tests."""
-        ctx = ForwardContext(
-            attn_metadata={},
-            lm_head_indices=None,
-            mtp_metadata=None,
-            is_prefill=False,
-            num_tokens_across_dp_cpu=torch.tensor([0]),
-            batch_descriptor=BatchDescriptor(num_tokens=0, is_flash_comm_enabled=False),
-        )
-        ctx.enable_flash_comm = False
-        set_forward_context(ctx)
 
     def test_init_without_quant_config(self):
         """Test initialization without quantization config."""
@@ -213,9 +197,6 @@ class TestVocabParallelEmbedding(unittest.TestCase):
         # Mock embedding to return expected output shape
         mock_embedding.return_value = torch.randn(3, 512)
 
-        # Set forward context before calling forward
-        self._set_forward_context()
-
         output = layer.forward(x)
 
         # Verify embedding was called with correct arguments
@@ -259,9 +240,6 @@ class TestVocabParallelEmbedding(unittest.TestCase):
 
         mock_all_gather.side_effect = mock_all_gather_side_effect
 
-        # Set forward context before calling forward
-        self._set_forward_context()
-
         output = layer.forward(x)
 
         # Verify embedding was called
@@ -302,9 +280,6 @@ class TestVocabParallelEmbedding(unittest.TestCase):
         # Create input token indices (1D tensor)
         x = torch.tensor([0, 1, 2])
 
-        # Set forward context before calling forward
-        self._set_forward_context()
-
         # Mock the quant_method.apply
         with patch.object(layer.quant_method, 'apply') as mock_apply:
             mock_apply.return_value = torch.randn(3, 512)
@@ -332,9 +307,6 @@ class TestVocabParallelEmbedding(unittest.TestCase):
         # Mock embedding to return expected output
         mock_embedding.return_value = torch.randn(3, 512)
 
-        # Set forward context before calling forward
-        self._set_forward_context()
-
         # Call forward with mocked embedding
         output = layer.forward(x)
 
@@ -346,28 +318,6 @@ class TestVocabParallelEmbedding(unittest.TestCase):
         self.assertTrue(torch.allclose(call_args[0][1], layer.weight.data))
         # Verify output shape
         self.assertEqual(output.shape, (3, 512))
-
-    def test_weight_loader_w8a8sc_padding(self):
-        """Test W8A8SC weight padding: F.pad(loaded_weight, (0, 0, 0, 1)) (embedding.py:90-94)"""
-        from mindie_llm.runtime.layers.parameter import ModelWeightParameter
-
-        mock_quant_config = MagicMock()
-        mock_quant_config.model_quant_type = "W8A8SC"
-
-        layer = VocabParallelEmbedding(
-            num_embeddings=1000,
-            embedding_dim=512,
-            quant_config=mock_quant_config,
-        )
-        layer.weight = ModelWeightParameter(torch.empty(1000, 512))
-        layer.weight.add_attrs({"input_dim": 1, "output_dim": 0})
-
-        loaded_weight = torch.randn(999, 512)
-
-        with patch.object(layer.weight, 'load_weight') as mock_load:
-            layer.weight_loader(layer.weight, loaded_weight)
-            called_weight = mock_load.call_args[0][0]
-            self.assertEqual(called_weight.shape, (1000, 512))  # After padding
 
 
 class TestParallelLMHead(unittest.TestCase):
@@ -520,7 +470,7 @@ class TestParallelLMHead(unittest.TestCase):
         # Mock the load_weight method
         with patch.object(param, 'load_weight') as mock_load:
             layer.weight_loader(param, loaded_weight)
-            mock_load.assert_called_once_with(loaded_weight)
+            mock_load.assert_called_once_with(loaded_weight=loaded_weight)
 
     def test_tie_weights(self):
         """Test tie_weights method."""

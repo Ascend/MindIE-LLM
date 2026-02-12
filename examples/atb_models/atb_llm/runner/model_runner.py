@@ -184,7 +184,7 @@ class ModelRunner:
             (self.config.quantize is None or \
              self.config.quantize in [
                 QuantType.FLOAT, QuantType.W8A8, QuantType.W8A8_DYNAMIC,
-                QuantType.W8A8_PDMIX, QuantType.W8A8_MIX, QuantType.W8A8SC
+                QuantType.W8A8_PDMIX, QuantType.W8A8_MIX
             ])
         self.llm_config = router_ins.llm_config
 

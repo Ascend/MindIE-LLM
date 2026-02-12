@@ -16,7 +16,6 @@ from torch import nn
 from mindie_llm.runtime.utils.loader.default_model_loader import DefaultModelLoader
 from mindie_llm.runtime.layers.fused_moe.fused_moe import FusedMoE
 from mindie_llm.runtime.layers.quantization.quantization_method_base import QuantizationMethodBase
-from mindie_llm.runtime.utils.distributed import set_parallel_info_manager
 
 
 class TestDefaultModelLoader(unittest.TestCase):
@@ -100,14 +99,11 @@ class TestDefaultModelLoader(unittest.TestCase):
         mock_weights_file_handler_class.return_value = mock_weight_file_handler
 
         model = nn.Linear(10, 20)
-        # Add config attribute since load_weights now accesses model.config.quantize
-        model.config = MagicMock()
-        model.config.quantize = None
 
         with patch.object(self.loader, '_load_modules') as mock_load_modules:
             self.loader.load_weights(model, "/fake/path")
 
-            mock_weights_file_handler_class.assert_called_once_with("/fake/path", ".safetensors", None)
+            mock_weights_file_handler_class.assert_called_once_with("/fake/path", ".safetensors")
             mock_load_modules.assert_called_once_with(model)
             mock_weight_file_handler.release_file_handler.assert_called_once()
             mock_logger.info.assert_called_once()
@@ -180,6 +176,27 @@ class TestDefaultModelLoader(unittest.TestCase):
         mock_weight_file_handler.get_tensor.assert_not_called()
         mock_pbar.update.assert_called_once_with(1)
 
+    def test_load_modules_with_progress_value_error_without_prefix(self):
+        """Test _load_modules_with_progress with ValueError but no module prefix."""
+        mock_weight_file_handler = MagicMock()
+        self.loader._weight_file_handler = mock_weight_file_handler
+
+        mock_param = MagicMock()
+        mock_param.weight_loader = MagicMock()
+        mock_module = MagicMock()
+        mock_module.named_parameters.return_value = [("weight", mock_param)]
+        mock_module.prefix = None
+
+        modules_dict = {"test": mock_module}
+        mock_pbar = MagicMock()
+
+        # Raises ValueError
+        mock_weight_file_handler.get_tensor.side_effect = ValueError("Weight file was not found")
+
+        # Should raise the exception
+        with self.assertRaises(ValueError):
+            self.loader._load_modules_with_progress(modules_dict, mock_pbar)
+
     def test_load_modules_with_progress_fused_moe(self):
         """Test _load_modules_with_progress with FusedMoE module."""
         mock_weight_file_handler = MagicMock()
@@ -191,10 +208,6 @@ class TestDefaultModelLoader(unittest.TestCase):
         mock_module.named_parameters.return_value = [("weight", mock_param)]
         mock_module.prefix = None
         mock_module.weight_loader = MagicMock()
-        mock_module.expert_list = ["expert0"]
-        mock_module.suffix = ["linear"]
-        mock_module.weight_list = ["weight"]  # Add missing attribute
-        mock_module.get_weight_components_suffix = MagicMock(return_value=["weight"])
 
         modules_dict = {"test": mock_module}
         mock_pbar = MagicMock()
@@ -203,7 +216,8 @@ class TestDefaultModelLoader(unittest.TestCase):
 
         self.loader._load_modules_with_progress(modules_dict, mock_pbar)
 
-        mock_module.weight_loader.assert_called_once_with(torch.tensor([1.0]), "expert0", "linear", "weight")
+        mock_param.weight_loader.assert_called_once_with(mock_param, torch.tensor([1.0]))
+        mock_module.weight_loader.assert_called_once_with(torch.tensor([1.0]), "test.weight")
         mock_pbar.update.assert_called_once_with(1)
 
     def test_load_modules_with_progress_with_quant_method(self):
@@ -301,141 +315,6 @@ class TestDefaultModelLoader(unittest.TestCase):
             # Check that disable parameter was set to True (rank != 0)
             call_kwargs = mock_tqdm_class.call_args[1]
             self.assertTrue(call_kwargs.get('disable', False))
-
-    @patch('mindie_llm.runtime.utils.loader.default_model_loader.get_parallel_info_manager')
-    @patch('mindie_llm.runtime.utils.loader.default_model_loader.WeightsFileHandler')
-    def test_load_weights_passes_quantize_to_handler(self, mock_handler_class, mock_get_parallel_info):
-        """Test that load_weights passes quantize from config to WeightsFileHandler."""
-        mock_parallel_info = MagicMock()
-        mock_parallel_info.rank = 0
-        mock_get_parallel_info.return_value = mock_parallel_info
-
-        mock_handler = MagicMock()
-        mock_handler_class.return_value = mock_handler
-
-        # Create a mock model with quantize in config
-        model = nn.Linear(10, 20)
-        model.config = MagicMock()
-        model.config.quantize = 'w8a8sc'
-
-        with patch.object(self.loader, '_load_modules'):
-            self.loader.load_weights(model, "/fake/model/path")
-
-        # Verify WeightsFileHandler was called with quantize parameter
-        mock_handler_class.assert_called_once_with("/fake/model/path", ".safetensors", 'w8a8sc')
-
-    @patch('mindie_llm.runtime.utils.loader.default_model_loader.check_and_reuse_global_param_dict')
-    @patch('mindie_llm.runtime.utils.loader.default_model_loader.get_weight_mapper_cls')
-    def test_weight_name_mapping_for_w8a8sc_quantize(self, mock_get_weight_mapper_cls, mock_check_reuse):
-        """Test that W8A8SC quantize config uses weight name mapping."""
-        mock_check_reuse.return_value = False  # Don't skip loading
-        mock_handler = MagicMock()
-        mock_handler.in_routing.return_value = True
-        mock_handler.get_tensor.return_value = torch.randn(20, 10)
-        self.loader._weight_file_handler = mock_handler
-
-        # Mock the mapper class
-        mock_mapper_cls = MagicMock()
-        mock_mapper_cls.map_model_to_weight.return_value = "transformer.h.0.attn.c_attn"
-        mock_get_weight_mapper_cls.return_value = mock_mapper_cls
-
-        # Create a mock layer
-        mock_layer = MagicMock()
-        mock_param = MagicMock()
-        mock_param.weight_loader = MagicMock()
-        mock_layer.named_parameters.return_value = [("weight", mock_param)]
-        mock_layer.prefix = None
-
-        # Create a mock model with w8a8sc quantize
-        mock_model = MagicMock()
-        mock_model.config = MagicMock()
-        mock_model.config.quantize = 'w8a8sc'
-
-        modules_dict = {"model.layers.0.self_attn.qkv_proj": mock_layer}
-
-        from tqdm.auto import tqdm
-        pbar = tqdm(total=1, disable=True)
-
-        self.loader._load_modules_with_progress(modules_dict, pbar, mock_model)
-
-        # Verify the mapper was called to convert the name
-        mock_mapper_cls.map_model_to_weight.assert_called_once_with("model.layers.0.self_attn.qkv_proj")
-        # Verify get_tensor was called with the mapped name
-        mock_handler.get_tensor.assert_called_once_with("transformer.h.0.attn.c_attn.weight")
-
-    @patch('mindie_llm.runtime.utils.loader.default_model_loader.check_and_reuse_global_param_dict')
-    @patch('mindie_llm.runtime.utils.loader.default_model_loader.get_weight_mapper_cls')
-    def test_weight_name_mapping_skipped_for_non_w8a8sc_quantize(self, mock_get_weight_mapper_cls, mock_check_reuse):
-        """Test that non-W8A8SC quantize config does not use weight name mapping."""
-        mock_check_reuse.return_value = False  # Don't skip loading
-        mock_handler = MagicMock()
-        mock_handler.in_routing.return_value = True
-        mock_handler.get_tensor.return_value = torch.randn(20, 10)
-        self.loader._weight_file_handler = mock_handler
-
-        # Mock the mapper class to return None (non-W8A8SC config)
-        mock_get_weight_mapper_cls.return_value = None
-
-        # Create a mock layer
-        mock_layer = MagicMock()
-        mock_param = MagicMock()
-        mock_param.weight_loader = MagicMock()
-        mock_layer.named_parameters.return_value = [("weight", mock_param)]
-        mock_layer.prefix = None
-
-        # Create a mock model with float quantize (non-w8a8sc)
-        mock_model = MagicMock()
-        mock_model.config = MagicMock()
-        mock_model.config.quantize = 'float'
-
-        modules_dict = {"model.layers.0.self_attn.qkv_proj": mock_layer}
-
-        from tqdm.auto import tqdm
-        pbar = tqdm(total=1, disable=True)
-
-        self.loader._load_modules_with_progress(modules_dict, pbar, mock_model)
-
-        # Verify get_tensor was called with the original name (no mapping applied)
-        mock_handler.get_tensor.assert_called_once_with("model.layers.0.self_attn.qkv_proj.weight")
-
-    @patch('mindie_llm.runtime.utils.loader.default_model_loader.check_and_reuse_global_param_dict')
-    @patch('mindie_llm.runtime.utils.loader.default_model_loader.get_weight_mapper_cls')
-    def test_w8a8sc_skips_multi_prefix_handling(self, mock_get_weight_mapper_cls, mock_check_reuse):
-        """Test that W8A8SC quantize config skips multi-prefix handling."""
-        mock_check_reuse.return_value = False  # Don't skip loading
-        mock_handler = MagicMock()
-        mock_handler.in_routing.return_value = True
-        mock_handler.get_tensor.return_value = torch.randn(20, 10)
-        self.loader._weight_file_handler = mock_handler
-
-        # Mock the mapper class
-        mock_mapper_cls = MagicMock()
-        mock_mapper_cls.map_model_to_weight.return_value = "transformer.h.0.attn.c_attn"
-        mock_get_weight_mapper_cls.return_value = mock_mapper_cls
-
-        # Create a mock layer with multi-prefix
-        mock_layer = MagicMock()
-        mock_param = MagicMock()
-        mock_param.weight_loader = MagicMock()
-        mock_layer.named_parameters.return_value = [("weight", mock_param)]
-        mock_layer.prefix = ["prefix1", "prefix2"]  # Multi-prefix
-
-        # Create a mock model with w8a8sc quantize
-        mock_model = MagicMock()
-        mock_model.config = MagicMock()
-        mock_model.config.quantize = 'w8a8sc'
-
-        modules_dict = {"model.layers.0.self_attn.qkv_proj": mock_layer}
-
-        from tqdm.auto import tqdm
-        pbar = tqdm(total=1, disable=True)
-
-        self.loader._load_modules_with_progress(modules_dict, pbar, mock_model)
-
-        # Verify the layer was NOT handled as multi-prefix (no _load_multi_prefix_module call)
-        # Instead, it should go through the single prefix path with name mapping
-        mock_mapper_cls.map_model_to_weight.assert_called_once()
-        mock_handler.get_tensor.assert_called_once()
 
 
 if __name__ == '__main__':

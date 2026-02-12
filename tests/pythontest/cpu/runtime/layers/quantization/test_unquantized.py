@@ -23,8 +23,6 @@ from mindie_llm.runtime.layers.quantization.unquantized import (
     UnquantizedLinearMethod, UnquantizedEmbeddingMethod, UnquantizedNormMethod,
     UnquantizedLayerNormBiasMethod, UnquantizedFusedMoEMethod
 )
-from mindie_llm.runtime.layers.quantization.ms_model_slim.quant_type import QuantType
-from mindie_llm.runtime.layers.quantization.ms_model_slim.w8a8sc import sparse_compressed_weight_loader
 
 
 class MockModule(nn.Module):
@@ -191,34 +189,13 @@ class TestUnquantizedLinearMethod(unittest.TestCase):
         self.layer_for_apply.bias = BiasParameter(torch.ones(10))
         self.layer_for_apply.skip_bias_add = True
         self.layer_for_apply.enable_anti_outlier = True
-
+        
         x = torch.randn(2, 3, 10)
         result = self.method.apply(self.layer_for_apply, x)
-
+        
         # 输出是输入加上偏置
         expected = x + 1
         torch.testing.assert_close(result, expected)
-
-    def test_create_weights_with_w8a8sc_quant_type(self):
-        """Test that weight_loader is set to sparse_compressed_weight_loader for W8A8SC quant type."""
-        # Mock quant_config with W8A8SC model quant type
-        mock_quant_config = MagicMock()
-        mock_quant_config.model_quant_type = QuantType.W8A8SC
-        self.layer_for_create.quant_config = mock_quant_config
-
-        self.method.create_weights(
-            self.layer_for_create,
-            self.input_size_per_partition,
-            self.output_partition_sizes,
-            bias=False,
-            weight_dtype=self.weight_dtype,
-            bias_dtype=self.bias_dtype,
-            **self.extra_attrs
-        )
-
-        # Verify weight_loader is set to sparse_compressed_weight_loader
-        self.assertTrue(hasattr(self.layer_for_create.weight, 'weight_loader'))
-        self.assertEqual(self.layer_for_create.weight.weight_loader, sparse_compressed_weight_loader)
 
 
 class TestUnquantizedEmbeddingMethod(unittest.TestCase):

@@ -20,7 +20,6 @@ from mindie_llm.runtime.layers.quantization.ms_model_slim.w8a8 import (
     W8A8PerTokenLinearMethod,
     W8A8MixLinearMethod,
 )
-from mindie_llm.runtime.layers.quantization.ms_model_slim.w8a8sc import W8A8SCLinearMethod
 from mindie_llm.runtime.layers.quantization.ms_model_slim.anti_outlier import AntiOutlierNormMethod
 from mindie_llm.runtime.layers.quantization.unquantized import (
     UnquantizedLinearMethod,
@@ -30,7 +29,6 @@ from mindie_llm.runtime.layers.quantization.unquantized import (
 from mindie_llm.runtime.layers.linear.linear import ReplicatedLinear, LinearBase
 from mindie_llm.runtime.layers.embedding.embedding import VocabParallelEmbedding, ParallelLMHead
 from mindie_llm.runtime.layers.normalization import RMSNorm
-from mindie_llm.runtime.layers.quantization.quantization_config_base import get_model_quant_type
 from mindie_llm.runtime.utils.distributed import get_parallel_info_manager, set_parallel_info_manager
 
 
@@ -457,59 +455,6 @@ class TestGetQuantMethod(unittest.TestCase):
 
         # Should return AntiOutlierNormMethod because bias key exists in config
         self.assertIsInstance(quant_method, AntiOutlierNormMethod)
-
-    def test_get_quant_method_w8a8sc_linear(self):
-        """Test W8A8SC quantization type returns W8A8SCLinearMethod."""
-        config = QuantizationConfig({
-            "version": "1.0.0",
-            "model_quant_type": "W8A8SC",
-            "layer.weight": "W8A8SC",
-        })
-
-        self.mock_set_parallel_info_manager()
-        layer = ReplicatedLinear(input_size=512, output_size=1024, prefix="layer")
-        quant_method = config.get_quant_method(layer, prefix="layer")
-
-        self.assertIsInstance(quant_method, W8A8SCLinearMethod)
-
-
-class TestGetModelQuantType(unittest.TestCase):
-    """Test cases for get_model_quant_type function: get model quantization type"""
-
-    def test_get_model_quant_type_none(self):
-        """Test case when quant_config is None"""
-        result = get_model_quant_type(None)
-        self.assertIsNone(result)
-
-    def test_get_model_quant_type_with_model_quant_type(self):
-        """Test case when quant_config has model_quant_type attribute"""
-        mock_config = MagicMock()
-        mock_config.model_quant_type = "W8A8SC"
-        result = get_model_quant_type(mock_config)
-        self.assertEqual(result, "W8A8SC")
-
-    def test_get_model_quant_type_with_adaptee(self):
-        """Test adapter pattern: quant_config has adaptee attribute"""
-        mock_config = MagicMock()
-        mock_config.adaptee.model_quant_type = "W8A8SC"
-        # Ensure quant_config itself doesn't have model_quant_type attribute
-        del mock_config.model_quant_type
-        result = get_model_quant_type(mock_config)
-        self.assertEqual(result, "W8A8SC")
-
-    def test_get_model_quant_type_no_attribute(self):
-        """Test case when quant_config has no model_quant_type attribute and no adaptee"""
-        mock_config = MagicMock(spec=[])  # Empty spec, no attributes
-        result = get_model_quant_type(mock_config)
-        self.assertIsNone(result)
-
-    def test_get_model_quant_type_adaptee_no_attribute(self):
-        """Test case when adaptee exists but has no model_quant_type attribute"""
-        mock_config = MagicMock()
-        mock_config.adaptee = MagicMock(spec=[])
-        del mock_config.model_quant_type
-        result = get_model_quant_type(mock_config)
-        self.assertIsNone(result)
 
 
 if __name__ == '__main__':

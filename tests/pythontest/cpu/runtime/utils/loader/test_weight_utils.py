@@ -275,59 +275,16 @@ class TestWeightsFileHandler(unittest.TestCase):
     def test_get_filename_invalid_tensor(self):
         """Test _get_filename with invalid tensor name."""
         mock_routing = {"tensor1": "file1.safetensors"}
-
+        
         with patch.object(WeightsFileHandler, '_get_weight_filenames', return_value=["file1.safetensors"]):
             with patch.object(WeightsFileHandler, '_load_weight_file_routing', return_value=mock_routing):
                 handler = WeightsFileHandler(self.model_path, self.extension)
-
+                
                 with self.assertRaises(ValueError) as context:
                     handler._get_filename("nonexistent_tensor")
-
+                
                 self.assertIn("Weight file was not found", str(context.exception))
                 self.assertIn("nonexistent_tensor", str(context.exception))
-
-    def test_in_routing_with_valid_key(self):
-        """Test in_routing returns True for valid key."""
-        mock_routing = {"tensor1": "file1.safetensors", "tensor2": "file2.safetensors"}
-
-        with patch.object(WeightsFileHandler, '_get_weight_filenames', return_value=["file1.safetensors", "file2.safetensors"]):
-            with patch.object(WeightsFileHandler, '_load_weight_file_routing', return_value=mock_routing):
-                handler = WeightsFileHandler(self.model_path, self.extension)
-
-                # Test existing key
-                result = handler.in_routing("tensor1")
-                self.assertTrue(result)
-
-                # Test another existing key
-                result = handler.in_routing("tensor2")
-                self.assertTrue(result)
-
-    def test_in_routing_with_invalid_key(self):
-        """Test in_routing returns False for invalid key."""
-        mock_routing = {"tensor1": "file1.safetensors"}
-
-        with patch.object(WeightsFileHandler, '_get_weight_filenames', return_value=["file1.safetensors"]):
-            with patch.object(WeightsFileHandler, '_load_weight_file_routing', return_value=mock_routing):
-                handler = WeightsFileHandler(self.model_path, self.extension)
-
-                # Test non-existing key
-                result = handler.in_routing("nonexistent_tensor")
-                self.assertFalse(result)
-
-                # Test empty string
-                result = handler.in_routing("")
-                self.assertFalse(result)
-
-    def test_in_routing_with_empty_routing(self):
-        """Test in_routing with empty routing dict."""
-        mock_routing = {}
-
-        with patch.object(WeightsFileHandler, '_get_weight_filenames', return_value=["file1.safetensors"]):
-            with patch.object(WeightsFileHandler, '_load_weight_file_routing', return_value=mock_routing):
-                handler = WeightsFileHandler(self.model_path, self.extension)
-
-                result = handler.in_routing("tensor1")
-                self.assertFalse(result)
 
     @patch('mindie_llm.runtime.utils.loader.weight_utils.safetensors.safe_open')
     def test_get_handler_new_file(self, mock_safe_open):
@@ -386,9 +343,7 @@ class TestWeightsFileHandler(unittest.TestCase):
         mock_path.glob.return_value = [mock_file1, mock_file2]
         mock_path_class.return_value = mock_path
         
-        handler = WeightsFileHandler.__new__(WeightsFileHandler)
-        handler.quantize = None
-        result = handler._get_weight_filenames(self.model_path, self.extension)
+        result = WeightsFileHandler._get_weight_filenames(self.model_path, self.extension)
         
         # Should return list of file paths as strings
         self.assertEqual(len(result), 2)
@@ -405,9 +360,7 @@ class TestWeightsFileHandler(unittest.TestCase):
         mock_path_class.return_value = mock_path
         
         with self.assertRaises(FileNotFoundError) as context:
-            handler = WeightsFileHandler.__new__(WeightsFileHandler)
-            handler.quantize = None
-            handler._get_weight_filenames(self.model_path, self.extension)
+            WeightsFileHandler._get_weight_filenames(self.model_path, self.extension)
         
         self.assertIn("No local weights found", str(context.exception))
         self.assertIn(self.extension, str(context.exception))
@@ -429,9 +382,7 @@ class TestWeightsFileHandler(unittest.TestCase):
         mock_path_class.return_value = mock_path
         mock_isfile.return_value = False  # Index file doesn't exist
         
-        handler = WeightsFileHandler.__new__(WeightsFileHandler)
-        handler.quantize = None
-        result = handler._get_weight_filenames(self.model_path, self.extension)
+        result = WeightsFileHandler._get_weight_filenames(self.model_path, self.extension)
         
         # Should return all files when index file doesn't exist
         self.assertEqual(len(result), 2)
@@ -471,9 +422,7 @@ class TestWeightsFileHandler(unittest.TestCase):
         mock_safe_open.return_value = mock_file_context
         mock_json_load.return_value = mock_index_content
         
-        handler = WeightsFileHandler.__new__(WeightsFileHandler)
-        handler.quantize = None
-        result = handler._get_weight_filenames(self.model_path, self.extension)
+        result = WeightsFileHandler._get_weight_filenames(self.model_path, self.extension)
         
         # Should return only files in index
         self.assertEqual(len(result), 2)
@@ -488,9 +437,7 @@ class TestWeightsFileHandler(unittest.TestCase):
         mock_path_class.return_value = mock_path
         
         with self.assertRaises(FileNotFoundError) as context:
-            handler = WeightsFileHandler.__new__(WeightsFileHandler)
-            handler.quantize = None
-            handler._get_weight_filenames(self.model_path, self.extension)
+            WeightsFileHandler._get_weight_filenames(self.model_path, self.extension)
         
         self.assertIn("not exists or not a directory", str(context.exception))
 
@@ -503,144 +450,131 @@ class TestWeightsFileHandler(unittest.TestCase):
         mock_path_class.return_value = mock_path
         
         with self.assertRaises(FileNotFoundError) as context:
-            handler = WeightsFileHandler.__new__(WeightsFileHandler)
-            handler.quantize = None
-            handler._get_weight_filenames(self.model_path, self.extension)
+            WeightsFileHandler._get_weight_filenames(self.model_path, self.extension)
         
         self.assertIn("not exists or not a directory", str(context.exception))
 
     @patch('mindie_llm.runtime.utils.loader.weight_utils.safetensors.safe_open')
     @patch('mindie_llm.runtime.utils.loader.weight_utils.check_path_permission')
     @patch('mindie_llm.runtime.utils.loader.weight_utils.standardize_path')
-    def test_load_weight_file_routing(self, mock_standardize_path, mock_check_permission, mock_safe_open):	 
-        """Test _load_weight_file_routing."""	 
+    def test_load_weight_file_routing(self, mock_standardize_path, mock_check_permission, mock_safe_open):
+        """Test _load_weight_file_routing."""
+        filenames = ["file1.safetensors", "file2.safetensors"]
+        
+        mock_standardize_path.side_effect = lambda x, **kwargs: x  # Return as-is
+        
+        # Mock file handlers
+        mock_file_handler1 = MagicMock()
+        mock_file_handler1.__enter__ = Mock(return_value=mock_file_handler1)
+        mock_file_handler1.__exit__ = Mock(return_value=False)
+        mock_file_handler1.keys.return_value = ["tensor1", "tensor2"]
+        
+        mock_file_handler2 = MagicMock()
+        mock_file_handler2.__enter__ = Mock(return_value=mock_file_handler2)
+        mock_file_handler2.__exit__ = Mock(return_value=False)
+        mock_file_handler2.keys.return_value = ["tensor3", "tensor4"]
+        
+        mock_safe_open.side_effect = [mock_file_handler1, mock_file_handler2]
+        
+        handler = WeightsFileHandler.__new__(WeightsFileHandler)
+        handler._filenames = filenames
+        
+        routing = handler._load_weight_file_routing()
+        
+        # Verify standardize_path was called for each file
+        self.assertEqual(mock_standardize_path.call_count, 2)
+        
+        # Verify check_path_permission was called for each file
+        self.assertEqual(mock_check_permission.call_count, 2)
+        
+        # Verify routing was created correctly
+        self.assertEqual(len(routing), 4)
+        self.assertEqual(routing["tensor1"], "file1.safetensors")
+        self.assertEqual(routing["tensor2"], "file1.safetensors")
+        self.assertEqual(routing["tensor3"], "file2.safetensors")
+        self.assertEqual(routing["tensor4"], "file2.safetensors")
+
+    @patch('mindie_llm.runtime.utils.loader.weight_utils.safetensors.safe_open')
+    @patch('mindie_llm.runtime.utils.loader.weight_utils.check_path_permission')
+    @patch('mindie_llm.runtime.utils.loader.weight_utils.standardize_path')
+    def test_load_weight_file_routing_duplicate_tensor(self, mock_standardize_path, mock_check_permission, mock_safe_open):
+        """Test _load_weight_file_routing raises error for duplicate tensor."""
+        filenames = ["file1.safetensors", "file2.safetensors"]
+        
+        mock_standardize_path.side_effect = lambda x, **kwargs: x
+        
+        # Mock file handlers with duplicate tensor name
+        mock_file_handler1 = MagicMock()
+        mock_file_handler1.__enter__ = Mock(return_value=mock_file_handler1)
+        mock_file_handler1.__exit__ = Mock(return_value=False)
+        mock_file_handler1.keys.return_value = ["tensor1", "tensor2"]
+        
+        mock_file_handler2 = MagicMock()
+        mock_file_handler2.__enter__ = Mock(return_value=mock_file_handler2)
+        mock_file_handler2.__exit__ = Mock(return_value=False)
+        mock_file_handler2.keys.return_value = ["tensor2", "tensor3"]  # tensor2 is duplicate
+        
+        mock_safe_open.side_effect = [mock_file_handler1, mock_file_handler2]
+        
+        handler = WeightsFileHandler.__new__(WeightsFileHandler)
+        handler._filenames = filenames
+        
+        with self.assertRaises(ValueError) as context:
+            handler._load_weight_file_routing()
+        
+        self.assertIn("Weight was found in multiple files", str(context.exception))
+
+    @patch('mindie_llm.runtime.utils.loader.weight_utils.safetensors.safe_open')
+    @patch('mindie_llm.runtime.utils.loader.weight_utils.check_path_permission')
+    @patch('mindie_llm.runtime.utils.loader.weight_utils.standardize_path')
+    def test_load_weight_file_routing_empty_files(self, mock_standardize_path, mock_check_permission, mock_safe_open):
+        """Test _load_weight_file_routing with empty files."""
+        filenames = ["file1.safetensors"]
+        
+        mock_standardize_path.side_effect = lambda x, **kwargs: x
+        
+        mock_file_handler = MagicMock()
+        mock_file_handler.__enter__ = Mock(return_value=mock_file_handler)
+        mock_file_handler.__exit__ = Mock(return_value=False)
+        mock_file_handler.keys.return_value = []  # No tensors
+        
+        mock_safe_open.return_value = mock_file_handler
+        
+        handler = WeightsFileHandler.__new__(WeightsFileHandler)
+        handler._filenames = filenames
+        
+        routing = handler._load_weight_file_routing()
+        
+        # Should return empty routing
+        self.assertEqual(len(routing), 0)
+
+    @patch('mindie_llm.runtime.utils.loader.weight_utils.safetensors.safe_open')
+    @patch('mindie_llm.runtime.utils.loader.weight_utils.check_path_permission')
+    @patch('mindie_llm.runtime.utils.loader.weight_utils.standardize_path')
+    def test_load_weight_file_routing_single_file(self, mock_standardize_path, mock_check_permission, mock_safe_open):
+        """Test _load_weight_file_routing with single file."""
+        filenames = ["file1.safetensors"]
+        
+        mock_standardize_path.side_effect = lambda x, **kwargs: x
+        
+        mock_file_handler = MagicMock()
+        mock_file_handler.__enter__ = Mock(return_value=mock_file_handler)
+        mock_file_handler.__exit__ = Mock(return_value=False)
+        mock_file_handler.keys.return_value = ["tensor1", "tensor2", "tensor3"]
+        
+        mock_safe_open.return_value = mock_file_handler
+        
+        handler = WeightsFileHandler.__new__(WeightsFileHandler)
+        handler._filenames = filenames
+        
+        routing = handler._load_weight_file_routing()
+        
+        # Verify routing was created correctly
+        self.assertEqual(len(routing), 3)
+        self.assertEqual(routing["tensor1"], "file1.safetensors")
+        self.assertEqual(routing["tensor2"], "file1.safetensors")
+        self.assertEqual(routing["tensor3"], "file1.safetensors")
 
 
-
-
-
-
-        filenames = ["file1.safetensors", "file2.safetensors"]	 
-        
-        mock_standardize_path.side_effect = lambda x, **kwargs: x  # Return as-is 
-        
-        # Mock file handlers 
-        mock_file_handler1 = MagicMock()	 
-        mock_file_handler1.__enter__ = Mock(return_value=mock_file_handler1)	 
-        mock_file_handler1.__exit__ = Mock(return_value=False)	 
-        mock_file_handler1.keys.return_value = ["tensor1", "tensor2"]	 
-            
-        mock_file_handler2 = MagicMock()	 
-        mock_file_handler2.__enter__ = Mock(return_value=mock_file_handler2)	 
-        mock_file_handler2.__exit__ = Mock(return_value=False)	 
-        mock_file_handler2.keys.return_value = ["tensor3", "tensor4"]	 
-            
-        mock_safe_open.side_effect = [mock_file_handler1, mock_file_handler2]	 
-            
-        handler = WeightsFileHandler.__new__(WeightsFileHandler)	 
-        handler._filenames = filenames	 
-        
-        routing = handler._load_weight_file_routing()	 
-            
-        # Verify standardize_path was called for each file 
-        self.assertEqual(mock_standardize_path.call_count, 2) 
-        
-        # Verify check_path_permission was called for each file 
-        self.assertEqual(mock_check_permission.call_count, 2) 
-        
-        # Verify routing was created correctly 
-        self.assertEqual(len(routing), 4)	 
-        self.assertEqual(routing["tensor1"], "file1.safetensors")	 
-        self.assertEqual(routing["tensor2"], "file1.safetensors")	 
-        self.assertEqual(routing["tensor3"], "file2.safetensors")	 
-        self.assertEqual(routing["tensor4"], "file2.safetensors")	 
-
-
-    @patch('mindie_llm.runtime.utils.loader.weight_utils.safetensors.safe_open')	 
-    @patch('mindie_llm.runtime.utils.loader.weight_utils.check_path_permission') 
-    @patch('mindie_llm.runtime.utils.loader.weight_utils.standardize_path') 
-    def test_load_weight_file_routing_duplicate_tensor(self, mock_standardize_path, mock_check_permission, mock_safe_open): 
-        """Test _load_weight_file_routing raises error for duplicate tensor.""" 
-        filenames = ["file1.safetensors", "file2.safetensors"] 
-        
-        mock_standardize_path.side_effect = lambda x, **kwargs: x 
-        
-        # Mock file handlers with duplicate tensor name 
-        mock_file_handler1 = MagicMock() 
-        mock_file_handler1.__enter__ = Mock(return_value=mock_file_handler1) 
-        mock_file_handler1.__exit__ = Mock(return_value=False) 
-        mock_file_handler1.keys.return_value = ["tensor1", "tensor2"]	 
-            
-        mock_file_handler2 = MagicMock() 
-        mock_file_handler2.__enter__ = Mock(return_value=mock_file_handler2) 
-        mock_file_handler2.__exit__ = Mock(return_value=False) 
-        mock_file_handler2.keys.return_value = ["tensor2", "tensor3"]  # tensor2 is duplicate 
-        
-        mock_safe_open.side_effect = [mock_file_handler1, mock_file_handler2]	 
-            
-        handler = WeightsFileHandler.__new__(WeightsFileHandler) 
-        handler._filenames = filenames 
-        
-        with self.assertRaises(ValueError) as context:	 
-            handler._load_weight_file_routing()	 
-        
-        self.assertIn("Weight was found in multiple files", str(context.exception))	 
-
-
-    @patch('mindie_llm.runtime.utils.loader.weight_utils.safetensors.safe_open')	 
-    @patch('mindie_llm.runtime.utils.loader.weight_utils.check_path_permission')	 
-    @patch('mindie_llm.runtime.utils.loader.weight_utils.standardize_path') 
-    def test_load_weight_file_routing_empty_files(self, mock_standardize_path, mock_check_permission, mock_safe_open): 
-        """Test _load_weight_file_routing with empty files.""" 
-        filenames = ["file1.safetensors"] 
-        
-        mock_standardize_path.side_effect = lambda x, **kwargs: x 
-        
-        mock_file_handler = MagicMock() 
-        mock_file_handler.__enter__ = Mock(return_value=mock_file_handler) 
-        mock_file_handler.__exit__ = Mock(return_value=False) 
-        mock_file_handler.keys.return_value = []  # No tensors 
-        
-        mock_safe_open.return_value = mock_file_handler	 
-            
-        handler = WeightsFileHandler.__new__(WeightsFileHandler)	 
-        handler._filenames = filenames 
-        
-        routing = handler._load_weight_file_routing()	 
-        
-        # Should return empty routing 
-        self.assertEqual(len(routing), 0)	 
-
-
-    @patch('mindie_llm.runtime.utils.loader.weight_utils.safetensors.safe_open')	 
-    @patch('mindie_llm.runtime.utils.loader.weight_utils.check_path_permission') 
-    @patch('mindie_llm.runtime.utils.loader.weight_utils.standardize_path') 
-    def test_load_weight_file_routing_single_file(self, mock_standardize_path, mock_check_permission, mock_safe_open): 
-        """Test _load_weight_file_routing with single file.""" 
-        filenames = ["file1.safetensors"] 
-        
-        mock_standardize_path.side_effect = lambda x, **kwargs: x 
-        
-        mock_file_handler = MagicMock() 
-        mock_file_handler.__enter__ = Mock(return_value=mock_file_handler) 
-        mock_file_handler.__exit__ = Mock(return_value=False) 
-        mock_file_handler.keys.return_value = ["tensor1", "tensor2", "tensor3"]	 
-        
-        mock_safe_open.return_value = mock_file_handler 
-        
-        handler = WeightsFileHandler.__new__(WeightsFileHandler) 
-        handler._filenames = filenames 
-        
-        routing = handler._load_weight_file_routing()	 
-            
-        # Verify routing was created correctly 
-        self.assertEqual(len(routing), 3)	 
-        self.assertEqual(routing["tensor1"], "file1.safetensors")	 
-        self.assertEqual(routing["tensor2"], "file1.safetensors")	 
-        self.assertEqual(routing["tensor3"], "file1.safetensors")	 
-
-
-
-
-if __name__ == '__main__':	 
+if __name__ == '__main__':
     unittest.main()

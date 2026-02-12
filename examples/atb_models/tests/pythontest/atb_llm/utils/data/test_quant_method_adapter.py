@@ -21,7 +21,6 @@ from atb_llm.utils.data.quant_method_adapter import (
     W8A8PerTensorLinearMethod,
     W8A8PerTokenLinearMethod,
     W8A8MixLinearMethod,
-    W8A8SCLinearMethod,
     UnquantizedEmbeddingMethod,
     UnquantizedNormMethod,
     AntiOutlierNormMethod,
@@ -301,26 +300,6 @@ class TestQuantMethodAdapter(unittest.TestCase):
         with patch.object(method, '_check_transpose', return_value=TransposeType.NOT_TRANSPOSE):
             method.process_weights_after_loading(layer)
             self.assertEqual(method.get_weight_transpose_type(layer), TransposeType.NOT_TRANSPOSE)
-
-        LinearMethodSupportAtbGraph._soc_info = None
-
-    @patch.dict("sys.modules", {"torch_npu": MockTorchNpu()})
-    @patch("atb_llm.utils.data.quant_method_adapter.ENV", MockENV())
-    def test_w8a8sc_linear_method(self):
-        LinearMethodSupportAtbGraph.set_soc_info(MockNPUSocInfo())
-
-        adaptee = Mock()
-        method = W8A8SCLinearMethod(adaptee)
-
-        layer = make_fake_layer(use_int8_weight=True)
-        layer.index = Mock()
-        layer.index.data = torch.arange(100, dtype=torch.int32, device='cpu')
-
-        weights = method.get_weights_for_atb_graph(layer, padding=True)
-        self.assertEqual(len(weights), 6)
-
-        self.assertEqual(method.get_linear_descs(layer), LinearTypeV2.W8A8SC)
-        method.process_weights_after_loading(layer)
 
         LinearMethodSupportAtbGraph._soc_info = None
 

@@ -9,11 +9,11 @@
 # See the Mulan PSL v2 for more details.
 
 import importlib
-import json
 import os
-
 from dataclasses import dataclass
+from typing import Any
 from functools import cached_property
+import json
 
 from mindie_llm.runtime.utils.helpers.safety.file import safe_open
 from mindie_llm.runtime.utils.helpers.safety.hf import safe_get_tokenizer_from_pretrained, safe_get_config_dict
@@ -131,7 +131,7 @@ class BaseRouter:
         self.config_dict.update(self._get_generation_config_dict())
         config_cls = self._get_config_cls()
         return config_cls.from_dict(self.config_dict)
-        
+         
     @cached_property
     def generation_config(self):
         """The generation config property, which should not be overridden.

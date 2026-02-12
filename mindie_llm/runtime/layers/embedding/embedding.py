@@ -13,9 +13,8 @@ import torch.distributed as dist
 import torch.nn.functional as F
 
 from mindie_llm.runtime.layers.custom_layer import CustomLayer
-from mindie_llm.runtime.layers.quantization.quantization_config_base import QuantizationConfigBase, get_model_quant_type
+from mindie_llm.runtime.layers.quantization.quantization_config_base import QuantizationConfigBase
 from mindie_llm.runtime.layers.quantization.quantization_method_base import QuantizationMethodBase
-from mindie_llm.runtime.layers.quantization.ms_model_slim.quant_type import QuantType
 from mindie_llm.runtime.layers.quantization.unquantized import UnquantizedEmbeddingMethod, UnquantizedLinearMethod
 from mindie_llm.runtime.layers.parameter import BaseParameter, ColumnParameter
 from mindie_llm.runtime.utils.distributed import get_parallel_info_manager
@@ -87,12 +86,7 @@ class VocabParallelEmbedding(CustomLayer):
             param: The parameter to load the weight into.
             loaded_weight: The weight tensor read from file to be loaded into the parameter.
         """
-        model_quant_type = get_model_quant_type(getattr(self, 'quant_config', None))
-        if model_quant_type in [QuantType.W8A8SC]:
-            loaded_weight = F.pad(loaded_weight, (0, 0, 0, 1))
-            param.data = torch.empty_like(loaded_weight, device=param.data.device, dtype=param.data.dtype)
-            param.load_weight(loaded_weight)
-        elif self.is_parallel:
+        if self.is_parallel:
             param.load_row_parallel_weight(loaded_weight=loaded_weight, tp_rank=self.tp_rank)
         else:
             param.load_weight(loaded_weight)
@@ -208,7 +202,7 @@ class ParallelLMHead(VocabParallelEmbedding):
         if isinstance(param, ColumnParameter):
             param.load_column_parallel_weight(loaded_weight=loaded_weight, tp_rank=self.tp_rank)
         else:
-            param.load_weight(loaded_weight)
+            param.load_weight(loaded_weight=loaded_weight)
 
     def tie_weights(self, embed_tokens: VocabParallelEmbedding) -> "ParallelLMHead":
         """Tie weights with an embedding layer.

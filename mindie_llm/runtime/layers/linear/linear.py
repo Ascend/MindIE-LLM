@@ -12,7 +12,8 @@ import torch
 import torch.distributed as dist
 from mindie_llm.runtime.utils.distributed.parallel_info_manager import ParallelInfo
 from mindie_llm.runtime.layers.custom_layer import CustomLayer
-from mindie_llm.runtime.layers.parameter import BaseParameter, RowParameter, ColumnParameter
+from mindie_llm.runtime.layers.parameter import BaseParameter, RowParameter, ColumnParameter, BiasParameter
+from mindie_llm.runtime.layers.quantization.ms_model_slim.quantization_config import QuantizationConfig
 from mindie_llm.runtime.layers.quantization.quantization_config_base import QuantizationConfigBase
 from mindie_llm.runtime.layers.linear.linear_method_base import LinearMethodBase
 from mindie_llm.runtime.layers.linear.linear_op import get_linear_custom_op

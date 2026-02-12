@@ -20,14 +20,11 @@ import safetensors
 from mindie_llm.utils.log.logging import logger
 from mindie_llm.runtime.utils.helpers.safety.file import safe_open
 from mindie_llm.utils.file_utils import standardize_path, check_path_permission
-from mindie_llm.runtime.layers.quantization.ms_model_slim.w8a8sc import get_part_directory_for_rank
-from mindie_llm.runtime.layers.quantization.ms_model_slim.quant_type import QuantType
 
 
 class WeightsFileHandler:
-    def __init__(self, model_path: str, extension: str, quantize: str = None):
+    def __init__(self, model_path: str, extension: str):
         self._handlers = {}
-        self.quantize = quantize
         self._filenames = self._get_weight_filenames(model_path, extension)
         self._routing = self._load_weight_file_routing()
 
@@ -35,44 +32,13 @@ class WeightsFileHandler:
     def extension(self) -> str:
         return ".safetensors"
     
-
-    
-    def release_file_handler(self) -> None:
-        """Release all file handlers"""
-        if self._handlers:
-            del self._handlers
-            self._handlers = {}
-
-
-    def get_tensor(self, tensor_name: str) -> Any:
-        """Get tensor by full name."""
-        filename, tensor_name = self._get_filename(tensor_name)
-        f = self._get_handler(filename)
-        tensor = f.get_tensor(tensor_name)
-        return tensor
-
-    def in_routing(self, weight_key: str) -> bool:
-        return weight_key in self._routing
-
-    def _get_handler(self, filename: str) -> Any:
-        """Get file handler by filename."""
-        if filename not in self._handlers:
-            # Note: manually call the release_file_handler method after use.
-            f = safetensors.safe_open(filename, framework="pytorch")
-            self._handlers[filename] = f
-            return f
-        return self._handlers[filename]
-
-    def _get_weight_filenames(self,
+    @classmethod
+    def _get_weight_filenames(cls,
                               model_weight_path: str, extension: str,
                               index_file_name: str = transformers.utils.SAFE_WEIGHTS_INDEX_NAME) -> List[Path]:
         """Get the local files"""
         if Path(model_weight_path).exists() and Path(model_weight_path).is_dir():
             local_files = list(Path(model_weight_path).glob(f"*{extension}"))
-            quantize = (getattr(self, "quantize", None) or "").upper()
-            if quantize in [QuantType.W8A8SC]:
-                part_dir = get_part_directory_for_rank(model_weight_path)
-                local_files = list(part_dir.glob(f"*{extension}"))
             if not local_files:
                 raise FileNotFoundError(
                     f"No local weights found with extension {extension};"
@@ -97,7 +63,30 @@ class WeightsFileHandler:
             return filtered_file_path
 
         raise FileNotFoundError("The input model id is not exists or not a directory")
+    
+    def release_file_handler(self) -> None:
+        """Release all file handlers"""
+        if self._handlers:
+            del self._handlers
+            self._handlers = {}
 
+
+    def get_tensor(self, tensor_name: str) -> Any:
+        """Get tensor by full name."""
+        filename, tensor_name = self._get_filename(tensor_name)
+        f = self._get_handler(filename)
+        tensor = f.get_tensor(tensor_name)
+        return tensor
+
+    def _get_handler(self, filename: str) -> Any:
+        """Get file handler by filename."""
+        if filename not in self._handlers:
+            # Note: manually call the release_file_handler method after use.
+            f = safetensors.safe_open(filename, framework="pytorch")
+            self._handlers[filename] = f
+            return f
+        return self._handlers[filename]
+  
     def _get_filename(self, tensor_name: str) -> Tuple[str, str]:
         """Get file name for tensor name."""
         filename = self._routing.get(tensor_name)
@@ -117,4 +106,3 @@ class WeightsFileHandler:
                         raise ValueError("Weight was found in multiple files.")
                     routing[k] = filename
         return routing
-    

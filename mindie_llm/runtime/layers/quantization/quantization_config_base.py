@@ -20,25 +20,6 @@ import torch
 from mindie_llm.runtime.layers.quantization.quantization_method_base import QuantizationMethodBase
 
 
-def get_model_quant_type(quant_config):
-    """Get the model quantization type from a quantization config.
-
-    Args:
-        quant_config: Quantization config object. Can be None or have
-            model_quant_type attribute directly or through adaptee wrapper.
-
-    Returns:
-        The model quantization type string, or None if not found.
-    """
-    if quant_config is None:
-        return None
-    if hasattr(quant_config, 'model_quant_type'):
-        return quant_config.model_quant_type
-    elif hasattr(quant_config, 'adaptee') and hasattr(quant_config.adaptee, 'model_quant_type'):
-        return quant_config.adaptee.model_quant_type
-    return None
-
-
 class QuantizationConfigBase(ABC):
     """Base class for quantization configs."""
 

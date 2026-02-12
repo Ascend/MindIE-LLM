@@ -11,13 +11,12 @@
 import time
 from itertools import product
 
+import torch
 from torch import nn
 from tqdm.auto import tqdm
 
 from mindie_llm.runtime.layers.fused_moe.fused_moe import FusedMoE
 from mindie_llm.runtime.utils.loader.weight_utils import WeightsFileHandler
-from mindie_llm.runtime.layers.quantization.ms_model_slim.quant_type import QuantType
-from mindie_llm.runtime.layers.quantization.ms_model_slim.w8a8sc import get_weight_mapper_cls
 from mindie_llm.runtime.layers.quantization.quantization_method_base import QuantizationMethodBase
 from mindie_llm.runtime.layers.attention.backend.abstract import AttentionImpl
 from mindie_llm.runtime.utils.distributed import get_parallel_info_manager
@@ -41,12 +40,11 @@ class DefaultModelLoader:
     def load_weights(self, model: nn.Module, model_path: str) -> None:
         """Load model weights from checkpoint."""
         self._counter_before_loading_weights = time.perf_counter()
-        quantize = model.config.quantize
-         # Traverse module and map to corresponding weight
-        self._weight_file_handler = WeightsFileHandler(model_path, ".safetensors", quantize)
+
+        # Traverse module and map to corresponding weight
+        self._weight_file_handler = WeightsFileHandler(model_path, ".safetensors")
         self._load_modules(model)
         self._weight_file_handler.release_file_handler()
-
 
         self._counter_after_loading_weights = time.perf_counter()
         logger.info(
@@ -85,8 +83,7 @@ class DefaultModelLoader:
             if param is None:
                 continue
             full_param_name = f"{prefix}.{weight_suffix}"
-            if check_and_reuse_global_param_dict(param, full_param_name) or \
-            not self._weight_file_handler.in_routing(full_param_name):
+            if check_and_reuse_global_param_dict(param, full_param_name):
                 continue
 
             try:
@@ -99,21 +96,11 @@ class DefaultModelLoader:
             param.weight_loader(param, loaded_weight)
             update_global_param_dict(full_param_name, param)
     
-    def _load_modules_with_progress(self, modules_dict: dict, pbar: tqdm, model: nn.Module = None) -> None:
+    def _load_modules_with_progress(self, modules_dict: dict, pbar: tqdm,) -> None:
         """Load weights for modules with progress."""
-        # Get mapper class and quantize config if model is provided
-        mapper_cls = None
-        quantize = None
-        if model and hasattr(model, 'config'):
-            mapper_cls = get_weight_mapper_cls(model.config)
-            quantize = (getattr(model.config, 'quantize', None) or "").upper()
-
         for prefix, module in modules_dict.items():
-            # Apply weight name mapping for W8A8SC
-            if quantize in [QuantType.W8A8SC] and mapper_cls:
-                prefix = mapper_cls.map_model_to_weight(prefix)
             # Handling multi-prefix modules
-            if hasattr(module, "prefix") and isinstance(module.prefix, list) and quantize not in [QuantType.W8A8SC]:
+            if hasattr(module, "prefix") and isinstance(module.prefix, list):
                 self._load_multi_prefix_module(module)
             elif isinstance(module, FusedMoE):
                 # Handle weights (and optionally scale/bias) for every local expert.
@@ -142,7 +129,6 @@ class DefaultModelLoader:
         
             pbar.update(1)
 
-
     def _load_modules(self, model: nn.Module) -> None:
         """Load model weights for leaf modules."""
         leaf_modules_dict = self._get_total_leaf_modules(model)
@@ -153,7 +139,7 @@ class DefaultModelLoader:
                     bar_format=_BAR_FORMAT,
                     unit="module")
         
-        self._load_modules_with_progress(leaf_modules_dict, pbar, model)
+        self._load_modules_with_progress(leaf_modules_dict, pbar)
         pbar.close()
 
 
