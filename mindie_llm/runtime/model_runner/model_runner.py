@@ -567,13 +567,16 @@ class ModelRunner:
         slot_mapping = self.slot_mapping[:num_tokens]
         lm_head_indices = self.lmhead_indices[:num_tokens]
         num_tokens_across_dp_cpu = get_num_tokens_across_dp_npu(input_ids.shape[0])
-        
+        num_out_tokens = self.num_speculative_tokens + 1
         reqs_padding_length, _ = get_speculative_reqs_padding_length(num_tokens=num_tokens,
-                                                                    num_actual_tokens=self.num_speculative_tokens + 1)
+                                                                    num_actual_tokens=num_out_tokens)
 
         seq_lens = self.seq_lens[:reqs_padding_length]
         block_tables = self.block_tables[:reqs_padding_length, :]
         # DSV32
+        actual_seq_lengths_query = torch.arange(
+            num_out_tokens, reqs_padding_length * num_out_tokens + 1, num_out_tokens)
+        self.actual_seq_lengths_query[:reqs_padding_length].copy_(actual_seq_lengths_query)
         actual_seq_lengths_kv = self.actual_seq_lengths_kv[:reqs_padding_length]
         actual_seq_lengths_query = self.actual_seq_lengths_query[:reqs_padding_length]
         # MTP

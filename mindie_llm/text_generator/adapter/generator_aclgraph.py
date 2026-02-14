@@ -569,7 +569,7 @@ class GeneratorAclGraph(GeneratorBackend):
                 np.zeros(input_length_padding, dtype=np.int32)
             ]).reshape(-1)
 
-        if self.mapping.attn_o_proj_tp.group_size > 1:
+        if self.mapping.has_attn_o_proj_tp():
             gather_prenorm_idx = np.arange(atom_dp_size, dtype=np.int32)
         else:
             gather_prenorm_idx = \

@@ -74,10 +74,7 @@ def select_moe_comm_method(quant_type: Optional[str] = None
         if not is_prefill and parallel_info_manager.world_size >= 16:
             moe_comm_type = MoECommType.MC2
         else:
-            if quant_type == "w4a8_dynamic":
-                moe_comm_type = MoECommType.ALLTOALL
-            else:
-                moe_comm_type = MoECommType.ALLGATHER
+            moe_comm_type = MoECommType.ALLTOALL
     elif ascend_device_type in {DeviceType.ASCEND_910_93}:
         moe_comm_type = MoECommType.MC2 if not is_prefill else MoECommType.ALLTOALL
     else:
