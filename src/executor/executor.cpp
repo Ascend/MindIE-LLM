@@ -117,6 +117,7 @@ bool Executor::ExecutorParseConfigAndInitGRPC(std::map<std::string, std::string>
     // - 1 master + N slaves: Master uses 1/(N+1) ranks for IPC, rest for gRPC
     // - Slaves always use all ranks for IPC + gRPC
     bool intraNodeTP = (isMultiNodesInfer_ && modelLaunchConfig_.npuNumPerDP > modelLaunchConfig_.npuNumPerNode);
+    modelLaunchConfig_.intraNodeTP = intraNodeTP;
     int remoteDPRankIdx = GetRemoteDPRankIdx(modelLaunchConfig_, rankIdx, intraNodeTP);
     communicator_ =
         std::make_unique<Communicator>(configFromManager_, isMultiNodesInfer_, rankIdx, remoteDPRankIdx, intraNodeTP);
@@ -160,11 +161,17 @@ bool Executor::ExecutorModelInitAndSync()
                                 <<"Start to synchronize model initialization between Master and Slave nodes.");
         }
         if (modelLaunchConfig_.isMasterNode) { // Master node receives init response from slave
-            ExecuteResponse rawSlaveResponse;
-            communicator_->GRPCGetSyncResponse(rawSlaveResponse);
-            if (!MasterHandleSlaveInitResponse(rawSlaveResponse)) {
-                MINDIE_LLM_LOG_ERROR("Failed to handle slave initialization response.");
-                return false;
+            // For intraNodeTP scenario(where one GRPC message is broadcasted to multiple slaves),
+            // master needs to receive responses from all slaves and aggregate the results.
+            // Otherwise, one executor instance corresponds to one slave and only one response is expected.
+            size_t numExpectedResponses = modelLaunchConfig_.intraNodeTP ? modelLaunchConfig_.slaveIPs.size() : 1;
+            for (int i = 0; i < numExpectedResponses; ++i) {
+                ExecuteResponse rawSlaveResponse;
+                communicator_->GRPCGetSyncResponse(rawSlaveResponse);
+                if (!MasterHandleSlaveInitResponse(rawSlaveResponse)) {
+                    MINDIE_LLM_LOG_ERROR("Failed to handle slave initialization response.");
+                    return false;
+                }
             }
         } else { // Slave node sends init response to master
             if (!SlaveSendInitResponseToMaster()) {

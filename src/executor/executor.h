@@ -34,6 +34,7 @@ struct ModelLaunchConfig {
     uint32_t npuNumPerDP{1};
     uint32_t ipcCommunicatorNum{1};
     uint32_t dp{1};
+    bool intraNodeTP{false};
     bool layerwiseDisaggregated{false};
     std::string layerwiseDisaggregatedRoleType{};
 };
