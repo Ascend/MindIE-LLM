@@ -77,5 +77,13 @@ class TestCloudCutPolicy(unittest.TestCase):
         self.cloud_cut_policy._CloudCutPolicy__ajust_prefill_cut_num_for_diff_npu_soc()
         self.assertEqual(self.cloud_cut_policy.prefill_default_cut_map.get(32), 70)
         
+    def test_ajust_prefill_cut_num_for_diff_npu_soc_910C(self):
+        self.cloud_cut_policy.soc_name = 'Ascend910_9362'
+        self.cloud_cut_policy._CloudCutPolicy__ajust_prefill_cut_num_for_diff_npu_soc_deepseek()
+        self.assertEqual(self.cloud_cut_policy.prefill_default_cut_map.get(7.5), 50)
+
+        self.cloud_cut_policy._CloudCutPolicy__ajust_prefill_cut_num_for_diff_npu_soc()
+        self.assertEqual(self.cloud_cut_policy.prefill_default_cut_map.get(32), 100)
+
 if __name__ == "__main__":
     unittest.main()

@@ -96,8 +96,10 @@ class CloudCutPolicy():
                 self.prefill_cut_num_min = {31.5: 80, 15.5: 40, 7.5: 62, 3.8: 30, 3.3: 43, 1.8: 40, 0.8: 21, 0: 21}
                 self.prefill_seq_k_len_default_forward_time = {31.5: 10000, 15.5: 10000, 7.5: 10000, 3.8: 10000,
                     3.3: 1000, 1.8: 10000, 0.8: 10000, 0: 10000}
+                self.__ajust_prefill_cut_num_for_diff_npu_soc_deepseek()
             logger.info(f"[layerwiseDisaggregated] cut policy init success, model_type: {self.model_type} role_type: "
-                f"{self.role_type} default_cut_map: {self.prefill_default_cut_map}")
+                f"{self.role_type} soc_name: {self.soc_name} default_cut_map: {self.prefill_default_cut_map} "
+                f"num_max: {self.prefill_cut_num_max} num_min: {self.prefill_cut_num_min}")
 
             self.cut_state = CloudCutState.FIND_IN_TBL
 
@@ -277,4 +279,16 @@ class CloudCutPolicy():
             self.prefill_default_cut_map = {128: 330, 64: 120, 32: 100, 16: 24, 8: 10, 4: 6, 3: 8, 2: 9, 1: 6, 0: 8}
             self.prefill_cut_num_max = {128: 330, 64: 120, 32: 100, 16: 24, 8: 10, 4: 6, 3: 8, 2: 9, 1: 5, 0: 8}
             self.prefill_cut_num_min = {128: 330, 64: 120, 32: 100, 16: 24, 8: 10, 4: 4, 3: 6, 2: 5, 1: 5, 0: 8}
+            return
+        if self.soc_name == 'Ascend910_9362':
+            self.prefill_default_cut_map = {128: 330, 64: 120, 32: 100, 16: 24, 8: 10, 4: 6, 3: 8, 2: 9, 1: 6, 0: 8}
+            self.prefill_cut_num_max = {128: 330, 64: 120, 32: 100, 16: 24, 8: 10, 4: 6, 3: 8, 2: 9, 1: 5, 0: 8}
+            self.prefill_cut_num_min = {128: 330, 64: 120, 32: 100, 16: 23, 8: 9, 4: 5, 3: 5, 2: 4, 1: 4, 0: 8}
+            return
+
+    def __ajust_prefill_cut_num_for_diff_npu_soc_deepseek(self):
+        if self.soc_name == 'Ascend910_9362':
+            self.prefill_default_cut_map = {31.5: 80, 15.5: 40, 7.5: 50, 3.8: 23, 3.3: 34, 1.8: 32, 0.8: 21, 0: 21}
+            self.prefill_cut_num_max = {31.5: 80, 15.5: 40, 7.5: 50, 3.8: 23, 3.3: 34, 1.8: 32, 0.8: 21, 0: 21}
+            self.prefill_cut_num_min = {31.5: 80, 15.5: 40, 7.5: 50, 3.8: 23, 3.3: 34, 1.8: 32, 0.8: 21, 0: 21}
             return
