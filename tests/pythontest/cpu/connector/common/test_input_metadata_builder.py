@@ -20,6 +20,7 @@ from mindie_llm.connector.common.model_execute_data_pb2 import (
     ExecuteModelRequest,
     PullKVRequest
 )
+from mindie_llm.text_generator.utils.input_metadata import SIMULATE_SEQUENCE_ID
 from mindie_llm.connector.common.input_metadata_builder import (
     convert_bytes_to_list,
     parse_all_dp_batches_seq_lens,
@@ -458,6 +459,109 @@ class TestInputMetadataBuilder(unittest.TestCase):
         self.assertTrue(np.array_equal(device_data[0, 0], [192, 168, 1, 1, -1, -1, -1, -1, 100, 10]))
         self.assertTrue(np.array_equal(device_data[0, 1], [10, 0, 0, 1, -1, -1, -1, -1, 0, 20]))
         self.assertTrue(np.array_equal(policy, np.array([[1, 8, 1], [2, 16, 1]], dtype=np.int64)))
+        
+    def test_convert_proto_simulate_inference(self):
+        """Test simulate inference with special seqId SIMULATE_SEQUENCE_ID"""
+        # Modify the seqId to simulate inference value
+        seq_group_metadata = self.execute_model_request.seq_group_metadata_list[0]
+        seq_group_metadata.seqIds = struct.pack('<1q', 9223372036854774)
+
+        composite = convert_execute_model_request_to_input_metadata_composite(
+            request=self.execute_model_request,
+            num_npu_blocks=self.num_npu_blocks,
+            block_size=self.block_size
+        )
+
+        input_metadata = composite.input_metadata
+
+        # Verify simulate inference uses fixed block id (7 = 8 - 1)
+        self.assertEqual(input_metadata.batch_size, 1)
+        self.assertTrue(input_metadata.is_prefill)
+        self.assertEqual(input_metadata.batch_sequence_ids[0].tolist(), [SIMULATE_SEQUENCE_ID])
+        self.assertEqual(input_metadata.block_tables[0][0], self.num_npu_blocks - 1)
+
+    def test_convert_proto_simulate_inference_sp_cp_with_normal_request_batch(self):
+        """Test simulate inference in SP/CP scenario batched with normal requests.
+        
+        This test verifies that when a simulate inference request (with SIMULATE_SEQUENCE_ID)
+        is batched together with normal SP/CP requests, the numpy array dimensions align correctly.
+        The virtual block table should have the correct length matching sp_rank_block_num.
+        """
+        # SP/CP config with sp_size=4
+        sp_config = MockModelConfig(
+            max_seq_len=1024,
+            cache_block_size=64,
+            rank=0,
+            tp_size=1,
+            dp_size=1,
+            p_inst_enable_sp_cp=True,
+            sp_size=4,
+            cp_size=1,
+            speculation_gamma=0,
+            enable_mtp=False
+        )
+
+        normal_sp_request = SequenceGroupMetadata()
+        normal_sp_request.request_id = "normal_sp_1"
+        normal_sp_request.sp_rank_id = 0
+        normal_sp_request.sp_rank_token_num.extend([10, 20, 30, 0])  # sp_size = 4
+        normal_sp_request.sp_rank_block_num.extend([2, 1, 2, 0])  # total_blocks = 5
+        normal_block_array = array.array('q', [1, 2, 3, 4, 5])  # 5 blocks
+        normal_sp_request.block_tables = normal_block_array.tobytes()
+        normal_sp_request.seqIds = struct.pack('<1q', 100)
+        normal_sp_request.prompt_lens = struct.pack('<1q', 60)
+        normal_prompt_array = array.array('q', [1, 2, 3, 4, 5])  # non-empty prompt tokens
+        normal_sp_request.prompt_token_ids = normal_prompt_array.tobytes()
+        normal_sp_request.sampling_params.seed = 12345
+        normal_sp_request.sampling_params.max_output_len = 100
+
+        simulate_sp_request = SequenceGroupMetadata()
+        simulate_sp_request.request_id = "simulate_sp_1"
+        simulate_sp_request.sp_rank_id = 0
+        simulate_sp_request.sp_rank_token_num.extend([10, 20, 30, 0])  # sp_size = 4, same as normal
+        simulate_sp_request.sp_rank_block_num.extend([2, 1, 2, 0])  # total_blocks = 5, same as normal
+        simulate_sp_request.block_tables = b''
+        simulate_sp_request.seqIds = struct.pack('<1q', SIMULATE_SEQUENCE_ID)  # Use simulate sequence id
+        simulate_sp_request.prompt_lens = struct.pack('<1q', 60)
+        simulate_prompt_array = array.array('q', [1, 2, 3])  # non-empty prompt tokens
+        simulate_sp_request.prompt_token_ids = simulate_prompt_array.tobytes()
+        simulate_sp_request.sampling_params.seed = 54321
+        simulate_sp_request.sampling_params.max_output_len = 100
+
+        mixed_request = ExecuteModelRequest()
+        mixed_request.seq_group_metadata_list.append(normal_sp_request)
+        mixed_request.seq_group_metadata_list.append(simulate_sp_request)
+
+        composite = convert_execute_model_request_to_input_metadata_composite(
+            request=mixed_request,
+            num_npu_blocks=self.num_npu_blocks,
+            block_size=self.block_size,
+            config=sp_config
+        )
+
+        input_metadata = composite.input_metadata
+        self.assertEqual(input_metadata.batch_size, 2)
+        self.assertEqual(len(input_metadata.block_tables.shape), 3)
+        self.assertEqual(input_metadata.block_tables.shape[0], 2)  # batch size = 2
+        self.assertEqual(input_metadata.block_tables.shape[1], 4)  # sp_size = 4
+
+        normal_block_table = input_metadata.block_tables[0]
+        self.assertEqual(normal_block_table[0][0], 1)  # rank 0, first block
+        self.assertEqual(normal_block_table[0][1], 2)  # rank 0, second block
+        self.assertEqual(normal_block_table[1][0], 3)  # rank 1, first block
+        self.assertEqual(normal_block_table[2][0], 4)  # rank 2, first block
+        self.assertEqual(normal_block_table[2][1], 5)  # rank 2, second block
+
+        simulate_block_table = input_metadata.block_tables[1]
+        virtual_block_id = self.num_npu_blocks - 1  # 7
+        self.assertEqual(simulate_block_table[0][0], virtual_block_id)
+        self.assertEqual(simulate_block_table[0][1], -1)
+        self.assertEqual(simulate_block_table[1][0], -1)
+        self.assertEqual(simulate_block_table[2][0], -1)
+        self.assertEqual(simulate_block_table[2][1], -1)
+
+        self.assertEqual(input_metadata.batch_sequence_ids[0].tolist(), [100])
+        self.assertEqual(input_metadata.batch_sequence_ids[1].tolist(), [SIMULATE_SEQUENCE_ID])
 
 
 if __name__ == "__main__":

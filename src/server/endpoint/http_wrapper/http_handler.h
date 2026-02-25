@@ -55,25 +55,23 @@ private:
     static bool HandlePostGenerate(ReqCtxPtr &reqCtx);
     static int HandleGetSlotCount(const std::shared_ptr<RequestContext> &context);
     static void HandleGetHealthStatus(const ReqCtxPtr &ctx);
+    static void HandlePDWiseUpdateNpuDeviceIds(const ReqCtxPtr &ctx);
     static void HandleUpdateNpuDeviceIds(const ReqCtxPtr &ctx);
     static void HandleTokenizer(const ReqCtxPtr &ctx);
     static void HandleStatusV1(const ReqCtxPtr &ctx);
     static void HandleStatusV2(const ReqCtxPtr &ctx);
     static void HandleGeneralTGIPostGenerate(const httplib::Request &request, ReqCtxPtr &reqCtx);
+    static void HandleGetLivenessAndReadiness(const ReqCtxPtr &requestContext);
     static void HandleGetEngineStatus(const ReqCtxPtr &requestContext);
     static void HandlePostCmdToEngine(const ReqCtxPtr &reqCtx);
-    static void ExecuteFaultRecoveryPauseCmd(RecoverCommandInfo &info,
-                                             Status &status,
-                                             EndpointStatusCode &statusCode);
-    static void ExecuteFaultRecoveryReinitNpuCmd(RecoverCommandInfo &info,
-                                                 Status &status,
-                                                 EndpointStatusCode &statusCode);
-    static void ExecuteFaultRecoveryStartEngineCmd(RecoverCommandInfo &info,
-                                                   Status &status,
-                                                   EndpointStatusCode &statusCode);
+    static void ExecuteFaultRecoveryPauseCmd(RecoverCommandInfo &info, Status &status);
+    static void ExecuteFaultRecoveryReinitNpuCmd(RecoverCommandInfo &info, Status &status);
+    static void ExecuteFaultRecoveryStartEngineCmd(RecoverCommandInfo &info, Status &status);
     static void ForceStop(const ReqCtxPtr &requestContext);
     static void StopService(const ReqCtxPtr &requestContext);
     static void HandleHttpMetrics(const ReqCtxPtr &requestContext);
+    static void HandleHealthResponse(const ReqCtxPtr &ctx, mindie_llm::ServiceStatus status, bool isLiveness);
+    static void RespondUnhealthy(const ReqCtxPtr &ctx, const std::string& message);
     static bool IsDMI();
     static bool IsPrefillRole(std::string &reqError);
     static bool IsAllDMIHeadersExist(const httplib::Request &request, std::string &reqError);

@@ -61,6 +61,7 @@ struct SequenceData {
     // 边云协同新增变量
     SequenceStage layerwiseStage_ = SequenceStage::PREFILL;
     bool layerwiseRecompute_ = false;
+    bool layerwiseRecomputeReturn_ = false;
     bool layerwiseRunning_ = false;
     bool layerwiseDiscard_ = false;
 

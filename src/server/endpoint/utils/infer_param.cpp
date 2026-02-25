@@ -266,7 +266,8 @@ bool AssignStopStrings(const OrderedJson &jsonObj, RequestSPtr tmpReq, std::stri
                            GenerateEndpointErrCode(ERROR, SUBMODLE_FEATURE_SINGLE_INFERENCE, CHECK_ERROR),
                            "Request param stop content is invalid");
                 error = std::string("Input validation error: `stop` must be list[string] if list, "
-                    "and item length >= 1 with total <= ") + std::to_string(MAX_TOTAL_STOP);
+                    "and item length in [1, ") + std::to_string(MAX_STOP_STRING_LEN) +
+                    std::string("] with total <= ") + std::to_string(MAX_TOTAL_STOP);
                 return false;
             }
             if (totalLength == 0) {

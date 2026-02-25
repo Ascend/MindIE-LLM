@@ -24,24 +24,25 @@
 namespace mindie_llm {
 
 constexpr size_t EXECUTE_COMMAND_BUFFER_SIZE = 128;
-constexpr size_t SHORT_BITS_SIZE = 3;
 
 
 HealthChecker::HealthChecker() : mRunning(false)
 {
-    auto &configManager = mindie_llm::ConfigManager::GetInstance();
-    mEngineName = configManager.GetBackendConfig().backendName;
+    const ServerConfig& serverConfig = GetServerConfig();
+    mNPUThreshold = serverConfig.npuUsageThreshold;
+
+    if (mNPUThreshold != 0) {
+        mSimulateTaskEnable.store(true);
+    }
     mServiceStatus.store(SERVICE_INIT);
-    mEndpointStatusCode.store(STATUS_CODE_INIT);
     GetChipPerCard();
     statusTransferMap = {
-        {STATUS_CODE_INIT, {STATUS_CODE_NORMAL}},
-        {STATUS_CODE_NORMAL, {STATUS_CODE_PAUSE, STATUS_CODE_ABNORMAL}},
-        {STATUS_CODE_PAUSE, {STATUS_CODE_READY, STATUS_CODE_ABNORMAL_PAUSE}},
-        {STATUS_CODE_ABNORMAL, {STATUS_CODE_NORMAL, STATUS_CODE_ABNORMAL_PAUSE}},
-        {STATUS_CODE_READY, {STATUS_CODE_NORMAL, STATUS_CODE_ABNORMAL_READY}},
-        {STATUS_CODE_ABNORMAL_PAUSE, {STATUS_CODE_PAUSE, STATUS_CODE_ABNORMAL_READY}},
-        {STATUS_CODE_ABNORMAL_READY, {STATUS_CODE_ABNORMAL, STATUS_CODE_READY}}
+        {SERVICE_INIT, {SERVICE_NORMAL, SERVICE_BUSY}},
+        {SERVICE_NORMAL, {SERVICE_PAUSE, SERVICE_ABNORMAL, SERVICE_BUSY}},
+        {SERVICE_BUSY, {SERVICE_PAUSE, SERVICE_ABNORMAL, SERVICE_NORMAL}},
+        {SERVICE_PAUSE, {SERVICE_READY}},
+        {SERVICE_ABNORMAL, {SERVICE_NORMAL, SERVICE_BUSY}},
+        {SERVICE_READY, {SERVICE_NORMAL, SERVICE_BUSY}},
         // other transfers are invalid
     };
     ULOG_INFO(SUBMODLE_NAME_HEALTHCHECKER, "HealthChecker: Healthchecker instance created.");
@@ -93,20 +94,7 @@ std::string HealthChecker::StatusToString(const ServiceStatus &status) const
         case SERVICE_ABNORMAL: return "SERVICE_ABNORMAL";
         case SERVICE_PAUSE: return "SERVICE_PAUSE";
         case SERVICE_INIT: return "SERVICE_INIT";
-        default: return "UNKNOWN";
-    }
-}
-
-std::string HealthChecker::CodeToString(const EndpointStatusCode &code) const
-{
-    switch (code) {
-        case STATUS_CODE_INIT: return "STATUS_CODE_INIT";
-        case STATUS_CODE_NORMAL: return "STATUS_CODE_NORMAL";
-        case STATUS_CODE_PAUSE: return "STATUS_CODE_PAUSE";
-        case STATUS_CODE_ABNORMAL: return "STATUS_CODE_ABNORMAL";
-        case STATUS_CODE_READY: return "STATUS_CODE_READY";
-        case STATUS_CODE_ABNORMAL_PAUSE: return "STATUS_CODE_ABNORMAL_PAUSE";
-        case STATUS_CODE_ABNORMAL_READY: return "STATUS_CODE_ABNORMAL_READY";
+        case SERVICE_BUSY: return "SERVICE_BUSY";
         default: return "UNKNOWN";
     }
 }
@@ -114,6 +102,16 @@ std::string HealthChecker::CodeToString(const EndpointStatusCode &code) const
 HealthChecker::~HealthChecker()
 {
     Stop();
+    // 停止虚推任务
+    {
+        if (mSimulateRunner != nullptr && mSimulateTaskStarted.load()) {
+            mSimulateRunner->Stop();
+            mSimulateTaskStarted.store(false);
+            ULOG_INFO(SUBMODLE_NAME_HEALTHCHECKER, "HealthChecker: Stopped simulate task.");
+        }
+        mSimulateRunner.reset();
+        mSimulateExecutor.reset();
+    }
     ULOG_INFO(SUBMODLE_NAME_HEALTHCHECKER, "HealthChecker: Healthchecker instance destroyed.");
 }
 
@@ -122,7 +120,7 @@ bool HealthChecker::Start()
     if (!mRunning.load()) {
         mRunning.store(true);
         mCheckerThread = std::thread(&HealthChecker::CheckServiceStatus, this);
-        ULOG_INFO(SUBMODLE_NAME_HEALTHCHECKER, "HealthChecker: Health check thread started.");
+        ULOG_DEBUG(SUBMODLE_NAME_HEALTHCHECKER, "HealthChecker: Health check thread started.");
         return true;
     } else {
         ULOG_WARN(SUBMODLE_NAME_HEALTHCHECKER,
@@ -135,7 +133,7 @@ bool HealthChecker::Start()
 void HealthChecker::Stop()
 {
     if (mRunning.load()) {
-        mRunning.store(true);
+        mRunning.store(false);  // 修复：应该设置为 false 以停止线程
         if (mCheckerThread.joinable()) {
             mCheckerThread.join();
         }
@@ -155,8 +153,6 @@ HealthChecker &HealthChecker::GetInstance()
 
 ServiceStatus HealthChecker::GetServiceStatus() { return mServiceStatus.load(); }
 
-EndpointStatusCode HealthChecker::GetEndpointStatusCode() { return mEndpointStatusCode.load(); }
-
 bool HealthChecker::CheckErrorListEmpty() { return mErrorList.Empty(); }
 
 void HealthChecker::GetStatusAndErrorList(ServiceStatus &status, std::vector<ErrorItem> &errorList)
@@ -168,51 +164,137 @@ void HealthChecker::GetStatusAndErrorList(ServiceStatus &status, std::vector<Err
     mErrorList.Clear();
 }
 
-bool HealthChecker::CheckModelInstanceStarted() const
+bool HealthChecker::WaitForLlmEngineReady()
 {
-    bool isStarted = false;
-    auto status = GetInferInstance()->CheckInferInstanceStarted(isStarted);
-    if (!status.IsOk()) {
-        ULOG_WARN(SUBMODLE_NAME_HEALTHCHECKER,
-                  GenerateHealthCheckerErrCode(WARNING, SUBMODLE_FEATURE_SECURE, CHECK_ERROR),
-                  "HealthChecker: Failed to get model instance started status. " << status.StatusMsg());
-        return false;
+    while (mRunning.load()) {
+        // 检查当前状态是否为INIT，如果已被外部修改则跳过初始化等待
+        ServiceStatus currentStatus = GetServiceStatus();
+        if (currentStatus != SERVICE_INIT) {
+            ULOG_INFO(SUBMODLE_NAME_HEALTHCHECKER,
+                "HealthChecker: Status already changed to " << StatusToString(currentStatus) << ", exit init waiting.");
+            return true;
+        }
+
+        if (!GetInferInstance()->IsLlmEngineReady()) {
+            // Service not init
+            std::this_thread::sleep_for(std::chrono::seconds(checkIntervalSeconds));
+            continue;
+        }
+
+        ULOG_INFO(SUBMODLE_NAME_HEALTHCHECKER, "HealthChecker: Init finished, update status to normal");
+        UpdateStatus(SERVICE_NORMAL);
+        return true;
     }
-    return isStarted;
+    return false;
+}
+
+void HealthChecker::PerformPeriodicHealthCheck()
+{
+    ULOG_INFO(SUBMODLE_NAME_HEALTHCHECKER,
+              "HealthChecker: Starting health check loop with interval: " << checkIntervalSeconds << " seconds");
+    ServiceStatus previousStatus = GetServiceStatus();
+    while (mRunning.load()) {
+        std::unique_lock lock(mStatusMutex);
+        ServiceStatus currentStatus = GetServiceStatus();
+
+        // 检测状态变化，处理虚推任务的暂停/恢复
+        bool wasPauseOrReady = (previousStatus == SERVICE_PAUSE || previousStatus == SERVICE_READY);
+        bool isPauseOrReady = (currentStatus == SERVICE_PAUSE || currentStatus == SERVICE_READY);
+
+        if (!wasPauseOrReady && isPauseOrReady) {
+            // 从正常状态进入 PAUSE/READY 状态，暂停虚推任务
+            if (mSimulateRunner != nullptr && mSimulateTaskStarted.load()) {
+                mSimulateRunner->Pause();
+                ULOG_INFO(SUBMODLE_NAME_HEALTHCHECKER,
+                    "HealthChecker: Paused simulate task due to status change to "
+                    << StatusToString(currentStatus));
+            }
+        } else if (wasPauseOrReady && !isPauseOrReady) {
+            // 从 PAUSE/READY 状态恢复，恢复虚推任务
+            if (mSimulateRunner != nullptr && mSimulateTaskStarted.load()) {
+                mSimulateRunner->Resume();
+                ULOG_INFO(SUBMODLE_NAME_HEALTHCHECKER,
+                    "HealthChecker: Resumed simulate task due to status change to "
+                    << StatusToString(currentStatus));
+            }
+        }
+
+        previousStatus = currentStatus;
+        if (isPauseOrReady) {
+            // PAUSE/READY状态下跳过健康检查
+            lock.unlock();
+            std::this_thread::sleep_for(std::chrono::seconds(checkIntervalSeconds));
+            continue;
+        }
+
+        // 持锁状态下更新状态信息
+        HandleHealthStatus();
+        lock.unlock();
+        std::this_thread::sleep_for(std::chrono::seconds(checkIntervalSeconds));
+    }
+}
+
+void HealthChecker::HandleHealthStatus()
+{
+    // NORMAL、ABNORMAL和BUSY可以互相转换，无需检查状态转移
+    ServiceStatus status = CheckSimulateTask();
+    if (status == SERVICE_ABNORMAL) {
+        ErrorItem item(GenerateHealthCheckerErrCode(ERROR, SUBMODLE_FEATURE_SECURE, STATUS_WARNING),
+            SUBMODLE_NAME_HEALTHCHECKER, std::chrono::system_clock::now());
+        if (mErrorList.Size() >= maxErrorListSize) {
+            ErrorItem itemToRemove;
+            mErrorList.PopFront(itemToRemove);
+        }
+        mErrorList.PushBack(item);
+    }
+    mServiceStatus.store(status);
+    ULOG_INFO(SUBMODLE_NAME_HEALTHCHECKER, "HealthChecker: The simulate infer health check result is "
+        << StatusToString(status));
 }
 
 void HealthChecker::CheckServiceStatus()
 {
-    ULOG_INFO(SUBMODLE_NAME_HEALTHCHECKER,
-              "HealthChecker: Starting health check loop with interval: " << checkIntervalSeconds << " seconds");
-    while (mRunning.load()) {
-        if (GetEndpointStatusCode() == STATUS_CODE_INIT && !CheckModelInstanceStarted()) {
-            // Service not init
-            ULOG_INFO(SUBMODLE_NAME_HEALTHCHECKER, "HealthChecker: Model instance not started, skipping check");
-            std::this_thread::sleep_for(std::chrono::seconds(std::chrono::seconds(checkIntervalSeconds)));
-            continue;
-        } else if (!CheckErrorListEmpty()) {
-            std::this_thread::sleep_for(std::chrono::seconds(checkIntervalSeconds));
-            continue;
-        } else if (!CheckAllNpuAicoreUsage() && !CheckVirtualInfer()) {
-            // Service check abnormal
-            if (GetEndpointStatusCode() == STATUS_CODE_PAUSE || GetEndpointStatusCode() == STATUS_CODE_READY) {
-                // Health check ignored within qingqu linkdown recover process
-                std::this_thread::sleep_for(std::chrono::seconds(checkIntervalSeconds));
-                continue;
-            }
-            ULOG_INFO(SUBMODLE_NAME_HEALTHCHECKER, "HealthChecker: Service check abnormal, update status by ErrorItem");
-            EnqueueErrorMessage(GenerateHealthCheckerErrCode(ERROR, SUBMODLE_FEATURE_SECURE, CHECK_ERROR),
-                                SUBMODLE_NAME_HEALTHCHECKER);
-        } else {
-            if (GetEndpointStatusCode() == 0b111) {
-                ULOG_INFO(SUBMODLE_NAME_HEALTHCHECKER,
-                          "HealthChecker: Service check normal, update status from init to normal");
-                UpdateStatusByCode(STATUS_CODE_NORMAL);
-            }
-        }
-        std::this_thread::sleep_for(std::chrono::seconds(checkIntervalSeconds));
+    // 等待LLM引擎启动完成
+    if (!WaitForLlmEngineReady()) {
+        ULOG_WARN(SUBMODLE_NAME_HEALTHCHECKER,
+            GenerateHealthCheckerErrCode(WARNING, SUBMODLE_FEATURE_SECURE, CHECK_ERROR),
+            "HealthChecker: Exiting health check loop during init.");
+        return;
     }
+
+    // 检查是否被停止
+    if (!mRunning.load()) {
+        ULOG_WARN(SUBMODLE_NAME_HEALTHCHECKER,
+            GenerateHealthCheckerErrCode(WARNING, SUBMODLE_FEATURE_SECURE, CHECK_ERROR),
+            "HealthChecker: Exiting health check loop during init.");
+        return;
+    }
+
+    // 虚推健康探测是否开启
+    if (!mSimulateTaskEnable.load()) {
+        ULOG_INFO(SUBMODLE_NAME_HEALTHCHECKER,
+            "HealthChecker: Simulate infer health task is not enabled");
+        return;
+    }
+
+    // 边云协同场景不开启健康检查
+    if (mindie_llm::ConfigManager::GetInstance().IslayerwiseDisaggregated()) {
+        ULOG_INFO(SUBMODLE_NAME_HEALTHCHECKER,
+            "HealthChecker: Simulate infer health task disabled in layerwise-disaggregated mode");
+        return;
+    }
+
+    // 启动虚推任务
+    if (!StartSimulateTask()) {
+        ULOG_ERROR(SUBMODLE_NAME_HEALTHCHECKER,
+            GenerateHealthCheckerErrCode(ERROR, SUBMODLE_FEATURE_SECURE, CHECK_ERROR),
+            "HealthChecker: Failed to start simulate task.");
+        return;
+    }
+
+    // 周期健康检查
+    PerformPeriodicHealthCheck();
+
     ULOG_INFO(SUBMODLE_NAME_HEALTHCHECKER, "HealthChecker: Exiting health check loop.");
 }
 
@@ -233,120 +315,169 @@ std::string HealthChecker::ExecuteCommand(const std::string &cmd) const
     return result;
 }
 
-std::vector<int> HealthChecker::ParseAicoreUsage(const std::string &output) const
+std::shared_ptr<ISimulateExecutor> HealthChecker::CreateSimulateExecutor()
 {
-    std::vector<int> usages;
-    std::istringstream iss(output);
-    std::string line;
-    int minUsagePercent = 0;
-    int maxUsagePercent = 100;
+    // 使用独立的 SimulateRequestExecutor 进行虚推
+    // 不再依赖 SingleLLMReqHandlerBase
+    auto &serverConfig = GetServerConfig();
+    InferReqType reqType = (serverConfig.inferMode == INFER_MODE_DMI)
+        ? InferReqType::REQ_PREFILL : InferReqType::REQ_STAND_INFER;
+    std::string mode = (serverConfig.inferMode == INFER_MODE_DMI) ? "DMI" : "Standard";
 
-    while (std::getline(iss, line)) {
-        try {
-            float usagePercent = std::stof(line);
-            if (usagePercent < minUsagePercent || usagePercent > maxUsagePercent) {
-                ULOG_WARN(SUBMODLE_NAME_HEALTHCHECKER,
-                          GenerateHealthCheckerErrCode(WARNING, SUBMODLE_FEATURE_SECURE, CHECK_ERROR),
-                          "HealthChecker: Invalid Aicore usage percentage" << usagePercent);
-                usages.push_back(0);
-            } else {
-                usages.push_back(usagePercent);
-            }
-        } catch (...) {
-            ULOG_ERROR(SUBMODLE_NAME_HEALTHCHECKER,
-                       GenerateHealthCheckerErrCode(ERROR, SUBMODLE_FEATURE_SECURE, CHECK_ERROR),
-                       "HealthChecker: Failed to parse Aicore usage value: " << line);
-        }
-    }
+    ULOG_INFO(SUBMODLE_NAME_HEALTHCHECKER,
+        "HealthChecker: Creating simulate executor for " << mode << " mode, reqType="
+        << static_cast<int>(reqType));
 
-    if (static_cast<int>(usages.size()) != mChipPerCard) {
-        ULOG_WARN(SUBMODLE_NAME_HEALTHCHECKER,
-                  GenerateHealthCheckerErrCode(WARNING, SUBMODLE_FEATURE_SECURE, CHECK_ERROR),
-                  "HealthChecker: The number of Aicore usage " << usages.size() << " is not equal to the chip count "
-                                                               << mChipPerCard);
-        ULOG_WARN(SUBMODLE_NAME_HEALTHCHECKER,
-                  GenerateHealthCheckerErrCode(WARNING, SUBMODLE_FEATURE_SECURE, CHECK_ERROR), output);
-    }
-
-    return usages;
+    return SimulateRequestExecutor::Create(reqType);
 }
 
-std::vector<int> HealthChecker::GetAicoreUsages(int npuId) const
+bool HealthChecker::StartSimulateTask()
 {
-    try {
-        std::ostringstream cmdStream;
-        cmdStream << "npu-smi info -i " << npuId << " -t usages | awk '/Aicore Usage/ {print $NF}'";
-        std::string cmd = cmdStream.str();
-        std::string output = ExecuteCommand(cmd);
-        if (output.empty()) {
-            ULOG_ERROR(SUBMODLE_NAME_HEALTHCHECKER,
-                       GenerateHealthCheckerErrCode(WARNING, SUBMODLE_FEATURE_SECURE, CHECK_ERROR),
-                       "HealchChecker: Empty output from npu-smi for npu " << npuId);
-            return {};
-        } else {
-            return ParseAicoreUsage(output);
-        }
-    } catch (const std::exception &e) {
-        ULOG_ERROR(SUBMODLE_NAME_HEALTHCHECKER,
-                   GenerateHealthCheckerErrCode(WARNING, SUBMODLE_FEATURE_SECURE, CHECK_ERROR),
-                   "HealchChecker: Failed to get aicore of npu " << npuId);
-        return {};
+    // 如果任务已经启动，返回
+    if (mSimulateTaskStarted.load() && mSimulateRunner != nullptr) {
+        return true;
     }
-}
 
-bool HealthChecker::CheckAllNpuAicoreUsage()
-{
-    std::set<int> npuIdsCopy;
-    {
-        std::shared_lock<std::shared_mutex> lock(mNpuDevicesMutex);
-        npuIdsCopy = mNpuDeviceCardIds;
+    ServiceStatus currentStatus = GetServiceStatus();
+    while (mRunning.load() && (currentStatus == SERVICE_PAUSE || currentStatus == SERVICE_READY)) {
+        std::this_thread::sleep_for(std::chrono::seconds(1));
+        currentStatus = GetServiceStatus();
     }
-    ULOG_DEBUG(SUBMODLE_NAME_HEALTHCHECKER,
-               "HealthChecker: Checking NPU Aicore usage for " << npuIdsCopy.size() << " devices");
-    if (npuIdsCopy.empty()) {
+
+    if (currentStatus == SERVICE_ABNORMAL) {
         ULOG_WARN(SUBMODLE_NAME_HEALTHCHECKER,
-                  GenerateHealthCheckerErrCode(WARNING, SUBMODLE_FEATURE_SECURE, CHECK_ERROR),
-                  "HealchChecker: No npu devices configured");
+            GenerateHealthCheckerErrCode(WARNING, SUBMODLE_FEATURE_SECURE, CHECK_ERROR),
+            "HealthChecker: Abnormal status, stop start simulate task.");
         return false;
     }
 
-    bool allHealthy = true;
-    int minUsagePercent = 10;
-    for (const auto &npuId : npuIdsCopy) {
-        try {
-            std::vector<int> chip_usages = GetAicoreUsages(npuId);
-            if (chip_usages.empty()) {
-                allHealthy = false;
-                ULOG_INFO(SUBMODLE_NAME_HEALTHCHECKER, "HealthChecker: NPU Aicore usage is empty.");
-            } else {
-                for (const auto &usage : chip_usages) {
-                    if (usage < minUsagePercent) {
-                        allHealthy = false;
-                        ULOG_INFO(SUBMODLE_NAME_HEALTHCHECKER,
-                                  "HealthChecker: NPU " << npuId << " Aicore usage < 10%.");
-                        break;
-                    }
-                }
-            }
-        } catch (const std::exception &e) {
-            ULOG_ERROR(SUBMODLE_NAME_HEALTHCHECKER,
-                       GenerateHealthCheckerErrCode(ERROR, SUBMODLE_FEATURE_SECURE, CHECK_WARNING),
-                       "HealthChecker: Exception when checking NPU " << npuId << ": " << e.what());
-            allHealthy = false;
-        }
+    if (!CreateAndInitSimulateRunner()) {
+        ULOG_ERROR(SUBMODLE_NAME_HEALTHCHECKER,
+            GenerateHealthCheckerErrCode(ERROR, SUBMODLE_FEATURE_SECURE, CHECK_ERROR),
+            "HealthChecker: The SimulateRunner create failed");
+        return false;
     }
-    ULOG_DEBUG(SUBMODLE_NAME_HEALTHCHECKER,
-               "HealthChecker: Overall NPU health status: " << (allHealthy ? "normal." : "abnormal."));
-    return allHealthy;
-}
 
-bool HealthChecker::CheckVirtualInfer() const
-{
-    ULOG_INFO(SUBMODLE_NAME_HEALTHCHECKER, "HealthChecker: Starting virtual inference check.");
+    // 启动周期性虚推任务（间隔使用健康检查的间隔）
+    mSimulateRunner->Start(checkIntervalSeconds);
+    mSimulateTaskStarted.store(true);
+
+    ULOG_INFO(SUBMODLE_NAME_HEALTHCHECKER,
+        "HealthChecker: Started periodic simulate task with interval="
+        << checkIntervalSeconds << "s");
+
     return true;
 }
 
-bool HealthChecker::IsValidStatusTransition(const EndpointStatusCode &from, const EndpointStatusCode &to)
+bool HealthChecker::CreateAndInitSimulateRunner()
+{
+    // 首次启动：创建执行器
+    if (mSimulateExecutor == nullptr) {
+        mSimulateExecutor = CreateSimulateExecutor();
+        if (mSimulateExecutor == nullptr) {
+            ULOG_ERROR(SUBMODLE_NAME_HEALTHCHECKER,
+                GenerateHealthCheckerErrCode(ERROR, SUBMODLE_FEATURE_SECURE, CHECK_ERROR),
+                "HealthChecker: Failed to create simulate executor");
+            return false;
+        }
+    }
+
+    // 创建并初始化任务运行器
+    if (mSimulateRunner == nullptr) {
+        if (!InitNpuDeviceCardIds()) {
+            ULOG_ERROR(SUBMODLE_NAME_HEALTHCHECKER,
+                GenerateHealthCheckerErrCode(ERROR, SUBMODLE_FEATURE_SECURE, CHECK_ERROR),
+                "HealthChecker: Failed to init NPU device IDs");
+            return false;
+        }
+        mSimulateRunner = std::make_unique<SimulateTaskRunner>();
+    }
+    
+    if (!mSimulateRunner->Init(mSimulateExecutor, mNpuDeviceCardIds, mNPUThreshold)) {
+        ULOG_ERROR(SUBMODLE_NAME_HEALTHCHECKER,
+            GenerateHealthCheckerErrCode(ERROR, SUBMODLE_FEATURE_SECURE, CHECK_ERROR),
+            "HealthChecker: Failed to init simulate runner");
+        mSimulateRunner.reset();
+        return false;
+    }
+    
+    return true;
+}
+
+bool HealthChecker::InitNpuDeviceCardIds()
+{
+    auto &configManager = mindie_llm::ConfigManager::GetInstance();
+    auto &serverConfig = configManager.GetServerConfig();
+    const auto& npuDeviceIds = configManager.GetBackendConfig().npuDeviceIds;
+
+    // PD分离模式：NPU卡号已经被Controller下发过
+    if (serverConfig.inferMode == INFER_MODE_DMI) {
+        if (mNpuDeviceCardIds.empty()) {
+            ULOG_ERROR(SUBMODLE_NAME_HEALTHCHECKER,
+                GenerateHealthCheckerErrCode(ERROR, SUBMODLE_FEATURE_SECURE, CHECK_ERROR),
+                "HealthChecker: NPU device IDs are empty in request body from Controller");
+            return false;
+        }
+        return true;
+    }
+
+    // 标准/混布模式：backendConfig配置不能为空
+    if (npuDeviceIds.empty() || npuDeviceIds[0].empty()) {
+        ULOG_ERROR(SUBMODLE_NAME_HEALTHCHECKER,
+            GenerateHealthCheckerErrCode(ERROR, SUBMODLE_FEATURE_SECURE, CHECK_ERROR),
+            "HealthChecker: NPU device id list is empty in config");
+        return false;
+    }
+
+    // 直接使用配置文件中的设备ID
+    {
+        std::unique_lock<std::shared_mutex> lock(mNpuDevicesMutex);
+        mNpuDeviceCardIds.clear();
+        for (const auto& id : npuDeviceIds[0]) {
+            mNpuDeviceCardIds.insert(static_cast<int>(id));
+        }
+    }
+    return true;
+}
+
+ServiceStatus HealthChecker::CheckSimulateTask()
+{
+    ULOG_DEBUG(SUBMODLE_NAME_HEALTHCHECKER, "HealthChecker: Starting simulate inference check.");
+
+    // 如果任务已经启动，检查健康状态并返回
+    if (mSimulateTaskStarted.load() && mSimulateRunner != nullptr) {
+        auto healthStatus = mSimulateRunner->GetHealthStatus();
+        switch (healthStatus.lastStatus) {
+            case SimulateResult::Status::SUCCESS:
+                ULOG_DEBUG(SUBMODLE_NAME_HEALTHCHECKER,
+                    "HealthChecker: Simulate task is healthy. "
+                    << "successCount=" << healthStatus.successCount
+                    << ", failureCount=" << healthStatus.failureCount);
+                return SERVICE_NORMAL;
+            case SimulateResult::Status::BUSY:
+                ULOG_DEBUG(SUBMODLE_NAME_HEALTHCHECKER,
+                    "HealthChecker: Simulate task is busy (Aicore usage high). "
+                    << "successCount=" << healthStatus.successCount
+                    << ", failureCount=" << healthStatus.failureCount);
+                return SERVICE_BUSY;
+            default:
+                ULOG_WARN(SUBMODLE_NAME_HEALTHCHECKER,
+                    GenerateHealthCheckerErrCode(WARNING, SUBMODLE_FEATURE_SECURE, CHECK_WARNING),
+                    "HealthChecker: Simulate task is unhealthy. "
+                    << "lastMessage=" << healthStatus.lastMessage
+                    << ", failureCount=" << healthStatus.failureCount);
+                return SERVICE_ABNORMAL;
+        }
+    }
+
+    // 虚推任务未启动或runner为空，返回abnormal表示检查未通过
+    ULOG_WARN(SUBMODLE_NAME_HEALTHCHECKER,
+        GenerateHealthCheckerErrCode(WARNING, SUBMODLE_FEATURE_SECURE, CHECK_WARNING),
+        "HealthChecker: Simulate task not started or runner is null.");
+    return SERVICE_ABNORMAL;
+}
+
+bool HealthChecker::IsValidStatusTransition(const ServiceStatus &from, const ServiceStatus &to)
 {
     if (statusTransferMap.find(from) == statusTransferMap.end() ||
         std::find(statusTransferMap[from].begin(), statusTransferMap[from].end(), to) ==
@@ -356,45 +487,30 @@ bool HealthChecker::IsValidStatusTransition(const EndpointStatusCode &from, cons
     return true;
 }
 
-void HealthChecker::UpdateStatusByCode(const EndpointStatusCode &code)
+void HealthChecker::UpdateStatus(const ServiceStatus &status)
 {
-    if (mEndpointStatusCode.load() == code) {
+    std::unique_lock lock(mStatusMutex);
+    if (mServiceStatus.load() == status) {
         ULOG_INFO(SUBMODLE_NAME_HEALTHCHECKER, "HealthChecker: Status unchanged: " << StatusToString(mServiceStatus));
         return;
     }
-    if (!IsValidStatusTransition(mEndpointStatusCode.load(), code)) {
+    if (!IsValidStatusTransition(mServiceStatus.load(), status)) {
         ULOG_ERROR(SUBMODLE_NAME_HEALTHCHECKER,
                    GenerateHealthCheckerErrCode(ERROR, SUBMODLE_FEATURE_SECURE, CHECK_ERROR),
-                   "HealthChecker: Invalid status transition from " << CodeToString(mEndpointStatusCode.load())
-                                                                      << " to " << CodeToString(code));
+                   "HealthChecker: Invalid status transition from " << StatusToString(mServiceStatus.load())
+                                                                      << " to " << StatusToString(status));
         return;
     }
-
-    ULOG_INFO(SUBMODLE_NAME_HEALTHCHECKER, "HealthChecker: Status code changed from "
-                                               << CodeToString(mEndpointStatusCode.load()) << " to "
-                                               << CodeToString(code));
-    ServiceStatus newStatus;
-    if ((code & 0b001) != 0) {
-        newStatus = SERVICE_ABNORMAL;
-    } else if ((code & 0b010) != 0) {
-        newStatus = SERVICE_READY;
-    } else if ((code & 0b100) != 0) {
-        newStatus = SERVICE_PAUSE;
-    } else {
-        newStatus = SERVICE_NORMAL;
-    }
-    ULOG_INFO(SUBMODLE_NAME_HEALTHCHECKER, "HealthChecker: Service status changed from "
-                                               << StatusToString(mServiceStatus) << " to "
-                                               << StatusToString(newStatus));
-    mServiceStatus.store(newStatus);
-    mEndpointStatusCode.store(code);
+    ULOG_INFO(SUBMODLE_NAME_HEALTHCHECKER, "HealthChecker: Status changed from "
+                                               << StatusToString(mServiceStatus.load()) << " to "
+                                               << StatusToString(status));
+    mServiceStatus.store(status);
 }
 
 void HealthChecker::EnqueueErrorMessage(const std::string &errCode, const std::string &createdBy,
-                                        const std::string &deviceIP, const int &deviceID,
                                         const std::chrono::time_point<std::chrono::system_clock> &timestamp)
 {
-    ErrorItem item(errCode, createdBy, deviceIP, deviceID, timestamp);
+    ErrorItem item(errCode, createdBy, timestamp);
 
     if (mErrorList.Size() >= maxErrorListSize) {
         ErrorItem itemToRemove;
@@ -402,14 +518,9 @@ void HealthChecker::EnqueueErrorMessage(const std::string &errCode, const std::s
     }
     mErrorList.PushBack(item);
     ULOG_INFO(SUBMODLE_NAME_HEALTHCHECKER, "HealthChecker: New error added. Error code: "
-                                               << errCode << ", createdBy: " << createdBy
-                                               << ", deviceIP: " << deviceIP << ", deviceID: " << deviceID);
-    if (mEndpointStatusCode.load() == STATUS_CODE_NORMAL) {
-        ULOG_INFO(SUBMODLE_NAME_HEALTHCHECKER,
-                  "HealthChecker: Service status changed from SERVICE_NORAML to SERVICE_ABNORMAL newStatus");
-        mServiceStatus.store(SERVICE_ABNORMAL);
-        mEndpointStatusCode.store(STATUS_CODE_ABNORMAL);
-    }
+                                               << errCode << ", createdBy: " << createdBy);
+
+    UpdateStatus(SERVICE_ABNORMAL);
 }
 
 void HealthChecker::UpdateNpuDeviceIds(const std::set<int> &npuDeviceIds)

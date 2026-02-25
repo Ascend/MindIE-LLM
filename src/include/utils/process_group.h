@@ -35,7 +35,7 @@ public:
      */
     static ProcessGroup &GetInstance(const std::string &masterAddr = "", uint16_t masterPort = 0,
                                      const std::string &localAddr = "", int rank = 0, int worldSize = 0,
-                                     bool isMaster = false, int timeoutInSeconds = 30);
+                                     bool isMaster = false, int timeoutInSeconds = 120);
 
     /**
      * @brief 进程组间allgather通信
@@ -62,7 +62,7 @@ public:
 
 protected:
     ProcessGroup(const std::string &masterAddr, uint16_t masterPort, const std::string &localAddr, int rank,
-                 int worldSize, bool isMaster, int timeoutInSeconds = 30);
+                 int worldSize, bool isMaster, int timeoutInSeconds = 120);
 
 private:
     std::string masterAddr_;

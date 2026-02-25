@@ -82,7 +82,7 @@ class ATBModelWrapper(ModelWrapper):
             tls_pk=kwargs.get("interNodeTlsPk", ""),
             tls_crl_path=kwargs.get("interNodeTlsCrlPath", ""),
             tls_crl_files=kwargs.get("interNodeTlsCrlFiles", ""),
-            
+            batch_p_num=2 if kwargs.get('lwdNextPHeadPrior', False) else 1
         )
         self.config = self.model_runner.config
         self.config_dict = self.model_runner.config_dict

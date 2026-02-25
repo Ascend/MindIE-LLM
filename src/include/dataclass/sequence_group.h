@@ -136,6 +136,11 @@ struct SequenceGroup {
     [[nodiscard]] bool IsLayerwisePrefill() const;
 
     [[nodiscard]] bool IsFinished() const;
+
+    /// @brief 判断当前请求组是否为虚推请求
+    /// @return 如果第一个序列的 seqId 等于 SIMULATE_SEQUENCE_ID 则返回 true
+    [[nodiscard]] bool IsSimulateRequest() const;
+
     // pd分离场景下，标记当前seqGroup是否需要pull kv
     bool isDecode_{false};
     // pd分离场景下，标记当前seqGroup是否是本地flex节点上执行的

@@ -46,14 +46,14 @@ class LwdLayerStatus(int, Enum):
 
 class LayerWiseAttr:
 
-    __slot__ = ["start_num", "end_num", "split_type", "load_list", "ascend_weight_head",
+    __slot__ = ["edge_start_layer_count", "edge_end_layer_count", "split_type", "load_list", "ascend_weight_head",
                 "ascend_weight_tail", "ascend_weight_internal", "acl_inputs_prefill", 
                 "acl_inputs_decode", "acl_param_prefill", "acl_param_decode", "p_out_hidden",
-                "weight_wrappers", "num_hidden_layers"]
+                "weight_wrappers", "num_hidden_layers", "acl_inputs_prefill_queue", "acl_param_prefill_queue"]
 
-    def __init__(self, start_num, end_num, split_type):
-        self.start_num = start_num
-        self.end_num = end_num
+    def __init__(self, edge_start_layer_count, edge_end_layer_count, split_type):
+        self.edge_start_layer_count = edge_start_layer_count
+        self.edge_end_layer_count = edge_end_layer_count
         self.split_type = split_type
 
     
@@ -82,15 +82,15 @@ class FlashForCausalLM(BaseModel):
         layerwise_disaggregated = kwargs.get("layerwise_disaggregated", False)
         if layerwise_disaggregated:
             split_type = None
-            start_num = 1
-            end_num = 1
+            edge_start_layer_count = 1
+            edge_end_layer_count = 1
             layerwise_disaggregated_role_type = kwargs.get("layerwise_disaggregated_role_type", "")
             self.layerwise_disaggregated = True
             if layerwise_disaggregated_role_type == "slave":
                 split_type = DistributedType.CLOUD
             else:
                 split_type = DistributedType.EDGE
-            self.layerwise = LayerWiseAttr(start_num, end_num, split_type)
+            self.layerwise = LayerWiseAttr(edge_start_layer_count, edge_end_layer_count, split_type)
          
         self.inference_mode = kwargs.get("inference_mode")
 
@@ -620,10 +620,3 @@ class FlashForCausalLM(BaseModel):
         logits = self.execute_dap_ascend_operator(
             all_inputs, json.dumps(acl_param_dict), is_prefill[0])
         return logits
-
-    def copy_input(self, output_buf, input_buf):
-        """save model input params when enable layerwise disaggregated"""
-        output_buf = []
-        for i in input_buf:
-            output_buf.append(i)
-        return output_buf

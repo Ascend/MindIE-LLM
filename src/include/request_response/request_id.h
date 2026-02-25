@@ -19,6 +19,9 @@
 namespace mindie_llm {
 using RequestIdNew = std::string;
 
+/// @brief 虚推请求对应的固定 SequenceId（用于 LLM 引擎层特殊处理）
+constexpr int64_t SIMULATE_SEQUENCE_ID = 9223372036854774L;
+
 inline RequestIdNew GetNextInferRequestId()
 {
     static std::atomic<uint64_t> inferRequestIdGenerator{0};

@@ -218,7 +218,6 @@ class FlashLlamaForCausalLM(FlashForCausalLM):
             "enableAddNorm": False,
             "enableCompressHead": self.compress_head_enable,
             "enableOmniAttention": self.omni_attention_enable,
-            "enableLora": self.adapter_manager is not None,
             "quantGroupSize": self.config.quantization_config.group_size,
             "isLongSeq": self.long_seq_enable,
             "hasPp": self.mapping.has_pp(),

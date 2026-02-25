@@ -24,7 +24,7 @@ using namespace std;
 
 LogLevelDynamicHandler::LogLevelDynamicHandler()
 {
-    const char *miesInstallPath = std::getenv("MIES_INSTALL_PATH");
+    const char *miesInstallPath = std::getenv("MINDIE_LLM_HOME_PATH");
     if (miesInstallPath != nullptr) {
         miesInstallPath_ = miesInstallPath;
     } else {

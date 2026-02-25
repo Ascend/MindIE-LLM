@@ -43,7 +43,7 @@ class EdgeCloudPolicyTest : public ::testing::Test {
 protected:
     void SetUp() override
     {
-        edgeCloudPolicy_ = std::make_shared<EdgeCloudPolicy>();
+        edgeCloudPolicy_ = std::make_shared<EdgeCloudPolicy>(1);
     }
     void TearDown() override
     {

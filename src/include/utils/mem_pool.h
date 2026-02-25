@@ -14,6 +14,7 @@
 #define MEM_POOL_H
 
 #include <pybind11/embed.h>
+#include <pybind11/stl.h>
 #include <iostream>
 #include <string>
 #include "log.h"
@@ -25,22 +26,37 @@ namespace mindie_llm {
 #pragma GCC visibility push(default)
 class MemPool {
 public:
-    explicit MemPool(std::shared_ptr<py::object> instance) : impl_(std::move(instance)) {}
+    explicit MemPool(std::shared_ptr<py::object> instance) : impl_(std::move(instance))
+    {
+        enable_batch_lookup_ = py::hasattr(*impl_, "batch_exist");
+    }
 
-    bool LookUp(const std::string &key)
+    std::vector<bool> LookUp(const std::vector<std::string> &keys)
     {
         py::gil_scoped_acquire acquire;
-        bool res = impl_->attr("exists")(key).cast<bool>();
-        if (res) {
-            MINDIE_LLM_LOG_DEBUG("Look up key=" << key << " sucessfully !!!");
+        std::vector<bool> res(keys.size(), false);
+        if (keys.empty()) {
+            return res;
+        }
+
+        if (this->enable_batch_lookup_) {
+            auto tmp = impl_->attr("batch_exist")(keys).cast<std::vector<bool>>();
+            res.assign(tmp.begin(),  tmp.end());
         } else {
-            MINDIE_LLM_LOG_DEBUG("Look up key=" << key << " failed !!!");
+            size_t i = 0;
+            bool single_res = true;
+            while (i < keys.size() && single_res) {
+                single_res = impl_->attr("exists")(keys[i]).cast<bool>();
+                res[i] = single_res;
+                i++;
+            }
         }
         return res;
     }
 
 private:
     std::shared_ptr<py::object> impl_{};
+    bool enable_batch_lookup_ = false;
 };
 
 using MemPoolSPtr = std::shared_ptr<MemPool>;

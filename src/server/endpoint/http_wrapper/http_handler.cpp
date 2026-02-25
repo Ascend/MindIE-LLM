@@ -11,7 +11,6 @@
  */
 #define CPPHTTPLIB_OPENSSL_SUPPORT
 
-#include "http_handler.h"
 #include <unistd.h>
 #include <cstring>
 #include <ctime>
@@ -46,8 +45,8 @@
 #include "log.h"
 #include "check_utils.h"
 #include "config_manager_impl.h"
-#include "health_checker.h"
 #include "safe_io.h"
+#include "http_handler.h"
 
 using namespace std;
 using json = nlohmann::json;
@@ -588,7 +587,7 @@ void HttpHandler::InitializeServiceStatusResource(HttpsServerHelper &server)
         if (CheckHealthAndStop(context)) {
             return;
         }
-        HandleGetHealthStatus(context);
+        HandleGetLivenessAndReadiness(context);
         return;
     });
 
@@ -602,7 +601,7 @@ void HttpHandler::InitializeServiceStatusResource(HttpsServerHelper &server)
         if (CheckHealthAndStop(context)) {
             return;
         }
-        HandleGetHealthStatus(context);
+        HandleGetLivenessAndReadiness(context);
         return;
     });
 
@@ -724,7 +723,7 @@ void HttpHandler::HandlePostCmdToEngine(const ReqCtxPtr &reqCtx)
     ULOG_DEBUG(SUBMODLE_NAME_ENDPOINT, "Request body: " << reqCtx->MsgBody());
 
     FaultRecoveryCmd cmdType;
-    string command;
+    std::string command;
     if (JsonParse::DecodeFaultRecoveryCmd(reqCtx->MsgBody(), cmdType, command) != EP_OK) {
         std::string jsonStr(R"delimiter({"Error": "cmd_type must be necessary and data type must be integer.",
             "error_type": "validation"})delimiter");
@@ -737,21 +736,28 @@ void HttpHandler::HandlePostCmdToEngine(const ReqCtxPtr &reqCtx)
     }
     ULOG_INFO(SUBMODLE_NAME_ENDPOINT, "Command type decoded: " << command);
 
-    EndpointStatusCode statusCode = HealthChecker::GetInstance().GetEndpointStatusCode();
-    ULOG_INFO(SUBMODLE_NAME_ENDPOINT,
-              "Current status code: " << HealthChecker::GetInstance().CodeToString(statusCode));
+    ServiceStatus serviceStatus = HealthChecker::GetInstance().GetServiceStatus();
     RecoverCommandInfo info(command);
     Status status;
-    if (cmdType == FaultRecoveryCmd::CMD_PAUSE_ENGINE &&
-        (statusCode == STATUS_CODE_NORMAL || statusCode == STATUS_CODE_ABNORMAL)) {
-            ExecuteFaultRecoveryPauseCmd(info, status, statusCode);
-    } else if (cmdType == FaultRecoveryCmd::CMD_REINIT_NPU &&
-               (statusCode == STATUS_CODE_PAUSE || statusCode == STATUS_CODE_ABNORMAL_PAUSE)) {
-        ExecuteFaultRecoveryReinitNpuCmd(info, status, statusCode);
-    } else if (cmdType == FaultRecoveryCmd::CMD_START_ENGINE &&
-               (statusCode == STATUS_CODE_READY || statusCode == STATUS_CODE_ABNORMAL_READY)) {
-        ExecuteFaultRecoveryStartEngineCmd(info, status, statusCode);
-    } else {
+
+    // 匹配cmd和状态简化分支逻辑
+    auto callHandler = [cmdType, serviceStatus, &info, &status](
+        FaultRecoveryCmd cmd, ServiceStatus statusToCheck,
+        void (*handler)(RecoverCommandInfo&, Status&)
+    ) -> bool {
+        if (cmdType == cmd && serviceStatus == statusToCheck) {
+            handler(info, status);
+            return true;
+        }
+        return false;
+    };
+
+    bool handled = callHandler(FaultRecoveryCmd::CMD_PAUSE_ENGINE, SERVICE_NORMAL, ExecuteFaultRecoveryPauseCmd)
+        || callHandler(FaultRecoveryCmd::CMD_PAUSE_ENGINE, SERVICE_ABNORMAL, ExecuteFaultRecoveryPauseCmd)
+        || callHandler(FaultRecoveryCmd::CMD_PAUSE_ENGINE, SERVICE_BUSY, ExecuteFaultRecoveryPauseCmd)
+        || callHandler(FaultRecoveryCmd::CMD_REINIT_NPU, SERVICE_PAUSE, ExecuteFaultRecoveryReinitNpuCmd)
+        || callHandler(FaultRecoveryCmd::CMD_START_ENGINE, SERVICE_READY, ExecuteFaultRecoveryStartEngineCmd);
+    if (!handled) {
         ULOG_WARN(SUBMODLE_NAME_ENDPOINT,
                   GenerateEndpointErrCode(WARNING, SUBMODLE_FEATURE_FAULT_CONTROL, CHECK_WARNING),
                   "Command is not consistent with current status.");
@@ -761,6 +767,7 @@ void HttpHandler::HandlePostCmdToEngine(const ReqCtxPtr &reqCtx)
                                           g_exceptionInfo.at(httplib::StatusCode::BadRequest_400)));
         return;
     }
+
     std::string jsonStr;
     JsonParse::EncodeCmdResult(status, info, jsonStr);
     HttpRestResource::ResponseWithBody(reqCtx, httplib::StatusCode::OK_200, "application/json", jsonStr);
@@ -778,55 +785,125 @@ void HttpHandler::HandleGetEngineStatus(const ReqCtxPtr &requestContext)
     HttpRestResource::ResponseWithBody(requestContext, httplib::StatusCode::OK_200, "application/json", jsonStr);
 }
 
-void HttpHandler::ExecuteFaultRecoveryPauseCmd(RecoverCommandInfo &info,
-                                               Status &status, EndpointStatusCode &statusCode)
+void HttpHandler::HandleGetLivenessAndReadiness(const ReqCtxPtr &requestContext)
 {
-    // Modify status immediately when receiving Pause command: Normal -> Pause: 0b000 -> 0b100, 0b001 -> 0b101
+    // 检查llmInferEngine是否启动以及从节点是否存在故障
+    std::map<std::string, NodeHealthStatus> slaveStatus{};
+    Status nodeStatus = GetInferInstance()->GetNodeStatus(slaveStatus);
+    if (!nodeStatus.IsOk()) {
+        RespondUnhealthy(requestContext,
+            "Failed to get node status: " + nodeStatus.StatusMsg());
+        return;
+    }
+    for (auto const& slave : slaveStatus) {
+        if (slave.second == NodeHealthStatus::ABNORMAL) {
+            std::string jsonStr;
+            JsonParse::EncodeAbnormalNodeInfo(slaveStatus, jsonStr);
+            HttpRestResource::ResponseJsonBody(requestContext,
+                httplib::StatusCode::InternalServerError_500, jsonStr);
+            return;
+        }
+    }
+
+    // PD分离模式下检查连接情况
+    if (IsDMI() && !DmiRole::GetInstance()->IsHealthy()) {
+        RespondUnhealthy(requestContext, "DMI connection is unhealthy");
+        return;
+    }
+
+    // 获取基础健康状态
+    ServiceStatus serviceStatus = HealthChecker::GetInstance().GetServiceStatus();
+    bool isLiveness = requestContext->Path().find("ready") == std::string::npos;
+
+    // 处理响应结果
+    HandleHealthResponse(requestContext, serviceStatus, isLiveness);
+}
+
+void HttpHandler::HandleHealthResponse(const ReqCtxPtr &ctx, mindie_llm::ServiceStatus status, bool isLiveness)
+{
+    switch (status) {
+        case SERVICE_NORMAL:
+            // 正常状态
+            HttpRestResource::ResponseNobody(ctx, httplib::StatusCode::OK_200);
+            break;
+        case SERVICE_BUSY:
+            // 繁忙状态：liveness正常；readiness返回503，表示服务暂时不可用
+            if (isLiveness) {
+                ordered_json jsonObj;
+                jsonObj["message"] = "Service is alive but busy";
+                HttpRestResource::ResponseJsonBody(ctx,
+                    httplib::StatusCode::OK_200, jsonObj.dump());
+            } else {
+                ordered_json jsonObj;
+                jsonObj["message"] = "Service is alive but busy. Consider reducing request frequency";
+                HttpRestResource::ResponseJsonBody(ctx,
+                    httplib::StatusCode::ServiceUnavailable_503, jsonObj.dump());
+            }
+            break;
+        default:
+            // 其余状态服务均不可用
+            RespondUnhealthy(ctx, "Service is abnormal");
+            break;
+    }
+}
+
+void HttpHandler::RespondUnhealthy(const ReqCtxPtr &ctx, const std::string& message)
+{
+    ordered_json jsonObj;
+    jsonObj["message"] = message;
+    ULOG_ERROR(SUBMODLE_NAME_ENDPOINT,
+        GenerateEndpointErrCode(ERROR, SUBMODLE_FEATURE_TOKENIZER, ABNORMAL_TRANSMISSION_ERROR),
+        message);
+
+    // 不健康状态返回500
+    HttpRestResource::ResponseJsonBody(ctx, httplib::StatusCode::InternalServerError_500,
+        jsonObj.dump());
+}
+
+void HttpHandler::ExecuteFaultRecoveryPauseCmd(RecoverCommandInfo &info, Status &status)
+{
+    // Modify status immediately when receiving Pause command: Normal -> Pause
     ULOG_INFO(SUBMODLE_NAME_ENDPOINT, "Update Status By Code");
-    HealthChecker::GetInstance().UpdateStatusByCode(statusCode == STATUS_CODE_NORMAL ? STATUS_CODE_PAUSE
-                                                                                     : STATUS_CODE_ABNORMAL_PAUSE);
+    HealthChecker::GetInstance().UpdateStatus(SERVICE_PAUSE);
     status = GetInferInstance()->ControlInferInstance(info);
     if (!status.IsOk()) {
         ULOG_WARN(SUBMODLE_NAME_ENDPOINT,
                   GenerateEndpointErrCode(WARNING, SUBMODLE_FEATURE_FAULT_CONTROL, RESPONSE_PROCESS_ERROR),
                   "Failed to execute command. " << status.StatusMsg());
-        // Pause failed, modify status to abnormal: 0b100 -> 0b101, 0b101 -> 0b101
+        // Pause failed, modify status to abnormal
         ULOG_INFO(SUBMODLE_NAME_ENDPOINT, "Update Status By Code");
-        HealthChecker::GetInstance().UpdateStatusByCode(STATUS_CODE_ABNORMAL_PAUSE);
+        HealthChecker::GetInstance().UpdateStatus(SERVICE_ABNORMAL);
     }
 }
 
-void HttpHandler::ExecuteFaultRecoveryReinitNpuCmd(RecoverCommandInfo &info,
-                                                   Status &status, EndpointStatusCode &statusCode)
+void HttpHandler::ExecuteFaultRecoveryReinitNpuCmd(RecoverCommandInfo &info, Status &status)
+{
+    status = GetInferInstance()->ControlInferInstance(info);
+    if (!status.IsOk()) {
+        // Reinit failed, Pause -> Abnormal
+        ULOG_WARN(SUBMODLE_NAME_ENDPOINT,
+                  GenerateEndpointErrCode(WARNING, SUBMODLE_FEATURE_FAULT_CONTROL, RESPONSE_PROCESS_ERROR),
+                  "Failed to execute command. " << status.StatusMsg());
+        ULOG_INFO(SUBMODLE_NAME_ENDPOINT, "Update Status By Code");
+        HealthChecker::GetInstance().UpdateStatus(SERVICE_ABNORMAL);
+    } else {
+        // Reinit -> Ready
+        HealthChecker::GetInstance().UpdateStatus(SERVICE_READY);
+        ULOG_INFO(SUBMODLE_NAME_ENDPOINT, "Update Status By Code");
+    }
+}
+
+void HttpHandler::ExecuteFaultRecoveryStartEngineCmd(RecoverCommandInfo &info, Status &status)
 {
     status = GetInferInstance()->ControlInferInstance(info);
     if (!status.IsOk()) {
         ULOG_WARN(SUBMODLE_NAME_ENDPOINT,
                   GenerateEndpointErrCode(WARNING, SUBMODLE_FEATURE_FAULT_CONTROL, RESPONSE_PROCESS_ERROR),
                   "Failed to execute command. " << status.StatusMsg());
-        ULOG_INFO(SUBMODLE_NAME_ENDPOINT, "Update Status By Code");
-        HealthChecker::GetInstance().UpdateStatusByCode(STATUS_CODE_ABNORMAL_PAUSE);
+        HealthChecker::GetInstance().UpdateStatus(SERVICE_ABNORMAL);
     } else {
-        // Reinit -> Ready: 0b100 -> 0b010, 0b101 -> 0b011
-        HealthChecker::GetInstance().UpdateStatusByCode(statusCode == STATUS_CODE_PAUSE ? STATUS_CODE_READY
-                                                                                        : STATUS_CODE_ABNORMAL_PAUSE);
-        ULOG_INFO(SUBMODLE_NAME_ENDPOINT, "Update Status By Code");
-    }
-}
-
-void HttpHandler::ExecuteFaultRecoveryStartEngineCmd(RecoverCommandInfo &info,
-                                                     Status &status, EndpointStatusCode &statusCode)
-{
-    status = GetInferInstance()->ControlInferInstance(info);
-    if (!status.IsOk()) {
-        ULOG_WARN(SUBMODLE_NAME_ENDPOINT,
-                  GenerateEndpointErrCode(WARNING, SUBMODLE_FEATURE_FAULT_CONTROL, RESPONSE_PROCESS_ERROR),
-                  "Failed to execute command. " << status.StatusMsg());
-        HealthChecker::GetInstance().UpdateStatusByCode(STATUS_CODE_ABNORMAL_READY);
-    } else {
-        // Ready -> Normal: 0b010 -> 0b000, 0b011 -> 0b001
-        HealthChecker::GetInstance().UpdateStatusByCode(statusCode == STATUS_CODE_READY ? STATUS_CODE_NORMAL
-                                                                                        : STATUS_CODE_ABNORMAL);
+        // Ready -> Normal
+        HealthChecker::GetInstance().UpdateStatus(SERVICE_NORMAL);
     }
 }
 
@@ -853,8 +930,10 @@ bool HttpHandler::JudgeRestProcess()
     std::map<std::string, uint64_t> batchSchedulerMetrics{};
     Status status = GetInferInstance()->GetBatchSchedulerMetrics(batchSchedulerMetrics);
     if (!status.IsOk()) {
-        ULOG_ERROR(SUBMODLE_NAME_ENDPOINT, GenerateEndpointErrCode(ERROR, SUBMODLE_FEATURE_SPLITWISE,
-            LOCAL_INVOKING_ERROR), "Failed to get batchScheduler metrics. " << status.StatusMsg());
+        ULOG_ERROR(SUBMODLE_NAME_ENDPOINT, GenerateEndpointErrCode(ERROR,
+            SUBMODLE_FEATURE_SPLITWISE,
+            LOCAL_INVOKING_ERROR), "Failed to get batchScheduler metrics. "
+            << status.StatusMsg());
         return false;
     }
     if (batchSchedulerMetrics.find("processingInferRequestNum") == batchSchedulerMetrics.end() ||
@@ -1001,6 +1080,7 @@ void HttpHandler::InitializeServiceMgmtV1(HttpsServerHelper &server)
         }
         std::string roleName = GetUriParameters(context->Req(), 1);
         DmiRole::GetInstance()->HandlePDRoleV1(context, roleName);
+        HandlePDWiseUpdateNpuDeviceIds(context);
         return;
     });
 
@@ -1119,6 +1199,40 @@ void HttpHandler::InitializeServiceMgmtV2(HttpsServerHelper &server)
         HandleUpdateNpuDeviceIds(context);
         return;
     });
+}
+
+void HttpHandler::HandlePDWiseUpdateNpuDeviceIds(const ReqCtxPtr &ctx)
+{
+    try {
+        ULOG_INFO(SUBMODLE_NAME_ENDPOINT, "Handle update npu device ids request for V1 format");
+        ordered_json body;
+        std::string msgBody = ctx->MsgBody();
+        if (!ordered_json::accept(msgBody)) {
+            ULOG_ERROR(SUBMODLE_NAME_ENDPOINT, GenerateEndpointErrCode(ERROR, SUBMODLE_FEATURE_SPLITWISE,
+                JSON_PARSE_ERROR), "Convert string to json object failed, CallbackId is " << ctx->CallbackId());
+            return;
+        }
+        body = ordered_json::parse(msgBody);
+        std::set<int> npuDeviceIds;
+        // 处理V1格式：直接从local["device"]中提取
+        if (body.contains("local") && body["local"].contains("device")) {
+            for (auto& item : body["local"]["device"]) {
+                npuDeviceIds.insert(std::stoi(item["device_logical_id"].get<std::string>()));
+            }
+        } else {
+            ULOG_ERROR(SUBMODLE_NAME_ENDPOINT, GenerateEndpointErrCode(ERROR, SUBMODLE_FEATURE_SPLITWISE,
+                JSON_PARSE_ERROR),
+                "V1 format error: missing local or device field, CallbackId is " << ctx->CallbackId());
+            return;
+        }
+        
+        ULOG_INFO(SUBMODLE_NAME_ENDPOINT, "V1 npu device ids size: " << npuDeviceIds.size());
+        HealthChecker::GetInstance().UpdateNpuDeviceIds(npuDeviceIds);
+    } catch (...) {
+        ULOG_ERROR(SUBMODLE_NAME_ENDPOINT, GenerateEndpointErrCode(ERROR, SUBMODLE_FEATURE_SPLITWISE,
+            JSON_PARSE_ERROR), "Convert string to json object exception, CallbackId is " << ctx->CallbackId());
+        return;
+    }
 }
 
 void HttpHandler::HandleUpdateNpuDeviceIds(const ReqCtxPtr &ctx)

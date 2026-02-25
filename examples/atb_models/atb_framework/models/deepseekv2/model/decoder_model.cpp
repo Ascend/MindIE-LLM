@@ -327,6 +327,9 @@ void DeepseekV2ModelParam::ParseLayerwiseDisaggregatedParam(nlohmann::json &para
         if (paramJson.contains("endLayerId")) {
             endLayerId = atb_speed::base::FetchJsonParam<int32_t>(paramJson, "endLayerId");
         }
+        if (paramJson.contains("cloudLastLayerId")) {
+            cloudLastLayerId = atb_speed::base::FetchJsonParam<int32_t>(paramJson, "cloudLastLayerId");
+        }
         
         this->isInternalLayer = this->layerwiseDisaggregated
             && (this->layerwiseMode == LWD_EDGE_FIRST || this->layerwiseMode == LWD_CLOUD_MIDDLE);
@@ -504,20 +507,39 @@ void DecoderModel::ConstructInternalTensorMap()
                 "internal_tensor_cos_emb", "internal_tensor_sin_emb"
             };
         }
+        if (param.mapping.Get(base::ATTN_DP).IsEnabled() || param.mapping.Get(base::ATTN_CP).IsEnabled()) {
+            if (this->param.skipWordEmbedding && this->param.numHiddenLayers == 1 &&
+                    this->param.layerwiseMode == LWD_EDGE_LAST) {
+                deepseekV2ModelInternalTensorCandidates["default"] = {
+                    "internal_tensor_cos_emb", "internal_tensor_sin_emb"
+                };
+            }
+        }
     }
     atb_speed::common::AssignTensorIdx(
         deepseekV2ModelInternalTensorCandidates, "default", this->internalTensorMap);
     if (param.mapping.Get(base::ATTN_DP).IsEnabled() || param.mapping.Get(base::ATTN_CP).IsEnabled()) {
-        atb_speed::common::AssignTensorIdx(
-            deepseekV2ModelInternalTensorCandidates, "last_layer", this->internalTensorMap);
+        if (!this->param.layerwiseDisaggregated || this->param.layerwiseMode == LWD_EDGE_LAST) {
+            atb_speed::common::AssignTensorIdx(
+                deepseekV2ModelInternalTensorCandidates, "last_layer", this->internalTensorMap);
+        }
     }
     if (param.enableDpOut && param.lmHeadLocalTp) {
         atb_speed::common::AssignTensorIdx(
             deepseekV2ModelInternalTensorCandidates, "enable_lm_head_local_tp_out", this->internalTensorMap);
     }
     if (param.enableQkvdownDp) {
-        atb_speed::common::AssignTensorIdx(
-            deepseekV2ModelInternalTensorCandidates, "qkvdown_dp", this->internalTensorMap);
+        if (!this->param.layerwiseDisaggregated) {
+            atb_speed::common::AssignTensorIdx(
+                deepseekV2ModelInternalTensorCandidates, "qkvdown_dp", this->internalTensorMap);
+        } else {
+            if (this->param.layerwiseMode == LWD_EDGE_LAST ||
+                (this->param.startLayerId >= this->param.firstKDenseReplace &&
+                    this->param.endLayerId - this->param.startLayerId >= 2)) { // moe层且中间层数大于2
+                atb_speed::common::AssignTensorIdx(deepseekV2ModelInternalTensorCandidates,
+                    "qkvdown_dp", this->internalTensorMap);
+            }
+        }
     }
 }
 
@@ -619,6 +641,38 @@ atb::TensorDesc DecoderModel::GetLogitsDesc(
     return logitsDesc;
 }
 
+atb::TensorDesc DecoderModel::GetLWDLogitsDesc(
+    const std::vector<atb::TensorDesc> &inTensorDescs)
+{
+    atb::TensorDesc logitsDesc;
+    logitsDesc.dtype = this->param.isBF16 ? \
+     aclDataType::ACL_BF16 : aclDataType::ACL_FLOAT16;
+    logitsDesc.format = graph_.weightTensors.at(0).desc.format;
+    if (this->param.layerwiseMode == LWD_EDGE_FIRST) {
+        logitsDesc.shape.dimNum = inTensorDescs.at(0).shape.dimNum + 1;
+    } else {
+        logitsDesc.shape.dimNum = inTensorDescs.at(0).shape.dimNum;
+    }
+    logitsDesc.shape.dims[0] = inTensorDescs.at(0).shape.dims[0];
+    logitsDesc.shape.dims[1] = this->param.hiddenSize;
+    if (param.enableQkvdownDp && param.endLayerId > param.firstKDenseReplace &&
+            param.startLayerId <= param.firstKDenseReplace) {
+        logitsDesc.shape.dims[0] = inTensorDescs.at(
+            atb_speed::common::GetTensorIdx(this->inTensorMap, "in_ffn_padding_idx_model")
+        ).shape.dims[0];
+        // 2: dynamic ep level
+        if (param.expertParallelDegree != 2 && param.mapping.Get(base::MLP_TP).rankIds.size() != 0) {
+            logitsDesc.shape.dims[0] /= param.mapping.Get(base::MLP_TP).rankIds.size();
+        }
+    }
+    if (param.enableQkvdownDp && param.endLayerId == param.cloudLastLayerId + 1) {
+        logitsDesc = inTensorDescs.at(
+            atb_speed::common::GetTensorIdx(this->inTensorMap, "in_final_state_model"));
+    }
+
+    return logitsDesc;
+}
+
 atb::Status DecoderModel::InferShape(
     const std::vector<atb::TensorDesc> &inTensorDescs,
     std::vector<atb::TensorDesc> &outTensorDescs
@@ -640,16 +694,7 @@ atb::Status DecoderModel::InferShape(
         outTensorDescs.at(outTensorIdx) = GetLogitsDesc(inTensorDescs, logitsIndicesIdx);
     } else {
         if (this->param.layerwiseMode == LWD_EDGE_FIRST || this->param.layerwiseMode == LWD_CLOUD_MIDDLE) {
-            outTensorDescs.at(outTensorIdx).dtype = this->param.isBF16 ? \
-             aclDataType::ACL_BF16 : aclDataType::ACL_FLOAT16;
-            outTensorDescs.at(outTensorIdx).format = graph_.weightTensors.at(0).desc.format;
-            if (this->param.layerwiseMode == LWD_EDGE_FIRST) {
-                outTensorDescs.at(outTensorIdx).shape.dimNum = inTensorDescs.at(0).shape.dimNum + 1;
-            } else {
-                outTensorDescs.at(outTensorIdx).shape.dimNum = inTensorDescs.at(0).shape.dimNum;
-            }
-            outTensorDescs.at(outTensorIdx).shape.dims[0] = inTensorDescs.at(0).shape.dims[0];
-            outTensorDescs.at(outTensorIdx).shape.dims[1] = this->param.hiddenSize;
+            outTensorDescs.at(outTensorIdx) = GetLWDLogitsDesc(inTensorDescs);
         } else {
             outTensorDescs.at(outTensorIdx) = GetLogitsDesc(inTensorDescs, logitsIndicesIdx);
         }
@@ -930,7 +975,7 @@ void SetMoeParam(DecoderLayerParam &layerParam, const DeepseekV2ModelParam &para
 
 void SetLayerwiseDisaggregatedParam(DecoderLayerParam &layerParam, const DeepseekV2ModelParam &param, int64_t layerId)
 {
-        if (!param.layerwiseDisaggregated) {
+    if (!param.layerwiseDisaggregated) {
         if (layerId == param.numHiddenLayers - 1) {
             layerParam.isLastLayer = true;
         }
@@ -950,6 +995,7 @@ void DecoderModel::SetLaywiseDisaggregatedQuantParam(DecoderLayerParam &layerPar
     layerParam.attnLinearTransposeType = param.attnLinearTransposeType[layerId - param.startLayerId];
     layerParam.mlpLinearTransposeType = param.mlpLinearTransposeType[layerId - param.startLayerId];
     layerParam.moeLinearTransposeType = param.moeLinearTransposeType[layerId - param.startLayerId];
+    layerParam.isCloudLastLayer = param.enableQkvdownDp && layerId == param.cloudLastLayerId;
 }
 
 void DecoderModel::SetLayerParam(DecoderLayerParam &layerParam, int64_t layerId)
@@ -1045,6 +1091,9 @@ atb::Status DecoderModel::AddSingleLayer(uint32_t layerId)
     }
     ATB_SPEED_LOG_DEBUG("start create Decoderlayer");
     CHECK_OPERATION_STATUS_RETURN(DecoderLayer(layerParam, &op));
+    if (this->param.layerwiseDisaggregated) {   // DecoderLayer 中可能修改了 enableQkvdownDp
+        param.enableQkvdownDp = layerParam.enableQkvdownDp;
+    }
     ATB_SPEED_LOG_DEBUG("Decoderlayer create success");
     layerNode.operation.reset(op);
     ATB_SPEED_LOG_DEBUG("Decoderlayer inTensor number: " << layerNode.operation->GetInputNum());

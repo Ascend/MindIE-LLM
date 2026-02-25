@@ -33,10 +33,11 @@ sys.path.append(str(Path(__file__).parent / "sync"))
 
 MASTER_ID = 0   # 接收通信, 广播决策, 创建共享内存的主rank号
 LONG_SEQ_LEN_MIN = 7500
+MULTI_NODES_LONG_SEQ_LEN_MIN = 18000
 
 
 class LastExecType(IntEnum):
-    PREFILEE = 0
+    PREFILL = 0
     DECODE = 1
 
 
@@ -55,8 +56,9 @@ class DecisionType(IntEnum):
 
 
 class RequestRouterLwd(RequestRouter):
-    def __init__(self):
+    def __init__(self, parent_pid):
         self.rank = None
+        self.parent_pid = parent_pid
 
         self.prefill_queue = queue.Queue()
         self.decode_queue = queue.Queue()
@@ -66,9 +68,7 @@ class RequestRouterLwd(RequestRouter):
         self.decision_type = DecisionType.DO_NOTHING
 
         self.prefill_request = None
-        self.prefill_shape = None
         self.decode_request = None
-        self.decode_shape = None
 
         self.ctrl_comm = None
         self.data_comm = None
@@ -77,15 +77,15 @@ class RequestRouterLwd(RequestRouter):
 
         self.decode_comm_finish = False
         self.prefill_comm_finish = False
-        self.prefill_comm_irecv_finish = False
-        self.prefill_comm_tcp_finish = False
+        self.prefill_comm_tcp_finish_count = 0
 
         self.prefill_chunk_instance = None
-        self.prefill_seq_len = 0
-        self.prefill_batch_size = 0
-        self.is_long_seq = False
-        self.prefill_chunk_num = 1
-        self.long_seq_start_idx = 0
+
+        # 多机新增, 多dp的变量可适配单dp
+        self.lwd_multi_nodes_enable = False
+        self.prefill_dp_seq_len = 0             # 自身dp域的长度, 如果dp=1就直接得到这个dp的总长度; 如果dp域是空, 则赋值为1
+        self.prefill_dp_max_seq_len = 0         # 多dp中的最大长度, 如果只有一个dp就是本身的长度
+        self.prefill_dp_empty = False           # dp域中本身是否为empty
 
         super().__init__()
 
@@ -122,17 +122,32 @@ class RequestRouterLwd(RequestRouter):
         proto = ExecuteResponseBuilder.build_from_init_result(initialize_result)
         send_model_execute_response(proto)
 
-        self.rank = config.rank
+        self.rank = config.local_rank
         self.ctrl_comm = edge_cloud_comm.ctrl_comm
         self.data_comm = edge_cloud_comm.data_comm
         self.prefill_chunk_instance = self.router_impl.generator.model_wrapper.model_runner.chunk_prefill_manager
 
+        self.mem_manager = SharedMemoryManager(self.parent_pid)
+        logger.info(f"[layerwiseDisaggregated] initliaze share mem ok rank:{self.rank}, parent_pid:{self.parent_pid}")
+
         models_config_dict = self.get_lwd_models_config_dict(model_config)
-        producer_glb_id_str = config.model_config.get('npu_device_ids', '0,1').split(',')[0]
-        self.mem_manager = SharedMemoryManager(producer_glb_id_str)
-        logger.info(f"[layerwiseDisaggregated] initliaze ok rank:{self.rank}, glb_rank:{producer_glb_id_str}")
+        npu_device_ids = config.model_config.get('npu_device_ids', '0,1').split(',')
+        self.lwd_multi_nodes_enable = True if model_config.get('lwd_multi_nodes_enable', 'false') == 'true' else False
+
+        is_producer = True if self.rank == MASTER_ID else False
+        card_num = len(npu_device_ids)
+        self.mem_manager.initialize(is_producer, card_num - 1)
+
+        logger.info(f"[layerwiseDisaggregated] mem_manager initliaze ok rank:{self.rank}, is_producer:{is_producer}, "
+            f"card_num:{card_num} lwd_multi_nodes_enable:{self.lwd_multi_nodes_enable}")
 
         self.initialize_diff(model_config, models_config_dict)
+
+    def get_long_seq_len_min(self):
+        if self.lwd_multi_nodes_enable:
+            return MULTI_NODES_LONG_SEQ_LEN_MIN
+
+        return LONG_SEQ_LEN_MIN
 
     def curr_no_request(self):
         return self.prefill_queue.empty() and self.decode_queue.empty() and self.clean_up_queue.empty() and\
@@ -179,7 +194,7 @@ class RequestRouterLwd(RequestRouter):
     def set_pd_curr_request(self):
         if self.prefill_request is None and not self.prefill_queue.empty():
             self.prefill_request = self.prefill_queue.get()
-            self.prefill_seq_len = self.calc_seq_len(self.prefill_request)
+            self.prefill_dp_seq_len = self.calc_curr_dp_seq_len(self.prefill_request)
 
         if self.decode_request is None and not self.decode_queue.empty():
             self.decode_request = self.decode_queue.get()
@@ -202,18 +217,15 @@ class RequestRouterLwd(RequestRouter):
         if self.prefill_comm_finish:
             return
 
-        self.ctrl_comm.recv_prefill()
-        self.prefill_comm_irecv_finish = True
-        self.prefill_comm_tcp_finish = self.ctrl_comm.prefill_comm_finish_tcp
-        if self.prefill_comm_tcp_finish:
-            self.prefill_shape = self.ctrl_comm.parse_shape(self.ctrl_comm.prefill_recv_msg)
-            logger.info("[layerwiseDisaggregated] recv_prefill tcp comm finish.")
-
-        if self.prefill_comm_irecv_finish and self.prefill_comm_tcp_finish:
-            self.prefill_comm_finish = True
-            self.prefill_comm_irecv_finish = False
-            self.prefill_comm_tcp_finish = False
-            self.ctrl_comm.prefill_comm_finish_tcp = False
+        if self.prefill_comm_tcp_finish_count == 0: 
+            self.ctrl_comm.recv_prefill() 
+            self.prefill_comm_tcp_finish_count = self.ctrl_comm.prefill_comm_finish_tcp_count 
+          
+        if self.prefill_comm_tcp_finish_count > 0: 
+            self.prefill_comm_finish = True 
+            self.prefill_comm_tcp_finish_count -= 1 
+            self.ctrl_comm.prefill_comm_finish_tcp_count -= 1
+            logger.info("[layerwiseDisaggregated] recv_prefill tcp comm finish.") 
 
     def recv_decode(self):
         self.ctrl_comm.recv_decode()
@@ -223,7 +235,7 @@ class RequestRouterLwd(RequestRouter):
         pass
 
     def arrange_exec_stage(self):
-        metadata = LwdMetadata(0, 0, True, True, 1, 1, 62, False, 0, 0, 0, 0)
+        metadata = LwdMetadata(0, 0, True, True, False, False, 62, False, 0, 0, 0, 0, False)
         lwd_metadata_manager.set_metadata(metadata)
 
     def decision_do_clean_up_type(self):
@@ -243,13 +255,7 @@ class RequestRouterLwd(RequestRouter):
         self.mem_manager.write_list_memory([self.decision_type])
 
     def recv_decision_type(self):
-        ctrl_tensor = self.mem_manager.read_list_memory(self.rank)
-        logger.info(f"[layerwiseDisaggregated] recv_decision_type ctrl_tensor: {ctrl_tensor}, rank{self.rank}")
-        if ctrl_tensor is None:
-            self.decision_type = DecisionType.DO_NOTHING
-            return
-
-        self.decision_type = DecisionType(int(ctrl_tensor[0]))
+        pass
 
     def exceute_inference_request(self):
         func = self.process_func.get(self.decision_type)
@@ -258,27 +264,36 @@ class RequestRouterLwd(RequestRouter):
         else:
             time.sleep(0.001)
 
+    def recv_ctrl_msg(self):
+        self.recv_prefill() # 接收对方发来的prefill tcp控制信号
+        self.recv_decode()  # 接收对方发来的decode tcp控制信号
+
+    def master_rank_make_decision(self):
+        # Determine the decision type for executing P/D based on the current information.
+        self.calc_decision_type()
+
+    def print_do_inference_log(self):
+        logger.info(f"[layerwiseDisaggregated] decision_type:{self.decision_type.name}, "
+            f"has prefill:{self.prefill_request is not None}, prefill_comm_finish:{self.prefill_comm_finish}, "
+            f"has decode:{self.decode_request is not None}, decode_comm_finish:{self.decode_comm_finish}, "
+            f"clean_up_queue size:{self.clean_up_queue.qsize()}, "
+            f"clean_eos_queue size:{self.clean_eos_queue.qsize()}.")
+
     def do_inference(self):
         while True:
             prof = span_start("get_request")
             self.get_all_request() # 将inference_queue里的所有请求, 存到新增的三个队列中, 用于调度
             span_end(prof)
 
-            if self.rank == MASTER_ID:
-                self.recv_prefill() # 接收边侧发来的prefill tcp控制信号
-                self.recv_decode() # 接收边侧发来的decode tcp控制信号
+            self.recv_ctrl_msg()   # 接收对方发来的tcp控制信号
 
-                # Determine the decision type for executing P/D based on the current information.
-                self.calc_decision_type()
-                logger.info(f"[layerwiseDisaggregated] decision_type:{self.decision_type}, "
-                    f"has prefill:{self.prefill_request is not None}, prefill_comm_finish:{self.prefill_comm_finish}, "
-                    f"has decode:{self.decode_request is not None}, decode_comm_finish:{self.decode_comm_finish}, "
-                    f"clean_up_queue size:{self.clean_up_queue.qsize()}, "
-                    f"clean_eos_queue size:{self.clean_eos_queue.qsize()}.")
-                self.arrange_exec_stage()
+            if self.rank == MASTER_ID:
+                self.master_rank_make_decision()
+                self.print_do_inference_log()
                 prof = span_start("broadcast_decision")
                 self.broadcast_decision_type()
                 span_end(prof)
+                self.arrange_exec_stage()
             else:
                 prof = span_start("recv_decision")
                 self.recv_decision_type()
@@ -312,9 +327,47 @@ class RequestRouterLwd(RequestRouter):
                 total += item
         return total
 
-    def calc_seq_len(self, execute_request: ExecuteRequest):
-        seq_lens = parse_all_dp_batches_seq_lens(execute_request.execute_model_request.all_dp_batches_seq_lens)
-        return self.sum_nested(seq_lens)
-
     def calc_batch_size(self, execute_request: ExecuteRequest):
         return len(execute_request.execute_model_request.seq_group_metadata_list)
+
+    def calc_curr_dp_seq_len(self, execute_request: ExecuteRequest):
+        curr_dp_rank = self.router_impl.generator.plugin.model_wrapper.mapping.attn_dp.rank
+        all_batch_dp_rank_ids = []
+        for seq_group_metadata in execute_request.execute_model_request.seq_group_metadata_list:
+            all_batch_dp_rank_ids.append(seq_group_metadata.dp_rank_id)
+        all_batch_dp_rank_ids = list(dict.fromkeys(all_batch_dp_rank_ids))
+        pos = -1
+        if curr_dp_rank in all_batch_dp_rank_ids:
+            pos = all_batch_dp_rank_ids.index(curr_dp_rank)
+        if pos == -1:
+            return 0
+        else:
+            seq_lens = parse_all_dp_batches_seq_lens(execute_request.execute_model_request.all_dp_batches_seq_lens)[pos]
+            return self.sum_nested(seq_lens)
+
+    def calc_curr_dp_batch_size(self, execute_request: ExecuteRequest):
+        curr_dp_rank = self.router_impl.generator.plugin.model_wrapper.mapping.attn_dp.rank
+        all_batch_dp_rank_ids = []
+        for seq_group_metadata in execute_request.execute_model_request.seq_group_metadata_list:
+            all_batch_dp_rank_ids.append(seq_group_metadata.dp_rank_id)
+        if curr_dp_rank in all_batch_dp_rank_ids:
+            return all_batch_dp_rank_ids.count(curr_dp_rank)
+        else:
+            return 1
+    
+    def max_nested(self, lst):
+        max_val = 0
+        for item in lst:
+            if isinstance(item, list):
+                item_max = self.max_nested(item)
+                max_val = max(max_val, item_max)
+            else:
+                max_val = max(max_val, item)
+        return max_val
+
+    def calc_max_seq_len(self, execute_request: ExecuteRequest):
+        seq_lens = parse_all_dp_batches_seq_lens(execute_request.execute_model_request.all_dp_batches_seq_lens)
+        return self.max_nested(seq_lens)
+
+    def is_request_long_seq(self, execute_request: ExecuteRequest):
+        return self.calc_max_seq_len(execute_request) > self.get_long_seq_len_min()

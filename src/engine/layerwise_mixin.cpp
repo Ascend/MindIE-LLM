@@ -34,6 +34,7 @@ void LayerwiseMixin::LwdPrepareBatch(bool layerwiseDisaggregated, SchedulerOutpu
             prefillSeqGroup->firstSeq->data_.SetLayerwiseStage(isPrefill);
             if (prefillSeqGroup->firstSeq->data_.layerwiseRecompute_) {
                 prefillSeqGroup->firstSeq->data_.layerwiseRecompute_ = false;
+                prefillSeqGroup->firstSeq->data_.layerwiseRecomputeReturn_ = false;
                 prefillSeqGroup->firstSeq->data_.layerwiseRunning_ = true;
             }
         }
@@ -117,10 +118,9 @@ bool LayerwiseMixin::LwdProcessResponse(bool layerwiseDisaggregated, SequenceGro
         return false;
     }
     auto returnSeqId = seqGroup->firstSeq->seqId_;
-    MINDIE_LLM_LOG_INFO("[layerwiseDisaggregated|handler] "<<"return seq id: " << returnSeqId);
     ForwardMode forwardMode = seqGroup->IsLayerwisePrefill() ? ForwardMode::PREFILL : ForwardMode::DECODE;
     if (forwardMode == ForwardMode::PREFILL) {
-        MINDIE_LLM_LOG_INFO("[layerwiseDisaggregated|handler] "<<"prefill return!!!");
+        MINDIE_LLM_LOG_INFO("[layerwiseDisaggregated|handler] "<<"prefill return seq id:"<< returnSeqId);
         
         // recompute in decode batch
         if (seqGroup->firstSeq->data_.layerwiseRunning_) {
@@ -131,9 +131,13 @@ bool LayerwiseMixin::LwdProcessResponse(bool layerwiseDisaggregated, SequenceGro
             bool isPrefill = false;
             seqGroup->firstSeq->data_.SetLayerwiseStage(isPrefill);
             seqGroup->firstSeq->data_.layerwiseRunning_ = false;
+        } else {
+            // 记录recompute的seq返回，之后才允许下发重计算的P
+            seqGroup->firstSeq->data_.layerwiseRecomputeReturn_ = true;
+            MINDIE_LLM_LOG_INFO("[layerwiseDisaggregated|handler] "<<"recompute return seq id:"<< returnSeqId);
         }
     } else {
-        MINDIE_LLM_LOG_INFO("[layerwiseDisaggregated|handler] "<<"decode return!!!");
+        MINDIE_LLM_LOG_INFO("[layerwiseDisaggregated|handler] "<<"decode return seq id:"<< returnSeqId);
     }
     if (lastForwardMode == ForwardMode::DUMMY) {
         lastForwardMode = forwardMode;

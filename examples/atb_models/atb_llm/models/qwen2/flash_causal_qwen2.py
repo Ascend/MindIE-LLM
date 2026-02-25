@@ -75,13 +75,14 @@ class FlashQwen2ForCausalLM(FlashForCausalLM):
             self.inference_mode.enable_prefill_pa = True
             self.layerwise.load_list = []
             if self.layerwise.split_type == DistributedType.CLOUD:
-                start_layer = self.layerwise.start_num
-                end_layer = self.config.num_hidden_layers - self.layerwise.end_num
+                start_layer = self.layerwise.edge_start_layer_count
+                end_layer = self.config.num_hidden_layers - self.layerwise.edge_end_layer_count
                 self.layerwise.load_list = list(range(start_layer, end_layer))
             else:
-                self.layerwise.load_list = [i for i in range(0, self.layerwise.start_num)]
-                start_num = self.config.num_hidden_layers - self.layerwise.end_num
-                self.layerwise.load_list.extend([i for i in range(start_num, self.config.num_hidden_layers)])
+                self.layerwise.load_list = [i for i in range(0, self.layerwise.edge_start_layer_count)]
+                edge_start_layer_count = self.config.num_hidden_layers - self.layerwise.edge_end_layer_count
+                self.layerwise.load_list.extend([i 
+                                                 for i in range(edge_start_layer_count, self.config.num_hidden_layers)])
 
             self.transformer = FlashQwenModel(
                 config, weights, model_prefix=model_prefix, lmhead_prefix=lmhead_prefix,
@@ -307,17 +308,18 @@ class FlashQwen2ForCausalLM(FlashForCausalLM):
         modify_ascend_params["layerwiseMode"] = mode
         modify_ascend_params["linearDescs"] = wrapper.linear_descs
         if mode == LwdLayerStatus.EDGE_START_LAYER:
-            modify_ascend_params[LINEAR_HAS_BIAS] = linear_has_bias * self.layerwise.start_num
+            modify_ascend_params[LINEAR_HAS_BIAS] = linear_has_bias * self.layerwise.edge_start_layer_count
             modify_ascend_params[LWD_START_ID] = 0
-            modify_ascend_params[LWD_END_ID] = self.layerwise.start_num
+            modify_ascend_params[LWD_END_ID] = self.layerwise.edge_start_layer_count
         elif mode == LwdLayerStatus.CLOUD_MIDDLE_LAYER:
-            modify_ascend_params[LINEAR_HAS_BIAS] = linear_has_bias * (self.config.num_hidden_layers - 
-                                                self.layerwise.start_num - self.layerwise.end_num)
-            modify_ascend_params[LWD_START_ID] = self.layerwise.start_num
-            modify_ascend_params[LWD_END_ID] = self.config.num_hidden_layers - self.layerwise.end_num
+            modify_ascend_params[LINEAR_HAS_BIAS] = linear_has_bias * (
+                self.config.num_hidden_layers - self.layerwise.edge_start_layer_count -
+                self.layerwise.edge_end_layer_count)
+            modify_ascend_params[LWD_START_ID] = self.layerwise.edge_start_layer_count
+            modify_ascend_params[LWD_END_ID] = self.config.num_hidden_layers - self.layerwise.edge_end_layer_count
         elif mode == LwdLayerStatus.EDGE_END_LAYER:
-            modify_ascend_params[LINEAR_HAS_BIAS] = linear_has_bias * self.layerwise.end_num
-            modify_ascend_params[LWD_START_ID] = self.config.num_hidden_layers - self.layerwise.end_num
+            modify_ascend_params[LINEAR_HAS_BIAS] = linear_has_bias * self.layerwise.edge_end_layer_count
+            modify_ascend_params[LWD_START_ID] = self.config.num_hidden_layers - self.layerwise.edge_end_layer_count
             modify_ascend_params[LWD_END_ID] = self.config.num_hidden_layers
         modify_ascend_params["numHiddenLayers"] = modify_ascend_params[LWD_END_ID] - modify_ascend_params[LWD_START_ID]
         
@@ -352,17 +354,18 @@ class FlashQwen2ForCausalLM(FlashForCausalLM):
         end_layer = 0
         if mode == LwdLayerStatus.EDGE_START_LAYER:
             start_layer = 0
-            end_layer = self.layerwise.start_num
+            end_layer = self.layerwise.edge_start_layer_count
         elif mode == LwdLayerStatus.CLOUD_MIDDLE_LAYER:
             if is_prefill:
                 start_layer = self.layerwise.load_list.index(layer_no)
                 end_layer = self.layerwise.load_list.index(layer_no) + 1
             else:
-                start_layer = self.layerwise.load_list.index(self.layerwise.start_num)
+                start_layer = self.layerwise.load_list.index(self.layerwise.edge_start_layer_count)
                 end_layer = self.layerwise.load_list.index(
-                    self.config.num_hidden_layers - self.layerwise.end_num - 1) + 1
+                    self.config.num_hidden_layers - self.layerwise.edge_end_layer_count - 1) + 1
         else:
-            start_layer = self.layerwise.load_list.index(self.config.num_hidden_layers - self.layerwise.end_num)
+            start_layer = self.layerwise.load_list.index(self.config.num_hidden_layers -
+                                                         self.layerwise.edge_end_layer_count)
             end_layer = self.layerwise.load_list.index(self.config.num_hidden_layers - 1) + 1
         for i in range(start_layer, end_layer):
             layer = self.transformer.h[i]
@@ -403,7 +406,8 @@ class FlashQwen2ForCausalLM(FlashForCausalLM):
             else:
                 if self.layerwise.split_type == DistributedType.CLOUD:
                     self.layerwise.weight_wrappers = []
-                    for i in range(self.layerwise.start_num, self.config.num_hidden_layers - self.layerwise.end_num):
+                    for i in range(self.layerwise.edge_start_layer_count, 
+                                   self.config.num_hidden_layers - self.layerwise.edge_end_layer_count):
                         self.layerwise.weight_wrappers.append(self.get_layerwise_weights(
                             mode=LwdLayerStatus.CLOUD_MIDDLE_LAYER, layer_no=i, is_prefill=True))
                     decode_weight_wapper = self.get_layerwise_weights(mode=LwdLayerStatus.CLOUD_MIDDLE_LAYER,
@@ -566,11 +570,11 @@ class FlashQwen2ForCausalLM(FlashForCausalLM):
                 params_list = []
                 weights_list = []
                 for layer in range(0, self.config.num_hidden_layers - \
-                                   self.layerwise.end_num - self.layerwise.start_num):
+                                   self.layerwise.edge_end_layer_count - self.layerwise.edge_start_layer_count):
                     encoder_internal_param = self.get_layerwsie_ascend_param(encoder_param, 1,
                                         linear_has_bias, self.layerwise.weight_wrappers[layer])
-                    encoder_internal_param[LWD_START_ID] = self.layerwise.start_num + layer
-                    encoder_internal_param[LWD_END_ID] = self.layerwise.start_num + layer + 1
+                    encoder_internal_param[LWD_START_ID] = self.layerwise.edge_start_layer_count + layer
+                    encoder_internal_param[LWD_END_ID] = self.layerwise.edge_start_layer_count + layer + 1
                     encoder_internal_param["numHiddenLayers"] = 1
                     encoder_internal_param[LINEAR_HAS_BIAS] = linear_has_bias
                     encoder_internal_param["reuseEmbedTable"] = self.long_seq_enable and layer != 0
@@ -598,8 +602,6 @@ class FlashQwen2ForCausalLM(FlashForCausalLM):
 
     # Static condition check for FlashComm enablement, called during model initialization
     def flash_comm_gate(self, weights) -> bool:
-        if self.lora_modifier.active:
-            return False
         if self.enable_dap:
             return False
         if self.tp_world_size == 1:
@@ -767,11 +769,11 @@ class FlashQwen2ForCausalLM(FlashForCausalLM):
             if self.layerwise_disaggregated:
                 if self.layerwise.split_type == DistributedType.EDGE:
                     start_cache_num = self.layerwise.load_list.index(
-                        self.config.num_hidden_layers - self.layerwise.end_num)
+                        self.config.num_hidden_layers - self.layerwise.edge_end_layer_count)
                     end_cache_num = self.layerwise.load_list.index(self.config.num_hidden_layers - 1) + 1
-                    k_caches_sp1, k_caches_sp3 = [k_caches[i] for i in range(self.layerwise.start_num)], \
+                    k_caches_sp1, k_caches_sp3 = [k_caches[i] for i in range(self.layerwise.edge_start_layer_count)], \
                         [k_caches[i] for i in range(start_cache_num, end_cache_num)]
-                    v_caches_sp1, v_caches_sp3 = [v_caches[i] for i in range(self.layerwise.start_num)], \
+                    v_caches_sp1, v_caches_sp3 = [v_caches[i] for i in range(self.layerwise.edge_start_layer_count)], \
                         [v_caches[i] for i in range(start_cache_num, end_cache_num)]
                     layerwise_k_caches = {
                         LWD_HEAD: k_caches_sp1,
@@ -783,9 +785,9 @@ class FlashQwen2ForCausalLM(FlashForCausalLM):
                     }
                     self.graph_manager.set_kv_cache(layerwise_k_caches, layerwise_v_caches)
                 else:
-                    start_cache_num = self.layerwise.load_list.index(self.layerwise.start_num)
+                    start_cache_num = self.layerwise.load_list.index(self.layerwise.edge_start_layer_count)
                     end_cache_num = self.layerwise.load_list.index(
-                        self.config.num_hidden_layers - self.layerwise.end_num - 1) + 1
+                        self.config.num_hidden_layers - self.layerwise.edge_end_layer_count - 1) + 1
                     k_caches_sp2 = [k_caches[i] 
                                     for i in range(start_cache_num, end_cache_num)]
                     v_caches_sp2 = [v_caches[i] 
@@ -798,8 +800,8 @@ class FlashQwen2ForCausalLM(FlashForCausalLM):
                             LWD_LAYERS: [],
                         },
                     }
-                    for layer in range(self.config.num_hidden_layers - self.layerwise.start_num - \
-                                       self.layerwise.end_num):
+                    for layer in range(self.config.num_hidden_layers - self.layerwise.edge_start_layer_count - \
+                                       self.layerwise.edge_end_layer_count):
                         encoder_kv_caches['k']['layers'].append([k_caches[layer]])
                         encoder_kv_caches['v']['layers'].append([v_caches[layer]])
                     specified_kv_caches = {

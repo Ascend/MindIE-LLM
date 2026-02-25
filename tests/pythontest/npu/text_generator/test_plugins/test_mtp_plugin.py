@@ -135,6 +135,7 @@ class TestPlugin(unittest.TestCase):
         self.max_input_length = input_dict.get('max_input_length', 1024)
         self.max_output_length = input_dict.get('max_output_length', 20)
         self.max_batch_size = input_dict.get('max_batch_size', 200)
+        self.max_prefill_batch_size = input_dict.get('max_prefill_batch_size', 200)
         self.max_prefill_tokens = input_dict.get('max_prefill_tokens', 4096)
         self.max_position_embeddings = input_dict.get('max_position_embeddings', 2048)
         self.max_seq_len = self.max_position_embeddings if self.max_position_embeddings else \
@@ -166,6 +167,7 @@ class TestPlugin(unittest.TestCase):
             'max_input_len': self.max_input_length,
             'max_iter_times': self.max_output_length,
             'max_batch_size': self.max_batch_size,
+            'max_prefill_batch_size': self.max_prefill_batch_size,
             'max_prefill_tokens': self.max_prefill_tokens,
             'max_seq_len': self.max_seq_len,
             'model_id': self.model_path,
@@ -506,13 +508,13 @@ class TestMTP(unittest.TestCase):
                 batch_skip_special_tokens=np.array([]),
                 batch_include_stop=np.array([]),
                 trace_ids=None,
-                batch_sequence_ids=[np.array([9223372036854775], dtype=np.int64)],
+                batch_sequence_ids=[np.array([9223372036854775], dtype=np.int64), np.array([9223372036854773], dtype=np.int64)],
                 batch_best_of=np.array([1, 1]),
                 batch_logprobs=np.array([]),
                 batch_seeds=np.array([]),
                 batch_n=np.array([1, 1]),
                 batch_use_beam_search=np.array([False]),
-                reserved_sequence_ids=[np.array([])],
+                reserved_sequence_ids=[np.array([]), np.array([])],
                 is_dummy_batch=False
             )
             model_inputs = ModelInput(
@@ -567,13 +569,13 @@ class TestMTP(unittest.TestCase):
                 batch_skip_special_tokens=np.array([]),
                 batch_include_stop=np.array([]),
                 trace_ids=None,
-                batch_sequence_ids=[np.array([9223372036854775], dtype=np.int64)],
+                batch_sequence_ids=[np.array([9223372036854775], dtype=np.int64), np.array([9223372036854773], dtype=np.int64)],
                 batch_best_of=np.array([1, 1]),
                 batch_logprobs=np.array([]),
                 batch_seeds=np.array([]),
                 batch_n=np.array([1, 1]),
                 batch_use_beam_search=np.array([False]),
-                reserved_sequence_ids=[np.array([])],
+                reserved_sequence_ids=[np.array([]), np.array([])],
                 is_dummy_batch=False
             )
             model_inputs = ModelInput(

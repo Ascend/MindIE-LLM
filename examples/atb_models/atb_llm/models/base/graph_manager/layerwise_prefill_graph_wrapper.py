@@ -94,8 +94,8 @@ class LayerwiseCloudPrefillGraphWrapper(LayerwisePrefillGraphWrapper):
         self.cosine_embed_tbl = None
 
     def set_param(self, model_type: str, params: Dict):
-        self.graph_list = [torch.classes.ModelTorch.ModelTorch(model_type) 
-                    for _ in range(self.attr.num_hidden_layers - self.attr.start_num - self.attr.end_num)]
+        layers_num = self.attr.num_hidden_layers - self.attr.edge_start_layer_count - self.attr.edge_end_layer_count
+        self.graph_list = [torch.classes.ModelTorch.ModelTorch(model_type) for _ in range(layers_num)]
         params_list = params['layers']
         for graph, layer_params in zip(self.graph_list, params_list):
             graph.set_param(json.dumps({**layer_params, **self.feature_params}))

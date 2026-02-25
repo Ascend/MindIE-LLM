@@ -129,6 +129,7 @@ private:
     void ConstructOutTensorMap() override;
     atb::Status BindParamHostTensor(uint32_t nodeId) override;
     atb::TensorDesc GetLogitsDesc(const std::vector<atb::TensorDesc> &inTensorDescs, uint32_t logitsIndicesIdx);
+    atb::TensorDesc GetLWDLogitsDesc(const std::vector<atb::TensorDesc> &inTensorDescs);
     std::string GetLayerOutName(uint32_t layerId);
 };
 REGISTER_MODEL(deepseekV2, DecoderModel);

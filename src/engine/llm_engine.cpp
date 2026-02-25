@@ -17,6 +17,7 @@
 #include "live_infer_context.h"
 #include "id_utils.h"
 #include "log.h"
+#include "request_response/request_id.h"
 #include "msServiceProfiler/msServiceProfiler.h"
 #include "thread_group_cc.h"
 #include "process_group.h"
@@ -232,6 +233,7 @@ void LlmEngine::InitProcessGroup(const std::vector<NodeInfo> &nodeInfos, std::st
         ProcessGroup::GetInstance(processGroupMasterIP, processGroupMasterPort, hostIp, dpRankId_,
                                   schedulerConfig_->dpSize, isMaster);
         isProcessGroupInit = true;
+        MINDIE_LLM_LOG_INFO("Process Group initialized successfully.");
         PROF(INFO, AddMetaInfo("isMaster", isMaster));
         PROF(INFO, AddMetaInfo("rankHostIp", hostIp));
     }
@@ -502,6 +504,16 @@ void LlmEngine::SchedulerThreadEntry(size_t localDPRank)
         auto spanPostSchedule = PROF(L2, Domain("Schedule").SpanStart("PostSchedule"));
         auto [allDpMetas, allDpOuts] = PostScheduleSyncUp(needSync, seqGroupMetadata, scheduleOut, localDPRank);
         PROF(spanPostSchedule.SpanEnd());
+        if (schedulerConfig_->layerwiseDisaggregated) {
+            for (auto tmpOut : allDpOuts) {
+                for (auto scOut : tmpOut) {
+                    if (scOut.forwardMode_ == ForwardMode::PREFILL) {
+                        scheduleOut.forwardMode_ = ForwardMode::PREFILL;    // 陪跑也需要改成和下发一致的类型, 默认decode
+                        break;
+                    }
+                }
+            }
+        }
 
         // 6. batch下发给Executor执行
         // 如果单dp下自身batch不空， 或者多dp下其他dp的batch不空（集中式）
@@ -509,6 +521,14 @@ void LlmEngine::SchedulerThreadEntry(size_t localDPRank)
             enginePerDP->modelExecOutputHandler->Entry4Executor(output);
         };
         if (!scheduleOut.IsEmpty() || (isCentralizedThreadCCReady_ && seqGroupMetadata.maxBatchSize > 0)) {
+            for (const auto& scheduledSeqGroup : scheduleOut.scheduledSeqGroups_) {
+                if (scheduledSeqGroup->seqGroup_->IsSimulateRequest()) {
+                    MINDIE_LLM_LOG_DEBUG("[SimulateInference] Building ExecuteRequest, forwardMode="
+                                        << static_cast<int>(scheduleOut.forwardMode_)
+                                        << ", batchSize=" << scheduleOut.scheduledSeqGroups_.size()
+                                        << ", requestId=" << scheduledSeqGroup->seqGroup_->requestId);
+                }
+            }
             ExecuteModelRequestPtr request =
                 BuildExecuteModelRequest(allDpMetas, allDpOuts, schedulerConfig_->distributedEnable, dpRankId_);
             RecordEngineMetrics(scheduleOut, enginePerDP);

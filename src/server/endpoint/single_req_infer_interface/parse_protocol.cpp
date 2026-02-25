@@ -487,8 +487,6 @@ void JsonParse::EncodeHealthStatus(const ServiceStatus &status,
         errorJson["timestamp"] = error.timestamp;
         errorJson["errCode"] = error.errCode;
         errorJson["createdBy"] = error.createdBy;
-        errorJson["addition"]["device_ip"] = managementIpAddress;
-        errorJson["addition"]["device_id"] = managementPort;
         jsonData["errors"].emplace_back(errorJson);
     }
     jsonStr = jsonData.dump();

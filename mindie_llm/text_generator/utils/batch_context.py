@@ -10,7 +10,7 @@ import numpy.typing as npt
 
 from .kvcache_settings import KVCacheSettings
 from .config import CacheConfig, ContextParams, SpCpParallelInfo, DEFAULT_SAMPLING_PARAMS
-from .input_metadata import InputMetadata, SAMPLING_DTYPE
+from .input_metadata import InputMetadata, SAMPLING_DTYPE, SIMULATE_SEQUENCE_ID
 from .sampling_metadata import SamplingMetadata
 from .sampling_output import SamplingOutput
 
@@ -159,8 +159,7 @@ class NdarrayContext:
     ):
         self.context_params = context_params
         self.cache_config = cache_config
-        start_slot_idx = 0 if not context_params.distributed and not context_params.layerwise_disaggregated \
-            else 1  # reserve slot 0 for dummy batch
+        start_slot_idx = 1 # reserve slot 0 for dummy batch and simulate inference
         self.pool = array.array("i", range(start_slot_idx, capacity))  # free slot index pool
         self.spcp_parallel_info = spcp_parallel_info
         self.capacity = capacity
@@ -291,6 +290,7 @@ class NdarrayContext:
         return self.pool.pop()
 
     def _free_slot(self, slot_idx: int) -> None:
+        # In layerwise_disaggregated, slot 0 is reserved for dummy batches and recomputation and cannot be freed.
         if self.context_params.layerwise_disaggregated and slot_idx == 0:
             return
         self.pool.append(slot_idx)
@@ -665,7 +665,7 @@ class BatchContext:
                 )
         else:
             sampling_metadata, sampling_output = sampling_args
-            valid_indices = np.where(context_handles != -1)[0]
+            valid_indices = np.where((context_handles != -1) & (context_handles != 0))[0]
             valid_context_handles = context_handles[valid_indices]
             next_token_ids = sampling_output.token_ids[valid_indices]
             num_new_tokens = sampling_output.num_new_tokens[valid_indices]
@@ -748,7 +748,9 @@ class BatchContext:
             self.all_ndarray_context.output_len_count[updating_valid_context_handles] += updating_num_tokens
             self.all_ndarray_context.seq_lens[updating_valid_context_handles] += updating_num_tokens
             if self.spcp_parallel_info.scp_size > 1:
-                self.all_ndarray_context.cpu_cached_seq_idx[updating_valid_context_handles, input_metadata.sp_rank_id] \
+                # Filter sp_rank_id using updating_valid_indices to match the shape of updating_valid_context_handles
+                updating_sp_rank_id = input_metadata.sp_rank_id[updating_valid_indices]
+                self.all_ndarray_context.cpu_cached_seq_idx[updating_valid_context_handles, updating_sp_rank_id] \
                     += updating_num_tokens - 1
             else:
                 self.all_ndarray_context.cpu_cached_seq_idx[
@@ -818,7 +820,11 @@ class BatchContext:
                 rank_ids = metadata.sp_rank_id
                 mask = (rank_ids % self.spcp_parallel_info.scp_size != self.spcp_parallel_info.scp_rank)
                 slots[mask] = -1
-
+            # 虚推请求不写入 KV cache，设置 slots = -1 跳过 ReshapeAndCache
+            simulate_infer_mask = (metadata.all_sequence_ids == SIMULATE_SEQUENCE_ID)
+            if simulate_infer_mask.any():
+                slots[simulate_infer_mask] = -1
+        
         input_lengths = self.all_ndarray_context.seq_lens[context_handles]
         adapter_ids = [self.all_dict_context.lora_adapter_id.get(idx) for idx in context_handles]
         # delete unused ret: cu_seqlen_prefill and prefill_head_indices
@@ -1049,14 +1055,13 @@ class BatchContext:
         # 用全部的 seq_id 展开
         req_indices = np.concatenate(
             [np.repeat(np.array([idx]), len(value)) for idx, value in enumerate(metadata.batch_sequence_ids)])
-        decode_seq_len = metadata.batch_is_prefill.shape[0] - np.sum(metadata.batch_is_prefill)
-        prefill_seq_idx = np.arange(decode_seq_len, metadata.batch_is_prefill.shape[0])
+        prefill_seq_idx = np.where(metadata.batch_is_prefill)[0]
         end_pos_seq_idx = np.where(metadata.batch_last_prompt)[0]
 
-        prefill_seq_idx_last_time = np.intersect1d(prefill_seq_idx, end_pos_seq_idx)
+        prefill_seq_last_time_idx = np.intersect1d(prefill_seq_idx, end_pos_seq_idx)
         prefill_req_last_time_idx = req_indices[
             np.where(np.logical_and(metadata.batch_last_prompt, metadata.batch_is_prefill))[0]]
-        prefill_other_time_idx = req_indices[np.setdiff1d(prefill_seq_idx, prefill_req_last_time_idx)]
+        prefill_req_other_time_idx = req_indices[np.setdiff1d(prefill_seq_idx, prefill_req_last_time_idx)]
 
         # 刷新最后一次prefill的部分
         if len(prefill_req_last_time_idx) != 0:
@@ -1087,10 +1092,10 @@ class BatchContext:
                 if metadata.batch_n is not None else None
 
             self.update_context(
-                context_handles[prefill_seq_idx_last_time],
+                context_handles[prefill_seq_last_time_idx],
                 (
-                    last_position_ids[prefill_seq_idx_last_time],
-                    input_lengths[prefill_seq_idx_last_time],
+                    last_position_ids[prefill_seq_last_time_idx],
+                    input_lengths[prefill_seq_last_time_idx],
                     None
                 ),
                 new_metadata,
@@ -1099,13 +1104,13 @@ class BatchContext:
             )
 
         # 刷新非最后一次prefill的部分
-        if len(prefill_other_time_idx) != 0:
-            context_handles = context_handles[prefill_other_time_idx]
+        if len(prefill_req_other_time_idx) != 0:
+            context_handles = context_handles[prefill_req_other_time_idx]
             self.all_ndarray_context.last_position_ids[context_handles] = \
-                last_position_ids[prefill_other_time_idx]
-            self.all_ndarray_context.seq_lens[context_handles] = input_lengths[prefill_other_time_idx]
+                last_position_ids[prefill_req_other_time_idx]
+            self.all_ndarray_context.seq_lens[context_handles] = input_lengths[prefill_req_other_time_idx]
             self.all_ndarray_context.cpu_cached_seq_idx[context_handles, self.spcp_parallel_info.scp_rank] = \
-                input_lengths[prefill_other_time_idx] - 1
+                input_lengths[prefill_req_other_time_idx] - 1
 
     def reset_all_context(self):
         all_indices_except_0 = np.arange(self.all_ndarray_context.capacity)[1:]

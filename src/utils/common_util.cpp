@@ -181,7 +181,7 @@ bool CanonicalPath(std::string &path)
 
 bool GetBinaryPath(std::string &outPath)
 {
-    auto miesInstallPath = EnvUtil::GetInstance().Get("MIES_INSTALL_PATH");
+    auto miesInstallPath = EnvUtil::GetInstance().Get("MINDIE_LLM_HOME_PATH");
     if (miesInstallPath.empty()) {
         std::string linkedPath = "/proc/" + std::to_string(getpid()) + "/exe";
         std::string realPath{};
@@ -211,7 +211,7 @@ bool GetBinaryPath(std::string &outPath)
 
 Error GetHomePath(std::string &outHomePath)
 {
-    auto configPath = EnvUtil::GetInstance().Get("MIES_INSTALL_PATH");
+    auto configPath = EnvUtil::GetInstance().Get("MINDIE_LLM_HOME_PATH");
     if (configPath.empty()) {
         /* get binary path */
         std::string binaryPath{};

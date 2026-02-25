@@ -68,10 +68,16 @@ int LayerwiseFcfsPolicy::GeneratePrefillBatch(SchedulingBudget &budget,
     }
     std::vector<SequenceSPtr> waitingSeqs = seqGroup->GetFirstSequence(SequenceStatus::WAITING);
 
-    auto promptTokenIdsLen = seqGroup->firstSeq->data_.promptTokenIds.size();
-    // MINDIE_LLM_LOG_INFO("[layerwiseDisaggregated|FcfsPolicy] " << "waiting, current count is " << curCount <<
-    // ", seqId is " << seqGroup->firstSeq->seqId_ << ", syncprefill is " << seqGroup->IsSyncPrefill() <<
-    // ", promptTokenIdsLen is " << promptTokenIdsLen << ", waiting_.size is " << queuesCollection_->waiting_.size());
+    SequenceData &data = seqGroup->firstSeq->data_;
+    auto promptTokenIdsLen = data.layerwiseRecompute_ ? data.GetLength() : data.promptTokenIds.size();
+    MINDIE_LLM_LOG_INFO("[layerwiseDisaggregated|FcfsPolicy] " << "waiting, current count is " << curCount <<
+    ", seqId is " << seqGroup->firstSeq->seqId_  << ", promptTokenIdsLen is " << promptTokenIdsLen <<
+    ", waiting_.size is " << queuesCollection_->waiting_.size());
+    
+    MINDIE_LLM_LOG_INFO("[layerwiseDisaggregated|FcfsPolicy] " <<
+    "layerwiseStage_ is " << static_cast<int>(seqGroup->firstSeq->data_.layerwiseStage_) <<
+    ", layerwiseRecompute_ is " << seqGroup->firstSeq->data_.layerwiseRecompute_ <<
+    ", layerwiseRecomputeReturn_ is " << seqGroup->firstSeq->data_.layerwiseRecomputeReturn_);
 
     if (budget.statistics4PartialPrefill_ && !budget.statistics4PartialPrefill_->CanSchedule(seqGroup)) {
         leftOverSeqGroups.push_front(seqGroup);
@@ -79,6 +85,15 @@ int LayerwiseFcfsPolicy::GeneratePrefillBatch(SchedulingBudget &budget,
         return 1; // continue
     }
 
+    return GeneratePrefillBatchInner(budget, ignoredSeqGroups, curCount, seqGroups,
+        seqGroup, waitingSeqs, promptTokenIdsLen);
+}
+
+int LayerwiseFcfsPolicy::GeneratePrefillBatchInner(SchedulingBudget &budget,
+    std::vector<SequenceGroupSPtr> &ignoredSeqGroups,
+    int curCount, std::vector<std::shared_ptr<ScheduledSequenceGroup>> &seqGroups,
+    SequenceGroupSPtr seqGroup, std::vector<SequenceSPtr> waitingSeqs, size_t promptTokenIdsLen)
+{
     const auto [numNewTokensUncached, numNewTokensCached] = policyHelper_.GetNumComputeNewUnCachedAndCachedTokens(
         seqGroup, SequenceStatus::WAITING, enableChunking_, budget);
     const size_t numNewTokens = numNewTokensUncached + numNewTokensCached;
@@ -121,6 +136,14 @@ int LayerwiseFcfsPolicy::GeneratePrefillBatch(SchedulingBudget &budget,
     // 缓存超长prefill
     if (curCount > 0 && promptTokenIdsLen >= longprefillLenThreshold_) {
         longprefillQueue_.emplace_back(seqGroup);
+        return 1; // continue
+    }
+
+    // 缓存重计算且未return prefill的seq
+    if (seqGroup->firstSeq->data_.layerwiseStage_ == SequenceStage::PREFILL && \
+        seqGroup->firstSeq->data_.layerwiseRecompute_ && !seqGroup->firstSeq->data_.layerwiseRecomputeReturn_) {
+        MINDIE_LLM_LOG_INFO("[layerwiseDisaggregated|FcfsPolicy] " << "recompute but not return");
+        recomputeprefillQueue_.emplace_back(seqGroup);
         return 1; // continue
     }
 
@@ -176,6 +199,12 @@ PrefillOutputs LayerwiseFcfsPolicy::ApplyToWaitingQueue(SchedulingBudget &budget
         queuesCollection_->waiting_.push_front(*it);
     }
     longprefillQueue_.clear();
+
+    // 请求调度修改,回填重计算prefill
+    for (auto it = recomputeprefillQueue_.rbegin(); it != recomputeprefillQueue_.rend(); ++it) {
+        queuesCollection_->waiting_.push_front(*it);
+    }
+    recomputeprefillQueue_.clear();
 
     return PrefillOutputs({std::move(seqGroups), std::move(ignoredSeqGroups)});
 }

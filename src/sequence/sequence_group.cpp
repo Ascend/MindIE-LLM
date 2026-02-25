@@ -146,6 +146,8 @@ bool SequenceGroup::IsLayerwisePrefill() const { return firstSeq->IsLayerwisePre
 
 bool SequenceGroup::IsFinished() const { return firstSeq->IsFinished(); }
 
+bool SequenceGroup::IsSimulateRequest() const { return firstSeq->seqId_ == SIMULATE_SEQUENCE_ID; }
+
 ScheduledSequenceGroup::ScheduledSequenceGroup(const SequenceGroupSPtr &tSeqGroup, const size_t tTokenChunkSize,
                                                bool enableChunked)
     : seqGroup_(tSeqGroup), tokenChunkSize_(tTokenChunkSize)

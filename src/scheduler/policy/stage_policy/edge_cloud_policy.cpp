@@ -21,43 +21,47 @@ PDPriorityType EdgeCloudPolicy::Apply(ConcurrentDeque<SequenceGroupSPtr> &waitin
                                       ConcurrentDeque<SequenceGroupSPtr> &swapped)
 {
     ((void)swapped);
-    if (prefillBatchCount_ == 0 && decodeBatchCount_ == 0) {
+    if (prefillBatchCount_ < batchPnum_ && decodeBatchCount_ == 0) {
         // 00
         if (!waiting.Empty()) {
             MINDIE_LLM_LOG_INFO("[layerwiseDisaggregated|EdgeCloudPolicy] "
-                                <<"prefillBatchCount_: 0, decodeBatchCount_: 0, waiting_ is not empty,schedule P");
+                <<"prefillBatchCount_: " << prefillBatchCount_ <<
+                ", decodeBatchCount_: 0, waiting_ is not empty,schedule P");
             return PDPriorityType::PREFILL_FIRST;
         } else if (!running.Empty()) {
             MINDIE_LLM_LOG_INFO("[layerwiseDisaggregated|EdgeCloudPolicy] "
-                                <<"prefillBatchCount_: 0, decodeBatchCount_: 0, running_ is not empty, schedule D");
+                <<"prefillBatchCount_: " << prefillBatchCount_ <<
+                ", decodeBatchCount_: 0, running_ is not empty, schedule D");
             return PDPriorityType::DECODE_FIRST;
         } else {
             return PDPriorityType::PREFILL_FIRST;
         }
-    } else if (prefillBatchCount_ == 0 && decodeBatchCount_ == 1) {
+    } else if (prefillBatchCount_ < batchPnum_ && decodeBatchCount_ == 1) {
         // 01
         MINDIE_LLM_LOG_INFO("[layerwiseDisaggregated|EdgeCloudPolicy] "
-            << "prefillBatchCount_: 0, decodeBatchCount_: 1, schedule P");
+            << "prefillBatchCount_: " << prefillBatchCount_ << ", decodeBatchCount_: 1, schedule P");
         return PDPriorityType::PREFILL_FIRST;
-    } else if (prefillBatchCount_ == 1 && decodeBatchCount_ == 0) {
+    } else if (prefillBatchCount_ == batchPnum_ && decodeBatchCount_ == 0) {
         // 10
         MINDIE_LLM_LOG_INFO("[layerwiseDisaggregated|EdgeCloudPolicy] "
-            << "prefillBatchCount_: 1, decodeBatchCount_: 0, schedule D");
+            << "prefillBatchCount_: " << prefillBatchCount_ << ", decodeBatchCount_: 0, schedule D");
         return PDPriorityType::DECODE_FIRST;
     } else {
         // 11
         MINDIE_LLM_LOG_ERROR("[layerwiseDisaggregated|EdgeCloudPolicy] "
-                            << "P&D are scheduled, should be refused by batchtimes, exception occurred!!!");
-        throw std::runtime_error("Try to schedule one more batch when prefillBatchCount_=1 and decodeBatchCount_=1. "
-                                "It is not allowd because maxDispatchBatchNum=2.");
+            << "P&D are scheduled, should be refused by batchtimes, exception occurred!!!");
+        throw std::runtime_error("Try to schedule one more batch when prefillBatchCount_="
+            + std::to_string(prefillBatchCount_) + " and decodeBatchCount_=1. "
+            "It is not allowd because maxDispatchBatchNum=" + std::to_string(batchPnum_ + 1) + ".");
     }
     return PDPriorityType::PREFILL_FIRST;
 }
 void EdgeCloudPolicy::LayerwiseAddBatchCnt(ForwardMode forwardMode)
 {
-    if (forwardMode == ForwardMode::PREFILL && prefillBatchCount_ == 0) {
-        prefillBatchCount_ = 1;
-        MINDIE_LLM_LOG_INFO("[layerwiseDisaggregated|predictor] "<<"prefill change from 0 to 1");
+    if (forwardMode == ForwardMode::PREFILL && prefillBatchCount_ >= 0 && prefillBatchCount_ < batchPnum_) {
+        prefillBatchCount_ += 1;
+        MINDIE_LLM_LOG_INFO("[layerwiseDisaggregated|predictor] "<<"prefill change from " <<
+            (prefillBatchCount_ - 1) << " to " << prefillBatchCount_);
     } else if (forwardMode == ForwardMode::DECODE && decodeBatchCount_ == 0) {
         decodeBatchCount_ = 1;
         MINDIE_LLM_LOG_INFO("[layerwiseDisaggregated|predictor] "<<"decode change from 0 to 1");
@@ -71,9 +75,10 @@ void EdgeCloudPolicy::LayerwiseAddBatchCnt(ForwardMode forwardMode)
 
 void EdgeCloudPolicy::LayerwiseSubBatchCnt(ForwardMode forwardMode)
 {
-    if (forwardMode == ForwardMode::PREFILL && prefillBatchCount_ == 1) {
-        prefillBatchCount_ = 0;
-        MINDIE_LLM_LOG_INFO("[layerwiseDisaggregated|predictor] "<<"prefill change from 1 to 0");
+    if (forwardMode == ForwardMode::PREFILL && prefillBatchCount_ >= 1 && prefillBatchCount_ <= batchPnum_) {
+        prefillBatchCount_ -= 1;
+        MINDIE_LLM_LOG_INFO("[layerwiseDisaggregated|predictor] "<<"prefill change from " <<
+            (prefillBatchCount_ + 1) << " to " << prefillBatchCount_);
     } else if (forwardMode == ForwardMode::DECODE && decodeBatchCount_ == 1) {
         decodeBatchCount_ = 0;
         MINDIE_LLM_LOG_INFO("[layerwiseDisaggregated|predictor] "<<"decode change from 1 to 0");

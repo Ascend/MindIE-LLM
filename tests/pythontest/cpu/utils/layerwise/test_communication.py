@@ -23,12 +23,12 @@ class TestEdgeCloudComm(unittest.TestCase):
         test_router = LwdCommunicationManager()
         self.assertIsNone(test_router.rank)
 
-    def test_is_number_in_range(self):
-        result = LwdCommunicationManager.is_number_in_range(1, 10, 100)
+    def test_is_valid_port(self):
+        result = LwdCommunicationManager.is_valid_port(100)
         self.assertFalse(result)
-        result = LwdCommunicationManager.is_number_in_range(1000, 10, 100)
+        result = LwdCommunicationManager.is_valid_port(65537)
         self.assertFalse(result)
-        result = LwdCommunicationManager.is_number_in_range(50, 10, 100)
+        result = LwdCommunicationManager.is_valid_port(10000)
         self.assertTrue(result)
 
     def test_communication_config_check(self):

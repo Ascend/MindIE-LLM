@@ -36,6 +36,8 @@ struct ModelLaunchConfig {
     uint32_t dp{1};
     bool layerwiseDisaggregated{false};
     std::string layerwiseDisaggregatedRoleType{};
+    bool lwdMultiNodesEnable{false};
+    bool isLwdMultiNodesMaster{false};
 };
 
 class Executor : public IExecutor {

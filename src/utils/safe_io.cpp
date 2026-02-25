@@ -23,7 +23,7 @@ static constexpr int JSON_STR_DEP_MAX = 10; // 限制嵌套层次10层
 Result LoadJson(const std::string& path, Json& json)
 {
     std::string checkedPath;
-    SafePath inFile(path, PathType::FILE, "r", SIZE_500MB, ".json");
+    SafePath inFile(path, PathType::FILE, "r", PERM_640, SIZE_500MB, ".json");
     Result r = inFile.Check(checkedPath);
     if (!r.IsOk()) {
         return r;

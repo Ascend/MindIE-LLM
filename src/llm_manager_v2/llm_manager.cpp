@@ -41,6 +41,12 @@ uint32_t LlmManagerV2::GetMaxPositionEmbeddings() const
     return impl_->GetMaxPositionEmbeddings();
 }
 
+std::map<std::string, std::string> LlmManagerV2::GetModelParams() const
+{
+    return LlmManagerImpl::GetModelParams();
+}
+
+
 bool LlmManagerV2::UpdateEngineInfo(RequestSPtr &runtimeRequest, bool isForceRelease)
 {
     if (impl_ == nullptr) {
@@ -160,6 +166,14 @@ bool LlmManagerV2::ExecuteRecoverCommand(RecoverCommandInfo &commandInfo)
         return false;
     }
     return impl_->ExecuteRecoverCommand(commandInfo);
+}
+
+bool LlmManagerV2::IsLlmEngineReady() const
+{
+    if (impl_ == nullptr) {
+        return false;
+    }
+    return impl_->IsLlmEngineReady();
 }
 
 LlmManagerV2::~LlmManagerV2() = default;

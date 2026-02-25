@@ -51,6 +51,8 @@ public:
 
     bool UpdateEngineInfo(RequestSPtr &runtimeRequest, bool isForceRelease);
 
+    static std::map<std::string, std::string> GetModelParams();
+
     void Step();
 
     void Stop();
@@ -66,6 +68,8 @@ public:
 
     bool GetDmiInferEnabled() const;
 
+    bool IsLlmEngineReady() const { return llmEngineReady_.load(std::memory_order_acquire); }
+    
     Status ProcessRequests(RequestSPtr request);
 
     Status ProcessRequests();
@@ -144,6 +148,9 @@ private:
     std::thread sendRuntimeThread_;
     Role pdRole_{Role::PnD};
     bool isDmiInfer_ = false;
+
+    // Engine就绪标志：标识Engine调度线程已启动并可以接收请求
+    std::atomic<bool> llmEngineReady_{false};
 
     // for init dp
     std::string homePath_;

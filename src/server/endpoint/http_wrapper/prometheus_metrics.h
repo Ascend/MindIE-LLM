@@ -76,8 +76,14 @@ public:
 private:
     explicit PrometheusMetrics();
 
+    static constexpr int tokenArraySize = 15;
+    static constexpr int tokenBucketLastIndex = tokenArraySize - 1;
+
     std::shared_ptr<prometheus::Registry> registry;
     std::shared_ptr<prometheus::TextSerializer> serializer;
+    uint32_t tokenArray[tokenArraySize][tokenArraySize];
+    uint32_t inputTokens;
+    void PrintTokenDistribution();
 
     prometheus::Counter* requestNumCounter_ = nullptr;  // request number counter
     prometheus::Counter* responseNumCounter_ = nullptr; // response number counter

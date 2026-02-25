@@ -11,6 +11,7 @@
  */
  
 #include "block_tracker.h"
+#include "request_response/request_id.h"
 
 
 namespace mindie_llm {
@@ -174,7 +175,8 @@ size_t SeqsBlocksComputedTracker::GetCachedTokensNum(const SequenceSPtr &seq)
 
 void SeqsBlocksComputedTracker::RemoveSeq(SequenceId seqId)
 {
-    if (!enableCaching_) {
+    // 虚推请求跳过 PrefixCache，没有注册到 seqIdToNumComputedTokens_，直接返回
+    if (!enableCaching_ || seqId == SIMULATE_SEQUENCE_ID) {
         return;
     }
     for (size_t rankIdx = 0; rankIdx < rankSize_; rankIdx++) {

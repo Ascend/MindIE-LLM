@@ -17,7 +17,7 @@ import acl
 import torch
 
 from ...modeling.backend_type import BackendType
-from ...utils.log.logging import logger, print_log
+from ...utils.log.logging import logger
 from ...utils.tensor import npu
 
 
@@ -26,10 +26,6 @@ NZ_KV_CACHE_FORMAT = 16
 # NZ排布的KVCache int8做了32位对齐
 NZ_KV_CACHE_INT8_FORMAT = 32
 INT8_BYTES_SIZE = 1
-TOTAL_MEMORY = 60 * 1024 * 1024 * 1024
-MM_LONG_SEQ_MEMORY = 26 * 1024 * 1024 * 1024
-MM_NORMAL_SEQ_MEMORY = 18 * 1024 * 1024 * 1024
-MM_LONG_SEQ_TOKENLEN = 4096
 
 torch_dtype_map = {torch.float16: "float16", torch.bfloat16: "bfloat16", torch.float: "float", torch.int8: "int8"}
 
@@ -50,62 +46,6 @@ class NPUSocInfo:
             if self.soc_name.upper().endswith(name.upper()):
                 return True
         return "310P" in self.soc_name.upper()
-
-
-def calc_block_mem(model_info, block_size, num_speculative_tokens=None):
-    if num_speculative_tokens is None:
-        num_speculative_tokens = 0
-    total_head_size = model_info.num_kv_heads * model_info.head_size
-    # k_total_head_size和v_total_head_size需成对定义
-    if model_info.k_head_size > 0 or model_info.v_head_size > 0:
-        k_total_head_size = model_info.num_kv_heads * model_info.k_head_size
-        v_total_head_size = model_info.num_kv_heads * model_info.v_head_size
-    else:
-        k_total_head_size = total_head_size
-        v_total_head_size = total_head_size
-    num_layers = model_info.num_layers + (num_speculative_tokens >= 1)
-    per_layer_k_cache_bytes_size = [model_info.data_byte_size for layer_id in range(num_layers)]
-    model_mem_size = num_layers * v_total_head_size * model_info.data_byte_size
-    if model_info.kvcache_quant_layers:
-        for i, kvcache_quant in enumerate(model_info.kvcache_quant_layers):
-            if kvcache_quant:
-                per_layer_k_cache_bytes_size[i] = INT8_BYTES_SIZE
-    for bytes_size in per_layer_k_cache_bytes_size:
-        model_mem_size += k_total_head_size * bytes_size
-    if model_info.index_head_dim is not None:
-        index_total_head_size = model_info.index_head_dim * model_info.num_index_heads
-        model_mem_size += num_layers * index_total_head_size * model_info.data_byte_size
-    block_mem_size = model_mem_size * block_size
-    return block_mem_size
-
-
-def calc_npu_mem(block_nums, model_info, block_size, num_speculative_tokens=None):
-    block_mem_size = calc_block_mem(model_info, block_size, num_speculative_tokens)
-    npu_mem_size = block_nums * block_mem_size
-    return npu_mem_size
-
-
-def gb(mem_size):
-    return float(mem_size / (1024 ** 3))
-
-
-def watch_npu_mem(rank_id, is_multimodal, max_input_len, tag):
-    npu.synchronize()
-    free_mem, total_mem, _ = acl.rt.get_mem_info(1)
-    peak_mem = total_mem - free_mem
-
-    if is_multimodal and total_mem >= TOTAL_MEMORY:
-        memory_threshold = MM_LONG_SEQ_MEMORY if max_input_len > MM_LONG_SEQ_TOKENLEN else MM_NORMAL_SEQ_MEMORY
-        if free_mem < memory_threshold:
-            error_message = (
-                f"Warmup failed, because of multimodal model inference out of memory "
-                f"when `maxInputTokenLen` set to {max_input_len}. Please try to "
-                f"decrease `maxPrefillTokens` in config.json of mindie-service."
-            )
-            print_log(rank_id, logger.error, error_message)
-            raise RuntimeError("NPU out of memory. " + error_message)
-    print_log(rank_id, logger.info, f"{tag}, peak mem: {gb(peak_mem):.2f}G, total_mem: {gb(total_mem):.2f}G")
-    return total_mem, peak_mem
 
 
 # IMPORTANT: CacheManager.slots will be moved to BatchCache (InferContext)

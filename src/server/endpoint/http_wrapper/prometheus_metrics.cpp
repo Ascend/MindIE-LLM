@@ -9,19 +9,23 @@
  * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
  * See the Mulan PSL v2 for more details.
  */
- 
+#include <algorithm>
+#include <cctype>
+#include <iomanip>
 #include "config_manager.h"
 #include "infer_instances.h"
 #include "env_util.h"
 #include "env_util.h"
 #include "log.h"
+#include "log_utils.h"
 #include "endpoint_def.h"
 #include "config_manager_impl.h"
 #include "prometheus_metrics.h"
 
 namespace mindie_llm {
 constexpr uint32_t MILLISEC_TO_SEC = 1000;
-const prometheus::Histogram::BucketBoundaries TOKEN_BUCKETS = {10, 50, 100, 200, 500, 1000, 2000, 5000, 10000};
+const prometheus::Histogram::BucketBoundaries TOKEN_BUCKETS = {10, 50, 100, 200, 500, 1000, 2000, 5000, 10000,
+    16000, 20000, 32000, 50000, 64000, 128000};
 const prometheus::Histogram::BucketBoundaries TTFT_BUCKETS = {0.001, 0.005, 0.01, 0.02, 0.04, 0.06, 0.08, 0.1,
     0.25, 0.5, 0.75, 1.0, 2.5, 5.0, 7.5, 10.0};
 const prometheus::Histogram::BucketBoundaries TBT_BUCKETS = {0.01, 0.025, 0.05, 0.075, 0.1, 0.15, 0.2, 0.3, 0.4,
@@ -30,14 +34,24 @@ const prometheus::Histogram::BucketBoundaries E2E_BUCKETS = {1.0, 2.5, 5.0, 10.0
 
 constexpr int COLLECT_SLEEP = 1000;
 
+constexpr int TABLE_MIN_COL_WIDTH = 6;
+constexpr int TABLE_MIN_LABEL_WIDTH = 11;
+constexpr int TABLE_COL_SEP_WIDTH = 3;
+
 std::shared_ptr<PrometheusMetrics> PrometheusMetrics::GetInstance()
 {
     static std::shared_ptr<PrometheusMetrics> instance(new PrometheusMetrics());
     return instance;
 }
 
-PrometheusMetrics::PrometheusMetrics()
+PrometheusMetrics::PrometheusMetrics() : inputTokens(0)
 {
+    int size = std::min(static_cast<int>(TOKEN_BUCKETS.size()), tokenArraySize);
+    for (int i = 0; i < size; i++) {
+        for (int j = 0; j < size; j++) {
+            tokenArray[i][j] = 0;
+        }
+    }
     const std::string serviceMonitorMode = EnvUtil::GetInstance().Get("MIES_SERVICE_MONITOR_MODE");
     if (!serviceMonitorMode.empty()) {
         try {
@@ -160,6 +174,7 @@ void PrometheusMetrics::GetMetricsResult(std::string &metricsResult)
 {
     if (isActivate_) {
         std::lock_guard<std::mutex> lock(varMutex);
+        PrintTokenDistribution();
         auto collectMetricsResult = registry->Collect();
         std::ostringstream os;
         serializer->Serialize(os, collectMetricsResult);
@@ -273,6 +288,7 @@ void PrometheusMetrics::RequestInputTokenCount(uint32_t tokenNum)
     if (isActivate_) {
         std::lock_guard<std::mutex> lock(varMutex);
         requestInputTokenCounter_->Increment(static_cast<double>(tokenNum));
+        inputTokens = tokenNum;
     }
 }
 
@@ -281,7 +297,77 @@ void PrometheusMetrics::ResponseOutputTokenCount(uint32_t tokenNum)
     if (isActivate_) {
         std::lock_guard<std::mutex> lock(varMutex);
         responseOutputTokenCounter_->Increment(static_cast<double>(tokenNum));
+        int inputIndex = tokenBucketLastIndex;
+        int outputIndex = tokenBucketLastIndex;
+        for (size_t i = 0; i < TOKEN_BUCKETS.size(); i++) {
+            if (inputTokens <= TOKEN_BUCKETS[i]) {
+                inputIndex = static_cast<int>(i);
+                break;
+            }
+        }
+        for (size_t i = 0; i < TOKEN_BUCKETS.size(); i++) {
+            if (tokenNum <= TOKEN_BUCKETS[i]) {
+                outputIndex = static_cast<int>(i);
+                break;
+            }
+        }
+        if (inputIndex >= 0 && outputIndex >= 0) {
+            tokenArray[inputIndex][outputIndex]++;
+        }
     }
+}
+
+void PrometheusMetrics::PrintTokenDistribution()
+{
+    std::string pdRole = GetInferInstance()->GetPDRole();
+    if (pdRole == "prefill" || pdRole == "decode") {
+        return;
+    }
+    int maxNumWidth = 0;
+    for (size_t i = 0; i < TOKEN_BUCKETS.size(); i++) {
+        int width = std::to_string(static_cast<int>(TOKEN_BUCKETS[i])).length();
+        if (width > maxNumWidth) {
+            maxNumWidth = width;
+        }
+    }
+    uint32_t maxCellValue = 0;
+    for (size_t i = 0; i < TOKEN_BUCKETS.size(); i++) {
+        for (size_t j = 0; j < TOKEN_BUCKETS.size(); j++) {
+            if (tokenArray[i][j] > maxCellValue) {
+                maxCellValue = tokenArray[i][j];
+            }
+        }
+    }
+    int maxValueDigits = static_cast<int>(std::to_string(maxCellValue).length());
+    int colWidth = std::max({maxNumWidth, maxValueDigits, TABLE_MIN_COL_WIDTH});
+    int maxLabelWidth = TABLE_MIN_LABEL_WIDTH;
+    for (size_t i = 0; i < TOKEN_BUCKETS.size(); i++) {
+        int labelWidth = 5 + std::to_string(static_cast<int>(TOKEN_BUCKETS[i])).length();
+        if (labelWidth > maxLabelWidth) {
+            maxLabelWidth = labelWidth;
+        }
+    }
+    int totalWidth = maxLabelWidth + TOKEN_BUCKETS.size() * (colWidth + TABLE_COL_SEP_WIDTH);
+    std::string startLine(totalWidth, '=');
+    std::string sepLine(totalWidth, '-');
+    ULOG_INFO(SUBMODLE_NAME_ENDPOINT, std::string("[Metrics][Seq_Len_Table] ") + startLine);
+    std::stringstream header;
+    header << std::left << std::setw(maxLabelWidth) << "OUTPUT";
+    for (size_t out = 0; out < TOKEN_BUCKETS.size(); out++) {
+        header << " | " << std::setw(colWidth) << static_cast<int>(TOKEN_BUCKETS[out]);
+    }
+    ULOG_INFO(SUBMODLE_NAME_ENDPOINT, std::string("[Metrics][Seq_Len_Table] ") + header.str());
+    ULOG_INFO(SUBMODLE_NAME_ENDPOINT, std::string("[Metrics][Seq_Len_Table] ") + sepLine);
+    for (size_t in = 0; in < TOKEN_BUCKETS.size(); in++) {
+        std::stringstream row;
+        std::string label = "INPUT" + std::to_string(static_cast<int>(TOKEN_BUCKETS[in]));
+        row << std::left << std::setw(maxLabelWidth) << label;
+        for (size_t out = 0; out < TOKEN_BUCKETS.size(); out++) {
+            row << " | " << std::setw(colWidth) << tokenArray[in][out];
+        }
+        ULOG_INFO(SUBMODLE_NAME_ENDPOINT, std::string("[Metrics][Seq_Len_Table] ") + row.str());
+    }
+    ULOG_INFO(SUBMODLE_NAME_ENDPOINT, std::string("[Metrics][Seq_Len_Table] ") + startLine);
 }
 
 void PrometheusMetrics::CacheBlockDataCollect(uint32_t freeNpuBlockNums, uint32_t freeCpuBlockNums,

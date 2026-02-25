@@ -12,6 +12,7 @@
 #include <functional>
 #include "log.h"
 #include "request_response/request.h"
+#include "request_response/request_id.h"
 #include "common_util.h"
 #include "seq_group_builder_from_infer_req.h"
 
@@ -89,6 +90,16 @@ SequenceSPtr SeqGroupBuilderFromInferReq::InitSeqFromInferRequest(RequestSPtr re
                                                                   SchedulerConfigSPtr schedulerConfig)
 {
     SequenceId seqId = IDUtils::GenerateSequenceId();
+    // 避免随机生成的ID与虚拟推理ID冲突，若冲突则重新生成
+    while (seqId == SIMULATE_SEQUENCE_ID) {
+        seqId = IDUtils::GenerateSequenceId();
+    }
+    // 虚推请求使用固定 seqId，便于 LLM 引擎层特殊处理
+    if (request->isSimulateRequest) {
+        seqId = SIMULATE_SEQUENCE_ID;
+        MINDIE_LLM_LOG_DEBUG("[SimulateInference] Detected simulate inference request, requestId: "
+            << request->requestId << ", assigned fixed seqId: " << seqId);
+    }
     // 获取prompt的token信息
     std::vector<TokenId> inputsTokenIds = request->input_ids;
     const size_t inputTokenNum = inputsTokenIds.size();

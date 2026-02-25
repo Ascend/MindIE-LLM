@@ -70,7 +70,7 @@ bool SingleReqVllmInferInterface::SetReturnSeqCount(RequestSPtr req, std::string
     } else {
         if (req->bestOf.value() < req->n.value()) {
             std::stringstream ss;
-            ss << "Best_of should greater than or equal to n, but best_of is " << req->bestOf.value()
+            ss << "best_of should greater than or equal to n, but best_of is " << req->bestOf.value()
                 << ", n is " << req->n.value() << ".";
             errMsg = ss.str();
             return false;

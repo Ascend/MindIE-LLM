@@ -161,9 +161,10 @@ Status InferInstance::Process(RequestSPtr request)
     // If multiple managers have the same max remaining blocks, randomly select one.
     size_t chosen = (candidateIdx.size() == 1) ? candidateIdx[0] : candidateIdx[RandomNumber(candidateIdx.size() - 1)];
     callbackMap.Insert(request->requestId, request->serverResponseCallback_);
-    if (!llmManagers_[chosen]->AddRequest(request).IsOk()) {
+    auto status = llmManagers_[chosen]->AddRequest(request);
+    if (!status.IsOk()) {
         callbackMap.Erase(request->requestId);
-        return Status(Error::Code::ERROR, "ProcessRequests failed.");
+        return status;
     }
     return Status(Error::Code::OK, "Success");
 }
@@ -729,6 +730,20 @@ void InferInstance::UpdatePDRole(const std::string &role)
     } else {
         pdRole_ = PDRole::UNKNOWN;
     }
+}
+
+bool InferInstance::IsLlmEngineReady() const
+{
+    if (llmManagers_.empty()) {
+        return false;
+    }
+    // 检查所有 LlmManager 是否都已就绪
+    for (const auto &manager : llmManagers_) {
+        if (manager == nullptr || !manager->IsLlmEngineReady()) {
+            return false;
+        }
+    }
+    return true;
 }
 
 std::shared_ptr<InferInstance> GetInferInstance() { return InferInstance::GetInstance(); }

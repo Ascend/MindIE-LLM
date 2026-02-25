@@ -20,7 +20,6 @@
 # MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
 # See the Mulan PSL v2 for more details.
 
-import os
 import copy
 from typing import Dict, List, Any
 from dataclasses import dataclass
@@ -68,30 +67,19 @@ class Glm41vRouter(BaseRouter):
         text = ""
         message_list = []
         shm_name_save_path = kwargs.get('shm_name_save_path', None)
-        img_flag = False
-        video_flag = False
+        self.input_builder.check_image_and_video_concurrency(inputs)
         for item in inputs:
             if item.get(IMAGE, None):
-                if video_flag:
-                    msg = "Image and video cannot exist in single prompt at the same time."
-                    logger.error(msg, ErrorCode.ATB_MODELS_PARAM_INVALID)
-                    raise ValueError(msg)
                 img_fname = item[IMAGE]
                 img = safe_open_image(PIL.Image, img_fname)
                 message_list.append({TYPE: IMAGE, IMAGE: img})
                 if shm_name_save_path is None:
                     shm_name_save_path = self.input_builder.get_shm_name_save_path(img_fname)
-                img_flag = True
             if item.get(VIDEO, None):
-                if img_flag:
-                    msg = "Image and video cannot exist in single prompt at the same time."
-                    logger.error(msg, ErrorCode.ATB_MODELS_PARAM_INVALID)
-                    raise ValueError(msg)
                 video_path = check_video_path(item[VIDEO])
                 message_list.append({TYPE: VIDEO, URL: video_path})
                 if shm_name_save_path is None:
                     shm_name_save_path = self.input_builder.get_shm_name_save_path(video_path)
-                video_flag = True
             if item.get(TEXT, None):
                 text = item[TEXT]
                 message_list.append({

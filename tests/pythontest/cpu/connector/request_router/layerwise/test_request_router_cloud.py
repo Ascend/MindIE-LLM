@@ -26,7 +26,7 @@ from mindie_llm.connector.request_router.layerwise.request_router_lwd import Dec
 
 class TestRequestRouterCloud(unittest.TestCase):
     def setUp(self):
-        self.router = RequestRouterCloud()
+        self.router = RequestRouterCloud('0')
         self.router.router_impl = Mock(spec=RouterImpl)
         edge_cloud_comm = Mock(spec=LwdCommunicationManager)
         self.router.ctrl_comm = edge_cloud_comm.ctrl_comm
@@ -54,7 +54,7 @@ class TestRequestRouterCloud(unittest.TestCase):
         self.assertIsNone(self.router.enable_dp_distributed)
 
     def get_shared_memery(self):
-        share_mem_manager = SharedMemoryManager()
+        share_mem_manager = SharedMemoryManager('0')
         is_producer = True if self.router.rank == 0 else False
         share_mem_manager.initialize(is_producer, 7)   # 8 cards 1 master
 
@@ -137,9 +137,16 @@ class TestRequestRouterCloud(unittest.TestCase):
     def test_get_all_request(self):
         self.router.initialize = Mock()
         self.router.router_impl.seq_ctrl = Mock()
-        self.router.calc_seq_len = Mock(return_value=1024)
-        self.router.calc_batch_size = Mock(return_value=1)
+        self.router.ctrl_comm.prefill_comm_finish_tcp_count = 0
+        self.router.data_comm.p_shape = [0]
+        self.router.data_comm.recv_index = 0
+        
+        self.router.parse_all_dp_batches_seq_lens = MagicMock(return_value=[0])
+        self.router.calc_max_seq_len = MagicMock(return_value=0)
+        self.router.calc_curr_dp_seq_len = MagicMock(return_value=0)
+        self.router.calc_batch_size = MagicMock(return_value=1)
         self.router.prefill_layers_divi_switch = False
+        
         self.router.inference_queue.put(self.mock_prifill_request())
         self.router.inference_queue.put(self.mock_decode_request())
         self.router.inference_queue.put(self.mock_init_request())
@@ -176,7 +183,7 @@ class TestRequestRouterCloud(unittest.TestCase):
     def test_calc_decision_type_wait_decode(self):
         self.router.prefill_request = Mock()
         self.router.prefill_comm_finish = True
-        self.router.last_execute_type = LastExecType.PREFILEE
+        self.router.last_execute_type = LastExecType.PREFILL
         self.router.before_last_execute_type = LastExecType.DECODE
         self.router.prefill_exec_last_time = time.time()
         self.router.calc_decision_type()
@@ -185,7 +192,7 @@ class TestRequestRouterCloud(unittest.TestCase):
     def test_calc_decision_type_do_prefille_after_wait_decode(self):
         self.router.prefill_request = Mock()
         self.router.prefill_comm_finish = True
-        self.router.last_execute_type = LastExecType.PREFILEE
+        self.router.last_execute_type = LastExecType.PREFILL
         self.router.before_last_execute_type = LastExecType.DECODE
         self.router.prefill_exec_last_time = time.time() - 0.02  # 0.02 秒前
         self.router.calc_decision_type()
@@ -211,14 +218,11 @@ class TestRequestRouterCloud(unittest.TestCase):
     def test_recv_prefill(self):
         self.router.prefill_comm_finish = False
         self.router.ctrl_comm.recv_prefill = Mock()
-        self.router.ctrl_comm.prefill_comm_finish_tcp = True
+        self.router.ctrl_comm.prefill_comm_finish_tcp_count = 1
         self.router.ctrl_comm.prefill_recv_msg = None
-        self.router.ctrl_comm.parse_shape = Mock()
-        self.router.ctrl_comm.parse_shape.return_value = ''
 
         self.router.prefill_comm_finish = False
         self.router.recv_prefill()
-        self.router.ctrl_comm.parse_shape.assert_called_once()
         self.assertTrue(self.router.prefill_comm_finish)
 
     def test_recv_decode(self):
@@ -336,6 +340,8 @@ class TestRequestRouterCloud(unittest.TestCase):
 
 
     def test_shared_memory(self):
+        self.router.decode_request = ExecuteRequest()
+        self.router.prefill_request = ExecuteRequest()
         self.router.rank = 0
         self.router.decision_type = DecisionType.DO_PREFILL
         self.router.broadcast_decision_type()
@@ -516,22 +522,22 @@ class TestRequestRouterCloud(unittest.TestCase):
         self.router.initialize = Mock()
         self.router.isqwenvl = False
         self.router.data_comm.prefill_seq_len_queue = queue.Queue()
-        self.router.data_comm.decode_batch_size_queue = queue.Queue() 
+        self.router.data_comm.decode_batch_size_queue = queue.Queue()
+        
+        self.router.parse_all_dp_batches_seq_lens = MagicMock(return_value=[0])
+        self.router.calc_max_seq_len = MagicMock(return_value=0)
+        self.router.calc_curr_dp_seq_len = MagicMock(return_value=0)
+        self.router.calc_batch_size = MagicMock(return_value=1)
+        self.router.ctrl_comm.prefill_comm_finish_tcp_count = 0
+        self.router.data_comm.p_shape = [0]
+        self.router.data_comm.recv_index = 0
+        self.router.calc_curr_dp_batch_size = MagicMock(return_value=0)
+        
         self.router.accept(self.mock_prifill_request())
         self.router.accept(self.mock_decode_request())
         self.router.accept(self.mock_init_request())
         self.router.accept(self.mock_finalize_request())
         self.router.accept(self.mock_generator_cleanup_request())
-
-    @patch("mindie_llm.connector.common.input_metadata_builder.parse_all_dp_batches_seq_lens")
-    def test_calc_seq_len(self, mock_dp_batches_seq_lens):
-        mock_execute_model_request = Mock()
-        mock_execute_model_request.all_dp_batches_seq_lens = []
-        execute_request = Mock(spec=ExecuteRequest)
-        execute_request.execute_model_request = mock_execute_model_request
-        mock_dp_batches_seq_lens.return_value = [[0], [0], [0]]
-        seq_len = self.router.calc_seq_len(execute_request)
-        self.assertEqual(seq_len, 0)
 
     def test_do_other_request_now(self):
         execute_request = self.mock_prifill_request()

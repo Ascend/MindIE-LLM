@@ -24,6 +24,7 @@ from ..utils.input_metadata import InputMetadata
 from ..utils.model_input import ModelInputWrapper
 from ..utils.model_output import ModelOutputWrapper
 from ..utils.sampling_output import SamplingOutput
+from ..utils.npu_mem_tool import NpuMemoryWatcher
 from ...modeling.backend_type import BackendType
 from ...utils.decorators.time_decorator import timer
 from ...utils.env import ENV
@@ -33,6 +34,7 @@ from ...utils.log.logging_base import HandlerType
 
 SPECULATIVE_PLUGIN_LIST = ["la", "memory_decoding"]
 LAUNCH_DONE_TIMEOUT = 1
+MEM_DETECT_INTERVAL = 1000
 
 
 class PluginManager:
@@ -45,6 +47,7 @@ class PluginManager:
         is_mix_model,
         plugin_list,
         model_role,
+        watcher,
         **kwargs
     ):
         self.generator_backend = generator_backend
@@ -54,6 +57,8 @@ class PluginManager:
         self.infer_context = infer_context
         self.output_filter = output_filter
         self.is_mix_model = is_mix_model
+        self.rank = self.generator_backend.rank
+        self.watcher = watcher
         if is_mix_model:
             self.mix_preprocess = None
         self.plugin_data_param = PluginDataParam()
@@ -73,6 +78,7 @@ class PluginManager:
         self.last_sequence_ids = None
         self.previous_batch_is_prefill = False
         self.is_inference_pause = False
+        self.mem_det_trigger_counter = 0
 
     @staticmethod
     def unsqueeze_sampling_output(sampling_output: SamplingOutput):
@@ -148,8 +154,14 @@ class PluginManager:
             )
             setattr(self, plugin, plugin_tmp)
 
+    def mem_det_trigger_counter_acc(self):
+        if self.mem_det_trigger_counter < MEM_DETECT_INTERVAL:
+            self.mem_det_trigger_counter = self.mem_det_trigger_counter + 1
+        else:
+            self.mem_det_trigger_counter = 0
+
     @timer.track_time_async('generate_token')
-    def generate_token(self, input_metadata: InputMetadata):
+    def generate_token(self, input_metadata: InputMetadata, warmup=False):
         try:
             prof = span_start("preprocess")
             cache_ids, model_inputs, sampling_metadata, trace_ids = self.preprocess(input_metadata)
@@ -161,6 +173,8 @@ class PluginManager:
             self.plugin_data_param.q_len = qlen if qlen is not None else self.plugin_data_param.q_len
             self.plugin_data_param.mask = mask if mask is not None else self.plugin_data_param.mask
             span_end(prof)
+            self.watcher.watch_npu_mem(self.rank, f'After preprocess', 
+                                       trigger_count=self.mem_det_trigger_counter)
 
             prof = span_start("forward", True)
             span_req(prof, trace_ids)
@@ -186,6 +200,7 @@ class PluginManager:
             else:
                 logits = result
             span_end(prof, True)
+            self.watcher.watch_npu_mem(self.rank, f'After forward', trigger_count=self.mem_det_trigger_counter)
 
             prof = span_start("sample")
             draft_filtered_logits = self.sample_preprocess_manager(logits, result, sampling_metadata, input_metadata)
@@ -193,6 +208,7 @@ class PluginManager:
             if ENV.framework_backend == BackendType.ATB:
                 self.model_wrapper.model_runner.clear_internal_tensors()
             span_end(prof)
+            self.watcher.watch_npu_mem(self.rank, f'After sample', trigger_count=self.mem_det_trigger_counter)
             logger.info("sample end", extra={"handler_ids": HandlerType.TOKEN})
             prof = span_start("postprocess")
             self.put_prefix_kvcache_to_mempool(input_metadata, cache_ids)
@@ -201,6 +217,8 @@ class PluginManager:
             generation_output.trace_ids = trace_ids
             generation_output.simulator_ids = input_metadata.simulator_ids
             span_end(prof)
+            self.watcher.watch_npu_mem(self.rank, f'After postprocess', trigger_count=self.mem_det_trigger_counter)
+            self.mem_det_trigger_counter_acc()
             return generation_output
 
         except Exception as e:
@@ -213,7 +231,7 @@ class PluginManager:
             )
             raise e
 
-    def generate_token_async(self, input_metadata: InputMetadata) -> GenerationOutput:
+    def generate_token_async(self, input_metadata: InputMetadata, warmup=False) -> GenerationOutput:
         with self.generator_backend.get_new_stream():
             prof = span_start("preprocess")
             hit_mask = np.isin(input_metadata.all_sequence_ids, self.last_sequence_ids)
@@ -222,6 +240,8 @@ class PluginManager:
             model_input, _, _ = self.model_inputs_update_manager(
                 model_input, input_metadata, sampling_metadata, cache_ids, hit_mask=hit_mask)
             span_end(prof)
+            self.watcher.watch_npu_mem(self.rank, f'In asyn inference mode, after preprocess', 
+                                       trigger_count=self.mem_det_trigger_counter)
 
             prof = span_start("prepare_model_inputs")
             if not ENV.framework_backend == BackendType.ATB:
@@ -298,7 +318,8 @@ class PluginManager:
                 if model_output_wrapper.execution_done is not None:
                     model_output_wrapper.execution_done.synchronize()
                 sampling_output = self._to_host(model_output_wrapper.sampling_output)
-
+            self.watcher.watch_npu_mem(self.rank, f'In asyn inference mode, before postprocess',
+                                       trigger_count=self.mem_det_trigger_counter)
             prof = span_start("postprocess")
             if not is_mock and model_output_wrapper.cache_ids is not None and \
                 not model_output_wrapper.input_metadata.is_dummy_batch:
@@ -321,6 +342,9 @@ class PluginManager:
             generation_output.fill_dummy(input_metadata, self.max_generated_tokens)
             self.last_sequence_ids = input_metadata.all_sequence_ids
             span_end(prof)
+            self.watcher.watch_npu_mem(self.rank, f'In asyn inference mode, after postprocess', 
+                                       trigger_count=self.mem_det_trigger_counter)
+            self.mem_det_trigger_counter_acc()
         return generation_output
 
     @timer.track_time('preprocess')

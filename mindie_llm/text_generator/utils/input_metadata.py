@@ -29,19 +29,14 @@ SAMPLING_DTYPE = np.dtype([
     ('top_logprobs', np.float64)
 ])
 
+# Reserved sequence ID for simulate inference requests
+# Should match SIMULATE_SEQUENCE_ID in C++ code (src/include/request_response/request_id.h)
+SIMULATE_SEQUENCE_ID = 9223372036854774
+
 
 def get_batch_size(is_prefill_pre_batch, requests):
-    first_batch_is_prefill = is_prefill_pre_batch[0]
-    last_batch_is_prefill = is_prefill_pre_batch[-1]
-    if first_batch_is_prefill != last_batch_is_prefill:
-        is_mix = True
-        is_prefill = True
-    elif first_batch_is_prefill:
-        is_mix = False
-        is_prefill = True
-    else:
-        is_mix = False
-        is_prefill = False
+    is_prefill = True in is_prefill_pre_batch
+    is_mix = (True in is_prefill_pre_batch) and (False in is_prefill_pre_batch)
 
     if is_mix:
         total_bs = len(requests)
@@ -61,14 +56,15 @@ class LwdMetadata():
     end_exec_layer: int = 0
     end_of_generate_token: bool = True
     is_prefill: bool = True
-    edge_start_layer_num: int = 1
-    edge_end_layer_num: int = 1
+    is_dummy_batch: bool = False
+    request_dp_empty: bool = False
     cloud_total_layer: int = 62
     is_long_seq: bool = False
     long_seq_start_idx: int = 0
     long_seq_end_idx: int = 0
     long_seq_next_end_idx: int = 0
     prefill_total_seq_len: int = 0
+    is_last_chunk: bool = False
 
 
 @dataclass(slots=True)

@@ -63,8 +63,8 @@ class TestGenerator(unittest.TestCase):
             'multiNodesInferEnabled': '0', 'multiNodesInferPort': '1120', 'npu_device_id': '0',
             'npu_device_ids': '0,1,2,3,4,5,6,7', 'npu_mem': '-1', 'rank': '0', 'slaveIPs': '',
             'speculation_gamma': '0', 'tp': '1', 'trust_remote_code': '0', 'world_size': '8',
-            'num_speculative_tokens': '1', 'max_batch_size': '200', 'distributed_enable': 'false', 'vocab_size': 100000,
-            'enable_warmup_with_sampling': 'false'
+            'num_speculative_tokens': '1', 'max_batch_size': '200', 'max_prefill_batch_size': '200', 
+            'distributed_enable': 'false', 'vocab_size': 100000,'enable_warmup_with_sampling': 'false'
         }
 
     @patch('mindie_llm.text_generator.generator.calc_npu_mem')
@@ -165,9 +165,11 @@ class TestGenerator(unittest.TestCase):
         generator.scp_size = 1
         generator.distributed_enable = False
         generator.separate_deployment_worker = None
+        generator.lwd_multi_nodes_enable = False
 
+        warm_up_params = (256, 256, 128, 128)
         prefill_reqs, block_tables, prefill_blocks = \
-            generator._Generator__get_warm_up_reqs(1024, 256, 256, 128, 128)
+            generator._Generator__get_warm_up_reqs(1024, warm_up_params)
         self.assertEqual(len(prefill_reqs), 8)
         self.assertEqual(prefill_reqs[0].input_ids.shape[0], 256)
         self.assertEqual(prefill_reqs[0].max_new_tokens, 0)
@@ -190,9 +192,11 @@ class TestGenerator(unittest.TestCase):
         generator.scp_size = 1
         generator.distributed_enable = False
         generator.separate_deployment_worker = None
+        generator.lwd_multi_nodes_enable = False
 
         with self.assertRaises(RuntimeError) as context:
-            _, _, _ = generator._Generator__get_warm_up_reqs(1, 256, 256, 128, 128)
+            warm_up_params = (256, 256, 128, 128)
+            _, _, _ = generator._Generator__get_warm_up_reqs(1, warm_up_params)
         self.assertIn("Warmup failed.", str(context.exception))
 
     @patch("mindie_llm.text_generator.generator.Generator.__init__", return_value=None)
@@ -266,8 +270,8 @@ class TestGenerator(unittest.TestCase):
     @patch('mindie_llm.utils.decorators.time_decorator')
     @patch('mindie_llm.utils.env.ENV.benchmark_enable_async')
     @patch('mindie_llm.utils.env.ENV.benchmark_enable')
-    @patch('mindie_llm.text_generator.utils.kvcache_settings.calc_npu_mem')
-    @patch('mindie_llm.text_generator.utils.kvcache_settings.calc_block_mem')
+    @patch('mindie_llm.text_generator.utils.npu_mem_tool.calc_npu_mem')
+    @patch('mindie_llm.text_generator.utils.npu_mem_tool.calc_block_mem')
     @patch("mindie_llm.text_generator.adapter.generator_backend.Sampler",
            return_value=MagicMock(spec=Sampler))
     @patch("mindie_llm.text_generator.generator.KVCacheSettings",
@@ -330,6 +334,7 @@ class TestGenerator(unittest.TestCase):
             mock_timer.log_time_async = MagicMock(return_value=None)
             input_metadata = MagicMock()
             input_metadata.is_prefill = False
+            input_metadata.batch_seq_len = np.array([128,128])
             generation_output = generator.generate_token(input_metadata)
             self.assertEqual(generation_output, mock_generation_output)
 

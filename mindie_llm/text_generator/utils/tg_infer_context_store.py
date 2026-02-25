@@ -5,6 +5,7 @@ import numpy as np
 import numpy.typing as npt
 
 from mindie_llm.utils.log.logging import logger
+from .input_metadata import SIMULATE_SEQUENCE_ID
 from .kvcache_settings import KVCacheSettings
 from .batch_context import BatchContext
 from .input_metadata import InputMetadata
@@ -86,9 +87,12 @@ class TGInferContextStore:
         if metadata.is_dummy_batch:
             return context_handles
         for i, sequence_id in enumerate(metadata.all_sequence_ids):
+            if sequence_id == SIMULATE_SEQUENCE_ID:
+                context_handles[i] = 0
             # metadata.is_prefill is used to determine if the batch has prefill sequence
             # might hide bugs for mixed prefill/decode batch
-            context_handles[i] = self._batch_context.get_context_slot(sequence_id, metadata.is_prefill)
+            else:
+                context_handles[i] = self._batch_context.get_context_slot(sequence_id, metadata.is_prefill)
         return context_handles
 
     def compose_model_inputs(
@@ -204,6 +208,8 @@ class TGInferContextStore:
     def clear_context_by_seq_ids(self, sequence_ids: npt.NDArray[np.int64]):
         """Clear context by sequence IDs, used when sending aborted requests or exceptions occur."""
         context_handles = self._batch_context.pop_context_handles(sequence_ids)
+        # 跳过清理虚拟推理的context_handle 0
+        context_handles = [h for h in context_handles if h != 0]
         if self.context_params.async_infer:
             # 异步推理时，将缓存句柄加入 aborted_context_handles 列表，等到后处理完成时调用 clear_aborted_context 来清理
             self.aborted_context_handles.extend(context_handles)
@@ -221,8 +227,9 @@ class TGInferContextStore:
 
     def clear_finished_context(self, sequence_ids: npt.NDArray[np.int64], context_handles: npt.NDArray[np.int32]):
         """Clear context when inference is finished."""
-        context_handles_to_clear = context_handles
-        sequence_ids_to_clear = sequence_ids
+        non_virtual_mask = context_handles != 0
+        context_handles_to_clear = context_handles[non_virtual_mask]
+        sequence_ids_to_clear = sequence_ids[non_virtual_mask]
         if self.context_params.async_infer:
             if self.context_params.layerwise_disaggregated:
                 last_end_mask = self._batch_context.all_ndarray_context.pending_cleanup_flags[context_handles_to_clear]
@@ -438,39 +445,39 @@ class TGInferContextStore:
         q_lens = np.ones(bs, dtype=np.int32)  # mix input
         max_seq_len_decode = 0
 
-        # prefill requests are ranged in the tail of requests list
-        decode_len = metadata.batch_is_prefill.shape[0] - np.sum(metadata.batch_is_prefill)
-        if decode_len > 0:
-            decode_idx = np.where(~metadata.batch_is_prefill)[0].tolist()
+        cumsum_seq_len = np.cumsum(metadata.batch_seq_len)
+
+        decode_seq_idx = np.where(~metadata.batch_is_prefill)[0]
+        if len(decode_seq_idx) > 0:
+            decode_token_ids = cumsum_seq_len[decode_seq_idx] - 1
             (input_ids_decode, max_seq_len_decode, position_ids_decode, input_lengths_decode, slots_decode) = (
                 self._batch_context.get_mix_decode_cache_for_splitfuse(
-                    context_handles[decode_idx], decode_idx, metadata, hit_mask
+                    context_handles[decode_seq_idx], decode_seq_idx, metadata, hit_mask
                 )
             )
-            input_ids[:decode_len] = input_ids_decode
-            position_ids[:decode_len] = position_ids_decode
-            last_position_ids[:decode_len] = position_ids_decode
-            input_lengths[:decode_len] = input_lengths_decode
-            slots[:decode_len] = slots_decode
+            slots[decode_token_ids] = slots_decode
+            input_ids[decode_token_ids] = input_ids_decode
+            position_ids[decode_token_ids] = position_ids_decode
+            last_position_ids[decode_seq_idx] = position_ids_decode
+            input_lengths[decode_seq_idx] = input_lengths_decode
         max_seq_len = max(metadata.max_seq_len, max_seq_len_decode)
 
-        prefill_seq_idx = np.where(metadata.batch_is_prefill)[0].tolist()
-        cur_idx = decode_len
-        for i in prefill_seq_idx:
-            seq_len = metadata.batch_seq_len[i]
-            start_idx = cur_idx
-            end_idx = cur_idx + seq_len
-            cur_idx += seq_len
-            prefill_head_indices[i] = cur_idx - 1
-            position_ids[start_idx:end_idx] = range(metadata.split_start_position[i], metadata.split_end_position[i])
-            seq_len_total = metadata.split_end_position[i]
-            last_position_ids[i] = seq_len_total - 1
-            input_lengths[i] = seq_len_total
-            slots[start_idx:end_idx] = \
-                self.block_table_to_slots(metadata.batch_block_tables[i]).reshape(-1)[
-                metadata.split_start_position[i]:metadata.split_end_position[i]
-                ]
-            q_lens[i] = seq_len
+        prefill_seq_idx = np.where(metadata.batch_is_prefill)[0]
+        if len(prefill_seq_idx) > 0:
+            prefill_seq_lens = metadata.batch_seq_len[prefill_seq_idx]
+            start_positions = (cumsum_seq_len - metadata.batch_seq_len)[prefill_seq_idx]
+            end_positions = cumsum_seq_len[prefill_seq_idx]
+            prefill_head_indices = cumsum_seq_len - 1
+            last_position_ids[prefill_seq_idx] = metadata.split_end_position[prefill_seq_idx] - 1
+            input_lengths[prefill_seq_idx] = metadata.split_end_position[prefill_seq_idx]
+            q_lens[prefill_seq_idx] = prefill_seq_lens
+            for _, (i, start_idx, end_idx) in enumerate(zip(prefill_seq_idx, start_positions, end_positions)):
+                position_ids[start_idx:end_idx] = \
+                    range(metadata.split_start_position[i], metadata.split_end_position[i])
+                slots[start_idx:end_idx] = \
+                    self.block_table_to_slots(metadata.batch_block_tables[i]).reshape(-1)[
+                        metadata.split_start_position[i]:metadata.split_end_position[i]
+                    ]
 
         self._batch_context.update_context_for_splitfuse(metadata, context_handles, input_lengths, last_position_ids)
         trace_ids = None
@@ -494,7 +501,8 @@ class TGInferContextStore:
                                   cached_context_length=input_lengths,
                                   max_seq_len=max_seq_len,
                                   prefill_head_indices=prefill_head_indices,
-                                  is_prefill=True)
+                                  is_prefill=True,
+                                  dp_rank_ids=metadata.batch_dp_rank_ids)
         res = (model_inputs, sampling_metadata, q_lens, trace_ids)
         return res
 
@@ -552,6 +560,13 @@ class TGInferContextStore:
             pad_token_count=pad_token_count,
             is_pd_separate=kwargs.get("is_pd_separate", False)
         )
+        # 虚推请求不写入 KV cache，设置 slots = -1 跳过 ReshapeAndCache
+        cumulative_idx = 0
+        for i in range(metadata.batch_size):
+            seq_len = metadata.batch_seq_len[i]
+            if metadata.all_sequence_ids[i] == SIMULATE_SEQUENCE_ID:
+                all_tokens_kv_slots[cumulative_idx:cumulative_idx + seq_len] = -1
+            cumulative_idx += seq_len
         return input_ids, position_ids, all_tokens_kv_slots, seq_lengths, prefill_head_indices
 
     def _prepare_seq_kv_slots(

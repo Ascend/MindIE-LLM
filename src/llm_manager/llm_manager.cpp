@@ -50,6 +50,11 @@ uint32_t LlmManager::GetMaxPositionEmbeddings() const
     return impl_->GetMaxPositionEmbeddings();
 }
 
+std::map<std::string, std::string> LlmManager::GetModelParams() const
+{
+    return LlmManagerImpl::GetModelParams();
+}
+
 bool LlmManager::UpdateEngineInfo(std::shared_ptr<mindie_llm::InferRequest> &runtimeRequest, bool isForceRelease)
 {
     if (impl_ == nullptr) {

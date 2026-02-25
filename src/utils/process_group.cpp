@@ -83,7 +83,8 @@ ProcessGroup::ProcessGroup(const std::string &masterAddr, uint16_t masterPort, c
 {
     MINDIE_LLM_LOG_WARN("ProcessGroup construct, masterAddr="
                         << masterAddr << ", masterPort=" << masterPort << ", localAddr=" << localAddr
-                        << ", rank=" << rank << ", worldSize=" << worldSize << ", isMaster=" << isMaster);
+                        << ", rank=" << rank << ", worldSize=" << worldSize << ", isMaster=" << isMaster
+                        << ", timeoutInSeconds=" << timeoutInSeconds);
    
     try {
             // 1. 创建TCPStore

@@ -63,6 +63,8 @@ public:
     bool enableMlaPreprocess = false;
     bool isNzCache = false;
     bool enablePrefixCache = false;
+    /// The following variables will only be used when layerwiseDisaggregated is enabled.
+    bool isCloudLastLayer = false;
     // 混合并行数据流
     int attnStreamNum = 1;
     int ffnStreamNum = 1;

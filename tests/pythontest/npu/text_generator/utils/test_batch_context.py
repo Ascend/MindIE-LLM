@@ -69,7 +69,7 @@ class TestNdarrayContext(unittest.TestCase):
 
     def test_initialization(self):
         """测试初始化时数组容量和池状态"""
-        self.assertEqual(len(self.ndarray_ctx.pool), self.cache_config.cache_size)
+        self.assertEqual(len(self.ndarray_ctx.pool), self.cache_config.cache_size - 1)  # slot 0 is reserved
         self.assertEqual(self.ndarray_ctx.last_input_ids.shape, (self.cache_config.cache_size,))
         self.assertEqual(self.ndarray_ctx.seq_lens.dtype, np.int32)
         self.assertEqual(self.ndarray_ctx.sampling_params.shape, (self.cache_config.cache_size,))
@@ -78,9 +78,9 @@ class TestNdarrayContext(unittest.TestCase):
         """测试分配slot"""
         slot1 = self.ndarray_ctx.allocate_slot()
         self.assertEqual(slot1, self.cache_config.cache_size - 1)
-        self.assertEqual(len(self.ndarray_ctx.pool), self.cache_config.cache_size - 1)
+        self.assertEqual(len(self.ndarray_ctx.pool), self.cache_config.cache_size - 2)  # slot 0 is reserved
 
-        for _ in range(self.cache_config.cache_size - 1):
+        for _ in range(self.cache_config.cache_size - 2):
             self.ndarray_ctx.allocate_slot()
         self.assertEqual(len(self.ndarray_ctx.pool), 0)
 
@@ -295,10 +295,10 @@ class TestBatchContext(unittest.TestCase):
         sampling_output.repetition_indices = np.array([0])
         sampling_output.seeds = None
         self.batch_ctx.all_ndarray_context.output_len_count = np.array([0, 0, 0, 0])
-        self.batch_ctx.all_ndarray_context.last_position_ids = np.array([2, 0, 0, 0])
-        self.batch_ctx.all_ndarray_context.seq_lens = np.array([3, 0, 0, 0])
+        self.batch_ctx.all_ndarray_context.last_position_ids = np.array([0, 2, 0, 0])
+        self.batch_ctx.all_ndarray_context.seq_lens = np.array([0, 3, 0, 0])
         self.batch_ctx.all_ndarray_context.use_beam_search = np.array([False, False, False, False])
-        self.batch_ctx.all_ndarray_context.cpu_cached_seq_idx = np.array([[2], [0], [0], [0]])
+        self.batch_ctx.all_ndarray_context.cpu_cached_seq_idx = np.array([[0], [2], [0], [0]])
         self.batch_ctx.all_ndarray_context.all_output_ids = np.array(
             [
                 [151936, 151936, 151936, 151936, 151936, 151936, 151936, 151936, 151936, 151936],
@@ -309,15 +309,15 @@ class TestBatchContext(unittest.TestCase):
         )
         self.batch_ctx.all_ndarray_context.all_input_ids = np.array(
             [
-                [14623, 525, 498, 151936, 151936, 151936, 151936, 151936, 151936, 151936],
                 [151936, 151936, 151936, 151936, 151936, 151936, 151936, 151936, 151936, 151936],
+                [14623, 525, 498, 151936, 151936, 151936, 151936, 151936, 151936, 151936],
                 [151936, 151936, 151936, 151936, 151936, 151936, 151936, 151936, 151936, 151936],
                 [151936, 151936, 151936, 151936, 151936, 151936, 151936, 151936, 151936, 151936],
             ]
         )
 
         self.batch_ctx.update_context(
-            context_handles=np.array([0]),
+            context_handles=np.array([1]),
             updated_ndarrays=None,
             input_metadata=input_metadata,
             sampling_args=(sampling_metadata, sampling_output),
@@ -325,14 +325,14 @@ class TestBatchContext(unittest.TestCase):
             is_first_update=False,
         )
 
-        self.assertTrue(np.array_equal(self.batch_ctx.all_ndarray_context.last_input_ids, np.array([30, 0, 0, 0])))
+        self.assertTrue(np.array_equal(self.batch_ctx.all_ndarray_context.last_input_ids, np.array([0, 30, 0, 0])))
         self.assertTrue(
             np.array_equal(
                 self.batch_ctx.all_ndarray_context.all_input_ids,
                 np.array(
                     [
-                        [14623, 525, 498, 30, 151936, 151936, 151936, 151936, 151936, 151936],
                         [151936, 151936, 151936, 151936, 151936, 151936, 151936, 151936, 151936, 151936],
+                        [14623, 525, 498, 30, 151936, 151936, 151936, 151936, 151936, 151936],
                         [151936, 151936, 151936, 151936, 151936, 151936, 151936, 151936, 151936, 151936],
                         [151936, 151936, 151936, 151936, 151936, 151936, 151936, 151936, 151936, 151936],
                     ]
@@ -344,8 +344,8 @@ class TestBatchContext(unittest.TestCase):
                 self.batch_ctx.all_ndarray_context.all_output_ids,
                 np.array(
                     [
-                        [30, 151936, 151936, 151936, 151936, 151936, 151936, 151936, 151936, 151936],
                         [151936, 151936, 151936, 151936, 151936, 151936, 151936, 151936, 151936, 151936],
+                        [30, 151936, 151936, 151936, 151936, 151936, 151936, 151936, 151936, 151936],
                         [151936, 151936, 151936, 151936, 151936, 151936, 151936, 151936, 151936, 151936],
                         [151936, 151936, 151936, 151936, 151936, 151936, 151936, 151936, 151936, 151936],
                     ]
@@ -356,12 +356,12 @@ class TestBatchContext(unittest.TestCase):
         self.assertTrue(
             np.array_equal(self.batch_ctx.all_ndarray_context.cumulative_logprobs, np.array([0.0, 0.0, 0.0, 0.0]))
         )
-        self.assertTrue(np.array_equal(self.batch_ctx.all_ndarray_context.output_len_count, np.array([1, 0, 0, 0])))
-        self.assertTrue(np.array_equal(self.batch_ctx.all_ndarray_context.seq_lens, np.array([4, 0, 0, 0])))
-        self.assertTrue(np.array_equal(self.batch_ctx.all_ndarray_context.cpu_cached_seq_idx, np.array([[3], [0], [0], [0]])))
-        self.assertTrue(np.array_equal(self.batch_ctx.all_ndarray_context.last_position_ids, np.array([3, 0, 0, 0])))
+        self.assertTrue(np.array_equal(self.batch_ctx.all_ndarray_context.output_len_count, np.array([0, 1, 0, 0])))
+        self.assertTrue(np.array_equal(self.batch_ctx.all_ndarray_context.seq_lens, np.array([0, 4, 0, 0])))
+        self.assertTrue(np.array_equal(self.batch_ctx.all_ndarray_context.cpu_cached_seq_idx, np.array([[0], [3], [0], [0]])))
+        self.assertTrue(np.array_equal(self.batch_ctx.all_ndarray_context.last_position_ids, np.array([0, 3, 0, 0])))
         self.assertTrue(np.array_equal(self.batch_ctx.all_ndarray_context.used_block_idx, np.array([0, 0, 0, 0])))
-        self.assertTrue(np.array_equal(self.batch_ctx.all_ndarray_context.used_block_offset, np.array([3, 0, 0, 0])))
+        self.assertTrue(np.array_equal(self.batch_ctx.all_ndarray_context.used_block_offset, np.array([0, 3, 0, 0])))
 
     def test_join_context_given_base_context(self):
         metadata = Mock(spec=InputMetadata)

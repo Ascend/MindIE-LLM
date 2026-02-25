@@ -79,7 +79,7 @@ std::shared_ptr<StagePolicy> PolicyFactory::CreateStagePolicy(const SchedulerCon
             break;
         // 边云协同场景的StagePolicy
         case StagePolicyType::EDGE_CLOUD:
-            stagePolicyPtr = std::make_shared<EdgeCloudPolicy>();
+            stagePolicyPtr = std::make_shared<EdgeCloudPolicy>(schedulerConfig->batchPnum);
             break;
         default:
             throw std::runtime_error("Not support stage policy. policy=" +

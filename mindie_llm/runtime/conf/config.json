@@ -1,0 +1,80 @@
+{
+    "llm": {
+      "ccl": {
+        "enable_mc2": "true"
+      },
+      "stream_options": {
+        "micro_batch": "false"
+      },
+      "engine": {
+        "graph": "cpp"
+      },
+      "parallel_options": {
+        "o_proj_local_tp": -1,
+        "dense_mlp_local_tp": -1,
+        "lm_head_local_tp": -1,
+        "hccl_buffer": 128,
+        "hccl_moe_ep_buffer": 512,
+        "hccl_moe_tp_buffer": 64
+      },
+      "pmcc_obfuscation_options": {
+        "enable_model_obfuscation": false,
+        "data_obfuscation_ca_dir": "",
+        "kms_agent_port": 1024
+      },
+      "kv_cache_options": {
+        "enable_nz": false
+      },
+      "weights_options": {
+        "low_cpu_memory_mode": false
+      },
+      "enable_reasoning": "false",
+      "tool_call_options": {
+        "tool_call_parser": ""
+      },
+      "chat_template": "",
+      "ep_level": 1,
+      "communication_backend": {
+          "prefill": "lccl",
+          "decode": "lccl"
+      }
+    },
+    "models": {
+      "qwen_moe": {
+        "eplb": {
+          "level": 0,
+          "expert_map_file": ""
+        },
+        "ep_level": 2
+      },
+      "deepseekv2": {
+        "eplb": {
+          "level": 0,
+          "expert_map_file": "",
+          "num_redundant_experts": 0,
+          "aggregate_threshold": 128,
+          "num_expert_update_ready_countdown": 16
+        },
+        "ep_level": 1,
+        "enable_dispatch_combine_v2": true,
+        "communication_backend": {
+          "prefill":"lccl",
+          "decode": "lccl"
+        },
+        "mix_shared_routing": false,
+        "enable_gmmswigluquant": false,
+        "enable_oproj_prefetch": false,
+        "enable_mlapo_prefetch": false,
+        "num_dangling_shared_experts": 0,
+        "enable_swiglu_quant_for_shared_experts": false,
+        "enable_init_routing_cutoff": false,
+        "topk_scaling_factor": 1.0,
+        "h3p":{
+          "enable_qkvdown_dp": "true",
+          "enable_gating_dp": "true",
+          "enable_shared_expert_dp": "false",
+          "enable_shared_expert_overlap": "false"
+        }
+      }
+    }
+  }

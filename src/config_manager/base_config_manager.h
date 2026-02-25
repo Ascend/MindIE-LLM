@@ -61,6 +61,8 @@ public:
 private:
     struct ScheduleConfig scheduleConfig_;
 
+    bool LoadLwdConfig(Json &scheduleJsonData);
+
     bool LoadBasicScheduleConfig(Json &scheduleJsonData);
 
     void LoadPolicyConfig(Json &scheduleJsonData);
@@ -147,6 +149,8 @@ private:
 
     void InitLayerwiseDisaggregatedConfigFromJson(Json &serveJsonData);
 
+    void LoadOptionalParameters(Json& serverParamsJsonData);
+    
     std::string GetIPAddress(Json &serveJsonData);
 
     std::string GetManagementIPAddress(Json &serveJsonData);
@@ -176,6 +180,8 @@ private:
     bool InitTlsConfigFromJson(Json &backendConfigData);
 
     void InitKvPoolConfigFromJson(Json &backendConfigData);
+
+    void InitLwdConfigFromJson(Json &backendConfigData);
 
     bool CheckInterTlsParam();
 

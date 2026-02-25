@@ -14,6 +14,7 @@ import math
 from typing import Optional, List, Tuple
 
 import torch
+import torch_npu
 
 from atb_llm.utils.log import logger, print_log
 from atb_llm.utils.env import ENV

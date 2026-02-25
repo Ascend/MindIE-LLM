@@ -36,19 +36,19 @@ Server相关环境变量请参考**表2**。
 
 |参数名称|参数说明|取值范围|缺省值|
 |--|--|--|--|
-|MIES_INSTALL_PATH|Server的安装路径。|路径参数。|/usr/local/Ascend/mindie/latest/mindie-service|
-|MIES_CONFIG_JSON_PATH|config.json文件的路径。如果该环境变量存在，则读取该值；如果不存在，则读取*${MIES_INSTALL_PATH}*/conf/config.json文件。|路径参数。|NA|
+|MINDIE_LLM_HOME_PATH|Server的安装路径。|路径参数。|/usr/local/Ascend/mindie/latest/mindie-service|
+|MIES_CONFIG_JSON_PATH|config.json文件的路径。如果该环境变量存在，则读取该值；如果不存在，则读取*${MINDIE_LLM_HOME_PATH}*/conf/config.json文件。|路径参数。|NA|
 |MIES_CONTAINER_IP|容器IP地址，容器部署时配置。EndPoint提供的业务面RESTful接口绑定的IP地址和多机推理场景gRPC通信采用的IP地址。多机推理时需要设置该环境变量。|IPv4地址。|NA|
 |MIES_CONTAINER_MANAGEMENT_IP|EndPoint提供的内部RESTful接口绑定的IP地址。|IPv4地址。|NA|
 |MIES_MEMORY_DETECTOR_MODE|内存状态打点使能开关。|0：关闭<br>1：开启|0|
 |MIES_PROFILER_MODE|性能状态打点使能开关。|0：关闭<br>1：开启|0|
-|LD_LIBRARY_PATH|lib所在的路径。|路径参数。|${MIES_INSTALL_PATH}/lib:${LD_LIBRARY_PATH}|
+|LD_LIBRARY_PATH|lib所在的路径。|路径参数。|${MINDIE_LLM_HOME_PATH}/lib:${LD_LIBRARY_PATH}|
 |ASCEND_SLOG_PRINT_TO_STDOUT|CANNDEV日志打印控制开关。|1：打印。<br>0：写入到~/ascend目录。|0|
 |ASCEND_GLOBAL_LOG_LEVEL|CANNDEV日志级别。|0：debug<br>1：info<br>2：warn<br>3：error|3|
 |ASCEND_GLOBAL_EVENT_ENABLE|设置应用类日志是否开启Event日志。|0：关闭Event<br>日志。1：开启Event日志。|0|
 |HCCL_BUFFSIZE|控制两个NPU之间共享数据的缓存区大小。|大于或等于1，单位：MB。|120|
-|EP_OPENSSL_PATH|EndPoint开启HTTPS认证后，通过该环境变量来指定openssl加载运行时so文件。该环境变量在EndPoint模块启动时自动设置，不需要用户手动设置。|路径参数。|${MIES_INSTALL_PATH}/lib|
-|HSECEASY_PATH|EndPoint开启HTTPS认证后，使用HSECEASY工具对密钥口令进行加密。该环境变量指定HSECEASY加载运行时so文件路径。|路径参数。|${MIES_INSTALL_PATH}/lib|
+|EP_OPENSSL_PATH|EndPoint开启HTTPS认证后，通过该环境变量来指定openssl加载运行时so文件。该环境变量在EndPoint模块启动时自动设置，不需要用户手动设置。|路径参数。|${MINDIE_LLM_HOME_PATH}/lib|
+|HSECEASY_PATH|EndPoint开启HTTPS认证后，使用HSECEASY工具对密钥口令进行加密。该环境变量指定HSECEASY加载运行时so文件路径。|路径参数。|${MINDIE_LLM_HOME_PATH}/lib|
 |MIES_CERTS_LOG_TO_FILE|证书管理工具环境变量，日志是否输出到文件。|0：输出到文件。<br>1：不输出。|0|
 |MIES_CERTS_LOG_TO_STDOUT|证书管理工具环境变量，日志打印控制开关。|0：不打印日志。<br>1：打印日志。|1|
 |MIES_CERTS_LOG_LEVEL|证书管理工具环境变量，日志级别。|DEBUG<br>INFO<br>WARNING<br>ERROR<br>FATAL|INFO|

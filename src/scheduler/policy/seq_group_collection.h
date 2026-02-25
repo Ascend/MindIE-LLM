@@ -34,6 +34,17 @@ enum class PDPriorityType : uint8_t {
     MIX,
 };
 
+enum class LwdPDelayType : uint8_t {
+    /* 本轮延迟调度Prefill请求，方式为改调度Prefill请求为调度Decode请求 */
+    PREFILL_TO_DECODE,
+    /* 本轮延迟调度Prefill请求，方式为本轮跳过prefill请求，不下发batch */
+    PREFILL_SKIP,
+    /* 本轮不延迟调度prefill请求 */
+    PREFILL_KEEP,
+    /* 默认类型无意义 */
+    INVALID,
+};
+
 class SeqGroupCollection {
 public:
     SeqGroupCollection() = default;

@@ -112,6 +112,8 @@ public:
     bool IsMultiNodeInfer() const;
 
     bool IslayerwiseDisaggregated() const;
+    bool IsLwdMultiNodesEnable() const;
+    std::string GetLwdRoleType() const;
 
     void UpdateConfig();
 

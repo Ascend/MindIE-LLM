@@ -16,7 +16,7 @@ from atb_llm.models.base.flash_causal_lm import FlashForCausalLM, LayerWiseAttr,
 
 class TestLayerwiseModifier(unittest.TestCase):
     def setUp(self):
-        self.layerwise = LayerWiseAttr(start_num=1, end_num=1, split_type=DistributedType.CLOUD)
+        self.layerwise = LayerWiseAttr(edge_start_layer_count=1, edge_end_layer_count=1, split_type=DistributedType.CLOUD)
         self.layerwise_modifier = LayerwiseModifier(self.layerwise)
 
 

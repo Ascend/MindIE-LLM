@@ -409,8 +409,9 @@ class RouterImpl:
         send_model_execute_response(ExecuteResponse(msg_type=ExecuteType.MODEL_FINALIZE))
 
     def _execute_empty_batch(self, execute_request):
+        lwd_exe_stage = lwd_metadata_manager.get_metadata() if self.layerwise_disaggregated else None
         dummy_input_metadata = make_dummy_input_metadata(
-            execute_request, self.generator.kvcache_settings.num_npu_blocks, self.config
+            execute_request, self.generator.kvcache_settings.num_npu_blocks, self.config, lwd_exe_stage
         )
         if self.config.infer_mode == "dmi" and self.config.role == "decoder":
             self.generator.input_metadata_queue.put(dummy_input_metadata)
@@ -430,14 +431,9 @@ class RouterImpl:
         is_req_prefill = []
         for seq_group_metadata in execute_request.execute_model_request.seq_group_metadata_list:
             is_req_prefill.extend(seq_group_metadata.is_req_prefill)
-        first_batch_is_prefill = is_req_prefill[0]
-        last_batch_is_prefill = is_req_prefill[-1]
-        if first_batch_is_prefill != last_batch_is_prefill:
-            self._generate(execute_request, is_prefill=True, is_mix=True)
-        elif first_batch_is_prefill:
-            self._generate(execute_request, is_prefill=True, is_mix=False)
-        else:
-            self._generate(execute_request, is_prefill=False, is_mix=False)
+        is_prefill = True in is_req_prefill
+        is_mix = (True in is_req_prefill) and (False in is_req_prefill)
+        self._generate(execute_request, is_prefill=is_prefill, is_mix=is_mix)
 
     def _generate(self, execute_request: ExecuteRequest, is_prefill, is_mix):
         convert_prof = span_start("GetInputMetadata", domain="ModelExecute")
@@ -462,10 +458,11 @@ class RouterImpl:
             layerwise_disaggregated_exe_stage = lwd_metadata_manager.get_metadata()
             # For P-last, D-last, and non-first blocks of cloud-side P tasks, directly
             # use the result from the previous computation.
-            if EdgeCloudInputMetadata.is_get_input_metadata(layerwise_disaggregated_exe_stage):
+            if EdgeCloudInputMetadata.have_input_metadata(layerwise_disaggregated_exe_stage):
                 pd_exec_matadata = pd_exec_matadata_instance
                 input_metadata_composite = copy.deepcopy(
-                    pd_exec_matadata.get_input_metadata(layerwise_disaggregated_exe_stage.is_prefill))
+                    pd_exec_matadata.get_input_metadata(layerwise_disaggregated_exe_stage.is_prefill, 
+                                                        layerwise_disaggregated_exe_stage))
                 # The exe_stage for P-end differs from that of P-begin, and similarly,
                 # the exe_stage for D-end differs from that of D-begin; these must be replaced accordingly.
                 lw_disag_exe_stage = layerwise_disaggregated_exe_stage
@@ -482,7 +479,7 @@ class RouterImpl:
                 )
                 # For P-first, D-first, and first-block cloud-side P tasks, back up the computation result to provide
                 # for subsequent P-last, D-last, and non-first-block cloud-side P tasks.
-                if EdgeCloudInputMetadata.is_storage_input_metadata(layerwise_disaggregated_exe_stage):
+                if EdgeCloudInputMetadata.need_storage_input_metadata(layerwise_disaggregated_exe_stage):
                     pd_exec_matadata = pd_exec_matadata_instance
                     pd_exec_matadata.set_input_metadata(input_metadata_composite,
                                                 layerwise_disaggregated_exe_stage.is_prefill)

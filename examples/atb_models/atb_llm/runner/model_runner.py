@@ -129,6 +129,8 @@ class ModelRunner:
         self.distributed_enable = kwargs.get("distributed_enable", False)
         self.max_batch_size = kwargs.get("max_batch_size", -1)
         self.model_role = kwargs.get("model_role", "standard")
+
+        self.process_group, self.device = initialize_distributed(self.rank, self.npu_id, world_size)
         
         self.layerwise_disaggregated = kwargs.get("layerwise_disaggregated", False)
 
@@ -233,7 +235,7 @@ class ModelRunner:
             self.lora_adapter = json.loads(lora_modules)
         elif os.path.exists(lora_adapter_json_path):
             print_log(rank, logger.warning, "The usage of lora_adapter.json will be depreciated by 2026/06/30. " \
-                "Please specifying LoRA modules within ${MIES_INSTALL_PATH}/conf/config.json.")
+                "Please specifying LoRA modules within ${MINDIE_LLM_HOME_PATH}/conf/config.json.")
             lora_adapter_json_path = file_utils.standardize_path(lora_adapter_json_path, check_link=False)
             file_utils.check_file_safety(lora_adapter_json_path)
             with file_utils.safe_open(lora_adapter_json_path, mode="r", encoding="utf-8") as f:
@@ -247,7 +249,6 @@ class ModelRunner:
         if self.prealloc_weight_mem_on_npu:
             from mindie_llm.runtime.utils.distributed import set_parallel_info_manager
             set_parallel_info_manager(self.mapping)
-        self.process_group, self.device = initialize_distributed(self.rank, self.npu_id, world_size)
         
         if not NPUSocInfo().support_bf16 and self.dtype == torch.bfloat16:
             error_msg = "This device does not support bfloat16." \
@@ -273,10 +274,11 @@ class ModelRunner:
                 TLS_CRL_PATH: kwargs.get(TLS_CRL_PATH, ''),
                 TLS_CRL_FILES: kwargs.get(TLS_CRL_FILES, ''),
             }
-            self.data_comm = EdgeCloudDataComm(self.dtype)
+            batch_p_num = kwargs.get('batch_p_num', 1)
+            self.data_comm = EdgeCloudDataComm(self.dtype, batch_p_num)
             self.ctrl_comm = EdgeCloudCtrlComm(tls_config)
-            self.time_counter = CloudCutPolicy(self.layerwise_disaggregated_role_type, model_name_or_path)
-            self.chunk_prefill_manager = ChunkPrefilPolicy(model_name_or_path)
+            self.time_counter = CloudCutPolicy(self.layerwise_disaggregated_role_type, model_name_or_path, batch_p_num)
+            self.chunk_prefill_manager = ChunkPrefilPolicy(model_name_or_path, batch_p_num)
             self.prefill_input_lengths = None
             self.edge_pre_chunk_length = 0
             self.prefill_total_seq_len = 0
@@ -536,7 +538,7 @@ class ModelRunner:
                 self.ctrl_comm.prefill_send_msg = self.ctrl_comm.shape_to_msg(new_hidden.shape)
                 self.ctrl_comm.send_prefill()
 
-                self.data_comm.p_shape = self.data_comm.prefill_seq_len_queue.get()
+                self.data_comm.p_shape[self.data_comm.recv_index] = self.data_comm.prefill_seq_len_queue.get()
                 self.data_comm.recv_hidden('p', self.data_comm.p_shape)
                 return hidden
             else:
@@ -590,7 +592,7 @@ class ModelRunner:
                         self.data_comm.prefill_seq_len_queue.put(self.edge_pre_chunk_length)
                         logger.info(f"[layerwiseDisaggregated] edge rank {self.rank}, put {self.edge_pre_chunk_length}")
                     self.edge_pre_chunk_length = int(hidden.shape[0])
-                    if layerwise_disaggregated_exe_stage.long_seq_end_idx == self.prefill_total_seq_len:
+                    if layerwise_disaggregated_exe_stage.is_last_chunk:
                         self.data_comm.prefill_seq_len_queue.put(self.edge_pre_chunk_length)
                         logger.info(f"[layerwiseDisaggregated] edge rank {self.rank}, "
                                     f"end put {self.edge_pre_chunk_length}")
@@ -602,13 +604,13 @@ class ModelRunner:
 
                 if not (layerwise_disaggregated_exe_stage.is_long_seq and \
                         layerwise_disaggregated_exe_stage.long_seq_start_idx == 0):
-                    self.data_comm.p_shape = self.data_comm.prefill_seq_len_queue.get()
+                    self.data_comm.p_shape[self.data_comm.recv_index] = self.data_comm.prefill_seq_len_queue.get()
                     self.data_comm.recv_hidden('p', self.data_comm.p_shape)
+                    logger.info(f"[layerwiseDisaggregated] edge rank {self.rank} prefill recv start first part, "
+                                f"the data length is: {self.data_comm.p_shape}")
                 return hidden
             else:
                 tmp = self.data_comm.data_wait_after_recv('p')
-                if not layerwise_disaggregated_exe_stage.is_long_seq:
-                    self.data_comm.ret_p = None
                 hidden = self.data_comm.broadcast_hidden(tmp, self.data_comm.p_shape, 'p')
                 logger.info(f"[layerwiseDisaggregated] edge rank {self.rank} prefill recv {hidden.shape}")
                 new_params = {OUT_HIDDEN: hidden}
@@ -617,9 +619,9 @@ class ModelRunner:
                 logger.info(f"[layerwiseDisaggregated] edge rank {self.rank} prefill logits {res.shape}")
                 
                 if not self.data_comm.prefill_seq_len_queue.empty():
-                    self.data_comm.p_shape = self.data_comm.prefill_seq_len_queue.get()
+                    self.data_comm.p_shape[self.data_comm.recv_index] = self.data_comm.prefill_seq_len_queue.get()
                     self.data_comm.recv_hidden('p', self.data_comm.p_shape)
-                    logger.info(f"[layerwiseDisaggregated] edge rank {self.rank} prefill recv start, "
+                    logger.info(f"[layerwiseDisaggregated] edge rank {self.rank} prefill recv start post part, "
                                 f"self.data_comm.p_shape: {self.data_comm.p_shape}")
                 
                 return res
@@ -772,17 +774,17 @@ class ModelRunner:
                                     self.prefill_input_lengths: {self.prefill_input_lengths}")
             if layerwise_disaggregated_exe_stage.start_exec_layer == 0:
                 tmp = self.data_comm.data_wait_after_recv('p')
-                self.data_comm.ret_p = None
                 hidden = self.data_comm.broadcast_hidden(tmp, self.data_comm.p_shape, 'p')
                 logger.info(f"[layerwiseDisaggregated] cloud rank {self.rank} prefill recv {hidden.shape}")
                 if layerwise_disaggregated_exe_stage.is_long_seq and \
-                    layerwise_disaggregated_exe_stage.long_seq_end_idx != self.prefill_total_seq_len:
+                    not layerwise_disaggregated_exe_stage.is_last_chunk: # 不是最后一个序列
                     prefill_seq_len = layerwise_disaggregated_exe_stage.long_seq_next_end_idx - \
                                         layerwise_disaggregated_exe_stage.long_seq_end_idx
+                    prefill_seq_len = prefill_seq_len if prefill_seq_len > 0 else 1 # 至少长度应为1
                     self.data_comm.prefill_seq_len_queue.put(prefill_seq_len)
                     logger.info(f"[layerwiseDisaggregated] cloud rank {self.rank}, "
                                 f"queue input is {prefill_seq_len}")
-                    self.data_comm.p_shape = self.data_comm.prefill_seq_len_queue.get()
+                    self.data_comm.p_shape[self.data_comm.recv_index] = self.data_comm.prefill_seq_len_queue.get()
                     self.data_comm.recv_hidden('p', self.data_comm.p_shape)
                 
                 new_params = {OUT_HIDDEN: hidden}
@@ -830,9 +832,9 @@ class ModelRunner:
                 input_ids = kwargs.get("input_ids")
                 is_prefill = kwargs.get("is_prefill")
                 if is_prefill:
-                    batch_size = len(input_lengths)
+                    batch_size = len(input_lengths) * self.mapping.attn_dp.group_size
                 else:
-                    batch_size = len(input_ids)
+                    batch_size = len(input_ids) * self.mapping.attn_dp.group_size
                 out_dict = {OUT_HIDDEN: torch.ones([len(input_ids), self.model.hidden_size],
                                                     dtype=self.dtype, device=self.device)}
                 kwargs.update(out_dict)

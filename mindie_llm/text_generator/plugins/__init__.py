@@ -48,7 +48,8 @@ def get_plugin(
     plugin_list,
     plugin_config,
     plugin_utils,
-    is_mix_model
+    is_mix_model,
+    watcher
 ):
     generator_backend, kvcache_settings, infer_context, output_filter, model_role = plugin_utils
     if 'soc_version' in plugin_config and plugin_config['soc_version'] == 'Ascend310B':
@@ -73,6 +74,7 @@ def get_plugin(
             is_mix_model,
             plugin_list,
             model_role,
+            watcher,
             **plugin_config
         )
     return plugin_ins

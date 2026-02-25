@@ -21,7 +21,7 @@ MEM_TYPE_SIZE_ = struct.calcsize(SHARE_MEM_TYPE_)
 
 class TestSharedMemoryManager(unittest.TestCase):
     def setUp(self):
-        self.share_mem_manager = SharedMemoryManager()
+        self.share_mem_manager = SharedMemoryManager('0')
         self.share_mem_manager.initialize(IS_PRODUCER_, CONSUMER_NUM_)
 
     @classmethod

@@ -67,7 +67,7 @@ class Engine:
 
         home_path = os.getenv('MINDIE_LLM_HOME_PATH')
         if not home_path:
-            home_path = os.getenv('MIES_INSTALL_PATH')
+            home_path = os.getenv('MINDIE_LLM_HOME_PATH')
         if home_path:
             return os.path.join(home_path, "conf/config.json")
         else:

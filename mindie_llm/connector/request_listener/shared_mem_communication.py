@@ -163,9 +163,9 @@ class SharedMemCommunication:
             role_type = config.layerwise_disaggregated_role_type
             logger.info(f"[layerwiseDisaggregated] role_type is {role_type}")
             if role_type == "master":
-                self.request_router = RequestRouterEdge()
+                self.request_router = RequestRouterEdge(config.parent_pid)
             elif role_type == "slave":
-                self.request_router = RequestRouterCloud()
+                self.request_router = RequestRouterCloud(config.parent_pid)
         else:
             self.request_router = RequestRouter()
 

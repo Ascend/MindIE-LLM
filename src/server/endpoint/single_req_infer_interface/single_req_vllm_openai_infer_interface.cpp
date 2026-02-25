@@ -145,7 +145,7 @@ bool SingleReqVllmOpenAiInferInterface::SetReturnSeqCount(RequestSPtr req, std::
     } else if (req->bestOf.has_value() && !req->n.has_value()) {
         if (inputParam->streamMode) {
             std::stringstream ss;
-            ss << "best_of should be equal to n in stream mode, but best_of is " << req->bestOf.value()
+            ss << "best_of must be equal to n in stream mode, but best_of is " << req->bestOf.value()
                 << ", n is None.";
             errMsg = ss.str();
             return false;
@@ -156,14 +156,14 @@ bool SingleReqVllmOpenAiInferInterface::SetReturnSeqCount(RequestSPtr req, std::
     } else {
         if (!inputParam->streamMode && req->bestOf < req->n) {
             std::stringstream ss;
-            ss << "best_of should be greater than or equal to n, but best_of is " << req->bestOf.value()
+            ss << "best_of must be greater than or equal to n, but best_of is " << req->bestOf.value()
                 << ", n is " << req->n.value() << ".";
             errMsg = ss.str();
             return false;
         }
         if (inputParam->streamMode && req->bestOf != req->n) {
             std::stringstream ss;
-            ss << "best_of should be equal to n in stream mode, but best_of is " << req->bestOf.value()
+            ss << "best_of must be equal to n in stream mode, but best_of is " << req->bestOf.value()
                 << ", n is " << req->n.value() << ".";
             errMsg = ss.str();
             return false;
@@ -332,7 +332,7 @@ bool SingleReqVllmOpenAiInferInterface::ValidMessagesArray(OrderedJson &body, Or
                 return false;
             }
             std::string contents = paramItem[contentKey];
-            if (contents.length() == 0) {
+            if (paramItem[roleKey] != "tool" && contents.length() == 0) {
                 msg = "Request param content len should not be 0";
                 return false;
             }

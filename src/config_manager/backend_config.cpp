@@ -35,7 +35,8 @@ static std::vector<ParamSpec> g_backendConfigConstraint = {
     {"interNodeTlsCaFiles", "array", false},
     {"interNodeTlsCrlFiles", "array", false},
     {"interNodeTlsCrlPath", "string", false},
-    {"kvPoolConfig", "object", false}
+    {"kvPoolConfig", "object", false},
+    {"layerwiseDisaggregated", "object", false},
 };
 
 void BackendConfigManager::InitKvPoolConfigFromJson(Json &backendConfigData)
@@ -134,6 +135,17 @@ bool BackendConfigManager::CheckInterTlsParam()
     return checkRes;
 }
 
+void BackendConfigManager::InitLwdConfigFromJson(Json &backendConfigData)
+{
+    if (backendConfigData.contains("layerwiseDisaggregated")) {
+        Json& lwdConfig = backendConfigData["layerwiseDisaggregated"];
+        if (lwdConfig.contains("layerwiseDisaggregatedMultiNodesInferEnabled")) {
+            backendConfig_.lwdMultiNodesEnable = lwdConfig["layerwiseDisaggregatedMultiNodesInferEnabled"];
+            backendConfig_.lwdMultiNodesCtrlPort = lwdConfig["layerwiseDisaggregatedMultiNodesCtrlPort"];
+        }
+    }
+}
+
 bool BackendConfigManager::InitFromJson()
 {
     Json backendConfigData;
@@ -189,6 +201,8 @@ bool BackendConfigManager::InitFromJson()
         }
     }
 
+    InitLwdConfigFromJson(backendConfigData);
+
     return true;
 }
 
@@ -212,6 +226,10 @@ bool BackendConfigManager::CheckParam()
     }
     CHECK_CONFIG_VALIDATION(initFlag, ParamChecker::CheckKvPoolBackend(backendConfig_.kvPoolConfig.backend));
     CHECK_CONFIG_VALIDATION(initFlag, ParamChecker::CheckKvPoolConfigPath(backendConfig_.kvPoolConfig.configPath));
+    if (backendConfig_.lwdMultiNodesEnable) {
+        CHECK_CONFIG_VALIDATION(initFlag, ParamChecker::CheckMaxMinValue<int32_t>(backendConfig_.lwdMultiNodesCtrlPort,
+            65535U, 1024U, "backendConfig.layerwiseDisaggregatedMultiNodesCtrlPort"));
+    }
     return initFlag;
 }
 

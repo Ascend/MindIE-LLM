@@ -22,7 +22,7 @@
 namespace mindie_llm {
 class EdgeCloudPolicy final : public StagePolicy {
 public:
-    explicit EdgeCloudPolicy() {};
+    explicit EdgeCloudPolicy(uint32_t batchPnum) : batchPnum_(batchPnum) {};
     PDPriorityType Apply([[maybe_unused]] ConcurrentDeque<SequenceGroupSPtr> &waiting,
                          [[maybe_unused]] ConcurrentDeque<SequenceGroupSPtr> &running,
                          [[maybe_unused]] ConcurrentDeque<SequenceGroupSPtr> &swapped) override;
@@ -41,6 +41,7 @@ private:
     std::shared_ptr<LatencyPredictor> predictor_;
     int prefillBatchCount_{0};
     int decodeBatchCount_{0};
+    const int batchPnum_{1};
 };
 } // namespace mindie_llm
 

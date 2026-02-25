@@ -140,7 +140,7 @@ void ModelExecOutputHandler::Entry4Executor(ModelBatchResultSPtr &modelBatchResu
             lastForwardMode, lwdCurrBatchType, recomputeInDBatchQueue);
     }
     layerwiseMixin_.LwdProcessRecomputeSeq(layerwiseNeedUpdate, lastForwardMode, recomputeInDBatchQueue);
-    layerwiseMixin_.LwdHandlerSubBatchCnt(schedulerConfig_->layerwiseDisaggregated, stagePolicy_, lastForwardMode);
+    layerwiseMixin_.LwdHandlerSubBatchCnt(schedulerConfig_->layerwiseDisaggregated, stagePolicy_, lwdCurrBatchType);
 
     // 更新batch统计信息（结束时间）
     if (schedulerConfig_->stageSelectPolicy == static_cast<uint32_t>(StagePolicyType::LATENCY_FIRST) ||

@@ -95,6 +95,9 @@ protected:
 
     virtual PolicyOutput ScheduleChunkedPrefill(SchedulingBudget &budget);
 
+    void ScheduleRunningSeqGroup(const SequenceGroupSPtr &seqGroup, size_t numUncachedNewTokens,
+                                 bool enableChunking, RunningOutputs &runningOutput, SchedulingBudget &budget);
+
 protected:
     int numCumulativePreemption_{};
 

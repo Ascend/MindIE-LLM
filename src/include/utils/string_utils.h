@@ -17,6 +17,8 @@
 #include <vector>
 #include <map>
 #include <sstream>
+#include <unordered_map>
+#include <unordered_set>
 
 #include "safe_result.h"
 
@@ -24,8 +26,19 @@
 namespace mindie_llm {
 void Split(const std::string& text, char delimiter, std::vector<std::string>& tokens);
 void Split(const std::string& text, const std::string& delimiter, std::vector<std::string>& tokens);
+// Remove all spaces from the string
 void RemoveSpaces(std::string& text);
+// Trim leading and trailing spaces from the string
+void TrimSpaces(std::string& text);
 bool IsSuffix(const std::string& str, const std::string& suffix);
+void ToLower(std::string& str);
+void ToUpper(std::string& str);
+std::unordered_map<std::string, std::string> ParseKeyValueString(
+    const std::string& input,
+    const std::unordered_set<std::string>& validValues, const std::string& defaultKey,
+    char pairDelimiter, char kvDelimiter
+);
+std::unordered_map<std::string, std::string> ParseArgs(const std::string& str);
 
 template<typename T>
 Result Str2Int(const std::string& str, const std::string& tag, T& outValue)

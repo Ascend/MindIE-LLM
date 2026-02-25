@@ -321,7 +321,7 @@
 | MIES_CONTAINER_IP     | 容器部署时，请设置成容器的IP地址（如果容器与裸机共用IP地址，应当配置为裸机IP地址），会用于多机间gRPC（Google Remote Procedure Call）通信和EndPoint业务面接收请求。裸机部署时，不配置。 |
 | HOST_IP               | 裸机部署时（不建议使用裸机部署），请设置成机器的物理机或虚拟机的IP地址。容器部署时不配置。 |
 | RANK_TABLE_FILE       | ranktable.json文件的绝对路径。  多机推理必须配置。 单机推理建议取消该环境变量（取消命令：**unset RANK_TABLE_FILE**）。如果设置该环境变量，文件内容必须正确有效（节点IP地址和device_ip必须正确），否则会导致模型初始化失败。 |
-| MIES_CONFIG_JSON_PATH | config.json文件的路径。如果该环境变量存在，则读取该值。如果不存在，则读取$*{MIES_INSTALL_PATH}*/conf/config.json文件。 |
+| MIES_CONFIG_JSON_PATH | config.json文件的路径。如果该环境变量存在，则读取该值。如果不存在，则读取$*{MINDIE_LLM_HOME_PATH}*/conf/config.json文件。 |
 | HCCL_DETERMINISTIC    | HCCL通信的确定性计算。多机推理时，建议配置为true。           |
 
 > [!NOTE]说明

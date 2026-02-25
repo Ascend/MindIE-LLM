@@ -45,6 +45,7 @@ struct ServerConfig {
     int32_t metricsPort = 1027;
     bool allowAllZeroIpListening = false;
     uint32_t maxLinkNum = 1000U;
+    uint32_t npuUsageThreshold = 0U;
     bool httpsEnabled = true;
     bool fullTextEnabled = false;
     bool pluginEnabled = false;
@@ -220,6 +221,8 @@ struct EngineConfig {
 
     // edge-cloud
     bool layerwiseDisaggregated = false;
+    bool lwdMultiNodesEnable = false;
+    bool isLwdMultiNodesMaster = false;
 };
 
 struct BackendConfig {
@@ -244,6 +247,9 @@ struct BackendConfig {
     std::vector<std::string> interNodeTlsCrlFilesVec;
     uint32_t worldSize = 0;
     struct KvPoolConfig kvPoolConfig;
+    // 分布式边云协同多机
+    bool lwdMultiNodesEnable = false;
+    int32_t lwdMultiNodesCtrlPort = 10003;
 };
 
 struct ModelDeployConfig {
@@ -377,6 +383,9 @@ struct ScheduleConfig {
     // slo
     uint16_t stageSelectPolicy = 0;
     bool dynamicBatchSizeEnable = false;
+    
+    // layerwiseDisaggregated
+    bool lwdNextPHeadPrior = false;
 };
 
 struct SchedulerConfig {
@@ -388,6 +397,7 @@ struct SchedulerConfig {
     uint32_t prefillPolicyType;
     uint32_t decodePolicyType;
     uint32_t policyType = 0;
+    uint32_t batchPnum = 1;
     bool dpScheduling;
 
     // batch config

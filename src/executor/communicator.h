@@ -54,6 +54,8 @@ public:
     void CleanUp();
 
 private:
+    bool LwdGRPCCommunicatorInit(std::unordered_map<std::string, std::string> &config,
+                                uint32_t grpcCommunicatorNum);
     std::unique_ptr<IPCCommunicator> InitSingleIPCCommunicator(const std::string &sharedMemName,
                                                               uint32_t localWorldSize,
                                                               const ShmSizeConfig &shmSizeConfig) const;
@@ -68,6 +70,7 @@ private:
 
     bool isMultiNodesInfer_;
     bool layerwiseDisaggregated_{false};
+    bool isLwdMultiNodesInfer_{false};
     MasterSlaveRole msRole_;
     uint32_t slaveNum_{0};
     int dpRankIdx_;             // The rank index of the current executor in the data parallel group.

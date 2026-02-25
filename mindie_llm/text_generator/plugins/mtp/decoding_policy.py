@@ -11,6 +11,7 @@ import numpy as np
 import torch
 
 from ...utils.model_input import ModelInput
+from ...utils.input_metadata import SIMULATE_SEQUENCE_ID
 from ....utils.tensor import tensor_backend, op
 
 
@@ -244,6 +245,15 @@ class DecodingPolicy:
         draft_sp_tokens = np.zeros((batch_size, self.infer_context.spcp_parallel_info.scp_size), dtype=np.int32)
 
         for i in range(batch_size):
+            # mtp场景下，虚推需要特殊处理，构造对应特殊的slots并置为-1不占用正常请求slots
+            if input_metadata.all_sequence_ids is not None and \
+                    input_metadata.all_sequence_ids[i] == SIMULATE_SEQUENCE_ID:
+                new_slots[i * slots_num_per_batch:(i + 1) * slots_num_per_batch] = -1
+                new_context_length[i] = self.num_speculative_tokens
+                new_position_ids[start_idx:start_idx + speculative_len] = np.arange(speculative_len)
+                prefill_head_indices_new[i] = start_idx + speculative_len - 1
+                start_idx += speculative_len
+                continue
             last_token_num = cached_last_token_num[i]
             if last_token_num == 0: # 对于PD分离场景，第一次decode无法获取到prefill输出的token数，因此这里保护成1
                 last_token_num = 1
@@ -341,6 +351,14 @@ class DecodingPolicy:
 
         for i in range(batch_size):
             input_len_per_batch = self.num_speculative_tokens + 1
+            # mtp场景下，虚推需要特殊处理，构造对应特殊的slots并置为-1不占用正常请求slots
+            if input_metadata.all_sequence_ids is not None and \
+                    input_metadata.all_sequence_ids[i] == SIMULATE_SEQUENCE_ID:
+                new_slots[i * input_len_per_batch:(i + 1) * input_len_per_batch] = -1
+                start_pos_ids = model_inputs.position_ids[i]
+                tmp_pos_ids = np.arange(start_pos_ids, start_pos_ids + input_len_per_batch)
+                new_position_ids[i * input_len_per_batch:(i + 1) * input_len_per_batch] = tmp_pos_ids
+                continue
             new_input_ids[i * input_len_per_batch] = model_inputs.input_ids[i]
             block_tables = input_metadata.batch_block_tables[i]
             start_pos_ids = model_inputs.position_ids[i]

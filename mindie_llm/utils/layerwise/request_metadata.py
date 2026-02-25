@@ -22,14 +22,15 @@ class LwdMetadata():
     end_exec_layer: int = 0
     end_of_generate_token: bool = True
     is_prefill: bool = True
-    edge_start_layer_num: int = 1
-    edge_end_layer_num: int = 1
+    is_dummy_batch: bool = False
+    request_dp_empty: bool = False
     cloud_total_layer: int = 62
     is_long_seq: bool = False
     long_seq_start_idx: int = 0
     long_seq_end_idx: int = 0
     long_seq_next_end_idx: int = 0
     prefill_total_seq_len: int = 0
+    is_last_chunk: bool = False
 
 
 class LwdMetadataManager():

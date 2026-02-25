@@ -48,7 +48,10 @@ static std::vector<ParamSpec> g_scheduleParamsConstraint = {{"templateName", "st
                                                             {"decodeExpectedTime", "uint32_t", false},
                                                             {"bufferResponseEnabled", "bool", false},
                                                             {"distributedEnable", "bool", false},
-                                                            {"maxFirstTokenWaitTime", "uint32_t", false}};
+                                                            {"maxFirstTokenWaitTime", "uint32_t", false},
+                                                            {"layerwiseDisaggregated", "object", false}};
+
+static std::vector<ParamSpec> g_scheduleLwdParamsConstraint = {{"nextPHeadPrior", "bool", false}};
 
 bool CheckSystemJson(Json &backendJsonData, const std::string &jsonPath,
                      std::vector<ParamSpec> &scheduleParamsConstraint)
@@ -87,6 +90,23 @@ bool ScheduleConfigManager::LoadBasicScheduleConfig(Json &scheduleJsonData)
     return true;
 }
 
+bool ScheduleConfigManager::LoadLwdConfig(Json &scheduleJsonData)
+{
+    if (!scheduleJsonData.contains("layerwiseDisaggregated")) {
+        return true;
+    }
+
+    Json lwdData = scheduleJsonData["layerwiseDisaggregated"];
+    if (!ParamChecker::CheckJsonParamType(lwdData, g_scheduleLwdParamsConstraint)) {
+        return false;
+    }
+    
+    if (lwdData.contains("nextPHeadPrior")) {
+        scheduleConfig_.lwdNextPHeadPrior = lwdData["nextPHeadPrior"];
+    }
+    return true;
+}
+
 bool ScheduleConfigManager::InitFromJson()
 {
     Json backendJsonData;
@@ -96,7 +116,7 @@ bool ScheduleConfigManager::InitFromJson()
 
     Json scheduleJsonData = backendJsonData["ScheduleConfig"];
 
-    if (!LoadBasicScheduleConfig(scheduleJsonData)) {
+    if (!LoadBasicScheduleConfig(scheduleJsonData) || !LoadLwdConfig(scheduleJsonData)) {
         return false;
     }
 

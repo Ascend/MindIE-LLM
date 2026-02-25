@@ -13,6 +13,7 @@
 
 #include "log.h"
 #include "math_utils.h"
+#include "request_response/request_id.h"
 #include "msServiceProfiler/msServiceProfiler.h"
 
 using namespace std::chrono;
@@ -315,6 +316,30 @@ bool FcfsPolicy::AllocBlocks4ParallelSeqGrp(SequenceGroupSPtr seqGroup,
     return true;
 }
 
+void FcfsPolicy::ScheduleRunningSeqGroup(const SequenceGroupSPtr &seqGroup, size_t numUncachedNewTokens,
+                                         bool enableChunking, RunningOutputs &runningOutput, SchedulingBudget &budget)
+{
+    bool isSimulateInferenceSeq = seqGroup->IsSimulateRequest();
+    if (!isSimulateInferenceSeq) {
+        policyHelper_.AppendSlots(seqGroup, runningOutput.blocksToCopy_);
+    }
+
+    auto scheduledSeqGroup =
+        std::make_shared<ScheduledSequenceGroup>(seqGroup, numUncachedNewTokens, enableChunking);
+    if (seqGroup->IsPrefill()) {
+        scheduledSeqGroup->tokenChunkSize_ = numUncachedNewTokens;
+        runningOutput.chunkedPrefillSeqGroups_.emplace_back(scheduledSeqGroup);
+        runningOutput.prefillSeqGroupsList_.emplace_back(seqGroup);
+    } else {
+        scheduledSeqGroup->tokenChunkSize_ = 1;
+        runningOutput.decodeSeqGroups_.emplace_back(scheduledSeqGroup);
+        runningOutput.decodeSeqGroupsList_.emplace_back(seqGroup);
+    }
+
+    budget.AddNumBatchedTokens(seqGroup->requestId, numUncachedNewTokens);
+    budget.AddNumSeqs(seqGroup->requestId, seqGroup->GetMaxNumRunningSeqs());
+}
+
 RunningOutputs FcfsPolicy::ApplyToRunningQueue(SchedulingBudget &budget, const bool enableChunking)
 {
     RunningOutputs runningOutput;
@@ -331,9 +356,10 @@ RunningOutputs FcfsPolicy::ApplyToRunningQueue(SchedulingBudget &budget, const b
 
         queuesCollection_->running_.pop_front();
         bool canAppend = true;
+        bool isSimulateInferenceSeq = seqGroup->IsSimulateRequest();
         // 是否需要抢占分两种情况：1. beamsearch请求新的seq是否可以alloc 2. 其他seq是否可以append
-        while (!AllocBlocks4ParallelSeqGrp(seqGroup, runningOutput.blocksToCopy_) ||
-               !policyHelper_.CanAppendSlots(seqGroup) || newRequestFirst_) {
+        while (!isSimulateInferenceSeq && (!AllocBlocks4ParallelSeqGrp(seqGroup, runningOutput.blocksToCopy_) ||
+               !policyHelper_.CanAppendSlots(seqGroup) || newRequestFirst_)) {
             // 2. try to pop back seqgroup of running queue to preempt
             SequenceGroupSPtr victmSeqGroup;
             if (!queuesCollection_->running_.empty()) {
@@ -360,22 +386,7 @@ RunningOutputs FcfsPolicy::ApplyToRunningQueue(SchedulingBudget &budget, const b
 
         // 4. append slot and update budget
         if (canAppend) {
-            policyHelper_.AppendSlots(seqGroup, runningOutput.blocksToCopy_);
-
-            auto scheduledSeqGroup =
-                std::make_shared<ScheduledSequenceGroup>(seqGroup, numUncachedNewTokens, enableChunking);
-            if (seqGroup->IsPrefill()) {
-                scheduledSeqGroup->tokenChunkSize_ = numUncachedNewTokens;
-                runningOutput.chunkedPrefillSeqGroups_.emplace_back(scheduledSeqGroup);
-                runningOutput.prefillSeqGroupsList_.emplace_back(seqGroup);
-            } else {
-                scheduledSeqGroup->tokenChunkSize_ = 1;
-                runningOutput.decodeSeqGroups_.emplace_back(scheduledSeqGroup);
-                runningOutput.decodeSeqGroupsList_.emplace_back(seqGroup);
-            }
-
-            budget.AddNumBatchedTokens(seqGroup->requestId, numUncachedNewTokens);
-            budget.AddNumSeqs(seqGroup->requestId, seqGroup->GetMaxNumRunningSeqs());
+            ScheduleRunningSeqGroup(seqGroup, numUncachedNewTokens, enableChunking, runningOutput, budget);
         }
     }
 

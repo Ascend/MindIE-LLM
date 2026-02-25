@@ -572,7 +572,7 @@ class DeepseekV3Layer(nn.Module):
         self.prefix = f"{prefix}.layers.{layer_idx}"
         self.layer_idx = layer_idx
         # (NOTE): the fused kernel switch can be removed in the future
-        self.enable_mlapo = False
+        self.enable_mlapo = True
         self.input_layernorm = RMSNorm(
             config.hidden_size,
             config.rms_norm_eps,

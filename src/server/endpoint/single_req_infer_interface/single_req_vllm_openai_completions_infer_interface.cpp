@@ -76,8 +76,8 @@ bool SingleReqVllmOpenAiCompletionsInferInterface::SetReturnSeqCount(RequestSPtr
             // n shouldn't be null when best_of is provided
             if (!req->n.has_value()) {
                 std::stringstream ss;
-                ss << "n shouldn't be null when best_of is provided, but best_of is " << req->bestOf.value()
-                    << " and n is null.";
+                ss << "best_of must be equal to n in stream mode, but best_of is " << req->bestOf.value()
+                   << ", n is None.";
                 msg = ss.str();
                 ULOG_ERROR(SUBMODLE_NAME_ENDPOINT, GenerateEndpointErrCode(ERROR, SUBMODLE_FEATURE_SINGLE_INFERENCE,
                     CHECK_ERROR), "Failed to check parameters by " << msg << " The logid is " << requestId_ << ".");

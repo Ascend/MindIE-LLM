@@ -9,11 +9,14 @@
  * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
  * See the Mulan PSL v2 for more details.
  */
-#include "communicator.h"
+#include <future>
+#include <algorithm>
+#include <functional>
 #include "string_utils.h"
 #include "log.h"
 #include "msServiceProfiler/msServiceProfiler.h"
 #include "config_manager.h"
+#include "communicator.h"
 
 namespace mindie_llm {
 
@@ -22,13 +25,21 @@ Communicator::Communicator(std::unordered_map<std::string, std::string> &config,
     : isMultiNodesInfer_(isMultiNodesInfer), dpRankIdx_(dpRankIdx), remoteDPRankIdx_(remoteDPRankIdx),
       intraNodeTP_(intraNodeTP)
 {
-    if ((config.count("layerwiseDisaggregated") != 0) && (config.at("layerwiseDisaggregated") == "true")) {
+    std::string lwdRoletype = "";
+    auto lwdIt = config.find("layerwiseDisaggregated");
+    if (lwdIt != config.end() && lwdIt->second == "true") {
         layerwiseDisaggregated_ = true;
+        lwdRoletype = config.at("layerwiseDisaggregatedRoleType");
     }
-    if (isMultiNodesInfer || layerwiseDisaggregated_) {
-        msRole_ = config.at("isMaster") == "0" ? MasterSlaveRole::SLAVE : MasterSlaveRole::MASTER;
-    } else {
-        msRole_ = MasterSlaveRole::MASTER; // Default to master role for single node inference.
+
+    auto lwdMultiIt = config.find("layerwiseDisaggregatedMultiNodesInferEnabled");
+    if (lwdMultiIt != config.end() && lwdMultiIt->second == "true") {
+        isLwdMultiNodesInfer_ = true;
+    }
+
+    msRole_ = MasterSlaveRole::MASTER; // Default to master role for single node inference.
+    if ((isMultiNodesInfer && config.at("isMaster") == "0") or (lwdRoletype == "slave")) {
+        msRole_ = MasterSlaveRole::SLAVE;
     }
 
     if (isMultiNodesInfer_ && msRole_ == MasterSlaveRole::MASTER) {
@@ -42,6 +53,12 @@ Communicator::Communicator(std::unordered_map<std::string, std::string> &config,
             // Calculate the corresponding slave IP.
             remoteSlaveIP_ = slaveIPs.at(static_cast<std::size_t>(dpRankIdx_) / dpNumPerNode - 1);
         }
+    }
+
+    if (isLwdMultiNodesInfer_ && msRole_ == MasterSlaveRole::MASTER && std::stoul(config.at("dp")) > 1) {
+        std::vector<std::string> slaveIPs;
+        mindie_llm::Split(config.at("slaveIPs"), ",", slaveIPs);
+        remoteSlaveIP_ = slaveIPs.at(static_cast<std::size_t>(dpRankIdx_));
     }
 
     PROF(INFO, AddMetaInfo("msRole", static_cast<int>(msRole_)));
@@ -75,6 +92,52 @@ bool Communicator::InitIPCCommunicators(const std::string &sharedMemPrefix, uint
     return true;
 }
 
+bool Communicator::LwdGRPCCommunicatorInit(std::unordered_map<std::string, std::string> &config,
+    uint32_t grpcCommunicatorNum)
+{
+    auto itrFindDp = config.find("dp");
+    uint32_t dpNum = std::stol(itrFindDp->second);
+    if (dpNum == 0) {
+        MINDIE_LLM_LOG_ERROR("Lwd The value of dp_num must be greater than 0.");
+        return false;
+    }
+    if (dpNum == grpcCommunicatorNum) { /* dp(excutor)数量与grpcCommunicatorNum一致, 由excutor保证调用次数 */
+        if (!grpcCommunicator_->Init(grpcCommunicatorNum)) {
+            MINDIE_LLM_LOG_ERROR("Lwd Failed to initialize GRPC Communicator.");
+            return false;
+        }
+
+        return true;
+    }
+
+    /* 1个dp起多个GRPC的情况 */
+    auto itrFindSlaveIPs = config.find("slaveIPs");
+    std::string slaveIPsStr = std::string(itrFindSlaveIPs->second);
+    uint32_t slaveNum = std::count(slaveIPsStr.begin(), slaveIPsStr.end(), ',') + 1;
+    uint32_t multiGrpcNumPerExcutor = slaveNum / dpNum;
+    std::vector<std::future<bool>> futures;
+    for (uint32_t i = 0; i < multiGrpcNumPerExcutor; i++) {
+        futures.push_back(std::async(std::launch::async, [&, i, grpcCommunicatorNum]() {
+            if (!grpcCommunicator_->Init(grpcCommunicatorNum)) {
+                MINDIE_LLM_LOG_ERROR("Lwd Failed to initialize GRPC Communicator:" << i << ".");
+                return false;
+            }
+
+            return true;
+        }));
+    }
+
+    // 检查所有的future结果都为true
+    for (auto &fut : futures) {
+        if (!fut.get()) {
+            MINDIE_LLM_LOG_ERROR("Lwd Failed to initialize GRPC Communicator, one of Communicator failed.");
+            return false;
+        }
+    }
+
+    return true;
+}
+
 bool Communicator::InitGRPCCommunicator(std::unordered_map<std::string, std::string> &config,
                                         ResponseHandler responseFromSlaveHandler, uint32_t grpcCommunicatorNum)
 {
@@ -92,6 +155,11 @@ bool Communicator::InitGRPCCommunicator(std::unordered_map<std::string, std::str
             MINDIE_LLM_LOG_ERROR("Failed to register request handler for slave node.");
             return false;
         }
+    }
+
+    auto itrFindLwdMultiNodesEn = config.find("lwd_multi_nodes_enable");
+    if (itrFindLwdMultiNodesEn != config.end() && itrFindLwdMultiNodesEn->second == "true") {
+        return LwdGRPCCommunicatorInit(config, grpcCommunicatorNum);
     }
 
     if (!grpcCommunicator_->Init(grpcCommunicatorNum)) {

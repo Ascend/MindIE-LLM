@@ -48,9 +48,8 @@ class SharedMemoryManager:
             cls._instance = super().__new__(cls)
         return cls._instance
 
-    # 为避免多实例共享内存重名的情况, 需要传入glb_producer_id做区分
-    def __init__(self, sys_glb_producer_id_str='0'):
-        tmp_str = '_' + sys_glb_producer_id_str
+    def __init__(self, parent_pid):
+        tmp_str = '_' + str(parent_pid)
         self._shm_path += tmp_str
         self._sem_mutex_path += tmp_str
         self._sem_date_ready_path += tmp_str
@@ -72,14 +71,15 @@ class SharedMemoryManager:
             self._initialize_mem_path()
         time.sleep(1)
 
-        max_retries = 1000
+        max_retries = 10000
         for _ in range(max_retries):
             try:
                 self._shm_fd = os.open(self._shm_path, os.O_RDWR, mode=0o644)
                 self._ptr = mmap.mmap(self._shm_fd, self._shm_size, mmap.MAP_SHARED, mmap.PROT_READ | mmap.PROT_WRITE)
                 self._sem = posix_ipc.Semaphore(self._sem_mutex_path, posix_ipc.O_RDWR)
                 self._data_sem = posix_ipc.Semaphore(self._sem_date_ready_path, posix_ipc.O_RDWR)
-                logger.info("[layerwiseDisaggregated] successed initialize SharedMemoryManager")
+                logger.info(f"[layerwiseDisaggregated] successed initialize SharedMemoryManager, "
+                            f"shm path: {self._shm_path}")
                 return
             except Exception:
                 time.sleep(0.1)

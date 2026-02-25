@@ -27,10 +27,11 @@ COMPATIBLE_MATRIX: dict[FeatureType, list[FeatureType]] = {
     FeatureType.PREFILL: [FeatureType.SINGLE_LORA, FeatureType.MULTI_LORA, FeatureType.FLASHCOMM, \
         FeatureType.DAP, FeatureType.SPLITFUSE],
     FeatureType.DECODE: [FeatureType.SINGLE_LORA, FeatureType.MULTI_LORA, FeatureType.SPECULATE],
-    FeatureType.SINGLE_LORA: [FeatureType.PREFILL, FeatureType.DECODE, FeatureType.SPLITFUSE],
-    FeatureType.MULTI_LORA: [FeatureType.PREFILL, FeatureType.DECODE, FeatureType.SPLITFUSE],
+    FeatureType.SINGLE_LORA: [FeatureType.PREFILL, FeatureType.DECODE, FeatureType.SPLITFUSE, FeatureType.FLASHCOMM],
+    FeatureType.MULTI_LORA: [FeatureType.PREFILL, FeatureType.DECODE, FeatureType.SPLITFUSE, FeatureType.FLASHCOMM],
     FeatureType.DAP: [FeatureType.PREFILL],
-    FeatureType.FLASHCOMM: [FeatureType.PREFILL, FeatureType.SPLITFUSE],
+    FeatureType.FLASHCOMM: [FeatureType.PREFILL, FeatureType.SPLITFUSE, FeatureType.SINGLE_LORA, \
+        FeatureType.MULTI_LORA],
     FeatureType.SPECULATE: [FeatureType.DECODE],
     FeatureType.SPLITFUSE: [FeatureType.PREFILL, FeatureType.FLASHCOMM, FeatureType.DAP, \
         FeatureType.LAYERWISE_PREFILL, FeatureType.SINGLE_LORA, FeatureType.MULTI_LORA],

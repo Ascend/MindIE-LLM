@@ -23,7 +23,7 @@ from tests.pythontest.atb_llm.models.base.mock_class import MockTorchClasses
 
 class TestLayerwisePrefillGraphWrapper(unittest.TestCase):
     def setUp(self):
-        self.layerwise = LayerWiseAttr(start_num=1, end_num=1, split_type=DistributedType.CLOUD)
+        self.layerwise = LayerWiseAttr(edge_start_layer_count=1, edge_end_layer_count=1, split_type=DistributedType.CLOUD)
         self.graph_wrapper = LayerwisePrefillGraphWrapper(self.layerwise)
         self.model_type = "test_class"
 
@@ -38,7 +38,7 @@ class TestLayerwiseEdgePrefillGraphWrapper(unittest.TestCase):
     def setUp(self):
         self.mock_torch_classes = MockTorchClasses()
         torch.classes = self.mock_torch_classes
-        self.layerwise = LayerWiseAttr(start_num=1, end_num=1, split_type=DistributedType.CLOUD)
+        self.layerwise = LayerWiseAttr(edge_start_layer_count=1, edge_end_layer_count=1, split_type=DistributedType.CLOUD)
         self.graph_wrapper = LayerwiseEdgePrefillGraphWrapper(self.layerwise)
         self.model_type = "test_class"
 
@@ -145,7 +145,7 @@ class TestLayerwiseCloudPrefillGraphWrapper(unittest.TestCase):
     def setUp(self):
         self.mock_torch_classes = MockTorchClasses()
         torch.classes = self.mock_torch_classes
-        self.layerwise = LayerWiseAttr(start_num=1, end_num=1, split_type=DistributedType.CLOUD)
+        self.layerwise = LayerWiseAttr(edge_start_layer_count=1, edge_end_layer_count=1, split_type=DistributedType.CLOUD)
         self.layerwise.num_hidden_layers = 4
         self.config = Qwen2Config(
         )

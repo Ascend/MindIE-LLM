@@ -156,6 +156,73 @@ TEST_F(SchedulerTest, AddSeqGroup)
     }
 }
 
+TEST_F(SchedulerTest, AddSeqGroupSpecialSeqIdDirectToRunning)
+{
+    int blockSize = 4;
+    auto config = createDefaultSchedulerConfig(blockSize);
+    InitScheduler(config);
+
+    // 测试1：特殊seqId直接进入running队列
+    {
+        std::string specialReqId = "18446744073709550";
+        std::vector<TokenId> dummyInputs{0, 1, 2, 3};
+        SequenceSPtr specialSeq = std::make_shared<Sequence>(9223372036854774L, blockSize, dummyInputs);
+        auto samplingParams = std::make_shared<SamplingParams>();
+        samplingParams->bestOf = 1;
+        std::vector<SequenceSPtr> seqs{specialSeq};
+        SequenceGroupSPtr specialSeqGroup = std::make_shared<SequenceGroup>(specialReqId, seqs, samplingParams);
+
+        size_t waitingBefore = scheduler_->waiting_.Size();
+        size_t runningBefore = scheduler_->running_.Size();
+
+        scheduler_->AddSeqGroup(specialSeqGroup);
+
+        // 验证特殊seqId进入running队列
+        EXPECT_EQ(scheduler_->running_.Size(), runningBefore + 1);
+        EXPECT_EQ(scheduler_->waiting_.Size(), waitingBefore);  // waiting队列不变
+    }
+
+    // 测试2：普通seqId进入waiting队列
+    {
+        std::string normalReqId = "normal_request";
+        std::vector<TokenId> dummyInputs{0, 1, 2, 3};
+        SequenceSPtr normalSeq = std::make_shared<Sequence>(12345L, blockSize, dummyInputs);
+        auto samplingParams = std::make_shared<SamplingParams>();
+        samplingParams->bestOf = 1;
+        std::vector<SequenceSPtr> seqs{normalSeq};
+        SequenceGroupSPtr normalSeqGroup = std::make_shared<SequenceGroup>(normalReqId, seqs, samplingParams);
+
+        size_t waitingBefore = scheduler_->waiting_.Size();
+        size_t runningBefore = scheduler_->running_.Size();
+
+        scheduler_->AddSeqGroup(normalSeqGroup);
+
+        // 验证普通seqId进入waiting队列
+        EXPECT_EQ(scheduler_->waiting_.Size(), waitingBefore + 1);
+        EXPECT_EQ(scheduler_->running_.Size(), runningBefore);  // running队列不变
+    }
+
+    // 测试3：多个特殊seqId和普通seqId的混合
+    {
+        std::string specialReqId2 = "18446744073709550";
+        std::vector<TokenId> dummyInputs{0, 1, 2, 3};
+        SequenceSPtr specialSeq2 = std::make_shared<Sequence>(9223372036854774L, blockSize, dummyInputs);
+        auto samplingParams = std::make_shared<SamplingParams>();
+        samplingParams->bestOf = 1;
+        std::vector<SequenceSPtr> seqs{specialSeq2};
+        SequenceGroupSPtr specialSeqGroup2 = std::make_shared<SequenceGroup>(specialReqId2, seqs, samplingParams);
+
+        size_t waitingBefore = scheduler_->waiting_.Size();
+        size_t runningBefore = scheduler_->running_.Size();
+
+        scheduler_->AddSeqGroup(specialSeqGroup2);
+
+        // 验证第二个特殊seqId也进入running队列
+        EXPECT_EQ(scheduler_->running_.Size(), runningBefore + 1);
+        EXPECT_EQ(scheduler_->waiting_.Size(), waitingBefore);
+    }
+}
+
 TEST_F(SchedulerTest, ReplacePlaceHolderWithTokenTest)
 {
     size_t blockSize = 4;

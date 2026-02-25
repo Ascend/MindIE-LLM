@@ -1,7 +1,7 @@
 #!/bin/bash
 function fn_build_third_party()
 {
-    THIRD_BUILD_DIR=${CODE_ROOT}/build_third_party
+    THIRD_BUILD_DIR=${CODE_ROOT}/build/third_party
     mkdir -p ${THIRD_BUILD_DIR}
     cd ${THIRD_BUILD_DIR}
 

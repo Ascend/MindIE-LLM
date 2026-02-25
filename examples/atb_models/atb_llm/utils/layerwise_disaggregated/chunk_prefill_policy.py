@@ -22,10 +22,11 @@ class ChunkPrefilPolicy():
             cls._instance = super(ChunkPrefilPolicy, cls).__new__(cls)
         return cls._instance
 
-    def __init__(self, model_name_or_path='qwen'):
+    def __init__(self, model_name_or_path='qwen', batch_p_num=1):
         self.soc_name = acl.get_soc_name()
         if not hasattr(self, 'initialized'):
             self.model_type = self.__get_model_name(model_name_or_path)
+            self.batch_p_num = batch_p_num
             # For NPU Soc is Ascend910B2 or other models, use the following default prefill_chunk_map
             self.prefill_chunk_map = {128: 33, 64: 20, 32: 10, 16: 6, 8: 2}
             self.__ajust_prefill_chunk_map_for_diff_npu_soc()
@@ -54,8 +55,14 @@ class ChunkPrefilPolicy():
         if self.soc_name == 'Ascend910B2':
             return
         if self.soc_name == 'Ascend910B3':
-            self.prefill_chunk_map = {128: 33, 64: 20, 32: 10, 16: 6, 8: 2}
+            if self.batch_p_num == 1:
+                self.prefill_chunk_map = {128: 33, 64: 20, 32: 10, 16: 6, 8: 2}
+            else:
+                self.prefill_chunk_map = {128: 33, 64: 20, 32: 10, 16: 6, 8: 2}
             return
         if self.soc_name == 'Ascend910B4':
-            self.prefill_chunk_map = {128: 33, 64: 20, 32: 10, 16: 6, 8: 2}
+            if self.batch_p_num == 1:
+                self.prefill_chunk_map = {128: 33, 64: 20, 32: 10, 16: 6, 8: 2}
+            else:
+                self.prefill_chunk_map = {128: 33, 64: 20, 32: 10, 16: 6, 8: 2}
             return

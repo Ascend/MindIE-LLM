@@ -23,12 +23,12 @@ from mindie_llm.connector.request_listener.shared_mem_communication import Share
 from mindie_llm.utils.layerwise.request_metadata import LwdMetadata, lwd_metadata_manager
 from mindie_llm.utils.layerwise.input_metadata import EdgeCloudInputMetadata, pd_exec_matadata_instance
 from mindie_llm.connector.common.input_metadata_composite import InputMetadataComposite
-from mindie_llm.connector.request_router.layerwise.request_router_lwd import DecisionType
+from mindie_llm.connector.request_router.layerwise.request_router_lwd import LONG_SEQ_LEN_MIN, DecisionType
 
 
 class TestRequestRouterEdge(unittest.TestCase):
     def setUp(self):
-        self.router = RequestRouterEdge()
+        self.router = RequestRouterEdge('0')
         self.router.router_impl = Mock()
         self.router.ctrl_comm = self.router.router_impl.ctrl_comm
         self.router.rank = 0
@@ -137,6 +137,7 @@ class TestRequestRouterEdge(unittest.TestCase):
                 self.router.prefill_request = prefill_execute_request
                 self.router.prefill_first = prefill_first
                 self.router.prefill_comm_finish = Prefill_comm_finish
+                self.router.prefill_last_request = prefill_execute_request
                 self.router.decode_request = decode_execute_request
                 self.router.decode_first = decode_first
                 self.router.decode_first = decode_first
@@ -173,16 +174,16 @@ class TestRequestRouterEdge(unittest.TestCase):
         func()
 
         self.assertFalse(self.router.prefill_first)
-        self.assertIsNotNone(self.router.prefill_request)
+        self.assertIsNone(self.router.prefill_request)
 
     def test_do_prefill_last(self):
-        self.router.prefill_request = ExecuteRequest()
+        self.router.prefill_last_request = ExecuteRequest()
         self.router.prefill_first = False
         self.router.prefill_comm_finish = True
         func = self.router.process_func.get(DecisionType.DO_PREFILL_LAST)
         func()
 
-        self.assertIsNone(self.router.prefill_request)
+        self.assertIsNone(self.router.prefill_last_request)
         self.assertFalse(self.router.prefill_comm_finish)
 
 
@@ -231,14 +232,11 @@ class TestRequestRouterEdge(unittest.TestCase):
 
     def test_recv_prefill(self):
         self.router.ctrl_comm.recv_prefill = Mock()
-        self.router.ctrl_comm.prefill_comm_finish_tcp = True
+        self.router.ctrl_comm.prefill_comm_finish_tcp_count = 1
         self.router.ctrl_comm.prefill_recv_msg = None
-        self.router.ctrl_comm.parse_shape = Mock()
-        self.router.ctrl_comm.parse_shape.return_value = ''
 
         self.router.prefill_comm_finish = False
         self.router.recv_prefill()
-        self.router.ctrl_comm.parse_shape.assert_called_once()
         self.assertTrue(self.router.prefill_comm_finish)
     
     def test_recv_decode(self):
@@ -271,6 +269,9 @@ class TestRequestRouterEdge(unittest.TestCase):
             (0, 0, False, 0, True, False, 0, 0, DecisionType.DO_PREFILL_FIRST), 
             (1, 1, True, 0, True, False, 0, 0, DecisionType.DO_PREFILL_LAST)
         ]
+        self.router.decode_request = ExecuteRequest()
+        self.router.prefill_request = ExecuteRequest()
+        self.router.prefill_last_request = ExecuteRequest()
         for start_exec_layer, end_exec_layer, end_of_generate_token, cloud_total_layer, is_prefill, is_long_seq, long_seq_start_idx, long_seq_end_idx, decision_type in test_cases:
             self.router.decision_type = decision_type
             self.router.arrange_exec_stage()
@@ -286,6 +287,9 @@ class TestRequestRouterEdge(unittest.TestCase):
 
 
     def test_recv_decision_type(self):
+        self.router.decode_request = ExecuteRequest()
+        self.router.prefill_request = ExecuteRequest()
+        self.router.prefill_last_request = ExecuteRequest()
         self.router.rank = 0
         self.router.decision_type = DecisionType.DO_DECODE_FIRST
         self.router.broadcast_decision_type()
@@ -312,7 +316,7 @@ class TestRequestRouterEdge(unittest.TestCase):
         self.router.prefill_request = ExecuteRequest()
         self.router.exceute_inference_request()
         self.assertFalse(self.router.prefill_first)
-        self.assertIsNotNone(self.router.prefill_request)
+        self.assertIsNone(self.router.prefill_request)
 
 
     def test_save_inference_request(self):
@@ -330,13 +334,18 @@ class TestRequestRouterEdge(unittest.TestCase):
     def test_get_all_request(self):
         self.router.initialize = Mock()
         self.router.router_impl.seq_ctrl = Mock()
+        self.router.ctrl_comm.prefill_comm_finish_tcp_count = 0
+        self.router.parse_all_dp_batches_seq_lens = MagicMock(return_value=[0])
+        self.router.calc_max_seq_len = MagicMock(return_value=0)
+        self.router.calc_curr_dp_seq_len = MagicMock(return_value=0)
+        self.router.calc_batch_size = MagicMock(return_value=1)
+        
         self.router.inference_queue.put(self.mock_prefill_request())
         self.router.inference_queue.put(self.mock_decode_request())
         self.router.inference_queue.put(self.mock_init_request())
         self.router.inference_queue.put(self.mock_finalize_request())
         self.router.inference_queue.put(self.mock_generator_cleanup_request())
-        self.router.calc_seq_len = MagicMock(return_value=0)
-        self.router.calc_batch_size = MagicMock(return_value=1)
+        
         self.router.get_all_request()
         self.assertTrue(self.router.prefill_first)
         self.assertTrue(self.router.decode_first)
@@ -374,99 +383,135 @@ class TestRequestRouterEdge(unittest.TestCase):
         process.terminate()
 
     def get_shared_memery(self):
-        share_mem_manager = SharedMemoryManager()
+        share_mem_manager = SharedMemoryManager('0')
         is_producer = True if self.router.rank == 0 else False
         share_mem_manager.initialize(is_producer, 1)   # 2 cards 1 master
 
         return share_mem_manager
     
     def test_prefill_chunk(self):
-        self.router.inference_queue.put(self.mock_prefill_request())
-        self.router.calc_seq_len = Mock(return_value=18000)
-        self.router.calc_batch_size = Mock(return_value=1)
+        self.router.calc_curr_dp_seq_len = Mock(return_value=18000)
         self.router.prefill_chunk_instance = Mock()
         self.router.prefill_chunk_instance.map_prefill_chunk_num = Mock()
         self.router.prefill_chunk_instance.map_prefill_chunk_num.return_value = 6
+        self.router.ctrl_comm.prefill_comm_finish_tcp_count = 0
+        self.router.calc_max_seq_len = MagicMock(return_value=18000)
+        self.router.inference_queue.put(self.mock_prefill_request())
+        self.router.wait_prefill_last = False
+        self.router.calc_batch_size = Mock(return_value=1)
         self.router.get_all_request()
         self.router.calc_decision_type()
         self.assertEqual(self.router.decision_type, DecisionType.DO_PREFILL_FIRST)
         self.router.arrange_exec_stage()
-        self.assertEqual(lwd_metadata_manager.get_metadata(), LwdMetadata(0, 0, False, True, 1, 1, 0, True, 0, 3000, 0, 18000))
+        self.assertEqual(lwd_metadata_manager.get_metadata(), LwdMetadata(0, 0, False, True, False, False, 0, True, 0, 3000, 0, 18000, False))
         self.router.exceute_inference_request()
         
         self.router.calc_decision_type()
         self.assertEqual(self.router.decision_type, DecisionType.DO_PREFILL_FIRST)
         self.router.arrange_exec_stage()
-        self.assertEqual(lwd_metadata_manager.get_metadata(), LwdMetadata(0, 0, False, True, 1, 1, 0, True, 3000, 6000, 0, 18000))
+        self.assertEqual(lwd_metadata_manager.get_metadata(), LwdMetadata(0, 0, False, True, False, False, 0, True, 3000, 6000, 0, 18000, False))
         self.router.exceute_inference_request()
         
+        self.router.prefill_last_request = self.mock_prefill_request()
         self.router.prefill_comm_finish = True
         self.router.calc_decision_type()
         self.assertEqual(self.router.decision_type, DecisionType.DO_PREFILL_LAST)
         self.router.arrange_exec_stage()
-        self.assertEqual(lwd_metadata_manager.get_metadata(), LwdMetadata(1, 1, False, True, 1, 1, 0, True, 0, 3000, 0, 18000))
+        self.assertEqual(lwd_metadata_manager.get_metadata(), LwdMetadata(1, 1, False, True, False, False, 0, True, 0, 3000, 0, 18000, False))
         self.router.exceute_inference_request()
         
         self.router.calc_decision_type()
         self.assertEqual(self.router.decision_type, DecisionType.DO_PREFILL_FIRST)
         self.router.arrange_exec_stage()
-        self.assertEqual(lwd_metadata_manager.get_metadata(), LwdMetadata(0, 0, False, True, 1, 1, 0, True, 6000, 9000, 0, 18000))
+        self.assertEqual(lwd_metadata_manager.get_metadata(), LwdMetadata(0, 0, False, True, False, False, 0, True, 6000, 9000, 0, 18000, False))
         self.router.exceute_inference_request()
         
         self.router.prefill_comm_finish = True
         self.router.calc_decision_type()
         self.assertEqual(self.router.decision_type, DecisionType.DO_PREFILL_LAST)
         self.router.arrange_exec_stage()
-        self.assertEqual(lwd_metadata_manager.get_metadata(), LwdMetadata(1, 1, False, True, 1, 1, 0, True, 3000, 6000, 0, 18000))
+        self.assertEqual(lwd_metadata_manager.get_metadata(), LwdMetadata(1, 1, False, True, False, False, 0, True, 3000, 6000, 0, 18000, False))
         self.router.exceute_inference_request()
         
         self.router.calc_decision_type()
         self.assertEqual(self.router.decision_type, DecisionType.DO_PREFILL_FIRST)
         self.router.arrange_exec_stage()
-        self.assertEqual(lwd_metadata_manager.get_metadata(), LwdMetadata(0, 0, False, True, 1, 1, 0, True, 9000, 12000, 0, 18000))
+        self.assertEqual(lwd_metadata_manager.get_metadata(), LwdMetadata(0, 0, False, True, False, False, 0, True, 9000, 12000, 0, 18000, False))
         self.router.exceute_inference_request()
         
         self.router.prefill_comm_finish = True
         self.router.calc_decision_type()
         self.assertEqual(self.router.decision_type, DecisionType.DO_PREFILL_LAST)
         self.router.arrange_exec_stage()
-        self.assertEqual(lwd_metadata_manager.get_metadata(), LwdMetadata(1, 1, False, True, 1, 1, 0, True, 6000, 9000, 0, 18000))
+        self.assertEqual(lwd_metadata_manager.get_metadata(), LwdMetadata(1, 1, False, True, False, False, 0, True, 6000, 9000, 0, 18000, False))
         self.router.exceute_inference_request()
         
         self.router.calc_decision_type()
         self.assertEqual(self.router.decision_type, DecisionType.DO_PREFILL_FIRST)
         self.router.arrange_exec_stage()
-        self.assertEqual(lwd_metadata_manager.get_metadata(), LwdMetadata(0, 0, False, True, 1, 1, 0, True, 12000, 15000, 0, 18000))
+        self.assertEqual(lwd_metadata_manager.get_metadata(), LwdMetadata(0, 0, False, True, False, False, 0, True, 12000, 15000, 0, 18000, False))
         self.router.exceute_inference_request()
         
         self.router.prefill_comm_finish = True
         self.router.calc_decision_type()
         self.assertEqual(self.router.decision_type, DecisionType.DO_PREFILL_LAST)
         self.router.arrange_exec_stage()
-        self.assertEqual(lwd_metadata_manager.get_metadata(), LwdMetadata(1, 1, False, True, 1, 1, 0, True, 9000, 12000, 0, 18000))
+        self.assertEqual(lwd_metadata_manager.get_metadata(), LwdMetadata(1, 1, False, True, False, False, 0, True, 9000, 12000, 0, 18000, False))
         self.router.exceute_inference_request()
         
         self.router.calc_decision_type()
         self.assertEqual(self.router.decision_type, DecisionType.DO_PREFILL_FIRST)
         self.router.arrange_exec_stage()
-        self.assertEqual(lwd_metadata_manager.get_metadata(), LwdMetadata(0, 0, False, True, 1, 1, 0, True, 15000, 18000, 0, 18000))
+        self.assertEqual(lwd_metadata_manager.get_metadata(), LwdMetadata(0, 0, False, True, False, False, 0, True, 15000, 18000, 0, 18000, True))
         self.router.exceute_inference_request()
         
         self.router.prefill_comm_finish = True
         self.router.calc_decision_type()
         self.assertEqual(self.router.decision_type, DecisionType.DO_PREFILL_LAST)
         self.router.arrange_exec_stage()
-        self.assertEqual(lwd_metadata_manager.get_metadata(), LwdMetadata(1, 1, False, True, 1, 1, 0, True, 12000, 15000, 0, 18000))
+        self.assertEqual(lwd_metadata_manager.get_metadata(), LwdMetadata(1, 1, False, True, False, False, 0, True, 12000, 15000, 0, 18000, False))
         self.router.exceute_inference_request()
         
         self.router.prefill_comm_finish = True
         self.router.calc_decision_type()
         self.assertEqual(self.router.decision_type, DecisionType.DO_PREFILL_LAST)
         self.router.arrange_exec_stage()
-        self.assertEqual(lwd_metadata_manager.get_metadata(), LwdMetadata(1, 1, True, True, 1, 1, 0, True, 15000, 18000, 0, 18000))
+        self.assertEqual(lwd_metadata_manager.get_metadata(), LwdMetadata(1, 1, True, True, False, False, 0, True, 15000, 18000, 0, 18000, True))
         self.router.exceute_inference_request()
+        
+    def test_is_request_long_seq(self):
+        prefill_request = self.mock_prefill_request()
+        seq_lens = MagicMock()
+        seq_lens.seq_lens = [LONG_SEQ_LEN_MIN+1]
+        prefill_request.execute_model_request.all_dp_batches_seq_lens = [seq_lens]
+        prefill_request.execute_model_request.seq_group_metadata_list = [100]
+        
+        is_long_seq = self.router.is_request_long_seq(prefill_request)
+        self.assertTrue(is_long_seq)
+        
+    @patch("mindie_llm.connector.common.input_metadata_builder.parse_all_dp_batches_seq_lens")
+    def test_calc_curr_dp_seq_len(self, mock_parse):
+        self.router.router_impl.generator = Mock()
+        self.router.router_impl.generator.plugin = Mock()
+        self.router.router_impl.generator.plugin.model_wrapper = Mock()
+        self.router.router_impl.generator.plugin.model_wrapper.mapping = Mock()
+        self.router.router_impl.generator.plugin.model_wrapper.mapping.attn_dp = Mock()
+        self.router.router_impl.generator.plugin.model_wrapper.mapping.attn_dp.rank = 0
+        
+        mock_parse.return_value = [[10, 20], [30, 40]]
+        execute_request = Mock()
+        execute_request.execute_model_request.seq_group_metadata_list = [
+            Mock(dp_rank_id=0),
+            Mock(dp_rank_id=1)                                                             
+            ]
+        seq_lens = MagicMock()
+        seq_lens.seq_lens = [[10, 20]]
+        execute_request.execute_model_request.all_dp_batches_seq_lens = [seq_lens]
 
-
+        result = self.router.calc_curr_dp_seq_len(execute_request)
+        self.assertEqual(result, 30)
+      
+  
 class TestEdgeCloudInputMetadata(unittest.TestCase):
     def setUp(self):
         self.pd_exec_matadata = pd_exec_matadata_instance
@@ -479,61 +524,67 @@ class TestEdgeCloudInputMetadata(unittest.TestCase):
     def tearDownClass(cls):
         print("TestEdgeCloudInputMetadata end")
 
-    def test_is_get_input_metadata(self):
+    def test_have_input_metadata(self):
         test_cases = [
-            LwdMetadata(1, 1, True, False, 1, 1, 0, False, 0, 0, 0, 1024),        # D尾
-            LwdMetadata(1, 1, True, True, 1, 1, 0, False, 0, 0, 0, 1024),         # P尾
-            LwdMetadata(8, 16, False, True, 1, 1, 62, False, 0, 0, 0, 1024),      # 云侧P非首块
-            LwdMetadata(0, 1, False, True, 1, 1, 62, True, 2500, 5000, 0, 1024)   # 云侧P非首块chunk
+            LwdMetadata(1, 1, True, False, False, False, 0, False, 0, 0, 0, 1024),        # D尾
+            LwdMetadata(1, 1, True, True, False, False, 0, False, 0, 0, 0, 1024),         # P尾
+            LwdMetadata(8, 16, False, True, False, False, 62, False, 0, 0, 0, 1024),      # 云侧P非首块
+            LwdMetadata(0, 1, False, True, False, False, 62, True, 2500, 5000, 0, 1024)   # 云侧P非首块chunk
         ]
         for metadata in test_cases:
             lwd_metadata_manager.set_metadata(metadata)
             layerwise_disaggregated_exe_stage = lwd_metadata_manager.get_metadata()
-            self.assertTrue(EdgeCloudInputMetadata.is_get_input_metadata(layerwise_disaggregated_exe_stage))
+            self.assertTrue(EdgeCloudInputMetadata.have_input_metadata(layerwise_disaggregated_exe_stage))
 
         test_cases = [
-            LwdMetadata(0, 0, False, False, 1, 1, 0, False, 0, 0, 0, 1024),         # D首
-            LwdMetadata(0, 0, False, True, 1, 1, 0, False, 0, 0, 0, 1024),        # P首
-            LwdMetadata(0, 8, False, True, 1, 1, 62, False, 0, 0, 0, 1024),       # 云侧P首块
-            LwdMetadata(0, 1, False, True, 1, 1, 62, True, 0, 5000, 0, 1024),      # 云侧P首块chunk
-            LwdMetadata(0, 62, True, False, 1, 1, 62, False, 0, 0, 0, 1024)         # 云侧D
+            LwdMetadata(0, 0, False, False, False, False, 0, False, 0, 0, 0, 1024),         # D首
+            LwdMetadata(0, 0, False, True, False, False, 0, False, 0, 0, 0, 1024),        # P首
+            LwdMetadata(0, 8, False, True, False, False, 62, False, 0, 0, 0, 1024),       # 云侧P首块
+            LwdMetadata(0, 1, False, True, False, False, 62, True, 0, 5000, 0, 1024),      # 云侧P首块chunk
+            LwdMetadata(0, 62, True, False, False, False, 62, False, 0, 0, 0, 1024)         # 云侧D
         ]
         for metadata in test_cases:
             lwd_metadata_manager.set_metadata(metadata)
             layerwise_disaggregated_exe_stage = lwd_metadata_manager.get_metadata()
-            self.assertFalse(EdgeCloudInputMetadata.is_get_input_metadata(layerwise_disaggregated_exe_stage))
+            self.assertFalse(EdgeCloudInputMetadata.have_input_metadata(layerwise_disaggregated_exe_stage))
 
-    def test_is_storage_input_metadata(self):
+    def test_need_storage_input_metadata(self):
         test_cases = [
-            LwdMetadata(0, 0, False, False, 1, 1, 0, False, 0, 0, 0, 1024),         # D首
-            LwdMetadata(0, 0, False, 0, False, 1, 1, True, 0, 0, 0, 1024),        # P首
-            LwdMetadata(0, 8, False, True, 1, 1, 62, False, 0, 0, 0, 1024),       # 云侧P首块
-            LwdMetadata(0, 1, False, True, 1, 1, 62, True, 0, 5000, 0, 1024)      # 云侧P首块chunk
+            LwdMetadata(0, 0, False, False, False, False, 0, False, 0, 0, 0, 1024),         # D首
+            LwdMetadata(0, 0, False, 0, False, False, False, True, 0, 0, 0, 1024),        # P首
+            LwdMetadata(0, 8, False, True, False, False, 62, False, 0, 0, 0, 1024),       # 云侧P首块
+            LwdMetadata(0, 1, False, True, False, False, 62, True, 0, 5000, 0, 1024)      # 云侧P首块chunk
         ]
         for metadata in test_cases:
             lwd_metadata_manager.set_metadata(metadata)
             layerwise_disaggregated_exe_stage = lwd_metadata_manager.get_metadata()
-            self.assertTrue(EdgeCloudInputMetadata.is_storage_input_metadata(layerwise_disaggregated_exe_stage))
+            self.assertTrue(EdgeCloudInputMetadata.need_storage_input_metadata(layerwise_disaggregated_exe_stage))
 
         test_cases = [
-            LwdMetadata(1, 1, True, False, 1, 1, 0, False, 0, 0, 0, 1024),          # D尾
-            LwdMetadata(1, 1, True, True, 1, 1, 0, False, 0, 0, 0, 1024),         # P尾
-            LwdMetadata(8, 16, False, True, 1, 1, 62, False, 0, 0, 0, 1024),      # 云侧P非首块
-            LwdMetadata(0, 1, False, True, 1, 1, 62, True, 2500, 5000, 0, 1024),   # 云侧P非首块chunk
-            LwdMetadata(0, 62, True, False, 1, 1, 62, False, 0, 0, 0, 1024)         # 云侧D
+            LwdMetadata(1, 1, True, False, False, False, 0, False, 0, 0, 0, 1024),          # D尾
+            LwdMetadata(1, 1, True, True, False, False, 0, False, 0, 0, 0, 1024),         # P尾
+            LwdMetadata(8, 16, False, True, False, False, 62, False, 0, 0, 0, 1024),      # 云侧P非首块
+            LwdMetadata(0, 1, False, True, False, False, 62, True, 2500, 5000, 0, 1024),   # 云侧P非首块chunk
+            LwdMetadata(0, 62, True, False, False, False, 62, False, 0, 0, 0, 1024)         # 云侧D
         ]
         for metadata in test_cases:
             lwd_metadata_manager.set_metadata(metadata)
             layerwise_disaggregated_exe_stage = lwd_metadata_manager.get_metadata()
-            self.assertFalse(EdgeCloudInputMetadata.is_storage_input_metadata(layerwise_disaggregated_exe_stage))
+            self.assertFalse(EdgeCloudInputMetadata.need_storage_input_metadata(layerwise_disaggregated_exe_stage))
 
     def test_set_and_get_metadata(self):
         prefill_metadata = InputMetadataComposite()
         decode_metadata = InputMetadataComposite()
+        metadata = LwdMetadata(1, 1, True, True, False, False, 0, False, 0, 0, 0, 1024)
+        lwd_metadata_manager.set_metadata(metadata)
+        layerwise_disaggregated_exe_stage = lwd_metadata_manager.get_metadata()
         self.pd_exec_matadata.set_input_metadata(prefill_metadata, True)
         self.pd_exec_matadata.set_input_metadata(decode_metadata, False)
-        self.assertEqual(prefill_metadata, self.pd_exec_matadata.get_input_metadata(True))
-        self.assertEqual(decode_metadata, self.pd_exec_matadata.get_input_metadata(False))
+        self.assertEqual(prefill_metadata, self.pd_exec_matadata.get_input_metadata(True, layerwise_disaggregated_exe_stage))
+        metadata = LwdMetadata(1, 1, True, False, False, False, 0, False, 0, 0, 0, 1024)
+        lwd_metadata_manager.set_metadata(metadata)
+        layerwise_disaggregated_exe_stage = lwd_metadata_manager.get_metadata()
+        self.assertEqual(decode_metadata, self.pd_exec_matadata.get_input_metadata(False, layerwise_disaggregated_exe_stage))
 
 if __name__ == "__main__":
     unittest.main()

@@ -1,6 +1,7 @@
 file(GLOB_RECURSE SOURCE_FILES "${CMAKE_CURRENT_LIST_DIR}/*.cpp")
 #filterout log folder
-list(FILTER SOURCE_FILES EXCLUDE REGEX ".*log/.*")
+list(FILTER SOURCE_FILES EXCLUDE REGEX "${CMAKE_CURRENT_LIST_DIR}/log/.*")
+list(FILTER SOURCE_FILES EXCLUDE REGEX "${CMAKE_CURRENT_LIST_DIR}/system_log/.*")
 
 find_library(LIBRT rt)
 message(STATUS "LIBRT: ${LIBRT}")
@@ -11,5 +12,5 @@ target_link_libraries(mindie_llm_utils PUBLIC mindie_llm_log ${OPENSSL_LIBRARIES
 set_target_properties(mindie_llm_utils PROPERTIES LIBRARY_OUTPUT_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/lib")
 
 add_subdirectory(log)
-
+add_subdirectory(system_log)
 install(TARGETS mindie_llm_utils DESTINATION lib)

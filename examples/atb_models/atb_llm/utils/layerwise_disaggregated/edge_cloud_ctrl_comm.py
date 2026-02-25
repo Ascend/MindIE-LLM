@@ -26,7 +26,7 @@ CLOUD = 'slave'
 EDGE = 'master'
 
 LAYERWISE_DISAGGREGATED_TCP_BUFFER_SIZE = 1024 * 1024
-INSTALL_PATH = "MIES_INSTALL_PATH"
+INSTALL_PATH = "MINDIE_LLM_HOME_PATH"
 TRUE = 'true'
 
 
@@ -86,7 +86,7 @@ class CertUtil:
 
 
 class TCPClient:
-    def __init__(self, server_ip, server_port, tls_config):
+    def __init__(self, server_ip, server_port, tls_config, non_block=True):
         self.server_ip = server_ip
         self.server_port = server_port
         self.client_socket = None
@@ -100,6 +100,9 @@ class TCPClient:
             self.tls_pk = os.path.join(os.getenv(INSTALL_PATH), tls_config.get("tls_pk", ''))
             self.tls_crl_path = os.path.join(os.getenv(INSTALL_PATH), tls_config.get("tls_crl_path", ''))
             self.tls_crl_files = os.path.join(os.getenv(INSTALL_PATH), tls_config.get("tls_crl_files", ''))
+
+
+        self.non_block = non_block
 
     def connect_to_server_block(self):
         # TCP attempts 1,000 connections; if connection fails after all 1,000 attempts, service startup fails.
@@ -135,16 +138,17 @@ class TCPClient:
 
                 self.client_socket.connect(server_address)
                 self.connected = True
-                self.client_socket.setblocking(False)
+                if self.non_block:
+                    self.client_socket.setblocking(False)
                 logger.info(f"[layerwiseDisaggregated] Successfully connected to the TCP server \
                     {self.server_ip, self.server_port}.")
                 return
             except Exception as e:
-                logger.error(f"[layerwiseDisaggregated] Unable to connect to TCP server \
+                logger.warning(f"[layerwiseDisaggregated] Unable to connect to TCP server \
                     {self.server_ip, self.server_port}, the reason is {e}.")
-                time.sleep(1)
+                time.sleep(10)
 
-    def client_send(self, data):
+    def send(self, data):
         try:
             self.client_socket.sendall(data.encode('utf-8'))
             logger.info(f"[layerwiseDisaggregated] TCP client successfully sent message to \
@@ -153,7 +157,7 @@ class TCPClient:
             logger.error(f"[layerwiseDisaggregated] TCP client failed to sent message to \
                 {self.server_ip, self.server_port}, the reason is {e}.")
 
-    def client_recv(self):
+    def recv(self):
         res = None
         try:
             res = self.client_socket.recv(self.recv_buf_size).decode('utf-8')
@@ -176,7 +180,7 @@ class TCPClient:
 
 
 class TCPServer:
-    def __init__(self, host_ip, port, tls_config):
+    def __init__(self, host_ip, port, tls_config, non_block=True):
         self.host_ip = host_ip
         self.port = port
         self.server_socket = None
@@ -192,6 +196,8 @@ class TCPServer:
             self.tls_crl_path = os.path.join(os.getenv(INSTALL_PATH), tls_config.get("tls_crl_path", ''))
             self.tls_crl_files = os.path.join(os.getenv(INSTALL_PATH), tls_config.get("tls_crl_files", ''))
 
+
+        self.non_block = non_block
         self.start_server_block()
 
     def start_server_block(self):
@@ -230,8 +236,9 @@ class TCPServer:
             client_socket, client_address = self.server_socket.accept()
             self.clients = client_socket
             self.clients_addr = client_address
-            self.server_socket.setblocking(False)
-            self.clients.setblocking(False)
+            if self.non_block:
+                self.server_socket.setblocking(False)
+                self.clients.setblocking(False)
 
             self.clients.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
             logger.info(f"[layerwiseDisaggregated] A client {client_address} is connected to the server.")
@@ -239,7 +246,7 @@ class TCPServer:
             if self.running:
                 logger.error(f"Failed to accept the TCP client connection, the reason is {e}")
 
-    def server_send(self, data):
+    def send(self, data):
         try:
             self.clients.sendall(data.encode('utf-8'))
             logger.info(f"[layerwiseDisaggregated] TCP server successfully sent message to \
@@ -248,7 +255,7 @@ class TCPServer:
             logger.error(f"[layerwiseDisaggregated] TCP server failed to sent message to \
                 {self.clients_addr, self.port}, the reason is {e}.")
 
-    def server_recv(self):
+    def recv(self):
         res = None
         try:
             res = self.clients.recv(self.recv_buf_size).decode('utf-8')
@@ -271,7 +278,7 @@ class TCPServer:
             self.server_socket.close()
 
 
-class EdgeCloudCtrlComm():
+class EdgeCloudCtrlComm:
     def __init__(self, tls_config):
         self.role = None
         self.rank = None
@@ -286,17 +293,29 @@ class EdgeCloudCtrlComm():
 
         self.decode_comm_finish = False
         self.prefill_comm_finish = False
-        self.prefill_comm_finish_tcp = False
-        self.prefill_comm_finish_irecv = False
+        self.prefill_comm_finish_tcp_count = 0
 
         self.prefill_recv_msg = ''
         self.decode_recv_msg = ''
         self.prefill_send_msg = ''
         self.decode_send_msg = ''
-        self.parse_msg_cnt = 0
-        self.to_msg_cnt = 0
         
+        self.multi_nodes_infer_enabled = False
+        self.multi_nodes_is_master = False
+        self.multi_nodes_ctrl_server = None
+        self.multi_nodes_ctrl_client = None
+        self.multi_nodes_need_synchronize = False
+
+        self.dp_size = 1
+
         self.tls_config = tls_config
+
+    @staticmethod
+    def shape_to_msg(shape):
+        if shape is None or len(shape) != 2:
+            return None
+        msg = f"pull|{json.dumps(list(shape))}|0"
+        return msg
 
     def init_role(self, role, server_ip, server_port):
         self.role = role
@@ -304,87 +323,139 @@ class EdgeCloudCtrlComm():
         self.server_ip = server_ip
         self.server_port = json.loads(server_port)
 
-    def init_tcp_link(self, rank=None, role=None, server_ip=None, server_port=None):
-        self.rank = rank
-        if self.rank == 0:
-            self.init_role(role, server_ip, server_port)
+    def init_multi_nodes_infer_link(self, is_master=False, cloud_ctrl_port=None, cloud_ctrl_address=None, dp_size=None):
+        self.multi_nodes_infer_enabled = True
+        self.dp_size = dp_size
 
-        if self.role == CLOUD and self.rank == 0:
+        self.multi_nodes_is_master = is_master
+        if self.multi_nodes_is_master:
+            self.multi_nodes_ctrl_server = TCPServer(cloud_ctrl_address, int(cloud_ctrl_port), \
+                    self.tls_config, non_block=False)
+            logger.info(f"[layerwiseDisaggregated] EdgeCloudCtrlComm multi-nodes infer \
+                    {cloud_ctrl_address, cloud_ctrl_port} init TCP server.")
+        else:
+            self.multi_nodes_ctrl_client = TCPClient(cloud_ctrl_address, int(cloud_ctrl_port), \
+                    self.tls_config, non_block=False)
+            self.multi_nodes_ctrl_client.connect_to_server_block()
+            logger.info(f"[layerwiseDisaggregated] EdgeCloudCtrlComm multi-nodes infer \
+                    {cloud_ctrl_address, cloud_ctrl_port} init TCP client.")
+
+    def init_tcp_link(self, rank=None, role=None, server_ip=None, server_port=None,
+                        multi_nodes_infer_args=None):
+        self.rank = rank
+        self.init_role(role, server_ip, server_port)
+        
+        is_cloud_or_single_node = \
+            (self.role == CLOUD or multi_nodes_infer_args is None or multi_nodes_infer_args['dp_size'] < 2)
+        if self.rank != 0 and is_cloud_or_single_node:
+            self.init_finish = True
+            return
+
+        if self.role == CLOUD:
+            if multi_nodes_infer_args is not None:
+                self.init_multi_nodes_infer_link(**multi_nodes_infer_args)
+            if multi_nodes_infer_args is None or self.dp_size > 1 or multi_nodes_infer_args['is_master']:
+                self.prefill_server = TCPServer(self.server_ip, int(self.server_port[0]), self.tls_config)
+                self.decode_server = TCPServer(self.server_ip, int(self.server_port[1]), self.tls_config)
+                logger.info(f"[layerwiseDisaggregated] EdgeCloudCtrlComm \
+                        {self.server_ip, self.server_port} TCP server initialized successfully.")
+        elif self.role == EDGE:
             self.prefill_client = TCPClient(self.server_ip, int(self.server_port[0]), self.tls_config)
-            self.decode_client = TCPClient(self.server_ip, int(self.server_port[1]), self.tls_config)
             self.prefill_client.connect_to_server_block()
+            self.decode_client = TCPClient(self.server_ip, int(self.server_port[1]), self.tls_config)
             self.decode_client.connect_to_server_block()
-            logger.info(f"[layerwiseDisaggregated] EdgeCloudCtrlComm port \
-                {self.server_ip, self.server_port} init TCP client.")
-        elif self.role == EDGE and self.rank == 0:
-            self.prefill_server = TCPServer(self.server_ip, int(self.server_port[0]), self.tls_config)
-            self.decode_server = TCPServer(self.server_ip, int(self.server_port[1]), self.tls_config)
-            logger.info(f"[layerwiseDisaggregated] EdgeCloudCtrlComm port \
-                {self.server_ip, self.server_port} init TCP server.")
+            logger.info(f"[layerwiseDisaggregated] EdgeCloudCtrlComm \
+                {self.server_ip, self.server_port} TCP client initialized successfully.")
+        else:
+            raise RuntimeError(f"EdgeCloudCtrlComm unknown role: {self.role}")
         
         self.init_finish = True
 
     def is_edge_cloud_ctrl_comm_success(self):
-        if self.rank != 0:
-            return True
-
-        if self.role == CLOUD:
-            return self.prefill_client.is_client_connected() and self.decode_client.is_client_connected()
-        else:
-            return True
+        prefill_clinet_comm_success = self.prefill_client is None or self.prefill_client.is_client_connected()
+        decode_clinet_comm_success = self.decode_client is None or self.decode_client.is_client_connected()
+        multi_nodes_comm_success = self.multi_nodes_ctrl_client is None or \
+            self.multi_nodes_ctrl_client.is_client_connected()
+        return prefill_clinet_comm_success and decode_clinet_comm_success and multi_nodes_comm_success
 
     def recv_prefill(self):
-        if self.rank != 0:
-            return
+        res = None
 
-        if self.role == CLOUD:
-            res = self.prefill_client.client_recv()
-        else:
-            res = self.prefill_server.server_recv()
+        if self.role == CLOUD and self.prefill_server is not None:
+            res = self.prefill_server.recv()
+        if self.role == EDGE and self.prefill_client is not None:
+            res = self.prefill_client.recv()
+
         if res and res.startswith("pull"):
+            logger.info(f"[layerwiseDisaggregated-{self.rank}] recv valid prefill msg: {res}.")
             self.prefill_recv_msg = res
-            self.prefill_comm_finish_tcp = True
+            self.prefill_comm_finish_tcp_count = res.count("pull")
+        else:
+            logger.info(f"[layerwiseDisaggregated-{self.rank}] recv no valid prefill msg!")
 
     def recv_decode(self):
-        if self.rank != 0:
-            return
+        res = None
 
-        if self.role == CLOUD:
-            res = self.decode_client.client_recv()
-        else:
-            res = self.decode_server.server_recv()
+        if self.role == CLOUD and self.decode_server is not None:
+            res = self.decode_server.recv()
+        if self.role == EDGE and self.decode_client is not None:
+            res = self.decode_client.recv()
+
         if res and res.startswith("pull"):
+            logger.info(f"[layerwiseDisaggregated-{self.rank}] recv valid decode msg: {res}.")
             self.decode_recv_msg = res
             self.decode_comm_finish = True
+        else:
+            logger.info(f"[layerwiseDisaggregated-{self.rank}] recv no valid decode msg!")
 
     def send_prefill(self):
-        if self.rank != 0:
+        if self.role == CLOUD and self.prefill_server is not None:
+            self.prefill_server.send(self.prefill_send_msg)
+            logger.info(f"[layerwiseDisaggregated-{self.rank}] send prefill msg: {self.prefill_send_msg}!")
             return
 
-        if self.role == CLOUD:
-            self.prefill_client.client_send(self.prefill_send_msg)
-        else:
-            self.prefill_server.server_send(self.prefill_send_msg)
+        if self.role == EDGE and self.prefill_client is not None:
+            self.prefill_client.send(self.prefill_send_msg)
+            logger.info(f"[layerwiseDisaggregated-{self.rank}] send prefill msg: {self.prefill_send_msg}!")
+            return
+
+        logger.info(f"[layerwiseDisaggregated-{self.rank}] skip send prefill msg!")
 
     def send_decode(self):
-        if self.rank != 0:
+        if self.role == CLOUD and self.decode_server is not None:
+            self.decode_server.send(self.decode_send_msg)
+            logger.info(f"[layerwiseDisaggregated-{self.rank}] send decode msg: {self.decode_send_msg}!")
             return
 
-        if self.role == CLOUD:
-            self.decode_client.client_send(self.decode_send_msg)
+        if self.role == EDGE and self.decode_client is not None:
+            self.decode_client.send(self.decode_send_msg)
+            logger.info(f"[layerwiseDisaggregated-{self.rank}] send decode msg: {self.decode_send_msg}!")
+            return
+
+        logger.info(f"[layerwiseDisaggregated-{self.rank}] skip send decode msg!")
+
+    def broadcast_multi_nodes_decision(self, decision: str) -> None:
+        if self.rank != 0 or not self.multi_nodes_infer_enabled:
+            logger.info(f"[layerwiseDisaggregated-{self.rank}] skip broadcast multi nodes decision!")
+            return
+        if not self.multi_nodes_is_master:
+            raise RuntimeError("EdgeCloudCtrlComm only cloud master can broadcast decision")
+        if self.multi_nodes_need_synchronize:
+            _ = self.multi_nodes_ctrl_server.recv()
         else:
-            self.decode_server.server_send(self.decode_send_msg)
+            self.multi_nodes_need_synchronize = True
 
-    def parse_shape(self, data):
-        if not data.startswith("pull"):
-            return []
-        h_shape_d = list(json.loads(data.split('|')[1]))
-        self.parse_msg_cnt += 1
-        return h_shape_d
+        self.multi_nodes_ctrl_server.send(decision)
+        logger.info(f"[layerwiseDisaggregated-{self.rank}] broadcast multi nodes decision {decision}.")
 
-    def shape_to_msg(self, shape):
-        if shape is None or len(shape) != 2:
+    def recv_multi_nodes_decision(self) -> str | None:
+        if self.rank != 0 or not self.multi_nodes_infer_enabled:
+            logger.info(f"[layerwiseDisaggregated-{self.rank}] skip recv multi nodes decision!")
             return None
-        msg = f"pull|{json.dumps(list(shape))}|0"
-        self.to_msg_cnt += 1
-        return msg
+        if self.multi_nodes_is_master:
+            raise RuntimeError("EdgeCloudCtrlComm only cloud slave can broadcast decision")
+
+        decision = self.multi_nodes_ctrl_client.recv()
+        self.multi_nodes_ctrl_client.send("ok")
+        logger.info(f"[layerwiseDisaggregated-{self.rank}] recv multi nodes decision {decision}.")
+        return decision

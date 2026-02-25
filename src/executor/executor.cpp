@@ -32,26 +32,43 @@ void Executor::LayerwiseParseFromModelConfig(std::unordered_map<std::string, std
         if (config.count("layerwiseDisaggregatedRoleType") != 0) {
             modelLaunchConfig.layerwiseDisaggregatedRoleType = config.at("layerwiseDisaggregatedRoleType");
         }
+
+        auto lwdMultiEnIt = config.find("layerwiseDisaggregatedMultiNodesInferEnabled");
+        if (lwdMultiEnIt != config.end() && lwdMultiEnIt->second == "true") {
+            modelLaunchConfig.lwdMultiNodesEnable = true;
+
+            auto lwdMultiMstIt = config.find("layerwiseDisaggregatedMultiNodesMaster");
+            if (lwdMultiMstIt != config.end() && lwdMultiMstIt->second == "true") {
+                modelLaunchConfig.isLwdMultiNodesMaster = true;
+            }
+        }
     }
 }
 
 bool Executor::ParseFromModelConfig(std::unordered_map<std::string, std::string> &config,
                                     ModelLaunchConfig &modelLaunchConfig, bool isMultiNodesInfer) const
 {
-    std::vector<std::string> globalRankIds;
-    std::vector<std::string> npuDeviceIds;
-    std::vector<std::string> slaveIPs;
     for (auto &key : requiredModelConfigKeys) {
         if (config.find(key) == config.end()) {
             MINDIE_LLM_LOG_ERROR("Invalid model config without key " << key);
             return false;
         }
     }
-    mindie_llm::Split(config.at("npu_device_ids"), ",", npuDeviceIds);
-    if (isMultiNodesInfer) {
-        mindie_llm::Split(config.at("globalRankIds"), ",", globalRankIds);
-        mindie_llm::Split(config.at("slaveIPs"), ",", slaveIPs);
+    LayerwiseParseFromModelConfig(config, modelLaunchConfig);
+    bool lwdCloudMultiNodesInfer = modelLaunchConfig.lwdMultiNodesEnable &&
+        modelLaunchConfig.layerwiseDisaggregatedRoleType == "slave";
+    modelLaunchConfig.globalRankIds.clear();
+    modelLaunchConfig.npuDeviceIds.clear();
+    modelLaunchConfig.slaveIPs.clear();
+    mindie_llm::Split(config.at("npu_device_ids"), ",", modelLaunchConfig.npuDeviceIds);
+    if (isMultiNodesInfer || lwdCloudMultiNodesInfer) {
+        mindie_llm::Split(config.at("globalRankIds"), ",", modelLaunchConfig.globalRankIds);
+        mindie_llm::Split(config.at("slaveIPs"), ",", modelLaunchConfig.slaveIPs);
     }
+    if (modelLaunchConfig.layerwiseDisaggregatedRoleType == "master") {
+        mindie_llm::Split(config.at("slaveIPs"), ",", modelLaunchConfig.slaveIPs);
+    }
+
     modelLaunchConfig.deployType = config.at("deploy_type");
     modelLaunchConfig.executorType = config.at("executor_type");
     modelLaunchConfig.npuNumPerNode = std::stoul(config.at("world_size"));
@@ -60,13 +77,10 @@ bool Executor::ParseFromModelConfig(std::unordered_map<std::string, std::string>
         return false;
     }
     modelLaunchConfig.globalWorldSize = std::stoul(config.at("globalWorldSize"));
-    modelLaunchConfig.npuDeviceIds = npuDeviceIds;
     modelLaunchConfig.modelInstanceType = config.at("model_instance_type");
     modelLaunchConfig.isMultiNodesInfer = isMultiNodesInfer;
     modelLaunchConfig.isMasterNode = (config.at("isMaster") == "1");
     modelLaunchConfig.localIP = config.at("localIP");
-    modelLaunchConfig.slaveIPs = slaveIPs;
-    modelLaunchConfig.globalRankIds = globalRankIds;
     uint32_t tp = (config.count("tp") > 0) ? std::stoul(config.at("tp")) : 1;
     uint32_t cp = (config.count("cp") > 0) ? std::stoul(config.at("cp")) : 1;
     if (tp > std::numeric_limits<uint32_t>::max() / cp) {
@@ -78,7 +92,6 @@ bool Executor::ParseFromModelConfig(std::unordered_map<std::string, std::string>
     // Calculate the number of IPC communicators needed: ceil(npuNumPerNode / npuNumPerDP)
     modelLaunchConfig.ipcCommunicatorNum =
         CeilDiv(modelLaunchConfig.npuNumPerNode, modelLaunchConfig.npuNumPerDP);
-    LayerwiseParseFromModelConfig(config, modelLaunchConfig);
     if (modelLaunchConfig.deployType != "INTER_PROCESS") {
         MINDIE_LLM_LOG_ERROR("Supported deploy_type list should be [INTER_PROCESS], rather than "
                              << modelLaunchConfig.deployType << ", please check model config");
@@ -154,7 +167,7 @@ bool Executor::ExecutorModelInitAndSync()
         }
     }
     // 以下是集中式场景下，Master和Slave节点之间的同步逻辑
-    if ((isMultiNodesInfer_ || modelLaunchConfig_.layerwiseDisaggregated) && isGRPCInit_) {
+    if ((isMultiNodesInfer_ || (modelLaunchConfig_.layerwiseDisaggregated && dpRankIdx_ < 1)) && isGRPCInit_) {
         if (modelLaunchConfig_.layerwiseDisaggregated) {
             MINDIE_LLM_LOG_INFO("[layerwiseDisaggregated|executor] "
                                 <<"Start to synchronize model initialization between Master and Slave nodes.");
@@ -256,6 +269,10 @@ bool Executor::MasterSendPDInfoToSlave(const std::map<std::string, std::string> 
 
 bool Executor::SlaveSendInitResponseToMaster()
 {
+    if (modelLaunchConfig_.lwdMultiNodesEnable && modelLaunchConfig_.dp == 1 &&
+        !modelLaunchConfig_.isLwdMultiNodesMaster) {
+        return true;
+    }
     ExecuteResponse response;
     response.set_msg_type(REMOTE_MODEL_INIT);
 
@@ -582,7 +599,11 @@ std::vector<std::string> Executor::BuildConnectorCommand(const ModelLaunchConfig
 {
     uint32_t rankInNode = rankInDP + dpRankIdx_ * modelConfig.npuNumPerDP;
     uint32_t globalRankId;
-    if (modelConfig.isMultiNodesInfer && (rankInNode >= modelConfig.globalRankIds.size() || !StrToUint32(globalRankId, modelConfig.globalRankIds[rankInNode]))) {
+    // 云侧为真多机, 边侧为单机
+    bool lwdCloudMultiNodesInfer = modelConfig.lwdMultiNodesEnable &&
+        modelConfig.layerwiseDisaggregatedRoleType == "slave";
+    if ((modelConfig.isMultiNodesInfer || lwdCloudMultiNodesInfer) && (rankInNode >= modelConfig.globalRankIds.size() ||
+        !StrToUint32(globalRankId, modelConfig.globalRankIds[rankInNode]))) {
         MINDIE_LLM_LOG_ERROR("Error: Failed to BuildConnectorCommand: could not get globalRankId.");
         return std::vector<std::string>{};
     }
@@ -590,7 +611,7 @@ std::vector<std::string> Executor::BuildConnectorCommand(const ModelLaunchConfig
         MINDIE_LLM_LOG_ERROR("Error: Failed to BuildConnectorCommand: rankInNode out of range.");
         return std::vector<std::string>{};
     }
-    uint32_t globalRank = modelConfig.isMultiNodesInfer ? globalRankId : rankInNode;
+    uint32_t globalRank = (modelConfig.isMultiNodesInfer || lwdCloudMultiNodesInfer) ? globalRankId : rankInNode;
     std::vector<std::string> command = {
         "mindie_llm_backend",
         "--local_rank", std::to_string(rankInNode),
@@ -608,7 +629,7 @@ std::vector<std::string> Executor::BuildConnectorCommand(const ModelLaunchConfig
         command.push_back("true");
     }
     
-    if (modelConfig.isMultiNodesInfer) {
+    if (modelConfig.isMultiNodesInfer || lwdCloudMultiNodesInfer) {
         command.push_back("--global_rank");
         command.push_back(std::to_string(globalRank));
         command.push_back("--global_world_size");
@@ -747,8 +768,14 @@ bool Executor::InitWorkerProcesses(const ModelLaunchConfig &modelConfig, const s
 int Executor::GetRemoteDPRankIdx(ModelLaunchConfig &modelConfig, int rankIdx, bool intraNodeTP) const
 {
     if (modelConfig.layerwiseDisaggregated) {
-        return 0;
+        int remotedpRankId = 0; // 其实就是所在slaveIp数组的下标, 边云的matser节点中没有意义
+        if (modelConfig.lwdMultiNodesEnable && modelConfig.layerwiseDisaggregatedRoleType == "slave") {
+            // 当前这样只能适配双机, 更多机这里适配不了, 要使用别的变量来判断
+            remotedpRankId = modelConfig.isLwdMultiNodesMaster ? 0 : 1;
+        }
+        return remotedpRankId;
     }
+
     // Single node inference does not have remote DP rank.
     if (!modelConfig.isMultiNodesInfer) {
         return -1;
@@ -782,10 +809,15 @@ int Executor::GetRemoteDPRankIdx(ModelLaunchConfig &modelConfig, int rankIdx, bo
 
 uint32_t Executor::GetGRPCCommunicatorNum(ModelLaunchConfig &modelConfig, bool intraNodeTP) const
 {
-    if (intraNodeTP || modelConfig.layerwiseDisaggregated) {
+    uint32_t slaveCount = modelConfig.slaveIPs.size();
+    if (modelConfig.layerwiseDisaggregated) {
+        // 边侧起slaveIpNum个GRPC(比如双机起2个, 单机起1个), 云侧都是起一个
+        return modelConfig.layerwiseDisaggregatedRoleType == "master" ? slaveCount : 1;
+    }
+
+    if (intraNodeTP) {
         return 1;
     }
-    uint32_t slaveCount = modelConfig.slaveIPs.size();
     uint32_t nodeCount = slaveCount + 1;
 
     if (modelConfig.isMasterNode) {

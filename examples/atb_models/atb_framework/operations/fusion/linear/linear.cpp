@@ -548,6 +548,12 @@ std::map<std::string, uint32_t> ConstructLinearWithLoraTensorMap(
         AddTensorToList(linearIntermediateTensorCandidates, "lora", intermediateTensorList);
     }
 
+    // 添加FlashComm特性的Tensor
+    if (param.enableFlashComm) {
+        AddTensorToList(linearInTensorCandidates, "flash_comm", inTensorList);
+        AddTensorToList(linearIntermediateTensorCandidates, "flashComm", intermediateTensorList);
+    }
+
     inTensorNum = inTensorList.size();
     outTensorNum = outTensorList.size();
     internalTensorNum = intermediateTensorList.size();
@@ -568,7 +574,7 @@ int64_t AddImMask(atb::GraphParam &opGraph, std::map<std::string, uint32_t> &ten
 }
 
 int64_t AddLoraA(atb::GraphParam &opGraph, const FusionLinearParam &param,
-    std::map<std::string, uint32_t> &tensorMap)
+    std::map<std::string, uint32_t> &tensorMap, bool enableFlashComm)
 {
     // 添加Lora A
     atb::Node loraALinearNode;
@@ -581,6 +587,8 @@ int64_t AddLoraA(atb::GraphParam &opGraph, const FusionLinearParam &param,
     }
     if (param.useImMask) {
         loraALinearNode.inTensorIds = GetTensorIdxList(tensorMap, {"intermediate_im_mask_out", "in_lora_a"});
+    } else if (enableFlashComm) {
+        loraALinearNode.inTensorIds = GetTensorIdxList(tensorMap, {"intermediate_allgather_out", "in_lora_a"});
     } else {
         loraALinearNode.inTensorIds = GetTensorIdxList(tensorMap, {"in_input", "in_lora_a"});
     }
@@ -634,15 +642,20 @@ atb::Status CreateFusionLinearWithLora(const FusionLinearParam &param, atb::Oper
         param, opGraph.inTensorNum, opGraph.outTensorNum, opGraph.internalTensorNum);
     opGraph.name = "LinearWithLora";
 
+    if (param.enableFlashComm) {
+        CHECK_OPERATION_STATUS_RETURN(AddAllGather(opGraph, param, tensorMap));
+    }
+
     // 添加Base模型的Linear
     atb::Node baseLinearNode;
     atb_speed::common::FusionLinearParam baseLinearParam = param;
     baseLinearParam.supportLora = false;
     baseLinearParam.loraEnableGMM = false;
+    baseLinearParam.enableFlashComm = false;
     CHECK_OPERATION_STATUS_RETURN(CreateFusionLinear(baseLinearParam, &baseLinearNode.operation));
     baseLinearNode.inTensorIds = GetTensorIdxList(tensorMap, {
-        "in_input", "in_weight", "in_scale", "in_offset",
-        "in_descale", "in_bias", "in_compress_idx"
+        param.enableFlashComm ? "intermediate_allgather_out" : "in_input",
+        "in_weight", "in_scale", "in_offset", "in_descale", "in_bias", "in_compress_idx"
     });
     baseLinearNode.outTensorIds = {GetTensorIdx(tensorMap, "intermediate_base_linear_out")};
     opGraph.nodes.push_back(baseLinearNode);
@@ -656,7 +669,7 @@ atb::Status CreateFusionLinearWithLora(const FusionLinearParam &param, atb::Oper
     if (param.useImMask) {
         CHECK_OPERATION_STATUS_RETURN(AddImMask(opGraph, tensorMap));
     }
-    CHECK_OPERATION_STATUS_RETURN(AddLoraA(opGraph, loraLinearParam, tensorMap));
+    CHECK_OPERATION_STATUS_RETURN(AddLoraA(opGraph, loraLinearParam, tensorMap, param.enableFlashComm));
     loraLinearParam.transposeType = NOT_TRANSPOSE;
     CHECK_OPERATION_STATUS_RETURN(AddLoraB(opGraph, loraLinearParam, tensorMap));
 

@@ -27,8 +27,9 @@ from mindie_llm.connector.common.model_execute_data_pb2 import (
 from mindie_llm.connector.common.input_metadata_composite import InputMetadataComposite
 from mindie_llm.model_wrapper.utils.common_util import split_list_equally, ip_string_to_list
 
-from mindie_llm.text_generator.utils.input_metadata import InputMetadata
+from mindie_llm.text_generator.utils.input_metadata import InputMetadata, SIMULATE_SEQUENCE_ID
 from mindie_llm.utils.prof.profiler import span_start, span_end, span_attr
+from ...utils.log.logging import logger
 
 REPETITION_PENALTY_INDEX = 0  # item 0 is used for repetition penalty in ndarray
 FREQUENCY_PENALTY_INDEX = 1  # item 1 is used for frequency penalty in ndarray
@@ -149,7 +150,7 @@ def get_batch_size(request, is_prefill, is_mix):
     return total_bs, prefill_bs, decode_bs
 
 
-def make_dummy_input_metadata(execute_request, num_npu_blocks, model_config):
+def make_dummy_input_metadata(execute_request, num_npu_blocks, model_config, lwd_exe_stage=None):
     block_padding = model_config.max_seq_len // model_config.cache_block_size
     block_id_for_empty_req = num_npu_blocks - 1
     sp_batch_tokens = None
@@ -205,7 +206,8 @@ def make_dummy_input_metadata(execute_request, num_npu_blocks, model_config):
         batch_use_beam_search=np.array([False]),
         reserved_sequence_ids=[np.array([], dtype=np.int64)],
         is_dummy_batch=True,
-        sp_tokens=sp_batch_tokens
+        sp_tokens=sp_batch_tokens,
+        layerwise_disaggregated_exe_stage=lwd_exe_stage
     )
     metadata.seq_lens = []
     for dp_batch_seq_lens in execute_request.execute_model_request.all_dp_batches_seq_lens:
@@ -254,6 +256,45 @@ def make_dummy_input_metadata_dmi_decoder(source_input_metadata, num_npu_blocks,
         is_dummy_batch=True
     )
     return metadata
+
+
+def build_simulate_block_table(
+        seq_group_metadata,
+        block_id_for_simulate_req: int,
+        is_sp_enable: bool,
+        is_cp_enable: bool,
+        config
+) -> tuple:
+    """
+    为虚推请求构建 block table。
+    
+    虚推请求需要特殊处理，使用固定 block id 作为占位符。在 SP/CP 场景下，
+    需要根据 sp_rank_block_num 构造正确长度的 simulate block table，
+    以确保与其他请求组 batch 时 numpy 维度能够对齐。    
+    """
+    simulate_block_table = [block_id_for_simulate_req]
+    sp_rank_block_num = None
+    sp_rank_token_num = None
+    
+    if is_sp_enable or is_cp_enable:
+        sp_rank_block_num = list(seq_group_metadata.sp_rank_block_num)
+        sp_rank_token_num = list(seq_group_metadata.sp_rank_token_num)
+        # 如果 sp_rank_block_num 或 sp_rank_token_num 为空，需要根据 config 填充默认值以确保维度正确
+        if config is not None:
+            scp_size = config.sp_size * config.cp_size
+            if not sp_rank_block_num:
+                sp_rank_block_num = [1] + [0] * (scp_size - 1)
+            if not sp_rank_token_num:
+                sp_rank_token_num = [1] + [0] * (scp_size - 1)
+        total_blocks = sum(sp_rank_block_num)
+        if total_blocks > 0:
+            seq_blocks = [block_id_for_simulate_req] + [-1] * (total_blocks - 1)
+        else:
+            seq_blocks = simulate_block_table
+    else:
+        seq_blocks = simulate_block_table
+    
+    return seq_blocks, sp_rank_block_num, sp_rank_token_num
 
 
 def convert_execute_model_request_to_input_metadata_composite(
@@ -316,6 +357,8 @@ def convert_execute_model_request_to_input_metadata_composite(
 
     block_copy = [[item.num1, item.num2] for item in request.blocks_to_copy] if request.blocks_to_copy else None
     block_op = parse_swap_blocks(request.blocks_to_swap_in, request.blocks_to_swap_out)
+    # 虚推请求使用最后一个 block (num_npu_blocks - 1) 作为占位符
+    block_id_for_simulate_req = num_npu_blocks - 1
 
     for seq_group_metadata in request.seq_group_metadata_list:
         batch_req_ids.append(seq_group_metadata.request_id)
@@ -333,14 +376,27 @@ def convert_execute_model_request_to_input_metadata_composite(
             is_sp_enable = config.sp_size > 1
             is_cp_enable = config.cp_size > 1
             is_mtp_enable = config.enable_mtp
-        seq_blocks = convert_bytes_to_list(seq_group_metadata.block_tables)
+
+        # 根据请求类型构建 block table
+        if seq_ids[0] == SIMULATE_SEQUENCE_ID:
+            seq_blocks, sp_rank_block_num, sp_rank_token_num = build_simulate_block_table(
+                seq_group_metadata, block_id_for_simulate_req, is_sp_enable, is_cp_enable, config
+            )
+        else:
+            seq_blocks = convert_bytes_to_list(seq_group_metadata.block_tables)
+            sp_rank_block_num = None
+            sp_rank_token_num = None
 
         if is_sp_enable or is_cp_enable:
             block_max_len = max(block_max_len, len(seq_blocks))
-            ibis_batch_sp_tokens.append(list(seq_group_metadata.sp_rank_token_num))
+            # 虚推请求使用函数返回的 sp_rank_token_num，正常请求从 protobuf 获取
+            if seq_ids[0] == SIMULATE_SEQUENCE_ID:
+                ibis_batch_sp_tokens.append(sp_rank_token_num)
+            else:
+                ibis_batch_sp_tokens.append(list(seq_group_metadata.sp_rank_token_num))
+                sp_rank_block_num = list(seq_group_metadata.sp_rank_block_num)
             ibis_batch_sp_rank_id.append(seq_group_metadata.sp_rank_id)
             ibis_batch_block_rank_id.append(seq_group_metadata.append_block_rank_id)
-            sp_rank_block_num = list(seq_group_metadata.sp_rank_block_num)
             if is_mtp_enable:
                 ibis_batch_is_append_block.append(seq_group_metadata.is_append_block)
                 if is_prefill:
@@ -667,14 +723,21 @@ def parse_para_is_prefill(seq_group_metadata_list: List[SequenceGroupMetadata], 
     cp_size = 1
     if config is not None:
         cp_size = config.cp_size
+        scp_size = config.sp_size * config.cp_size
     for seq_group_metadata in seq_group_metadata_list:
         sampling_params = parse_sampling_parameters(seq_group_metadata)
         batch_sampling.append(sampling_params[0])
 
         input_ids = convert_bytes_to_list(seq_group_metadata.prompt_token_ids)
+
         if cp_size > 1 and len(input_ids) % (cp_size * 2) != 0:
             pad_input_ids(input_ids, cp_size)
-        batch_input_ids.extend(input_ids)
+
+        # splitfuse时decode请求需要向input_ids中加入占位符，在插件中从cache里获取真正token
+        if not input_ids:
+            batch_input_ids.extend([0])
+        else:
+            batch_input_ids.extend(input_ids)
 
         stop_ids = list(seq_group_metadata.stop_token_ids)
         batch_stop_token_ids.append(stop_ids if stop_ids and len(stop_ids) > 0 else None)
@@ -717,12 +780,20 @@ def parse_para_is_prefill(seq_group_metadata_list: List[SequenceGroupMetadata], 
         )
 
         # 解析每条request已计算的block数量，解析成一维list，如不存在将值置为None
-        scp_size = len(seq_group_metadata.sp_rank_block_num)
+        # 虚推请求不使用 prefix cache，填充 0 值以确保维度对齐
+        if seq_ids[0] == SIMULATE_SEQUENCE_ID:
+            if scp_size > 1:
+                computed.extend([0] * scp_size)
+                remote_computed.extend([0] * scp_size)
+                computed_block_order.append([])
+            continue
+        
+        seq_scp_size = len(seq_group_metadata.sp_rank_block_num)
         computed_block_order_ = convert_bytes_to_list(seq_group_metadata.computed_block_order)
         computed_ = convert_bytes_to_list(seq_group_metadata.computed_block_lens)
         remote_computed_ = convert_bytes_to_list(seq_group_metadata.remote_computed_block_lens)
         
-        if scp_size > 1:
+        if seq_scp_size > 1:
             sp_rank_id = seq_group_metadata.sp_rank_id
             if len(input_ids) == sum(computed_) * block_size:
                 computed_[sp_rank_id] -= 1
@@ -806,9 +877,10 @@ def update_mix_metadata(input_metadata_composite, mix_params):
     metadata = input_metadata_composite.input_metadata
     metadata.total_seq_num = total_seq_len
     metadata.batch_seq_len = batch_seq_len
-    metadata.input_ids = np.concatenate(
-        (np.array([0] * (len(is_req_prefill) - sum(is_req_prefill))), metadata.input_ids)
-    )
+
+    # 纯decode请求的batch input_ids加入占位符
+    if not metadata.is_prefill:
+        metadata.input_ids = np.array([0] * (len(is_req_prefill) - sum(is_req_prefill)))
 
     # 相比PD竞争需要新增的参数
     metadata.is_mix = is_mix

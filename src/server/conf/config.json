@@ -46,7 +46,11 @@
         "layerwiseDisaggregatedMasterIpAddress" : "127.0.0.3",
         "layerwiseDisaggregatedSlaveIpAddress" : ["127.0.0.4"],
         "layerwiseDisaggregatedDataPort" : 10024,
-        "layerwiseDisaggregatedCrtlPort" : [10001,10002]
+        "layerwiseDisaggregatedCrtlPort" : [10001,10002],
+        "HealthCheckConfig" :
+        {
+            "npuUsageThreshold" : 0
+        }
     },
 
     "BackendConfig" : {

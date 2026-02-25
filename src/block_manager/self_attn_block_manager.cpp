@@ -389,24 +389,26 @@ std::vector<size_t> SelfAttnBlockManager::GetRemoteComputedBlockIds(
         const std::vector<BlockId> &allBlocks = seqId2BlockTable_.at(seq->seqId_).GetBlockIds();
         size_t numCachedBlocks = computedLens;
         std::vector<HashValue> hashValues = GetSeqHashValues(seq->seqId_);
-
+        std::vector<std::string> allKeys;
         for (size_t i = computedLens; i < hashValues.size(); i++) {
             HashValue hashValue = hashValues[i];
-            bool hasReusedBlock = true;
             for (uint32_t tpIds = 0; tpIds < tpSize; tpIds++) {
-                if (!hasReusedBlock) { break; }
                 std::string key = std::to_string(hashValue) + "_"
-                                  + std::to_string(tpIds) + "_"
-                                  + std::to_string(tpSize) + "_"
-                                  + modelName;
-                hasReusedBlock = hasReusedBlock && memPoolInstance_->LookUp(key);
-            }
-            if (hasReusedBlock) {
-                ++numCachedBlocks;
-            } else {
-                break;
+                                + std::to_string(tpIds) + "_"
+                                + std::to_string(tpSize) + "_"
+                                + modelName;
+                allKeys.push_back(key);
             }
         }
+        if (!allKeys.empty() && tpSize > 0) {
+            std::vector<bool> lookRes = memPoolInstance_->LookUp(allKeys);
+            size_t numElem = 0;
+            while (numElem < lookRes.size() && lookRes[numElem]) {
+                ++numElem;
+            }
+            numCachedBlocks += numElem / tpSize;
+        }
+
         std::vector<BlockId> remoteComputedBlockIds(allBlocks.begin(), allBlocks.begin() + numCachedBlocks);
         remoteComputedSeqBlockIds.push_back(remoteComputedBlockIds);
     }
@@ -428,19 +430,25 @@ std::vector<size_t> SelfAttnBlockManager::GetAllRankRemoteComputedBlockIds(
 
     std::vector<size_t> remoteComputedBlocksNum(computedBlocksNum);
     std::vector<std::vector<HashValue>> rankedHashValues = GetRankedHashValues(seq->seqId_);
-    while (remoteComputedBlocksNum[rankIdx] < rankedHashValues[rankIdx].size()) {
-        size_t i = remoteComputedBlocksNum[rankIdx];
-        HashValue hashValue = rankedHashValues[rankIdx][i];
-        std::string key = std::to_string(hashValue) + "_"
-                            + std::to_string(rankIdx) + "_"
-                            + std::to_string(rankSize_) + "_"
-                            + modelName;
-        bool hasReusedBlock = memPoolInstance_->LookUp(key);
-        if (hasReusedBlock) {
-            remoteComputedBlocksNum[rankIdx]++;
-            rankIdx = (rankIdx + 1) % rankSize_;
-        } else {
-            break;
+    std::vector<std::string> allKeys;
+    for (size_t i = remoteComputedBlocksNum[rankIdx]; i < rankedHashValues[0].size(); i++) {
+        size_t curRankIdx = i == remoteComputedBlocksNum[rankIdx] ? rankIdx : 0;
+        while (curRankIdx < rankSize_ && i < rankedHashValues[curRankIdx].size()) {
+            HashValue hashValue = rankedHashValues[curRankIdx][i];
+            std::string key = std::to_string(hashValue) + "_" + std::to_string(curRankIdx) + "_"
+                            + std::to_string(rankSize_) + "_" + modelName;
+            allKeys.push_back(key);
+            curRankIdx++;
+        }
+    }
+    if (!allKeys.empty()) {
+        std::vector<bool> batchLookupResult = memPoolInstance_->LookUp(allKeys);
+        size_t startIdx = 0;
+        for (auto num : computedBlocksNum) {
+            startIdx += num;
+        }
+        for (size_t idx = 0; idx < batchLookupResult.size() && batchLookupResult[idx]; idx++) {
+            remoteComputedBlocksNum[(idx + startIdx) % rankSize_]++;
         }
     }
 

@@ -31,7 +31,7 @@ from mindie_llm.runtime.utils.distributed.utils import even_divide
 from mindie_llm.utils.log.logging import logger
 
 
-SUPPORT_NZ_NPU_LIST = ("Ascend910B3", "Ascend910B4_1", "Ascend910_9382", "Ascend910_9362")
+SUPPORT_NZ_NPU_LIST = ("Ascend910B3", "Ascend910B4-1", "Ascend910_9382", "Ascend910_9362")
 MXFP8_GROUP_SIZE = 32
 
 

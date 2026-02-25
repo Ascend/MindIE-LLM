@@ -47,13 +47,15 @@ class CloudCutPolicy():
             cls._instance = super(CloudCutPolicy, cls).__new__(cls)
         return cls._instance
 
-    def __init__(self, name="", model_name_or_path='qwen'):
+    def __init__(self, name="", model_name_or_path='qwen', batch_p_num=1):
         if not hasattr(self, 'initialized'):
             self.name = name
             self.model_type = self.__get_model_name(model_name_or_path)
             self.role_type = CloudCutClassType.CLOUD if name == "slave" else CloudCutClassType.OTHER
             self.rank_id = None
             self.soc_name = acl.get_soc_name()
+            self.batch_p_num = batch_p_num
+            self.multi_nodes_enable = False
             self.initialized = False
 
             # Predict the number of chunks, hardcoded based on empirical values: n(K): [cut_num, cut_num_max];
@@ -115,11 +117,14 @@ class CloudCutPolicy():
             return CloudCutModelType.DEEP_SEEK
         return CloudCutModelType.QWEN
 
-    def initialize(self, name, rank_id, max_cut_num, min_cut_num):
+    def initialize(self, name, rank_id, max_cut_num, min_cut_num, multi_nodes_enable):
         self.role_type = CloudCutClassType.CLOUD if name == "slave" else CloudCutClassType.OTHER
         self.rank_id = rank_id
         self.max_cut_num = max_cut_num
         self.min_cut_num = min_cut_num
+        self.multi_nodes_enable = multi_nodes_enable
+        if self.model_type == CloudCutModelType.DEEP_SEEK and self.multi_nodes_enable:
+            self.__ajust_prefill_cut_num_for_multi_nodes()
         self.initialized = True
 
     def get_cut_num(self, input_data: CloudCutInputData):
@@ -265,16 +270,37 @@ class CloudCutPolicy():
     def __ajust_prefill_cut_num_for_diff_npu_soc(self):
         if self.soc_name == 'Ascend910B2':
             logger.info(f"[layerwiseDisaggregated] npu soc is Ascend910B2, ajust prefill cut num.")
+            if self.batch_p_num != 1:
+                self.prefill_default_cut_map = {128: 330, 64: 120, 32: 100, 16: 24, 8: 10, 4: 6, 3: 8, 2: 9, 1: 6, 0: 8}
+                self.prefill_cut_num_max = {128: 330, 64: 120, 32: 100, 16: 24, 8: 10, 4: 6, 3: 8, 2: 9, 1: 5, 0: 8}
+                self.prefill_cut_num_min = {128: 330, 64: 120, 32: 100, 16: 24, 8: 10, 4: 5, 3: 6, 2: 5, 1: 5, 0: 8}
             return
         if self.soc_name == 'Ascend910B3':
             logger.info(f"[layerwiseDisaggregated] npu soc is Ascend910B3, ajust prefill cut num.")
-            self.prefill_default_cut_map = {128: 330, 64: 120, 32: 70, 16: 24, 8: 10, 4: 6, 3: 8, 2: 9, 1: 6, 0: 8}
-            self.prefill_cut_num_max = {128: 330, 64: 120, 32: 70, 16: 24, 8: 10, 4: 6, 3: 8, 2: 9, 1: 5, 0: 8}
-            self.prefill_cut_num_min = {128: 330, 64: 120, 32: 70, 16: 24, 8: 10, 4: 4, 3: 6, 2: 5, 1: 5, 0: 8}
+            if self.batch_p_num == 1:
+                self.prefill_default_cut_map = {128: 330, 64: 120, 32: 70, 16: 24, 8: 10, 4: 6, 3: 8, 2: 9, 1: 6, 0: 8}
+                self.prefill_cut_num_max = {128: 330, 64: 120, 32: 70, 16: 24, 8: 10, 4: 6, 3: 8, 2: 9, 1: 5, 0: 8}
+                self.prefill_cut_num_min = {128: 330, 64: 120, 32: 70, 16: 24, 8: 10, 4: 4, 3: 6, 2: 5, 1: 5, 0: 8}
+            else:
+                self.prefill_default_cut_map = {128: 330, 64: 120, 32: 70, 16: 24, 8: 10, 4: 6, 3: 8, 2: 9, 1: 6, 0: 8}
+                self.prefill_cut_num_max = {128: 330, 64: 120, 32: 70, 16: 24, 8: 10, 4: 6, 3: 8, 2: 9, 1: 5, 0: 8}
+                self.prefill_cut_num_min = {128: 330, 64: 120, 32: 70, 16: 24, 8: 10, 4: 5, 3: 6, 2: 5, 1: 5, 0: 8}
             return
         if self.soc_name == 'Ascend910B4':
             logger.info(f"[layerwiseDisaggregated] npu soc is Ascend910B4, ajust prefill cut num.")
-            self.prefill_default_cut_map = {128: 330, 64: 120, 32: 100, 16: 24, 8: 10, 4: 6, 3: 8, 2: 9, 1: 6, 0: 8}
-            self.prefill_cut_num_max = {128: 330, 64: 120, 32: 100, 16: 24, 8: 10, 4: 6, 3: 8, 2: 9, 1: 5, 0: 8}
-            self.prefill_cut_num_min = {128: 330, 64: 120, 32: 100, 16: 24, 8: 10, 4: 4, 3: 6, 2: 5, 1: 5, 0: 8}
+            if self.batch_p_num == 1:
+                self.prefill_default_cut_map = {128: 330, 64: 120, 32: 100, 16: 24, 8: 10, 4: 6, 3: 8, 2: 9, 1: 6, 0: 8}
+                self.prefill_cut_num_max = {128: 330, 64: 120, 32: 100, 16: 24, 8: 10, 4: 6, 3: 8, 2: 9, 1: 5, 0: 8}
+                self.prefill_cut_num_min = {128: 330, 64: 120, 32: 100, 16: 24, 8: 10, 4: 4, 3: 6, 2: 5, 1: 5, 0: 8}
+            else:
+                self.prefill_default_cut_map = {128: 330, 64: 120, 32: 100, 16: 24, 8: 10, 4: 6, 3: 8, 2: 9, 1: 6, 0: 8}
+                self.prefill_cut_num_max = {128: 330, 64: 120, 32: 100, 16: 24, 8: 10, 4: 6, 3: 8, 2: 9, 1: 5, 0: 8}
+                self.prefill_cut_num_min = {128: 330, 64: 120, 32: 100, 16: 24, 8: 10, 4: 5, 3: 6, 2: 5, 1: 5, 0: 8}
             return
+
+    def __ajust_prefill_cut_num_for_multi_nodes(self):
+        self.prefill_default_cut_map = {31.5: 80, 15.5: 59, 7.5: 45, 3.8: 19, 3.3: 20, 1.8: 17, 0.8: 21, 0: 21}
+        self.prefill_cut_num_max = {31.5: 80, 15.5: 59, 7.5: 45, 3.8: 19, 3.3: 20, 1.8: 17, 0.8: 21, 0: 21}
+        self.prefill_cut_num_min = {31.5: 80, 15.5: 59, 7.5: 45, 3.8: 19, 3.3: 20, 1.8: 17, 0.8: 21, 0: 21}
+        logger.info(f"[layerwiseDisaggregated] cut policy init multi nodes success, model_type: {self.model_type} "
+                f"role_type: {self.role_type} default_cut_map: {self.prefill_default_cut_map}")

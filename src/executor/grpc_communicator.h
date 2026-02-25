@@ -82,6 +82,9 @@ public:
     ConcurrentMap<std::string, SlaveStreamPtr> &SlaveIpToStream();
 
 private:
+    static constexpr int grpcSendReceiveBufSize = 256 * 1024 * 1024; // 256MB, 和共享内存大小对齐
+    static constexpr int maxConcurrentStreams = 128;                   // 最大并发流数
+
     bool InitMaster(int respHandlerThreadCount);
 
     bool InitSlave();

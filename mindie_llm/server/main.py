@@ -38,7 +38,7 @@ def _prepend_ld_library_path(env: dict, paths: list[Path]) -> None:
         return
 
     old = env.get("LD_LIBRARY_PATH", "")
-    env["LD_LIBRARY_PATH"] = ":".join(([old] if old else []) + valid_paths)
+    env["LD_LIBRARY_PATH"] = ":".join(valid_paths + ([old] if old else []))
 
 
 def main():
@@ -55,7 +55,7 @@ def main():
 
     # Set environment variables
     env = os.environ.copy()
-    env["MIES_INSTALL_PATH"] = str(pkg_root)
+    env["MINDIE_LLM_HOME_PATH"] = str(pkg_root)
 
     lib_str = "lib"
     lib_dir = pkg_root / lib_str

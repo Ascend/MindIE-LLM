@@ -26,8 +26,8 @@ EDGE = 'master'
 class TestCertUtil(unittest.TestCase):
 
     def setUp(self):
-        self.original_mies_install_path = os.getenv("MIES_INSTALL_PATH")
-        os.environ["MIES_INSTALL_PATH"] = "/fake/mies/install"
+        self.original_mies_install_path = os.getenv("MINDIE_LLM_HOME_PATH")
+        os.environ["MINDIE_LLM_HOME_PATH"] = "/fake/mies/install"
         self.temp_dir = tempfile.mkdtemp()
         self.test_cert_file = os.path.join(self.temp_dir, "test.crt")
         self.test_pass_file = os.path.join(self.temp_dir, "passwd.txt")
@@ -45,9 +45,9 @@ class TestCertUtil(unittest.TestCase):
 
     def tearDown(self):
         if self.original_mies_install_path is None:
-            os.environ.pop("MIES_INSTALL_PATH", None)
+            os.environ.pop("MINDIE_LLM_HOME_PATH", None)
         else:
-            os.environ["MIES_INSTALL_PATH"] = self.original_mies_install_path
+            os.environ["MINDIE_LLM_HOME_PATH"] = self.original_mies_install_path
 
         if os.path.exists(self.test_cert_file):
             os.remove(self.test_cert_file)
@@ -87,7 +87,7 @@ class TestCertUtil(unittest.TestCase):
         mock_path_join.assert_called_once_with(
             "/fake/mies/install", "lib", "libhse_cryption.so"
         )
-        mock_getenv.assert_called_once_with("MIES_INSTALL_PATH")
+        mock_getenv.assert_called_once_with("MINDIE_LLM_HOME_PATH")
         mock_open_fun.assert_called_once_with(self.test_pass_file)
         mock_lib.Decrypt.assert_called_once_with(
             b"fake_cipher_text",
@@ -150,19 +150,19 @@ class TestTCPServer(unittest.TestCase):
             mock_socket.setblocking.assert_called_once()
 
     @patch('atb_llm.utils.layerwise_disaggregated.edge_cloud_ctrl_comm.TCPServer.start_server_block', return_value=None)
-    def test_server_send(self, *args):
+    def test_send(self, *args):
         tcpserver = TCPServer('127.0.0.1', 1000, {})
-        tcpserver.server_send('msg')
+        tcpserver.send('msg')
         tcpserver.clients = MagicMock()
-        tcpserver.server_send('msg')
+        tcpserver.send('msg')
         tcpserver.clients.sendall.assert_called_once_with('msg'.encode('utf-8'))
 
     @patch('atb_llm.utils.layerwise_disaggregated.edge_cloud_ctrl_comm.TCPServer.start_server_block', return_value=None)
-    def test_server_recv(self, *args):
+    def test_recv(self, *args):
         tcpserver = TCPServer('127.0.0.1', 1000, {})
-        tcpserver.server_recv()
+        tcpserver.recv()
         tcpserver.clients = MagicMock()
-        tcpserver.server_recv()
+        tcpserver.recv()
         tcpserver.clients.recv.assert_called_once()
     
     @patch('atb_llm.utils.layerwise_disaggregated.edge_cloud_ctrl_comm.TCPServer.start_server_block', return_value=None)
@@ -188,19 +188,19 @@ class TestTCPClient(unittest.TestCase):
         tcpclient.client_socket.setblocking.assert_called_once_with(False)
         self.assertIsNone(res)
 
-    def test_client_send(self):
+    def test_send(self):
         tcpclient = TCPClient('127.0.0.1', '1000', {})
-        tcpclient.client_send('123')
+        tcpclient.send('123')
         tcpclient.client_socket = MagicMock()
-        tcpclient.client_send('123')
+        tcpclient.send('123')
         tcpclient.client_socket.sendall.assert_called_once()
 
-    def test_client_recv(self):
+    def test_recv(self):
         tcpclient = TCPClient('127.0.0.1', '1000', {})
-        tcpclient.client_recv()
+        tcpclient.recv()
         self.assertIsNone(tcpclient.client_socket)
         tcpclient.client_socket = MagicMock()
-        tcpclient.client_recv()
+        tcpclient.recv()
         tcpclient.client_socket.recv.assert_called_once()
 
     def test_is_client_connect(self):
@@ -234,8 +234,7 @@ class TestEdgeCloudCtrlComm(unittest.TestCase):
 
         EdgeCloudCtrlComm.decode_comm_finish = False
         EdgeCloudCtrlComm.prefill_comm_finish = False
-        EdgeCloudCtrlComm.prefill_comm_finish_tcp = False
-        EdgeCloudCtrlComm.prefill_comm_finish_irecv = False
+        EdgeCloudCtrlComm.prefill_comm_finish_tcp_count = 0
 
         EdgeCloudCtrlComm.prefill_recv_msg = ''
         EdgeCloudCtrlComm.decode_recv_msg = ''
@@ -256,20 +255,33 @@ class TestEdgeCloudCtrlComm(unittest.TestCase):
         comm = EdgeCloudCtrlComm({})
 
         with patch.object(TCPClient, 'connect_to_server_block') as mock_con:
-            comm.init_tcp_link(rank=0, role=CLOUD, server_ip='', server_port='["2900", "9200"]')
+            comm.init_tcp_link(rank=0, role=EDGE, server_ip='', server_port='["2900", "9200"]')
             mock_con.assert_has_calls([call(), call()])
-
-        with patch.object(TCPClient, 'connect_to_server_block') as mock_con:
-            comm.init_tcp_link(rank=1, role=EDGE, server_ip='', server_port='["2900", "9200"]')
-            mock_con.assert_not_called()
 
         with patch.object(TCPClient, 'connect_to_server_block') as mock_con:
             comm.init_tcp_link(rank=1, role=CLOUD, server_ip='', server_port='["2900", "9200"]')
             mock_con.assert_not_called()
 
+        with patch.object(TCPClient, 'connect_to_server_block') as mock_con:
+            comm.init_tcp_link(rank=1, role=EDGE, server_ip='', server_port='["2900", "9200"]')
+            mock_con.assert_not_called()
+
         with patch.object(TCPClient, 'connect_to_server_block') as mock_con, \
             patch.object(TCPServer, 'start_server_block') as mock_start:
-            comm.init_tcp_link(rank=0, role=EDGE, server_ip='', server_port='["2900", "9200"]')
+            comm.init_tcp_link(rank=0, role=CLOUD, server_ip='', server_port='["2900", "9200"]')
+            mock_con.assert_not_called()
+            mock_start.assert_has_calls([call(), call()])
+        
+        multi_nodes_infer_args = {
+                'is_master': True,
+                'cloud_ctrl_port': "2901",
+                'cloud_ctrl_address': "2900",
+                'dp_size': 2,
+            }
+        with patch.object(TCPClient, 'connect_to_server_block') as mock_con, \
+            patch.object(TCPServer, 'start_server_block') as mock_start:
+            comm.init_tcp_link(rank=0, role=CLOUD, server_ip='', server_port='["2900", "9200"]',
+                               multi_nodes_infer_args=multi_nodes_infer_args)
             mock_con.assert_not_called()
             mock_start.assert_has_calls([call(), call()])
 
@@ -278,31 +290,31 @@ class TestEdgeCloudCtrlComm(unittest.TestCase):
         comm.server_port = ["2025", "2026"]
 
         with patch.object(TCPClient, 'connect_to_server_block'), \
-            patch.object(TCPClient, 'client_send') as mock_client_send, \
-            patch.object(TCPClient, 'client_recv', return_value=None) as mock_client_recv:
-            comm.init_tcp_link(rank=0, role=CLOUD, server_ip='', server_port='["2900", "9200"]')
-            comm.send_prefill()
-            mock_client_send.assert_called_once_with(comm.prefill_send_msg)
-            comm.send_decode()
-            mock_client_send.assert_has_calls([call(comm.prefill_send_msg), call(comm.decode_send_msg)])
-            comm.recv_prefill()
-            mock_client_recv.assert_called_once()
-            comm.recv_decode()
-            mock_client_recv.assert_has_calls([call(), call()])
-
-        with patch.object(TCPClient, 'connect_to_server_block'), \
-            patch.object(TCPServer, 'server_send') as mock_server_send, \
-            patch.object(TCPServer, 'server_recv', return_value="pull1") as mock_server_recv, \
-            patch.object(TCPServer, 'start_server_block'):
+            patch.object(TCPClient, 'send') as mock_send, \
+            patch.object(TCPClient, 'recv', return_value=None) as mock_recv:
             comm.init_tcp_link(rank=0, role=EDGE, server_ip='', server_port='["2900", "9200"]')
             comm.send_prefill()
-            mock_server_send.assert_called_once_with(comm.prefill_send_msg)
+            mock_send.assert_called_once_with(comm.prefill_send_msg)
             comm.send_decode()
-            mock_server_send.assert_has_calls([call(comm.prefill_send_msg), call(comm.decode_send_msg)])
+            mock_send.assert_has_calls([call(comm.prefill_send_msg), call(comm.decode_send_msg)])
             comm.recv_prefill()
-            mock_server_recv.assert_called_once()
+            mock_recv.assert_called_once()
             comm.recv_decode()
-            mock_server_recv.assert_has_calls([call(), call()])
+            mock_recv.assert_has_calls([call(), call()])
+
+        with patch.object(TCPClient, 'connect_to_server_block'), \
+            patch.object(TCPServer, 'send') as mock_send, \
+            patch.object(TCPServer, 'recv', return_value="pull1") as mock_recv, \
+            patch.object(TCPServer, 'start_server_block'):
+            comm.init_tcp_link(rank=0, role=CLOUD, server_ip='', server_port='["2900", "9200"]')
+            comm.send_prefill()
+            mock_send.assert_called_once_with(comm.prefill_send_msg)
+            comm.send_decode()
+            mock_send.assert_has_calls([call(comm.prefill_send_msg), call(comm.decode_send_msg)])
+            comm.recv_prefill()
+            mock_recv.assert_called_once()
+            comm.recv_decode()
+            mock_recv.assert_has_calls([call(), call()])
 
     def test_is_edge_cloud_ctrl_comm_success(self):
         comm = EdgeCloudCtrlComm({})
@@ -312,12 +324,12 @@ class TestEdgeCloudCtrlComm(unittest.TestCase):
         self.assertTrue(result)
 
         comm.rank = 0
-        comm.role = EDGE
+        comm.role = CLOUD
         result = comm.is_edge_cloud_ctrl_comm_success()
         self.assertTrue(result)
 
         comm.rank = 0
-        comm.role = CLOUD
+        comm.role = EDGE
         comm.prefill_client = MagicMock()
         comm.prefill_client.is_client_connected.return_value = False
         comm.decode_client = MagicMock()
@@ -325,16 +337,24 @@ class TestEdgeCloudCtrlComm(unittest.TestCase):
         result = comm.is_edge_cloud_ctrl_comm_success()
         self.assertFalse(result)
 
-    def test_parse_shape(self):
-        comm = EdgeCloudCtrlComm({})
-        self.assertEqual(comm.parse_shape(" "), [])
-        self.assertEqual(comm.parse_shape("pull|[1,2,3,4]"), [1, 2, 3, 4])
-
     def test_shape_to_msg(self):
         comm = EdgeCloudCtrlComm({})
         self.assertIsNone(comm.shape_to_msg([]))
         self.assertIsNone(comm.shape_to_msg([1]))
         self.assertEqual(comm.shape_to_msg([4, 10]), "pull|[4, 10]|0")
+        
+    def test_broadcast_multi_nodes_decision(self):
+        comm = EdgeCloudCtrlComm({})
+        comm.rank = 0
+        comm.multi_nodes_infer_enabled = True
+        comm.multi_nodes_is_master = True
+        comm.multi_nodes_ctrl_server = MagicMock()
+        mock_send = MagicMock()
+        comm.multi_nodes_ctrl_server.send = mock_send
+        msg = '0'
+        comm.broadcast_multi_nodes_decision(msg)
+        mock_send.assert_called_once_with(msg)
+        
 
 
 if __name__ == '__main__':

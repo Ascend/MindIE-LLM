@@ -137,6 +137,8 @@ class GeneratorBackend:
         max_loras = parse_config(model_config, 'max_loras', required=False, parse_type=ParseType.TO_INT, default_value=0)
         max_lora_rank = parse_config(model_config, 'max_lora_rank', required=False, parse_type=ParseType.TO_INT, default_value=0)
         self.__parse_config_key(model_config)
+        lwd_next_p_head_prior = parse_config(model_config, 'lwdNextPHeadPrior', 
+                                         parse_type=ParseType.TO_BOOL, default_value=False)
 
         sampler_config = SamplerConfig(
             backend_type=backend_type,
@@ -166,6 +168,7 @@ class GeneratorBackend:
         model_config['max_loras'] = max_loras
         model_config['max_lora_rank'] = max_lora_rank
         model_config['sampler_config'] = sampler_config
+        model_config['lwdNextPHeadPrior'] = lwd_next_p_head_prior
 
         self.backend_type = backend_type
         self.model_wrapper = get_model_wrapper(model_config, backend_type)

@@ -34,7 +34,8 @@ protected:
 
     void appendSlots(SequenceGroupSPtr seqGroup, RunningOutputs &runningOutput,
         const size_t numUncachedNewTokens, const bool enableChunking);
-
+    
+    std::deque<SequenceGroupSPtr> recomputeprefillQueue_;  // 重计算prefill缓存队列
     std::deque<SequenceGroupSPtr> longprefillQueue_;  // 超长prefill缓存队列
     unsigned int longprefillLenThreshold_ = 2048;  // 超过2048或者32768为超长序列
     bool dynamicPBSEnable_ = true;  // 动态PBS的开关
@@ -46,6 +47,11 @@ protected:
     int curBatchLenBudget_{0};
 
     const bool enableChunking_{false};
+private:
+    int GeneratePrefillBatchInner(SchedulingBudget &budget,
+        std::vector<SequenceGroupSPtr> &ignoredSeqGroups,
+        int curCount, std::vector<std::shared_ptr<ScheduledSequenceGroup>> &seqGroups,
+        SequenceGroupSPtr seqGroup, std::vector<SequenceSPtr> waitingSeqs, size_t promptTokenIdsLen);
 };
 }
 

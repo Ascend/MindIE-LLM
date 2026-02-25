@@ -20,7 +20,7 @@ class TestCloudCutPolicy(unittest.TestCase):
         mock_acl.get_soc_name = Mock()
         mock_acl.get_soc_name.return_value = 'Ascend910B4'
         self.cloud_cut_policy = CloudCutPolicy("slave")
-        self.cloud_cut_policy.initialize("slave", 0, 62, 2)
+        self.cloud_cut_policy.initialize("slave", 0, 62, 2, False)
         pass
 
     @classmethod
@@ -73,7 +73,16 @@ class TestCloudCutPolicy(unittest.TestCase):
         self.assertEqual(cut_num, 8)
         
     def test_ajust_prefill_cut_num_for_diff_npu_soc(self):
+        self.cloud_cut_policy.soc_name = 'Ascend910B2'
+        self.cloud_cut_policy.batch_p_num = 2
+        self.cloud_cut_policy._CloudCutPolicy__ajust_prefill_cut_num_for_diff_npu_soc()
+        self.assertEqual(self.cloud_cut_policy.prefill_default_cut_map.get(32), 100)
+        
         self.cloud_cut_policy.soc_name = 'Ascend910B3'
+        self.cloud_cut_policy.batch_p_num = 1
+        self.cloud_cut_policy._CloudCutPolicy__ajust_prefill_cut_num_for_diff_npu_soc()
+        self.assertEqual(self.cloud_cut_policy.prefill_default_cut_map.get(32), 70)
+        self.cloud_cut_policy.batch_p_num = 2
         self.cloud_cut_policy._CloudCutPolicy__ajust_prefill_cut_num_for_diff_npu_soc()
         self.assertEqual(self.cloud_cut_policy.prefill_default_cut_map.get(32), 70)
         

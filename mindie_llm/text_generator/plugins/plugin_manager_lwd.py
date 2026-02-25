@@ -37,12 +37,14 @@ class RoleType(IntEnum):
 class PluginManagerLwd(PluginManager):
     def __init__(self, generator_backend, kvcache_settings, infer_context, output_filter, is_mix_model,
                  plugin_list, model_role, **kwargs):
+        watcher = kwargs.get('watcher', "")
         super().__init__(generator_backend, kvcache_settings, infer_context, output_filter, is_mix_model,
-                         plugin_list, model_role, **kwargs)
+                         plugin_list, model_role, watcher, **kwargs)
 
         role_type_str = kwargs.get('layerwise_disaggregated_role_type', "")
         self.role_type = RoleType.CLOUD if role_type_str == "slave" else RoleType.EDGE
         self.prefill_total_seq_len = 0
+        self.cached_p_model_input_wrapper_queue = queue.Queue()
         self.cached_p_model_input_wrapper = None
         self.cached_d_model_input_wrapper = None
 
@@ -223,21 +225,31 @@ class PluginManagerLwd(PluginManager):
                 trace_ids, current_dp_sequence_ids, postprocess_done)
 
                 if input_metadata.is_prefill:
-                    self.cached_p_model_input_wrapper = model_input_wrapper
+                    self.cached_p_model_input_wrapper_queue.put(model_input_wrapper)
                 else:
                     self.cached_d_model_input_wrapper = model_input_wrapper
                 span_end(prof)
             else:
                 prof = span_start("preprocess_and_prepare_model_inputs")
                 if input_metadata.is_prefill:
+                    if self.cached_p_model_input_wrapper is None:
+                        self.cached_p_model_input_wrapper = self.cached_p_model_input_wrapper_queue.get(timeout=900)
+                        
                     model_input_wrapper = copy.copy(self.cached_p_model_input_wrapper)
+                    
+                    self.cached_p_model_input_wrapper = None
                 else:
                     model_input_wrapper = copy.copy(self.cached_d_model_input_wrapper)
                 model_input_wrapper.input_metadata = input_metadata
                 span_end(prof)
+            logger.info(f"[layerwiseDisaggregated] get_from_output_queue before is_prefill {input_metadata.is_prefill} "
+                f"input_metadata.all_sequence_ids {input_metadata.all_sequence_ids} start_exec_layer: "
+                f"{input_metadata.layerwise_disaggregated_exe_stage.start_exec_layer}")
             prof = span_start('get_from_output_queue')
             model_output_wrapper = self.output_queue.get(timeout=900)
             span_end(prof)
+            logger.info(f"[layerwiseDisaggregated] get_from_output_queue after is_prefill {input_metadata.is_prefill} "
+                f" start_exec_layer: {input_metadata.layerwise_disaggregated_exe_stage.start_exec_layer}")
 
             # Only D-begin tasks require fill_in; fill according to the filling_masks.
             if not input_metadata.is_prefill and \
@@ -405,9 +417,14 @@ class PluginManagerLwd(PluginManager):
                                 )
                 model_input_wrapper.input_metadata = input_metadata
                 span_end(prof)
+            logger.info(f"[layerwiseDisaggregated] get_from_output_queue before is_prefill {input_metadata.is_prefill} "
+                f"input_metadata.all_sequence_ids {input_metadata.all_sequence_ids} start_exec_layer: "
+                f"{input_metadata.layerwise_disaggregated_exe_stage.start_exec_layer}")
             prof = span_start('get_from_output_queue')
             model_output_wrapper = self.output_queue.get(timeout=900)
             span_end(prof)
+            logger.info(f"[layerwiseDisaggregated] get_from_output_queue after is_prefill {input_metadata.is_prefill} "
+                f" start_exec_layer: {input_metadata.layerwise_disaggregated_exe_stage.start_exec_layer}")
 
             if not input_metadata.is_prefill and \
                model_output_wrapper.input_metadata and \
@@ -484,7 +501,7 @@ class PluginManagerLwd(PluginManager):
         model_input_wrapper.model_inputs.slots = \
             model_input_wrapper.model_inputs.slots[lwd_exe_stage.long_seq_start_idx: lwd_exe_stage.long_seq_end_idx]
 
-    def generate_token_async(self, input_metadata: InputMetadata) -> GenerationOutput:
+    def generate_token_async(self, input_metadata: InputMetadata, warmup=False) -> GenerationOutput:
         if self.role_type == RoleType.CLOUD:
             return self.generate_token_async_cloud(input_metadata)
 
@@ -513,7 +530,8 @@ class PluginManagerLwd(PluginManager):
             model_input_wrapper.model_kwargs.update(exe_stage_kwargs)
             
             if model_input_wrapper.input_metadata.layerwise_disaggregated_exe_stage.is_long_seq:
-                self.prepare_inputs_for_longseq_chunk(model_input_wrapper)
+                if not model_input_wrapper.input_metadata.layerwise_disaggregated_exe_stage.request_dp_empty:
+                    self.prepare_inputs_for_longseq_chunk(model_input_wrapper)
                 model_output = self.generator_backend.forward_from_model_inputs(
                     model_input_wrapper.model_inputs, **model_input_wrapper.model_kwargs)
                 model_input_wrapper.model_kwargs.update({"q_lens": None})

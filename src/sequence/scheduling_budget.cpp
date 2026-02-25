@@ -17,8 +17,9 @@ SchedulingBudget::SchedulingBudget(const size_t maxNumBatchedTokens, const size_
                                    const SchedulerConfigSPtr &schedulerConfig)
     : maxNumSeqs_(maxNumSeqs), maxNumBatchedTokens_(maxNumBatchedTokens), schedulerConfig_(schedulerConfig)
 {
-    // chunked prefill开启时，需更改maxNumSeqs_并初始化partialPrefillOccupiedBudgetPerSlot_
+    // chunked prefill开启时，需更改maxNumSeqs_ maxNumBatchedTokens_并初始化partialPrefillOccupiedBudgetPerSlot_
     if (schedulerConfig_ != nullptr && schedulerConfig_->enableChunkedPrefill) {
+        maxNumBatchedTokens_ = schedulerConfig_->maxPrefillTokens;
         maxNumSeqs_ = schedulerConfig_->maxBatchSize;
         const size_t size = schedulerConfig_->maxNumPartialPrefills + 1;
         partialPrefillOccupiedBudgetPerSlot_.resize(size, 0);

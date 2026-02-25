@@ -16,8 +16,8 @@ import torch
 import torch_npu
 
 
-from atb_llm.utils.layerwise_disaggregated.edge_cloud_data_comm import EdgeCloudDataComm
-from atb_llm.utils.layerwise_disaggregated.edge_cloud_data_comm import SEQ_LEN, BATCH_LEN
+from atb_llm.utils.layerwise_disaggregated.edge_cloud_data_comm import D_INDEX, P_INDEX, EdgeCloudDataComm
+from atb_llm.utils.layerwise_disaggregated.edge_cloud_data_comm import SEQ_LEN, BATCH_LEN, RECV_P, RECV_D, SEND_P, SEND_D
 
 MOCKED_INIT_METHOD = f"{__name__}.EdgeCloudDataComm.__init__"
 
@@ -49,34 +49,8 @@ class TestEdgeCloudDataComm(unittest.TestCase):
         torch.npu.set_device = MagicMock(return_value='npu')
         torch_npu.stream = MagicMock(return_value=MagicMock())
         torch_npu.npu.synchronize = MagicMock()
-        
-        EdgeCloudDataComm.role = "master"
-        EdgeCloudDataComm.edge_ip = '127.0.0.1'
-        EdgeCloudDataComm.edge_port = "29500"
-        EdgeCloudDataComm.rank = 0
-        EdgeCloudDataComm.dist_init = False
-        EdgeCloudDataComm.dtype = torch.bfloat16
 
-        EdgeCloudDataComm.edge_ranks_num = 8
-        EdgeCloudDataComm.cloud_ranks_num = 8
-        EdgeCloudDataComm.groups_inter_send_recv = [[0,2],[1,3]]
-        EdgeCloudDataComm.map_inter_send_recv = [[0,1],[1,0]]
-        
-        EdgeCloudDataComm.send_stream = MagicMock()
-        EdgeCloudDataComm.recv_stream = MagicMock()
-        EdgeCloudDataComm.p_send_card = 0
-        EdgeCloudDataComm.d_send_card = 1
-        EdgeCloudDataComm.p_recv_card = 0
-        EdgeCloudDataComm.d_recv_card = 1
-        
-        EdgeCloudDataComm.hidden_size = 7168
-        
-        EdgeCloudDataComm.ret_p = None
-        EdgeCloudDataComm.ret_d = None
-        EdgeCloudDataComm.need_set_decode_device = False
-        EdgeCloudDataComm.need_set_prefill_device = False
-
-        torch.npu.set_device(torch.device(f"npu:{EdgeCloudDataComm.rank % 8}"))
+        torch.npu.set_device(torch.device(f"npu:0"))
 
     def tearDown(self):
         os.environ.clear()
@@ -94,22 +68,24 @@ class TestEdgeCloudDataComm(unittest.TestCase):
         comm.role = "master"
         mode = 'p'
         comm.rank = 0
-        comm.p_send_card = 0
-        comm.d_send_card = 1
-        comm.map_inter_send_recv = [[0,1],[1,0]]
-        comm.groups_inter_send_recv = [[0,2],[1,3]]
+        comm.cards = [0, 0, 1, 1]
+        comm.maps_inter_send_recv = [[[[0, 1]], [1, 0]], None]
+        comm.groups_inter_send_recv = [[[[0, 2]], [1, 3]], None]
+        self.dp_group = 0
+        comm.streams = [[[MagicMock(), MagicMock()]], [MagicMock(), MagicMock()]]
+
         comm.hidden_size = 64
-        
         test_len = SEQ_LEN if mode == 'p' else BATCH_LEN
         peer_index = 1 if comm.role == "master" else 0
-        src_rank = comm.p_send_card if mode == 'p' else comm.d_send_card
+        src_rank = comm.cards[SEND_P]
+
         test_tensor = torch.ones((test_len, comm.hidden_size), dtype=torch.bfloat16, device=torch.device("npu"))
         
         with patch('torch.distributed.isend') as mock_isend:
             comm.send_hidden(mode=mode, out_tensor=test_tensor)
             if comm.rank == src_rank:
-                dst = comm.map_inter_send_recv[comm.rank][peer_index]
-                group_val = comm.groups_inter_send_recv[comm.rank]
+                dst = comm.maps_inter_send_recv[self.dp_group][P_INDEX][0][peer_index]
+                group_val = comm.groups_inter_send_recv[self.dp_group][P_INDEX][0]
                 mock_isend.assert_called_once_with(
                     tensor=ANY,
                     dst=dst,
@@ -126,10 +102,11 @@ class TestEdgeCloudDataComm(unittest.TestCase):
         comm.role = "master"
         mode = 'p'
         comm.rank = 1
-        comm.p_send_card = 0
-        comm.d_send_card = 1
-        comm.map_inter_send_recv = [[0,1],[1,0]]
-        comm.groups_inter_send_recv = [[0,2],[1,3]]
+        comm.cards = [0, 0, 1, 1]
+        comm.maps_inter_send_recv = [[[[0, 1]], [1, 0]], None]
+        comm.groups_inter_send_recv = [[[[0, 2]], [1, 3]], None]
+        comm.streams = [[[MagicMock(), MagicMock()]], [MagicMock(), MagicMock()]]
+        self.dp_group = 0
         comm.hidden_size = 64
 
         test_len = SEQ_LEN if mode == 'p' else BATCH_LEN
@@ -146,10 +123,11 @@ class TestEdgeCloudDataComm(unittest.TestCase):
         comm.role = "master"
         mode = 'd'
         comm.rank = 0
-        comm.p_send_card = 0
-        comm.d_send_card = 1
-        comm.map_inter_send_recv = [[0,1],[1,0]]
-        comm.groups_inter_send_recv = [[0,2],[1,3]]
+        comm.cards = [0, 0, 1, 1]
+        comm.maps_inter_send_recv = [[[[0, 1]], [1, 0]], None]
+        comm.groups_inter_send_recv = [[[[0, 2]], [1, 3]], None]
+        comm.streams = [[[MagicMock(), MagicMock()]], [MagicMock(), MagicMock()]]
+        self.dp_group = 0
         comm.hidden_size = 64
 
         test_len = SEQ_LEN if mode == 'p' else BATCH_LEN
@@ -166,22 +144,23 @@ class TestEdgeCloudDataComm(unittest.TestCase):
         comm.role = "master"
         mode = 'd'
         comm.rank = 1
-        comm.p_send_card = 0
-        comm.d_send_card = 1
-        comm.groups_inter_send_recv = [[0,1],[1,0]]
-        comm.map_inter_send_recv = [[0,1],[1,0]]
+        comm.cards = [0, 0, 1, 1]
+        comm.maps_inter_send_recv = [[[[0, 1]], [1, 0]], None]
+        comm.groups_inter_send_recv = [[[[0, 2]], [1, 3]], None]
+        comm.streams = [[[MagicMock(), MagicMock()]], [MagicMock(), MagicMock()]]
+        self.dp_group = 0
         comm.hidden_size = 64
         
         test_len = SEQ_LEN if mode == 'p' else BATCH_LEN
         peer_index = 1 if comm.role == "master" else 0
-        src_rank = comm.p_send_card if mode == 'p' else comm.d_send_card
+        src_rank = comm.cards[SEND_D]
         test_tensor = torch.ones((test_len, comm.hidden_size), dtype=torch.bfloat16, device=torch.device("npu"))
         
         with patch('torch.distributed.isend') as mock_isend:
             comm.send_hidden(mode=mode, out_tensor=test_tensor)
             if comm.rank == src_rank:
-                dst = comm.map_inter_send_recv[comm.rank][peer_index]
-                group_val = comm.groups_inter_send_recv[comm.rank]
+                dst = comm.maps_inter_send_recv[self.dp_group][D_INDEX][peer_index]
+                group_val = comm.groups_inter_send_recv[self.dp_group][D_INDEX]
                 mock_isend.assert_called_once_with(
                     tensor=ANY,
                     dst=dst,
@@ -198,22 +177,23 @@ class TestEdgeCloudDataComm(unittest.TestCase):
         comm.role = "slave"
         mode = 'p'
         comm.rank = 0
-        comm.p_send_card = 0
-        comm.d_send_card = 1
-        comm.map_inter_send_recv = [[0,1],[1,0]]
-        comm.groups_inter_send_recv = [[0,1],[1,0]]
+        comm.cards = [0, 0, 1, 1]
+        comm.maps_inter_send_recv = [[[[0, 1]], [1, 0]], None]
+        comm.groups_inter_send_recv = [[[[0, 2]], [1, 3]], None]
+        comm.streams = [[[MagicMock(), MagicMock()]], [MagicMock(), MagicMock()]]
+        self.dp_group = 0
         comm.hidden_size = 64
         
         test_len = SEQ_LEN if mode == 'p' else BATCH_LEN
         peer_index = 1 if comm.role == "master" else 0
-        src_rank = comm.p_send_card if mode == 'p' else comm.d_send_card
+        src_rank = comm.cards[SEND_P]
         test_tensor = torch.ones((test_len, comm.hidden_size), dtype=torch.bfloat16, device=torch.device("npu"))
         
         with patch('torch.distributed.isend') as mock_isend:
             comm.send_hidden(mode=mode, out_tensor=test_tensor)
             if comm.rank == src_rank:
-                dst = comm.map_inter_send_recv[comm.rank][peer_index]
-                group_val = comm.groups_inter_send_recv[comm.rank]
+                dst = comm.maps_inter_send_recv[self.dp_group][P_INDEX][0][peer_index]
+                group_val = comm.groups_inter_send_recv[self.dp_group][P_INDEX][0]
                 mock_isend.assert_called_once_with(
                     tensor=ANY,
                     dst=dst,
@@ -230,9 +210,11 @@ class TestEdgeCloudDataComm(unittest.TestCase):
         comm.role = "slave"
         mode = 'p'
         comm.rank = 1
-        comm.p_send_card = 0
-        comm.d_send_card = 1
-        comm.map_inter_send_recv = [[0,1],[1,0]]
+        comm.cards = [0, 0, 1, 1]
+        comm.maps_inter_send_recv = [[[[0, 1]], [1, 0]], None]
+        comm.groups_inter_send_recv = [[[[0, 2]], [1, 3]], None]
+        comm.streams = [[[MagicMock(), MagicMock()]], [MagicMock(), MagicMock()]]
+        self.dp_group = 0
         comm.hidden_size = 64
 
         test_len = SEQ_LEN if mode == 'p' else BATCH_LEN
@@ -249,9 +231,11 @@ class TestEdgeCloudDataComm(unittest.TestCase):
         comm.role = "slave"
         mode = 'd'
         comm.rank = 0
-        comm.p_send_card = 0
-        comm.d_send_card = 1
-        comm.map_inter_send_recv = [[0,1],[1,0]]
+        comm.cards = [0, 0, 1, 1]
+        comm.maps_inter_send_recv = [[[[0, 1]], [1, 0]], None]
+        comm.groups_inter_send_recv = [[[[0, 2]], [1, 3]], None]
+        comm.streams = [[[MagicMock(), MagicMock()]], [MagicMock(), MagicMock()]]
+        self.dp_group = 0
         comm.hidden_size = 64
 
         test_len = SEQ_LEN if mode == 'p' else BATCH_LEN
@@ -268,22 +252,23 @@ class TestEdgeCloudDataComm(unittest.TestCase):
         comm.role = "slave"
         mode = 'd'
         comm.rank = 1
-        comm.p_send_card = 0
-        comm.d_send_card = 1
-        comm.groups_inter_send_recv = [[0,1],[1,0]]
-        comm.map_inter_send_recv = [[0,1],[1,0]]
+        comm.cards = [0, 0, 1, 1]
+        comm.maps_inter_send_recv = [[[[0, 1]], [1, 0]], None]
+        comm.groups_inter_send_recv = [[[[0, 2]], [1, 3]], None]
+        comm.streams = [[[MagicMock(), MagicMock()]], [MagicMock(), MagicMock()]]
+        self.dp_group = 0
         comm.hidden_size = 64
         
         test_len = SEQ_LEN if mode == 'p' else BATCH_LEN
         peer_index = 1 if comm.role == "master" else 0
-        src_rank = comm.p_send_card if mode == 'p' else comm.d_send_card
+        src_rank = comm.cards[SEND_D]
         test_tensor = torch.ones((test_len, comm.hidden_size), dtype=torch.bfloat16, device=torch.device("npu"))
         
         with patch('torch.distributed.isend') as mock_isend:
             comm.send_hidden(mode=mode, out_tensor=test_tensor)
             if comm.rank == src_rank:
-                dst = comm.map_inter_send_recv[comm.rank][peer_index]
-                group_val = comm.groups_inter_send_recv[comm.rank]
+                dst = comm.maps_inter_send_recv[self.dp_group][D_INDEX][peer_index]
+                group_val = comm.groups_inter_send_recv[self.dp_group][D_INDEX]
                 mock_isend.assert_called_once_with(
                     tensor=ANY,
                     dst=dst,
@@ -300,22 +285,23 @@ class TestEdgeCloudDataComm(unittest.TestCase):
         comm.role = "master"
         mode = 'p'
         comm.rank = 0
-        comm.p_send_card = 0
-        comm.d_send_card = 1
-        comm.groups_inter_send_recv = [[0,1],[1,0]]
-        comm.map_inter_send_recv = [[0,1],[1,0]]
+        comm.cards = [0, 0, 1, 1]
+        comm.maps_inter_send_recv = [[[[0, 1]], [1, 0]], None]
+        comm.groups_inter_send_recv = [[[[0, 2]], [1, 3]], None]
+        comm.streams = [[[MagicMock(), MagicMock()]], [MagicMock(), MagicMock()]]
+        self.dp_group = 0
         comm.hidden_size = 64
 
         test_len = SEQ_LEN if mode == 'p' else BATCH_LEN
         peer_index = 1 if comm.role == "master" else 0
-        src_rank = comm.p_send_card if mode == 'p' else comm.d_send_card
+        src_rank = comm.cards[SEND_P]
         test_tensor = torch.ones((test_len, comm.hidden_size), dtype=torch.bfloat16, device=torch.device("npu"))
         
         with patch('torch.distributed.isend') as mock_isend:
             comm.send_hidden(mode=mode, out_tensor=test_tensor)
             if comm.rank == src_rank:
-                dst = comm.map_inter_send_recv[comm.rank][peer_index]
-                group_val = comm.groups_inter_send_recv[comm.rank]
+                dst = comm.maps_inter_send_recv[self.dp_group][P_INDEX][0][peer_index]
+                group_val = comm.groups_inter_send_recv[self.dp_group][P_INDEX][0]
                 mock_isend.assert_called_once_with(
                     tensor=ANY,
                     dst=dst,
@@ -332,22 +318,23 @@ class TestEdgeCloudDataComm(unittest.TestCase):
         comm.role = "slave"
         mode = 'd'
         comm.rank = 1
-        comm.p_send_card = 0
-        comm.d_send_card = 1
-        comm.groups_inter_send_recv = [[0,1],[1,0]]
-        comm.map_inter_send_recv = [[0,1],[1,0]]
+        comm.cards = [0, 0, 1, 1]
+        comm.maps_inter_send_recv = [[[[0, 1]], [1, 0]], None]
+        comm.groups_inter_send_recv = [[[[0, 2]], [1, 3]], None]
+        comm.streams = [[[MagicMock(), MagicMock()]], [MagicMock(), MagicMock()]]
+        self.dp_group = 0
         comm.hidden_size = 64
 
         test_len = SEQ_LEN if mode == 'p' else BATCH_LEN
         peer_index = 1 if comm.role == "master" else 0
-        src_rank = comm.p_send_card if mode == 'p' else comm.d_send_card
+        src_rank = comm.cards[SEND_D]
         test_tensor = torch.ones((test_len, comm.hidden_size), dtype=torch.bfloat16, device=torch.device("npu"))
 
         with patch('torch.distributed.isend') as mock_isend:
             comm.send_hidden(mode=mode, out_tensor=test_tensor)
             if comm.rank == src_rank:
-                dst = comm.map_inter_send_recv[comm.rank][peer_index]
-                group_val = comm.groups_inter_send_recv[comm.rank]
+                dst = comm.maps_inter_send_recv[self.dp_group][D_INDEX][peer_index]
+                group_val = comm.groups_inter_send_recv[self.dp_group][D_INDEX]
                 mock_isend.assert_called_once_with(
                     tensor=ANY,
                     dst=dst,
@@ -367,22 +354,23 @@ class TestEdgeCloudDataComm(unittest.TestCase):
         comm.role = "master"
         mode = 'p'
         comm.rank = 0
-        comm.p_send_card = 0
-        comm.d_send_card = 1
-        comm.groups_inter_send_recv = [[0,1], [1,0]]
-        comm.map_inter_send_recv = [[0,1],[1,0]]
+        comm.cards = [0, 0, 1, 1]
+        comm.maps_inter_send_recv = [[[[0, 1]], [1, 0]], None]
+        comm.groups_inter_send_recv = [[[[0, 2]], [1, 3]], None]
+        comm.streams = [[[MagicMock(), MagicMock()]], [MagicMock(), MagicMock()]]
+        self.dp_group = 0
         comm.hidden_size = 64
         comm.hccl_comm_warmup(comm.hidden_size)
 
         peer_index = 1
-        src_rank = comm.p_send_card if mode == 'p' else comm.d_send_card
+        src_rank = comm.cards[SEND_P]
 
         with patch('torch.distributed.irecv') as mock_isend:
             mock_isend.return_value = 1
-            comm.recv_hidden(mode=mode, shape=1024)
+            comm.recv_hidden(mode=mode, shape=[1024])
             if comm.rank == src_rank:
-                src = comm.map_inter_send_recv[comm.rank][peer_index]
-                group_val = comm.groups_inter_send_recv[comm.rank]
+                src = comm.maps_inter_send_recv[self.dp_group][P_INDEX][0][peer_index]
+                group_val = comm.groups_inter_send_recv[self.dp_group][P_INDEX][0]
 
                 mock_isend.assert_called_once_with(
                     ANY,
@@ -393,7 +381,7 @@ class TestEdgeCloudDataComm(unittest.TestCase):
             else:
                 mock_isend.assert_not_called()
             if mode == 'p':
-                self.assertEqual(comm.ret_p, 1)
+                self.assertEqual(comm.ret_p, [1])
             else:
                 self.assertEqual(comm.ret_d, 1)
 
@@ -406,9 +394,11 @@ class TestEdgeCloudDataComm(unittest.TestCase):
         comm.role = 'master'
         mode = 'p'
         comm.rank = 1
-        comm.p_send_card = 0
-        comm.d_send_card = 1
-        comm.groups_inter_send_recv = [[0,1], [1,0]]
+        comm.cards = [0, 0, 1, 1]
+        comm.maps_inter_send_recv = [[[[0, 1]], [1, 0]], None]
+        comm.groups_inter_send_recv = [[[[0, 2]], [1, 3]], None]
+        comm.streams = [[[MagicMock(), MagicMock()]], [MagicMock(), MagicMock()]]
+        self.dp_group = 0
         comm.hidden_size = 64
 
         with patch('torch.distributed.irecv', return_value="ret") as mock_irecv:
@@ -424,9 +414,11 @@ class TestEdgeCloudDataComm(unittest.TestCase):
         comm.role = 'master'
         mode = 'd'
         comm.rank = 0
-        comm.p_send_card = 0
-        comm.d_send_card = 1
-        comm.groups_inter_send_recv = [[0,1], [1,0]]
+        comm.cards = [0, 0, 1, 1]
+        comm.maps_inter_send_recv = [[[[0, 1]], [1, 0]], None]
+        comm.groups_inter_send_recv = [[[[0, 2]], [1, 3]], None]
+        comm.streams = [[[MagicMock(), MagicMock()]], [MagicMock(), MagicMock()]]
+        self.dp_group = 0
         comm.hidden_size = 64
 
         with patch('torch.distributed.irecv', return_value="ret") as mock_irecv:
@@ -444,21 +436,22 @@ class TestEdgeCloudDataComm(unittest.TestCase):
         comm.role = 'master'
         mode = 'd'
         comm.rank = 1
-        comm.p_send_card = 0
-        comm.d_send_card = 1
-        comm.groups_inter_send_recv = [[0,1], [1,0]]
-        comm.map_inter_send_recv = [[0,1],[1,0]]
+        comm.cards = [0, 0, 1, 1]
+        comm.maps_inter_send_recv = [[[[0, 1]], [1, 0]], None]
+        comm.groups_inter_send_recv = [[[[0, 2]], [1, 3]], None]
+        comm.streams = [[[MagicMock(), MagicMock()]], [MagicMock(), MagicMock()]]
+        self.dp_group = 0
         comm.hidden_size = 64
         comm.hccl_comm_warmup(comm.hidden_size)
 
         peer_index = 1
-        bc_group = comm.groups_inter_send_recv[comm.rank]
-        src_rank = comm.d_send_card
+        bc_group = comm.groups_inter_send_recv[self.dp_group][D_INDEX]
+        src_rank = comm.cards[SEND_D]
         with patch('torch.distributed.irecv') as mock_isend:
             mock_isend.return_value = 1
             comm.recv_hidden(mode=mode, shape=1024)
             if comm.rank == src_rank:
-                src = comm.groups_inter_send_recv[comm.rank][peer_index]
+                src = comm.maps_inter_send_recv[self.dp_group][D_INDEX][peer_index]
                 mock_isend.assert_called_once_with(
                     ANY,
                     src=src,
@@ -482,21 +475,22 @@ class TestEdgeCloudDataComm(unittest.TestCase):
         comm.role = 'slave'
         mode = 'p'
         comm.rank = 0
-        comm.p_send_card = 0
-        comm.d_send_card = 1
-        comm.map_inter_send_recv = [[0,1], [1,0]]
-        comm.groups_inter_send_recv = [[0,1], [1,0]]
+        comm.cards = [0, 0, 1, 1]
+        comm.maps_inter_send_recv = [[[[0, 1]], [1, 0]], None]
+        comm.groups_inter_send_recv = [[[[0, 2]], [1, 3]], None]
+        comm.streams = [[[MagicMock(), MagicMock()]], [MagicMock(), MagicMock()]]
+        self.dp_group = 0
         comm.hidden_size = 64
         comm.hccl_comm_warmup(comm.hidden_size)
 
         peer_index = 0
-        bc_group = comm.groups_inter_send_recv[comm.rank]
-        src_rank = comm.p_send_card if mode == 'p' else comm.d_send_card
+        bc_group = comm.groups_inter_send_recv[self.dp_group][P_INDEX][0]
+        src_rank = comm.cards[SEND_P]
         with patch('torch.distributed.irecv') as mock_isend:
             mock_isend.return_value = 1
-            comm.recv_hidden(mode=mode, shape=1024)
+            comm.recv_hidden(mode=mode, shape=[1024])
             if comm.rank == src_rank:
-                src = comm.map_inter_send_recv[comm.rank][peer_index]
+                src = comm.maps_inter_send_recv[self.dp_group][P_INDEX][0][peer_index]
                 mock_isend.assert_called_once_with(
                     ANY,
                     src=src,
@@ -505,7 +499,7 @@ class TestEdgeCloudDataComm(unittest.TestCase):
             else:
                 mock_isend.assert_not_called()
             if mode == 'p':
-                self.assertEqual(comm.ret_p, 1)
+                self.assertEqual(comm.ret_p, [1])
             else:
                 self.assertEqual(comm.ret_d, 1)
 
@@ -517,9 +511,11 @@ class TestEdgeCloudDataComm(unittest.TestCase):
         comm.role = 'slave'
         mode = 'p'
         comm.rank = 1
-        comm.p_send_card = 0
-        comm.d_send_card = 1
-        comm.groups_inter_send_recv = [[0,1], [1,0]]
+        comm.cards = [0, 0, 1, 1]
+        comm.maps_inter_send_recv = [[[[0, 1]], [1, 0]], None]
+        comm.groups_inter_send_recv = [[[[0, 2]], [1, 3]], None]
+        comm.streams = [[[MagicMock(), MagicMock()]], [MagicMock(), MagicMock()]]
+        self.dp_group = 0
         comm.hidden_size = 64
         with patch('torch.distributed.irecv', return_value="ret") as mock_irecv:
             comm.recv_hidden(mode=mode, shape=1024)
@@ -533,9 +529,11 @@ class TestEdgeCloudDataComm(unittest.TestCase):
         comm.role = 'slave'
         mode = 'd'
         comm.rank = 0
-        comm.p_send_card = 0
-        comm.d_send_card = 1
-        comm.groups_inter_send_recv = [[0,1], [1,0]]
+        comm.cards = [0, 0, 1, 1]
+        comm.maps_inter_send_recv = [[[[0, 1]], [1, 0]], None]
+        comm.groups_inter_send_recv = [[[[0, 2]], [1, 3]], None]
+        comm.streams = [[[MagicMock(), MagicMock()]], [MagicMock(), MagicMock()]]
+        self.dp_group = 0
         comm.hidden_size = 64
 
         comm.ret_d = None
@@ -554,21 +552,22 @@ class TestEdgeCloudDataComm(unittest.TestCase):
         comm.role = 'slave'
         mode = 'd'
         comm.rank = 1
-        comm.p_send_card = 0
-        comm.d_send_card = 1
-        comm.map_inter_send_recv = [[0,1], [1,0]]
-        comm.groups_inter_send_recv = [[0,1], [1,0]]
+        comm.cards = [0, 0, 1, 1]
+        comm.maps_inter_send_recv = [[[[0, 1]], [1, 0]], None]
+        comm.groups_inter_send_recv = [[[[0, 2]], [1, 3]], None]
+        comm.streams = [[[MagicMock(), MagicMock()]], [MagicMock(), MagicMock()]]
+        self.dp_group = 0
         comm.hidden_size = 64
         comm.hccl_comm_warmup(comm.hidden_size)
 
         peer_index = 0
-        bc_group = comm.groups_inter_send_recv[comm.rank]
-        src_rank = comm.d_send_card
+        bc_group = comm.groups_inter_send_recv[self.dp_group][D_INDEX]
+        src_rank = comm.cards[SEND_D]
         with patch('torch.distributed.irecv') as mock_isend:
             mock_isend.return_value = 1
             comm.recv_hidden(mode=mode, shape=1024)
             if comm.rank == src_rank:
-                src = comm.map_inter_send_recv[comm.rank][peer_index]
+                src = comm.maps_inter_send_recv[self.dp_group][D_INDEX][peer_index]
                 mock_isend.assert_called_once_with(
                     ANY,
                     src=src,
@@ -590,8 +589,8 @@ class TestEdgeCloudDataComm(unittest.TestCase):
         '''
         os.environ['RANK_TABLE_FILE'] = '/path/to/rank_table.json'
         comm = EdgeCloudDataComm()
-        origin_value = comm.temp_unset_rank_table()
-        self.assertEqual(origin_value, '/path/to/rank_table.json')
+        comm.temp_unset_rank_table()
+        self.assertEqual(comm.rank_file, '/path/to/rank_table.json')
         self.assertNotIn('RANK_TABLE_FILE', os.environ)
 
     @patch.object(EdgeCloudDataComm, '__new__', return_value=object.__new__(EdgeCloudDataComm))
@@ -601,11 +600,12 @@ class TestEdgeCloudDataComm(unittest.TestCase):
         测试恢复RANK_TABLE_FILE环境变量
         '''
         comm = EdgeCloudDataComm()
-        comm.restore_rank_table('/path/to/rank_table.json')
+        comm.rank_file = '/path/to/rank_table.json'
+        comm.restore_rank_table()
         self.assertEqual(os.environ.get('RANK_TABLE_FILE'), '/path/to/rank_table.json')
         
         del os.environ['RANK_TABLE_FILE']
-        comm.restore_rank_table(None)
+        comm.restore_rank_table()
         self.assertNotIn('RANK_TABLE_FILE', os.environ)
 
     @patch('torch.distributed.broadcast')
@@ -623,23 +623,25 @@ class TestEdgeCloudDataComm(unittest.TestCase):
         comm.init_hccl(rank=0, role='master', data_comm_args=data_comm_args)
 
         comm.init_hccl(rank=0,role='slave',data_comm_args=data_comm_args)
+        comm.dp_size = 2
+        comm.init_hccl(rank=0,role='slave',data_comm_args=data_comm_args)
 
     @patch.object(EdgeCloudDataComm, '__new__', return_value=object.__new__(EdgeCloudDataComm))
     @patch('torch.npu.stream', side_effect=MockStreamContext)
     @patch('torch.ones')
     def test_warmup_send(self, *args):
         comm = EdgeCloudDataComm()
-        comm.groups_inter_send_recv = [0,1]
-        comm.map_inter_send_recv = [[0,1], [1,0]]
+        comm.cards = [0, 0, 1, 1]
+        comm.maps_inter_send_recv = [[[[0, 1]], [1, 0]], None]
+        comm.groups_inter_send_recv = [[[[0, 2]], [1, 3]], None]
+        comm.streams = [[[MagicMock(), MagicMock()]], [MagicMock(), MagicMock()]]
 
         comm.rank = 0
-        comm.p_send_card = 0
         with patch('torch.distributed.isend') as mock_isend:
             comm.warmup_send(1)
             mock_isend.assert_called_once()
 
         comm.rank = 1
-        comm.d_send_card = 1
         with patch('torch.distributed.isend') as mock_isend:
             comm.warmup_send(1)
             mock_isend.assert_called_once()
@@ -649,42 +651,21 @@ class TestEdgeCloudDataComm(unittest.TestCase):
     @patch('torch.ones')
     def test_warmup_recv(self, *args):
         comm = EdgeCloudDataComm()
-        comm.groups_inter_send_recv = [0,1]
-        comm.map_inter_send_recv = [[0,1],[1,0]]
+        comm.cards = [0, 0, 1, 1]
+        comm.maps_inter_send_recv = [[[[0, 1]], [1, 0]], None]
+        comm.groups_inter_send_recv = [[[[0, 2]], [1, 3]], None]
+        comm.streams = [[[MagicMock(), MagicMock()]], [MagicMock(), MagicMock()]]
         
         comm.rank = 0
-        comm.p_recv_card = 0
         with patch("torch.distributed.irecv") as mock_isend:
             comm.warmup_recv(1)
             mock_isend.assert_called_once()
         comm.rank = 1
-        comm.d_recv_card = 1
+        
         with patch("torch.distributed.irecv") as mock_isend:
             comm.warmup_recv(1)
             mock_isend.assert_called_once()
 
-    
-    @patch.object(EdgeCloudDataComm, '__new__', return_value=object.__new__(EdgeCloudDataComm))
-    @patch('torch.npu.stream', side_effect=MockStreamContext)
-    @patch('torch.ones')
-    def test_broadcast_ctrl(self, *args):
-        comm = EdgeCloudDataComm()
-        comm.group_intra_broadcast_edge = MagicMock()
-        comm.map_intra_broadcast_edge = [0]
-        comm.group_intra_broadcast_cloud = MagicMock()
-        comm.map_intra_broadcast_cloud = [0]
-        
-        comm.rank = 0
-        comm.role = "master"
-        with patch("torch.distributed.broadcast") as mock_broad:
-            comm.broadcast_ctrl(switch_flag=1, shape=[10,20])
-            mock_broad.assert_called_once()
-
-        comm.rank = 1
-        comm.role = "slave"
-        with patch("torch.distributed.broadcast") as mock_broad:
-            comm.broadcast_ctrl(switch_flag=1, shape=[10,20])
-            mock_broad.assert_called_once()
 
 if __name__ == '__main__':
     # 设置测试环境

@@ -14,6 +14,7 @@ import math
 import os
 import sys
 import time
+import json
 from enum import IntEnum
 from pathlib import Path
 
@@ -23,7 +24,7 @@ from mindie_llm.connector.common.model_execute_data_pb2 import ExecuteRequest, E
 from mindie_llm.utils.layerwise.request_metadata import LwdMetadata, lwd_metadata_manager
 from mindie_llm.utils.layerwise.cloud_cut_inputdata import CloudCutInputData
 from mindie_llm.connector.request_router.layerwise.request_router_lwd import RequestRouterLwd, LastExecType, \
-    DecisionType, MASTER_ID, LONG_SEQ_LEN_MIN
+    DecisionType, MASTER_ID
 
 sys.path.append(str(Path(__file__).parent / "sync"))
 
@@ -36,12 +37,11 @@ class CtrlTypePos(IntEnum):
     SHAPE_END = 2
     DIVI_NUM = 3
     CHUNK_NUM = 4
-    SEQ_LEN = 5
-    MAX_NUM = 6
+    MAX_NUM = 5
 
 
 class RequestRouterCloud(RequestRouterLwd):
-    def __init__(self):
+    def __init__(self, parent_pid):
         self.last_execute_type = None
         self.before_last_execute_type = None
 
@@ -51,10 +51,13 @@ class RequestRouterCloud(RequestRouterLwd):
 
         self.prefill_layers_divi_policy = [13] * 2 + [12] * 3
         self.prefill_layers_divi_num = int(os.getenv("PREFILL_CUT_NUM", "5"))
-        self.prefill_layers_divi_switch = False if os.getenv("PREFILL_LAYERS_DIVI_SWITCH", "on") == "false" else True
+        self.prefill_layers_divi_switch = False if os.getenv("PREFILL_LAYERS_DIVI_SWITCH", "on") == "off" else True
 
+        self.is_long_seq = False
         self.prefill_exec_chunk_cnt = 0
         self.prefill_chunk_policy = None
+        self.prefill_chunk_num = 1
+        self.long_seq_start_idx = 0
 
         self.total_layer_num = 64
         self.start_layer_num = 1
@@ -62,6 +65,7 @@ class RequestRouterCloud(RequestRouterLwd):
         self.cloud_layer_num = 62
 
         self.isqwenvl = False   # 多模态
+        self.lwd_multi_nodes_is_master = False # 多机
 
         self.process_func = {
             DecisionType.DO_PREFILL: self.do_prefill,
@@ -70,14 +74,12 @@ class RequestRouterCloud(RequestRouterLwd):
             DecisionType.DO_CLEAN_EOS: self.do_clean_eos,
         }
 
-        super().__init__()
+        super().__init__(parent_pid)
 
     def initialize_diff(self, model_config, models_config_dict):
-        is_producer = True if self.rank == MASTER_ID else False
-        card_num = models_config_dict.get('layerwiseDisaggregatedSlaveDeviceNum', 8)
-        self.mem_manager.initialize(is_producer, card_num - 1)
-
         self.isqwenvl = True if model_config.get("model_name") == "qwen2_vl" else False
+        self.lwd_multi_nodes_is_master = True if model_config.get('lwd_multi_nodes_is_master', 'false') == 'true' \
+                                              else False
 
         self.start_layer_num = models_config_dict.get('startLayerNum', 1)
         self.end_layer_num = models_config_dict.get('endLayerNum', 1)
@@ -87,13 +89,15 @@ class RequestRouterCloud(RequestRouterLwd):
         self.cloud_layer_num = self.total_layer_num - self.start_layer_num - self.end_layer_num
 
         cloud_cut_instance = self.router_impl.generator.model_wrapper.model_runner.time_counter
-        cloud_cut_instance.initialize("slave", self.rank, self.cloud_layer_num, LAYERS_DIVI_MIN_NUM)
+        cloud_cut_instance.initialize("slave", self.rank, self.cloud_layer_num, LAYERS_DIVI_MIN_NUM,
+            self.lwd_multi_nodes_enable)
         self.prepare_prefill_cut_policy(self.prefill_layers_divi_num)
 
-        logger.info(f"[layerwiseDisaggregated] cloud initliaze ok rank:{self.rank}, is_producer:{is_producer}, "
-            f"card_num:{card_num} start_layer_num:{self.start_layer_num}, end_layer_num:{self.end_layer_num}, "
-            f"total_layer_num:{self.total_layer_num}, prefill_layers_divi_num = {self.prefill_layers_divi_num}, "
-            f"prefill_layers_divi_policy = {self.prefill_layers_divi_policy}")
+        logger.info(f"[layerwiseDisaggregated] cloud initliaze ok rank:{self.rank}, "
+            f"lwd_multi_nodes_is_master:{self.lwd_multi_nodes_is_master}, "
+            f"start_layer_num:{self.start_layer_num}, end_layer_num:{self.end_layer_num}, "
+            f"total_layer_num:{self.total_layer_num}, prefill_layers_divi_num:{self.prefill_layers_divi_num}, "
+            f"prefill_layers_divi_policy:{self.prefill_layers_divi_policy}")
 
     def prepare_prefill_cut_policy(self, divi_num):
         self.prefill_layers_divi_num = divi_num
@@ -122,24 +126,38 @@ class RequestRouterCloud(RequestRouterLwd):
 
         cloud_cut_instance = self.router_impl.generator.model_wrapper.model_runner.time_counter
         gap_list = self.get_prefill_gap_time_list(self.prefill_request)
-        self.prefill_layers_divi_num = cloud_cut_instance.get_cut_num(CloudCutInputData(self.prefill_seq_len, gap_list))
+        self.prefill_layers_divi_num = cloud_cut_instance.get_cut_num(
+                                                            CloudCutInputData(self.prefill_dp_max_seq_len, gap_list))
         self.prepare_prefill_cut_policy(self.prefill_layers_divi_num)
 
     def update_prefill_long_seq_data(self):
-        if self.prefill_seq_len <= LONG_SEQ_LEN_MIN or self.prefill_batch_size > 1:
+        if self.prefill_dp_max_seq_len <= self.get_long_seq_len_min():
             return
 
         self.is_long_seq = True
-        self.prefill_chunk_num = self.prefill_chunk_instance.map_prefill_chunk_num(self.prefill_seq_len)
-        self.prepare_prefill_chunk_policy(self.prefill_seq_len, self.prefill_chunk_num)
+        self.prefill_chunk_num = self.prefill_chunk_instance.map_prefill_chunk_num(self.prefill_dp_max_seq_len)
+        self.prepare_prefill_chunk_policy(self.prefill_dp_seq_len, self.prefill_chunk_num)
         self.prefill_layers_divi_num = round(self.prefill_layers_divi_num / self.prefill_chunk_num)
         self.prepare_prefill_cut_policy(self.prefill_layers_divi_num)
 
     def set_pd_curr_request(self):
         if self.prefill_request is None and not self.prefill_queue.empty():
             self.prefill_request = self.prefill_queue.get()
-            self.prefill_seq_len = self.calc_seq_len(self.prefill_request)
-            self.prefill_batch_size = self.calc_batch_size(self.prefill_request)
+
+            self.prefill_dp_seq_len = self.calc_curr_dp_seq_len(self.prefill_request)
+            self.prefill_dp_max_seq_len = self.calc_max_seq_len(self.prefill_request)
+            self.prefill_dp_empty = False
+            if self.prefill_dp_seq_len == 0:    # 当前batch是空
+                self.prefill_dp_seq_len = 1     # 长度至少为1, 构造陪跑时的长度
+                self.prefill_dp_empty = True
+                
+            self.prefill_chunk_num = self.prefill_chunk_instance.map_prefill_chunk_num(self.prefill_dp_max_seq_len) \
+                if self.prefill_dp_max_seq_len > self.get_long_seq_len_min() else 1
+            if self.isqwenvl:
+                self.prefill_dp_seq_len = self.prefill_dp_seq_len * 2
+            self.data_comm.p_shape[self.data_comm.recv_index] = \
+                math.ceil(self.prefill_dp_seq_len / self.prefill_chunk_num) 
+            self.data_comm.recv_hidden('p', self.data_comm.p_shape)
 
             if self.rank == MASTER_ID:
                 self.update_prefill_layers_divi_num()
@@ -149,6 +167,33 @@ class RequestRouterCloud(RequestRouterLwd):
             if not self.clean_eos_queue.empty():    # 下一个D需要等clean_eos做完, 否则可能出现prefill before decode
                 return
             self.decode_request = self.decode_queue.get()
+
+    def recv_ctrl_msg(self):
+        if self.rank == MASTER_ID:
+            self.recv_prefill() # 接收对方发来的prefill tcp控制信号
+            self.recv_decode()  # 接收对方发来的decode tcp控制信号
+
+    def master_rank_make_decision(self):
+        # 双机云侧的slave节点只接收来自云master节点的决策
+        if self.lwd_multi_nodes_enable and not self.lwd_multi_nodes_is_master:
+            self.recv_decision_from_master()
+        else:
+            # Determine the decision type for executing P/D based on the current information.
+            self.calc_decision_type()
+            self.send_decision_to_slave()
+
+    def send_decision_to_slave(self):
+        if self.lwd_multi_nodes_enable:
+            send_message = {"decision_type": self.decision_type}
+            send_str = json.dumps(send_message)
+            self.ctrl_comm.broadcast_multi_nodes_decision(send_str)
+
+    def recv_decision_from_master(self):
+        recv_str = self.ctrl_comm.recv_multi_nodes_decision()
+        recv_message = json.loads(recv_str)
+        self.decision_type = DecisionType(recv_message["decision_type"])
+        while self.decision_type == DecisionType.DO_PREFILL and self.prefill_request is None:
+            self.get_all_request()
 
     def decision_do_clean_eos_type(self):
         if not self.clean_eos_queue.empty() and self.decode_request is None:
@@ -165,7 +210,7 @@ class RequestRouterCloud(RequestRouterLwd):
         if has_prefill_finish and has_decode_finish:
             if self.last_execute_type == LastExecType.DECODE:
                 self.decision_type = DecisionType.DO_PREFILL
-            elif self.last_execute_type == LastExecType.PREFILEE:
+            elif self.last_execute_type == LastExecType.PREFILL:
                 self.decision_type = DecisionType.DO_DECODE
             else:
                 self.decision_type = DecisionType.DO_PREFILL
@@ -188,11 +233,11 @@ class RequestRouterCloud(RequestRouterLwd):
         #                 10ms                       10ms
         has_prefill_finish = self.prefill_request and self.prefill_comm_finish
         if has_prefill_finish:
-            if self.last_execute_type == LastExecType.PREFILEE and \
+            if self.last_execute_type == LastExecType.PREFILL and \
                 self.before_last_execute_type == LastExecType.DECODE:
                 curr_time = time.time()
                 if self.prefill_exec_last_time and \
-                    curr_time - self.prefill_exec_last_time < 0.01:
+                    curr_time - self.prefill_exec_last_time < 0.01 and self.clean_up_queue.empty():
                     self.decision_type = DecisionType.WAIT_DECODE
                 else:
                     self.decision_type = DecisionType.DO_PREFILL
@@ -231,17 +276,15 @@ class RequestRouterCloud(RequestRouterLwd):
         ctrl_tensor[CtrlTypePos.SHAPE_END] = -1
         ctrl_tensor[CtrlTypePos.DIVI_NUM] = self.prefill_layers_divi_num
         ctrl_tensor[CtrlTypePos.CHUNK_NUM] = self.prefill_chunk_num
-        ctrl_tensor[CtrlTypePos.SEQ_LEN] = self.prefill_seq_len
         self.mem_manager.write_list_memory(ctrl_tensor)
 
     def recv_do_prefill_type_update_policy(self, ctrl_tensor):
         self.prefill_layers_divi_num = int(ctrl_tensor[CtrlTypePos.DIVI_NUM])
         self.prepare_prefill_cut_policy(self.prefill_layers_divi_num)
         self.prefill_chunk_num = int(ctrl_tensor[CtrlTypePos.CHUNK_NUM])
-        self.prefill_seq_len = int(ctrl_tensor[CtrlTypePos.SEQ_LEN])
         if self.prefill_chunk_num > 1:
             self.is_long_seq = True
-            self.prepare_prefill_chunk_policy(self.prefill_seq_len, self.prefill_chunk_num)
+            self.prepare_prefill_chunk_policy(self.prefill_dp_seq_len, self.prefill_chunk_num)
 
     def recv_decision_type(self):
         ctrl_tensor = self.mem_manager.read_list_memory(self.rank)
@@ -255,6 +298,9 @@ class RequestRouterCloud(RequestRouterLwd):
         if self.decision_type == DecisionType.DO_DECODE:
             self.ctrl_comm.decode_recv_msg = self.ctrl_comm.shape_to_msg(shape)
         elif self.decision_type == DecisionType.DO_PREFILL:
+            while self.prefill_request is None:
+                self.get_all_request()
+
             if self.prefill_exec_cnt == 0:
                 self.recv_do_prefill_type_update_policy(ctrl_tensor)
             self.ctrl_comm.prefill_recv_msg = self.ctrl_comm.shape_to_msg(shape)
@@ -278,14 +324,20 @@ class RequestRouterCloud(RequestRouterLwd):
         while self.prefill_request is None:
             self.get_all_request()
         prefill_start_time = time.time()
-        self.router_impl.execute(self.prefill_request)
+        if not self.prefill_dp_empty and self.prefill_exec_chunk_cnt > self.prefill_dp_seq_len:
+            self.prefill_request.execute_model_request.forward_type = ForwardType.DUMMY
+            self.router_impl.execute(self.prefill_request)
+            logger.info(f"[layerwiseDisaggregated] execute do_prefill dummy end, rank:{self.rank}.")
+        else:
+            self.router_impl.execute(self.prefill_request)
         prefill_end_time = time.time()
-        logger.info(f"[layerwiseDisaggregated] cloud do_prefill exec layer cnt:{self.prefill_exec_cnt}, "
-            f"exec chunk cnt:{self.prefill_exec_chunk_cnt} prefill_chunk_num:{self.prefill_chunk_num}"
+        logger.info(f"[layerwiseDisaggregated] execute do_prefill exec layer cnt:{self.prefill_exec_cnt}, "
+            f"prefill_layers_divi_num:{self.prefill_layers_divi_num}, "
+            f"exec chunk cnt:{self.prefill_exec_chunk_cnt} prefill_chunk_num:{self.prefill_chunk_num}, "
             f"time exec cost {1000 * (prefill_end_time - prefill_start_time)}ms, rank{self.rank}.")
         self.do_prefill_end_clear_data()
         self.before_last_execute_type = self.last_execute_type
-        self.last_execute_type = LastExecType.PREFILEE
+        self.last_execute_type = LastExecType.PREFILL
         self.prefill_exec_last_time = prefill_end_time
         span_end(prof)
         return
@@ -303,7 +355,7 @@ class RequestRouterCloud(RequestRouterLwd):
         self.decode_comm_finish = False 
         self.ctrl_comm.decode_comm_finish = False
         self.decode_request = None
-        logger.info(f"[layerwiseDisaggregated] cloud do_decode, time exec cost "
+        logger.info(f"[layerwiseDisaggregated] execute do_decode, time exec cost "
             f"{1000 * (decode_end_time - decode_start_time)}ms, rank{self.rank}.")
         span_end(prof)
         return
@@ -315,36 +367,54 @@ class RequestRouterCloud(RequestRouterLwd):
             chunk_end_input_offset = self.long_seq_start_idx + self.prefill_chunk_policy[self.prefill_exec_chunk_cnt]
             chunk_next_end_input_offset = (
                 chunk_end_input_offset + self.prefill_chunk_policy[self.prefill_exec_chunk_cnt + 1] 
-                if chunk_end_input_offset < self.prefill_seq_len else 0
+                if chunk_end_input_offset < self.prefill_dp_seq_len else 0
             )
 
+        curr_dp_empty = True if self.prefill_dp_empty else False
         exec_end_layer = self.prefill_exec_start_layer + self.prefill_layers_divi_policy[self.prefill_exec_cnt]
-        metadata = LwdMetadata(self.prefill_exec_start_layer, exec_end_layer, False, True, 1, 1,
+        metadata = LwdMetadata(self.prefill_exec_start_layer, exec_end_layer, False, True, False, curr_dp_empty,
             self.cloud_layer_num, self.is_long_seq, self.long_seq_start_idx,
-            chunk_end_input_offset, chunk_next_end_input_offset, self.prefill_seq_len)
-        
+            chunk_end_input_offset, chunk_next_end_input_offset, self.prefill_dp_seq_len, False)
+
         self.prefill_exec_start_layer = exec_end_layer
         self.prefill_exec_cnt += 1
 
-        if exec_end_layer >= self.cloud_layer_num and self.is_long_seq and \
-            chunk_end_input_offset < self.prefill_seq_len:
+        # 最后一段序列, 要放在这里判断, 因为序列在最后一层的时候 + 1, 比如执行4chunk会出现cnt 从0->4
+        if self.is_long_seq and self.prefill_exec_chunk_cnt == self.prefill_chunk_num - 1:
+            metadata.is_last_chunk = True
+
+        # 处理执行结束层超过云层数量的情况
+        if exec_end_layer >= self.cloud_layer_num:
+            # 长短序列都先重置层的执行状态
             self.prefill_exec_start_layer = 0
-            self.prefill_exec_cnt = 0
-            self.long_seq_start_idx = chunk_end_input_offset
-            self.prefill_exec_chunk_cnt += 1
-        # The final chunk of prefill requires a dummy return.
-        elif exec_end_layer >= self.cloud_layer_num and \
-            (not self.is_long_seq or chunk_end_input_offset >= self.prefill_seq_len):
-            self.prefill_exec_start_layer = 0
-            self.long_seq_start_idx = 0
-            self.prefill_exec_chunk_cnt += 1
             metadata.end_of_generate_token = True
+
+            # 长序列处理逻辑, 覆盖部分赋值
+            if self.is_long_seq:
+                self.prefill_exec_chunk_cnt += 1    # 执行chunk + 1
+                if chunk_end_input_offset < self.prefill_dp_seq_len:
+                    # 长序列且未处理完所有分块
+                    self.prefill_exec_cnt = 0   # 重置执行层
+                    self.long_seq_start_idx = chunk_end_input_offset    # 序列长度往下走
+                    metadata.end_of_generate_token = False
+                else:
+                    # 长序列且已处理完当前分块
+                    self.long_seq_start_idx = 0
+                    metadata.end_of_generate_token = True   # 在最后一段真序列结束要生产token
+
+                    # 处理长序列特殊情况：分块计数超过序列长度
+                    if (self.prefill_exec_chunk_cnt >= self.prefill_dp_seq_len and 
+                        self.prefill_exec_chunk_cnt < self.prefill_chunk_num):
+                        self.long_seq_start_idx = chunk_end_input_offset    # 保持下发的起点
+                        metadata.end_of_generate_token = False              # 超过序列长度不需要再生产token了
+                        self.prefill_exec_cnt = 0
 
         return metadata
 
     def arrange_exec_stage(self):
         if self.decision_type == DecisionType.DO_DECODE:
-            metadata = LwdMetadata(0, self.cloud_layer_num, True, False, 1, 1, self.cloud_layer_num, False, 0, 0, 0, 0)
+            metadata = LwdMetadata(0, self.cloud_layer_num, True, False, False, False,
+                                   self.cloud_layer_num, False, 0, 0, 0, 0, False)
             lwd_metadata_manager.set_metadata(metadata)
             logger.info(f"[layerwiseDisaggregated]exec decode, rank{self.rank} set metadata: {metadata}")
         elif self.decision_type == DecisionType.DO_PREFILL:
@@ -352,32 +422,11 @@ class RequestRouterCloud(RequestRouterLwd):
             lwd_metadata_manager.set_metadata(metadata)
             logger.info(f"[layerwiseDisaggregated]exec prefill, rank{self.rank} set metadata: {metadata}")
 
-    def accept_prefill_prepare(self, execute_request: ExecuteRequest):
-        seq_len = self.calc_seq_len(execute_request)
-        batch_size = self.calc_batch_size(execute_request)
-        if self.isqwenvl:
-            seq_len = seq_len * 2
-        prefill_chunk_num = 1
-        if seq_len > LONG_SEQ_LEN_MIN and batch_size == 1:
-            prefill_chunk_num = self.prefill_chunk_instance.map_prefill_chunk_num(seq_len)
-        self.data_comm.prefill_seq_len_queue.put(math.ceil(seq_len / prefill_chunk_num))
-
-        if not self.data_comm.need_set_prefill_device:
-            self.data_comm.need_set_prefill_device = True
-
-        self.data_comm.p_shape = self.data_comm.prefill_seq_len_queue.get()
-        self.data_comm.recv_hidden('p', self.data_comm.p_shape)
-
-        logger.info(f"[layerwiseDisaggregated] cloud prefill seq len putted, rank{self.rank} seq_len: {seq_len}")
-
     def accept_decode_prepare(self, execute_request: ExecuteRequest):
-        batch_size = self.calc_batch_size(execute_request)
+        batch_size = self.calc_curr_dp_batch_size(execute_request)  # 兼容单dp, 当前dp域是空时, BS返回1
         if self.isqwenvl:
             batch_size = batch_size + 1
         self.data_comm.decode_batch_size_queue.put(batch_size)
-
-        if not self.data_comm.need_set_decode_device:
-            self.data_comm.need_set_decode_device = True
 
         with self.data_comm.lock:
             logger.info(f"[layerwiseDisaggregated] req_router, pre recv "
@@ -387,15 +436,12 @@ class RequestRouterCloud(RequestRouterLwd):
                 self.data_comm.recv_hidden('d', self.data_comm.d_shape)
                 self.data_comm.flag_pre_recv = False
 
-        logger.info(f"[layerwiseDisaggregated] cloud decode batch size putted, "
-            f"rank{self.rank} batch_size: {batch_size}")
+        logger.info(f"[layerwiseDisaggregated]cloud decode batch size putted, rank{self.rank} batch_size: {batch_size}")
 
     def accept(self, execute_request: ExecuteRequest):
         if execute_request.execute_type == ExecuteType.MODEL_INFER:
             forward_type = execute_request.execute_model_request.forward_type
-            if forward_type == ForwardType.PREFILL:
-                self.accept_prefill_prepare(execute_request)
-            elif forward_type == ForwardType.DECODE:
+            if forward_type == ForwardType.DECODE:
                 self.accept_decode_prepare(execute_request)
             self.inference_queue.put(execute_request)
         elif execute_request.execute_type == ExecuteType.PD_LINK:

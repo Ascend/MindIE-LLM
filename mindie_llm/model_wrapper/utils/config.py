@@ -77,6 +77,7 @@ class BaseConfig():
     
     def layerwise_disaggregated_initialize(self):
         self.layerwise_disaggregated = self.parse("layerwiseDisaggregated", required=False, default_value=None)
+        self.p_inst_enable_sp_cp = False    # 分布式边云协同场景暂不支持
 
     def initialize(self):
         # optional

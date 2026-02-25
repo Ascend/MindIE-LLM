@@ -97,6 +97,16 @@ bool ConfigManager::IslayerwiseDisaggregated() const
     return impl_->IslayerwiseDisaggregated();
 }
 
+bool ConfigManager::IsLwdMultiNodesEnable() const
+{
+    return impl_->IsLwdMultiNodesEnable();
+}
+
+std::string ConfigManager::GetLwdRoleType() const
+{
+    return impl_->GetLwdRoleType();
+}
+
 void ConfigManager::SetMaxPositionEmbeddings(unsigned int maxPositionEmbeddings)
 {
     impl_->SetMaxPositionEmbeddings(maxPositionEmbeddings);
@@ -132,10 +142,13 @@ ConfigManager::Impl::Impl(const std::string &jsonPath)
     if (!modelDeployConfig_->InitFromJson()) {
         throw std::runtime_error("Failed to initialize ModelDeployConfig from JSON.");
     }
-    if (IsMultiNodeInfer() || scheduleConfig_->GetParam().distributedEnable) {
+
+    // 新增边云多机场景, 边侧目前只有一台机器, 云侧才是真正的多机
+    bool isLwdMultiNodesSlave = IsLwdMultiNodesEnable() && GetLwdRoleType() == "slave";
+    if (IsMultiNodeInfer() || scheduleConfig_->GetParam().distributedEnable || isLwdMultiNodesSlave) {
         ranktableConfig_ = std::make_shared<RanktableConfigManager>();
         if (!ranktableConfig_->InitFromJson()) {
-            throw std::runtime_error("");
+            throw std::runtime_error("init rank table config error.");
         }
         backendConfig_->UpdateMultiNodesInfer(ranktableConfig_->GetParam());
     }
@@ -175,9 +188,19 @@ bool ConfigManager::Impl::IsMultiNodeInfer() const
     return backendConfig_->GetParam().multiNodesInferEnabled;
 }
 
+bool ConfigManager::Impl::IsLwdMultiNodesEnable() const
+{
+    return backendConfig_->GetParam().lwdMultiNodesEnable;
+}
+
 bool ConfigManager::Impl::IslayerwiseDisaggregated() const
 {
     return serverConfig_->GetParam().layerwiseDisaggregated;
+}
+
+std::string ConfigManager::Impl::GetLwdRoleType() const
+{
+    return serverConfig_->GetParam().layerwiseDisaggregatedRoleType;
 }
 
 bool ConfigManager::Impl::PreCheck() const
@@ -197,6 +220,45 @@ bool ConfigManager::Impl::PreCheck() const
 
 bool ConfigManager::Impl::CheckAndInitLogParam() { return logConfig_->CheckParam(); }
 
+static bool CheckScheduleConfigParam(const ScheduleConfig &scheduleConfigParam)
+{
+    if (scheduleConfigParam.templateType != "Standard") {
+        MINDIE_LLM_LOG_ERROR("layerwiseDisaggregated not incompatible with templateType " <<
+            scheduleConfigParam.templateType << std::endl);
+        return false;
+    }
+
+    if (scheduleConfigParam.supportSelectBatch) {
+        MINDIE_LLM_LOG_ERROR("layerwiseDisaggregated not incompatible with supportSelectBatch." << std::endl);
+        return false;
+    }
+
+    if (scheduleConfigParam.bufferResponseEnabled) {
+        MINDIE_LLM_LOG_ERROR("layerwiseDisaggregated not incompatible with bufferResponseEnabled." << std::endl);
+        return false;
+    }
+
+    return true;
+}
+
+static bool LwdCheckMultiNodesParam(const ServerConfig &serverConfigParam, const BackendConfig &backendConfigParam,
+    uint32_t dpNum)
+{
+    bool multiNodes = backendConfigParam.lwdMultiNodesEnable;
+    uint32_t slaveIpNum = serverConfigParam.layerwiseDisaggregatedSlaveIpAddress.size();
+    if (multiNodes && slaveIpNum != 2) { // 多机目前仅支持2机
+        MINDIE_LLM_LOG_ERROR("layerwiseDisaggregated multi nodes only support slaveIpAddress size is 2 ." << std::endl);
+        return false;
+    }
+
+    if (multiNodes && (dpNum < 1 || dpNum > 2)) { // 多机目前仅支持dp=1和dp=2
+        MINDIE_LLM_LOG_ERROR("layerwiseDisaggregated multi nodes only support dp size is 1 or 2." << std::endl);
+        return false;
+    }
+
+    return true;
+}
+
 bool ConfigManager::Impl::CheckLayerwiseDisaggregatedParam()
 {
     // cross validate layerwiseDisaggregated
@@ -204,7 +266,6 @@ bool ConfigManager::Impl::CheckLayerwiseDisaggregatedParam()
     const auto& serverConfigParam = serverConfig_->GetParam();
     const auto& scheduleConfigParam = scheduleConfig_->GetParam();
     const auto& modelDeployConfigParamVec = modelDeployConfig_->GetParam();
-    bool checkConflicit;
 
     if (backendConfigParam.multiNodesInferEnabled) {
         MINDIE_LLM_LOG_ERROR("layerwiseDisaggregated not incompatible with multiNodesInferEnabled."<<std::endl);
@@ -231,31 +292,26 @@ bool ConfigManager::Impl::CheckLayerwiseDisaggregatedParam()
     }
 
     auto itrFindPluginType = modelConfigParam.find("plugin_type");
-    checkConflicit = (itrFindPluginType!= modelConfigParam.end() && itrFindPluginType->second == "splitfuse");
+    bool checkConflicit = (itrFindPluginType!= modelConfigParam.end() && itrFindPluginType->second == "splitfuse");
     if (checkConflicit) {
         MINDIE_LLM_LOG_ERROR("layerwiseDisaggregated not incompatible with plugin_type: splitfuse." << std::endl);
         return false;
     }
 
-    if (scheduleConfigParam.templateType != "Standard") {
-        MINDIE_LLM_LOG_ERROR("layerwiseDisaggregated not incompatible with templateType "
-                            <<scheduleConfigParam.templateType << std::endl);
-        return false;
-    }
-
-    if (scheduleConfigParam.supportSelectBatch) {
-        MINDIE_LLM_LOG_ERROR("layerwiseDisaggregated not incompatible with supportSelectBatch." << std::endl);
-        return false;
-    }
-
-    if (scheduleConfigParam.bufferResponseEnabled) {
-        MINDIE_LLM_LOG_ERROR("layerwiseDisaggregated not incompatible with bufferResponseEnabled." << std::endl);
+    if (!CheckScheduleConfigParam(scheduleConfigParam)) {
         return false;
     }
 
     auto itrFindDp = modelConfigParam.find("dp");
-    checkConflicit = (itrFindDp != modelConfigParam.end() && itrFindDp->second != "1");
-    if (checkConflicit) {
+    bool isFindDp = itrFindDp != modelConfigParam.end();
+    uint32_t dpNum = isFindDp ? std::stol(itrFindDp->second) : 0;
+    if (!LwdCheckMultiNodesParam(serverConfigParam, backendConfigParam, dpNum)) {
+        return false;
+    }
+
+    bool singleNode = !backendConfigParam.lwdMultiNodesEnable;
+    bool singleNodeInsNotSupportDpNum = isFindDp && (dpNum != 1);
+    if (singleNode && singleNodeInsNotSupportDpNum) {
         MINDIE_LLM_LOG_ERROR("layerwiseDisaggregated not incompatible with dp "<< itrFindDp->second << std::endl);
         return false;
     }
@@ -296,7 +352,7 @@ bool ConfigManager::Impl::CheckAllParam()
             std::cout << "The value of modelParam.cpuMemSize can not be 0 when maxPreemptCount is not 0." << std::endl;
             result = false;
         }
-        if (maxPrefillTokens < modelPam.maxInputTokenLen) {
+        if (maxPrefillTokens < modelPam.maxInputTokenLen && scheduleConfig_->GetParam().templateType != "Mix") {
             std::cout << "The value of maxPrefillTokens should not be less than maxInputTokenLen." << std::endl;
             result = false;
         }
