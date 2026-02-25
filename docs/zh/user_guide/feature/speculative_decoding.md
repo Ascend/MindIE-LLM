@@ -31,6 +31,7 @@
 -  该特性暂不支持n、best\_of、use\_beam\_search、logprobs、top\_logprobs等与多序列推理相关的后处理参数。
 -  并行解码场景暂不支持流式推理。
 -  并行解码惩罚类后处理仅支持重复惩罚。
+-  并行解码场景暂不支持开启健康检查HealthCheck。
 -  lookahead和memory\_decoding算法不可同时使能。
 
 ## 参数说明
