@@ -73,6 +73,7 @@ static std::map<std::string, std::vector<std::string>> GetDeepseekV2ModelInTenso
         {"attn_cp_prefill", {"in_seq_len_cp", "in_cp_load_balance_idx_first", "in_cp_load_balance_idx_last",
                              "in_cp_o_recover_idx", "in_cp_kv_recover_idx"}},
         {"attn_inner_sp_decode", {"in_seq_len_sp"}},
+        {"sp_mtp", {"is_need_mask"}},
         {"attn_cp_sp_decode", {"in_filter_mask"}},
         {"epwb", {
             "in_expert_routing_map_model"}},
@@ -108,6 +109,10 @@ void MtpDecoderModel::ConstructInTensorMap()
     if (param.mapping.Get(base::ATTN_INNER_SP).IsEnabled() && !param.isPrefill) {
         atb_speed::common::AssignTensorIdx(
             deepseekV2ModelInTensorCandidates, "attn_inner_sp_decode", this->inTensorMap);
+        if (param.enableSpeculate) {
+            atb_speed::common::AssignTensorIdx(
+                deepseekV2ModelInTensorCandidates, "sp_mtp", this->inTensorMap);
+        }
     }
     if ((param.mapping.Get(base::ATTN_INNER_SP).IsEnabled() || param.mapping.Get(base::ATTN_CP).IsEnabled()) &&
         !param.isPrefill) {
@@ -632,6 +637,10 @@ atb::Status MtpDecoderModel::AddParallelHostWeight(atb_speed::Model::Node &layer
     if (param.mapping.Get(base::ATTN_INNER_SP).IsEnabled() && !param.isPrefill) {
         layerNode.inTensors.at(inTensorId++) = &graph_.inTensors.at(
             atb_speed::common::GetTensorIdx(this->inTensorMap, "in_seq_len_sp"));
+        if (param.enableSpeculate) {
+            layerNode.inTensors.at(inTensorId++) = &graph_.inTensors.at(
+                atb_speed::common::GetTensorIdx(this->inTensorMap, "is_need_mask"));
+        }
     }
     if ((param.mapping.Get(base::ATTN_INNER_SP).IsEnabled() || param.mapping.Get(base::ATTN_CP).IsEnabled()) &&
         !param.isPrefill) {
@@ -945,6 +954,10 @@ atb::Status MtpDecoderModel::BindParamHostTensor(uint32_t nodeId)
     if (param.mapping.Get(base::ATTN_INNER_SP).IsEnabled() && !param.isPrefill) {
         const uint32_t seqLenSpTensorIdx = atb_speed::common::GetTensorIdx(this->inTensorMap, "in_seq_len_sp");
         graph_.inTensors.at(seqLenSpTensorIdx).hostData = seqLenSp.Get().data();
+        if (param.enableSpeculate) {
+            const uint32_t isNeedMaskTensorIdx = atb_speed::common::GetTensorIdx(this->inTensorMap, "is_need_mask");
+            graph_.inTensors.at(isNeedMaskTensorIdx).hostData = isNeedMask.Get().data();
+        }
     }
     // MTP固定走并行解码
     const uint32_t qLenTensorIdx = atb_speed::common::GetTensorIdx(this->inTensorMap, "in_tensor_q_len");

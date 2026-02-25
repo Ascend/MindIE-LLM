@@ -1268,6 +1268,9 @@ void DecoderModel::ParseParallelParam(nlohmann::json &paramJson)
     if (paramJson.contains("seqLenSp")) {
         this->seqLenSp.Parse("seqLenSp", paramJson);
     }
+    if (paramJson.contains("isNeedMask")) {
+        this->isNeedMask.Parse("isNeedMask", paramJson);
+    }
 }
 
 void DecoderModel::ParseFlashCommParam(nlohmann::json &paramJson)

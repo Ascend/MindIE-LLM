@@ -117,6 +117,7 @@ std::map<std::string, std::vector<std::string>> GetDeepseekV2LayerInTensorCandid
         {"attn_cp_prefill", {"in_seq_len_cp", "in_cp_load_balance_idx_first", "in_cp_load_balance_idx_last",
                              "in_cp_o_recover_idx", "in_cp_kv_recover_idx"}},
         {"attn_inner_sp_decode", {"in_seq_len_sp"}},
+        {"sp_mtp", {"is_need_mask"}},
         {"attn_cp_sp_decode", {"in_filter_mask"}},
         {"force_load_balance", {"in_fake_topk"}},
         {"epwb", {"in_expert_routing_map"}},
@@ -214,6 +215,9 @@ std::vector<std::string> ConstructIntensorList(const DecoderLayerParam &param)
     }
     if (param.mapping.Get(base::ATTN_INNER_SP).IsEnabled() && !param.isPrefill) {
         atb_speed::common::AddTensorToList(deepseekV2InTensorCandidates, "attn_inner_sp_decode", inTensorList);
+        if (param.enableSpeculate) {
+            atb_speed::common::AddTensorToList(deepseekV2InTensorCandidates, "sp_mtp", inTensorList);
+        }
     }
     if ((param.mapping.Get(base::ATTN_INNER_SP).IsEnabled() || param.mapping.Get(base::ATTN_CP).IsEnabled()) &&
         !param.isPrefill) {
@@ -582,6 +586,9 @@ int64_t SetAttention(atb::GraphParam &opGraph, const DecoderLayerParam &param,
     }
     if (param.mapping.Get(base::ATTN_INNER_SP).IsEnabled() && !param.isPrefill) {
         attnInTensorNames.push_back("in_seq_len_sp");
+        if (param.enableSpeculate) {
+            attnInTensorNames.push_back("is_need_mask");
+        }
     }
     if ((param.mapping.Get(base::ATTN_INNER_SP).IsEnabled() || param.mapping.Get(base::ATTN_CP).IsEnabled())
         && !param.isPrefill) {

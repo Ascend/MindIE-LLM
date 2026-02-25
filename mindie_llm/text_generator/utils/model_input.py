@@ -39,6 +39,7 @@ class ModelInput:
     cp_tokens: Optional[np.ndarray] = None
     pad_token_count: Optional[np.ndarray] = None
     cached_context_length: Optional[Union[np.ndarray, List[int]]] = None
+    is_need_mask: Optional[List[int]] = None
 
     # attributes for prefixcache
     sp_computed_slots_padding_idx: Optional[np.ndarray] = None

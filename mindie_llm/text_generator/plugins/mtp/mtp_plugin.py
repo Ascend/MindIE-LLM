@@ -170,6 +170,7 @@ class MtpPlugin(Plugin):
                         speculative_length,
                     )
                     model_inputs.slots[idx * speculative_length:(idx + 1) * speculative_length] = self.generator_backend.to_tensor_async(tmp_slots)
+                    model_inputs.is_need_mask[idx] = int(model_inputs.slots[(idx + 1) * speculative_length - 1] != -1)
                     model_inputs.sp_tokens[idx] = sp_tokens
                     input_lengths_sp[idx] = sp_tokens[
                         self.infer_context.spcp_parallel_info.cp_rank

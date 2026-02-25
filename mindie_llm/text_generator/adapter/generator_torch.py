@@ -642,6 +642,7 @@ class GeneratorTorch(GeneratorBackend):
             q_lens = model_inputs.context_length.tolist()
             kv_device = self.model_wrapper.device
             kv_dtype = self.model_wrapper.model_info.dtype
+            model_inputs.is_need_mask = [0] * len(q_lens)
             attn_mask = self.model_wrapper.model_runner.attn_mask.get_attn_mask(
                 model_inputs.max_seq_len, kv_dtype, kv_device)
             super()._warm_up(model_inputs, q_lens=q_lens, attn_mask=attn_mask, **kwargs)

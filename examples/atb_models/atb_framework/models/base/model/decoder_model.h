@@ -207,6 +207,8 @@ protected:
     std::vector<int> qLen = {};
     // For Attn Inner SP
     DynamicParam<std::vector<int>> seqLenSp;
+    // For Attn Inner SP and mtp = 1
+    DynamicParam<std::vector<int>> isNeedMask;
     // For Attn CP
     DynamicParam<std::vector<int>> seqLenCp;
     // For prefixcache ring_cur + ring_cache
