@@ -31,6 +31,7 @@ from ...utils.env import ENV
 from ...utils.prof.profiler import span_start, span_end, span_req, span_attr, count_block
 from ...utils.log.logging import logger
 from ...utils.log.logging_base import HandlerType
+from ..utils.input_metadata import SIMULATE_SEQUENCE_ID
 
 SPECULATIVE_PLUGIN_LIST = ["la", "memory_decoding"]
 LAUNCH_DONE_TIMEOUT = 1
@@ -445,6 +446,11 @@ class PluginManager:
             model_inputs, input_len_mask = method(
                 model_inputs, input_metadata, sampling_metadata, cache_ids, input_len_mask, **kwargs)
         (q_len, spec_mask) = input_len_mask
+        # 需要确保虚推 context_length 至少为 1，否则会导致模型内部维度计算错误 (coreDim = 0)
+        if input_metadata.all_sequence_ids is not None and not input_metadata.is_prefill:
+            has_simulate = any(sid == SIMULATE_SEQUENCE_ID for sid in input_metadata.all_sequence_ids)
+            if has_simulate and model_inputs.context_length[0] == 0:
+                model_inputs.context_length[0] = 1
         self.plugin_data_param.q_len = q_len if q_len is not None else self.plugin_data_param.q_len
         self.plugin_data_param.mask = spec_mask if spec_mask is not None else self.plugin_data_param.mask
         return model_inputs, q_len, spec_mask
