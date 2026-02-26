@@ -58,6 +58,12 @@ class NPUSocInfo:
             return True
         return False
 
+    @staticmethod
+    def is_rc_device():
+        lspci_output = execute_command(["lspci"])
+        pci_info = [line for line in lspci_output.split("\n") if "accelerators" in line.strip()]
+        return not pci_info
+
     def is_support_lccl(self):
         return not self.need_nz and self.is_support_hccs()
 

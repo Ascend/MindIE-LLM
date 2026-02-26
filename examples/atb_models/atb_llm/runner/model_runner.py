@@ -378,8 +378,11 @@ class ModelRunner:
                     quant_method.process_weights_after_loading(module)
             print_log(self.rank, logger.info, f"load weight done.")
         else:
-            if weights_options is not None and not weights_options.low_cpu_memory_mode and not self.enable_edge:
-                self.check_total_npu_mem()
+            if weights_options is not None and not weights_options.low_cpu_memory_mode:
+                if NPUSocInfo.is_rc_device():
+                    logger.info('NPU device is working in Root Complex (RC) mode.')
+                else:
+                    self.check_total_npu_mem()
             logger.info(f'Start transferring model to device {weights.device}')
             self.model.to(weights.device)
             logger.info(f'Model successfully transferred to device {weights.device}')
