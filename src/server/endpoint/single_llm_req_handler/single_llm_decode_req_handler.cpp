@@ -63,6 +63,7 @@ bool SingleLLMDecodeReqHandler::GetContextJsonBody(InferParamSPtr inputParam, Re
     inputParam->model_ = grpcContext_->GetDecodeParams().modelname();
     inputParam->prevDecodeIndex = {{SPECIAL_SEQ_ID_PRESET, grpcContext_->GetDecodeParams().prevdecodeindex()}};
     inputParam->currentDecodeIndex = {{SPECIAL_SEQ_ID_PRESET, grpcContext_->GetDecodeParams().currentdecodeindex()}};
+    inputParam->preOutputTokenNum = grpcContext_->GetDecodeParams().preoutputtokennum();
     inputParam->respStreamStr = {{SPECIAL_SEQ_ID_PRESET, grpcContext_->GetDecodeParams().postsingletext()}};
     inputParam->useToolsCall = grpcContext_->GetDecodeParams().usetoolcall();
 
@@ -88,7 +89,8 @@ bool SingleLLMDecodeReqHandler::GetContextJsonBody(InferParamSPtr inputParam, Re
     if (grpcContext_->GetDecodeParams().textinput().has_value()) {
         inputParam->textInput = grpcContext_->GetDecodeParams().textinput().value();
     }
-
+    // D节点，已输出的token数，注意，需要考虑P节点推理出来的第一个token，因此需要-1
+    inputParam->outputLenOffset = respTokens.size() - grpcContext_->GetDecodeParams().prefilltokennum();
     GetContextMetrics();
     return true;
 }
@@ -131,23 +133,9 @@ void SingleLLMDecodeReqHandler::GetContextSamplingParamsNext(InferParamSPtr inpu
     if (samplingParams.presencypenalty().has_value()) {
         request->presencyPenalty = samplingParams.presencypenalty().value();
     }
-    int64_t tokenNum = samplingParams.stoptokenids().value_size();
-    for (int64_t i = 0; i < tokenNum; i++) {
-        if (!request->stopTokenIds.has_value()) {
-            request->stopTokenIds = std::vector<TokenId>();
-        }
-        request->stopTokenIds.value().emplace_back(
-            samplingParams.stoptokenids().value().at(i));
-    }
-    if (samplingParams.stopstrings().has_value()) {
-        request->stopStrings = samplingParams.stopstrings().value();
-    }
+    GetContextSamplingStopWords(inputParam, request);
     if (samplingParams.skipspecialtokens().has_value()) {
         request->skipSpecialTokens = samplingParams.skipspecialtokens().value();
-    }
-    if (samplingParams.includestopstrinoutput().has_value()) {
-        request->includeStopStrInOutput =
-            samplingParams.includestopstrinoutput().value();
     }
     if (samplingParams.ignoreeos().has_value()) {
         request->ignoreEos = samplingParams.ignoreeos().value();
@@ -160,6 +148,40 @@ void SingleLLMDecodeReqHandler::GetContextSamplingParamsNext(InferParamSPtr inpu
     }
     if (samplingParams.enablethinking().has_value()) {
         inputParam->enableThinking = samplingParams.enablethinking().value();
+    }
+}
+
+void SingleLLMDecodeReqHandler::GetContextSamplingStopWords(InferParamSPtr inputParam, RequestSPtr request)
+{
+    const auto& samplingParams = grpcContext_->GetDecodeParams().samplingparams();
+    int64_t tokenNum = samplingParams.stoptokenids().value_size();
+    if (tokenNum > 0) {
+        request->stopTokenIds = std::vector<TokenId>();
+    }
+    for (int64_t i = 0; i < tokenNum; i++) {
+        request->stopTokenIds.value().emplace_back(
+            samplingParams.stoptokenids().value().at(i));
+    }
+    if (samplingParams.stopstrings().has_value()) {
+        request->stopStrings = samplingParams.stopstrings().value();
+    }
+    request->windowSize = 0;
+    int64_t listNum = samplingParams.stopstrings().list_size();
+    if (listNum > 0) {
+        request->stopStrList = std::vector<std::string>();
+    }
+    for (int64_t i = 0; i < listNum; i++) {
+        auto s = samplingParams.stopstrings().list().at(i);
+        request->stopStrList.value().emplace_back(s);
+        request->windowSize = std::max(request->windowSize, (uint32_t)s.size());
+    }
+    if (samplingParams.includestopstrinoutput().has_value()) {
+        request->includeStopStrInOutput =
+            samplingParams.includestopstrinoutput().value();
+    }
+    if (inputParam->streamMode && request->HasStopWords()) {
+        inputParam->prevDecodeIndex[SPECIAL_SEQ_ID_PRESET] = inputParam->preOutputTokenNum;
+        inputParam->currentDecodeIndex[SPECIAL_SEQ_ID_PRESET] = inputParam->preOutputTokenNum;
     }
 }
 
@@ -353,7 +375,11 @@ void SingleLLMDecodeReqHandler::SetBackManagerCallBack(RequestSPtr request)
             if (!self->streamMode_) {
                 self->SendResponse(httplib::StatusCode::OK_200, msgTmp);
             } else {
-                self->SendResponseStream(response->isEos, msgTmp);
+                auto eos = response->isEos;
+                if (!responseJsonQueue.empty()) {
+                    eos = false;
+                }
+                self->SendResponseStream(eos, msgTmp);
             }
         }
 

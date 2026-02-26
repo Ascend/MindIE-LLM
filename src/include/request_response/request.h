@@ -1,5 +1,5 @@
 /**
- * Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
+ * Copyright (c) Huawei Technologies Co., Ltd. 2025-2026. All rights reserved.
  * MindIE is licensed under Mulan PSL v2.
  * You can use this software according to the terms and conditions of the Mulan PSL v2.
  * You may obtain a copy of Mulan PSL v2 at:
@@ -56,8 +56,9 @@ struct Request {
     std::optional<float> presencyPenalty;
     std::optional<std::vector<TokenId>> stopTokenIds;
     std::optional<std::string> stopStrings;
-    std::optional<bool> skipSpecialTokens;
+    std::optional<std::vector<std::string>> stopStrList;
     std::optional<bool> includeStopStrInOutput;
+    std::optional<bool> skipSpecialTokens;
     std::optional<uint32_t> bestOf;
     std::optional<uint32_t> n;
     std::optional<bool> useBeamSearch;
@@ -100,6 +101,12 @@ struct Request {
     // {dpInstanceId: [super_device_id1, super_device_id2, ...]}
     std::unordered_map<InstanceId, std::vector<int64_t>> dpInstance2UnLinkSuperDeviceIds;
     SendResponsesCallbackV2 serverResponseCallback_{};
+
+    bool HasStopWords()
+    {
+        return (stopStrings.has_value() && !stopStrings.value().empty())
+            || (stopTokenIds.has_value() && !stopTokenIds.value().empty());
+    }
 };
 using RequestSPtr = std::shared_ptr<Request>;
 

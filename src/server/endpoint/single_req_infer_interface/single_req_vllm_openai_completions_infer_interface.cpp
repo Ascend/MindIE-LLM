@@ -152,7 +152,7 @@ bool SingleReqVllmOpenAiCompletionsInferInterface::SetupInferParams(RequestSPtr 
         return false;
     }
     auto ctx = BuildValidationContext();
-    if (!inputParam->ValidateFeatureCompatibility(ctx, msg)) {
+    if (!inputParam->ValidateFeatureCompatibility(ctx, msg, true)) {
         return false;
     }
     return true;
@@ -706,6 +706,7 @@ bool SingleReqVllmOpenAiCompletionsInferInterface::EncodeStreamResponse(RespBody
     return status;
 }
 
+// "/v1/completions"接口当前不支持重计算
 std::string SingleReqVllmOpenAiCompletionsInferInterface::BuildReComputeBody(const std::vector<BestNTokens>& tokens)
 {
     OrderedJson newReqJsonObj;
@@ -727,7 +728,7 @@ std::string SingleReqVllmOpenAiCompletionsInferInterface::BuildReComputeBody(con
     if (request_->seed.has_value()) {
         newReqJsonObj["seed"] = request_->seed.value();
     }
-    ParseStopString(newReqJsonObj);
+    BuildStopWords(newReqJsonObj);
     newReqJsonObj["stream"] = this->inputParam->streamMode;
     if (request_->temperature.has_value()) {
         newReqJsonObj["temperature"] = request_->temperature.value();
@@ -741,14 +742,8 @@ std::string SingleReqVllmOpenAiCompletionsInferInterface::BuildReComputeBody(con
     if (request_->repetitionPenalty.has_value()) {
         newReqJsonObj["repetition_penalty"] = request_->repetitionPenalty.value();
     }
-    if (request_->stopTokenIds.has_value() && request_->stopTokenIds.value().size() != 0) {
-        newReqJsonObj["stop_token_ids"] = request_->stopTokenIds.value();
-    }
     if (request_->ignoreEos.has_value()) {
         newReqJsonObj["ignore_eos"] = request_->ignoreEos.value();
-    }
-    if (request_->includeStopStrInOutput.has_value()) {
-        newReqJsonObj["include_stop_str_in_output"] = request_->includeStopStrInOutput.value();
     }
     if (request_->skipSpecialTokens.has_value()) {
         newReqJsonObj["skip_special_tokens"] = request_->skipSpecialTokens.value();
@@ -756,16 +751,16 @@ std::string SingleReqVllmOpenAiCompletionsInferInterface::BuildReComputeBody(con
     return newReqJsonObj.dump();
 }
 
-void SingleReqVllmOpenAiCompletionsInferInterface::ParseStopString(nlohmann::ordered_json& newReqJsonObj)
+void SingleReqVllmOpenAiCompletionsInferInterface::BuildStopWords(nlohmann::ordered_json& newReqJsonObj)
 {
-    std::string stopStr = request_->stopStrings.has_value() ? request_->stopStrings.value() : "";
-    if (stopStr != "") {
-        try {
-            newReqJsonObj["stop"] = nlohmann::json::parse(stopStr, CheckJsonDepthCallbackUlog);
-        } catch(...) {
-            ULOG_ERROR(SUBMODLE_NAME_ENDPOINT, GenerateEndpointErrCode(ERROR, SUBMODLE_FEATURE_SINGLE_INFERENCE,
-                JSON_PARSE_ERROR), "Failed to parse stopStrings");
-        }
+    if (request_->stopStrList.has_value()) {
+        newReqJsonObj["stop"] = nlohmann::ordered_json(request_->stopStrList.value());
+    }
+    if (request_->stopTokenIds.has_value() && request_->stopTokenIds.value().size() != 0) {
+        newReqJsonObj["stop_token_ids"] = request_->stopTokenIds.value();
+    }
+    if (request_->includeStopStrInOutput.has_value()) {
+        newReqJsonObj["include_stop_str_in_output"] = request_->includeStopStrInOutput.value();
     }
 }
 } // namespace mindie_llm

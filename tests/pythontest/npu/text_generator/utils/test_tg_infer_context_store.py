@@ -23,6 +23,7 @@ class TestTGInferContextStoreForkContext(unittest.TestCase):
 
         self.mock_spcp_parallel_info = (self.mock_sp_info, self.mock_cp_info)
         self.mock_device = "mock_device"
+        tokenizer = Mock()
 
         with patch("mindie_llm.text_generator.utils.tg_infer_context_store.BatchContext"):
             self.store = TGInferContextStore(
@@ -31,6 +32,8 @@ class TestTGInferContextStoreForkContext(unittest.TestCase):
                 spcp_parallel_info=self.mock_spcp_parallel_info,
                 device=self.mock_device,
                 context_params=self.mock_context_params,
+                tokenizer=tokenizer,
+                tokenizer_sliding_window_size=3
             )
 
         self.mock_batch_context = Mock()

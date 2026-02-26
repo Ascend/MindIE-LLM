@@ -1,4 +1,12 @@
-# Copyright (c) Huawei Technologies Co., Ltd. 2024-2025. All rights reserved.
+# Copyright (c) Huawei Technologies Co., Ltd. 2024-2026. All rights reserved.
+# MindIE is licensed under Mulan PSL v2.
+# You can use this software according to the terms and conditions of the Mulan PSL v2.
+# You may obtain a copy of Mulan PSL v2 at:
+#          http://license.coscl.org.cn/MulanPSL2
+# THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+# EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+# MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+# See the Mulan PSL v2 for more details.
 
 from typing import Optional, Tuple, Callable
 import numpy as np
@@ -46,7 +54,7 @@ class TGInferContextStore:
         "device",
         "aborted_context_handles",
         "cache_config",
-        "block_size"
+        "block_size",
     ]
 
     def __init__(
@@ -57,7 +65,9 @@ class TGInferContextStore:
         spcp_parallel_info,
         device,  # from model_wrapper device
         context_params: ContextParams,
-        position_ids_gen_func: Callable = None
+        tokenizer,
+        tokenizer_sliding_window_size,
+        position_ids_gen_func: Callable = None,
     ):
         self.block_size = batch_context_config.max_block_size
         self.kvcache_settings = kvcache_settings
@@ -74,6 +84,8 @@ class TGInferContextStore:
             batch_context_config,
             self.spcp_parallel_info,
             device,
+            tokenizer,
+            tokenizer_sliding_window_size,
             position_ids_gen_func,
         )
         self.aborted_context_handles = []

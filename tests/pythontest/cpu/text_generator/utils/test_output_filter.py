@@ -19,6 +19,7 @@ import numpy as np
 from mindie_llm.text_generator.utils.output_filter import OutputFilter
 from mindie_llm.text_generator.utils.stopping_criteria import make_mixed_eos, strings_eos
 from mindie_llm.text_generator.utils.config import ResponseConfig
+from mindie_llm.text_generator.utils.tg_decode_util import decode_one
 
 
 class TestOutputFilter(unittest.TestCase):
@@ -32,7 +33,7 @@ class TestOutputFilter(unittest.TestCase):
     def test_decode_one(self):
         self.output_filter.tokenizer_sliding_window_size = 3
         self.output_filter.tokenizer.decode = MagicMock(return_value='')
-        text = self.output_filter.decode_one(np.array([111]), True)
+        text = decode_one(self.output_filter.tokenizer, np.array([111]), True, 3)
         self.assertEqual(text, '')
 
         def mock_decode(input_ids, skip_special_tokens=True):
@@ -43,7 +44,7 @@ class TestOutputFilter(unittest.TestCase):
             return None
 
         self.output_filter.tokenizer.decode = mock_decode
-        text = self.output_filter.decode_one(np.array([111, 222]), True)
+        text = decode_one(self.output_filter.tokenizer, np.array([111, 222]), True, 3)
         self.assertEqual(text, ' word')
 
     def test_filter_by_async(self):

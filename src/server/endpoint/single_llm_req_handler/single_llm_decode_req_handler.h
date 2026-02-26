@@ -51,6 +51,7 @@ public:
     void SendResponseStream(bool isEnd, const std::string& responseStr) override;
     void GetContextSamplingParamsFirst(RequestSPtr request);
     void GetContextSamplingParamsNext(InferParamSPtr param, RequestSPtr request);
+    void GetContextSamplingStopWords(InferParamSPtr param, RequestSPtr request);
     void GetContextInferParams(InferParamSPtr param, RequestSPtr request);
     void GetContextMetrics();
 

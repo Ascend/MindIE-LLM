@@ -129,12 +129,15 @@ class TestBatchContext(unittest.TestCase):
             cp_parallel_info=Mock(group_size=1, rank=0)
         )
         self.context_params = ContextParams(distributed=False)
+        tokenizer = Mock()
         self.batch_ctx = BatchContext(
             kvcache_settings=self.kvcache_settings,
             context_params=self.context_params,
             batch_context_config=self.batch_config,
             spcp_parallel_info=self.spcp_info,
-            device=self.device
+            device=self.device,
+            tokenizer=tokenizer,
+            tokenizer_sliding_window_size=3
         )
 
     def test_initialization(self):

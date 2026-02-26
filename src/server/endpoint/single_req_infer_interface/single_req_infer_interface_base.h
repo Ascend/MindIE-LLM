@@ -175,6 +175,7 @@ protected:
         std::map<uint64_t, std::u16string> u16TokenText{};
         std::map<uint64_t, bool> canOutput{};
         std::map<uint64_t, std::pair<bool, bool>> parsingContentFlag{};
+        std::optional<size_t> curTokenNum;
 
         template <typename T> static std::string FormatValue(const T &value)
         {

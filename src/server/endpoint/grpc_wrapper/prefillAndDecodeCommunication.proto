@@ -55,6 +55,8 @@ message DecodeParameters {
     string postsingletext = 30;
     repeated uint64 dpInstanceIds = 31;
     bool useToolCall = 32;
+    uint32 prefillTokenNum = 33;
+    uint32 preOutputTokenNum = 34;
 }
 
 message SamplingParams {
@@ -128,6 +130,7 @@ message StopTokenIds {
 
 message StopStrings {
     optional string value = 1;
+    repeated string list = 2;
 }
 
 message SkipSpecialTokens {

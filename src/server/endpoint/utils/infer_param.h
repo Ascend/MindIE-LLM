@@ -1,5 +1,5 @@
 /*
- * Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
+ * Copyright (c) Huawei Technologies Co., Ltd. 2025-2026. All rights reserved.
  * MindIE is licensed under Mulan PSL v2.
  * You can use this software according to the terms and conditions of the Mulan PSL v2.
  * You may obtain a copy of Mulan PSL v2 at:
@@ -38,6 +38,7 @@ struct InferParam {
 
     bool streamMode = false;
     int32_t maxNewTokens = MAX_NEW_TOKENS_DFT; // The number of tokens remaining for inference
+    size_t outputLenOffset = 0; // D节点或重计算场景，maxNewTokens需要减去已输出的token数
 
     // Defaults to true because non-vLLM/OpenAI interfaces handle max_new_tokens by default.
     // Only vLLM and OpenAI interfaces need to decide between user input or config parameters.
@@ -60,6 +61,7 @@ struct InferParam {
     std::vector<std::string> outputNames; // triton token
     std::map<uint64_t, uint32_t> prevDecodeIndex{};
     std::map<uint64_t, uint32_t> currentDecodeIndex{};
+    size_t preOutputTokenNum = 0;
     std::map<uint64_t, std::string> postSingleText{}; // text produced in current round
     std::map<uint64_t, std::string> respStreamStr{}; // accumulated text produced for current request
     Metrics metrics;
@@ -127,7 +129,13 @@ struct InferParam {
 
     // 统一能力校验：根据端点能力、服务能力、请求参数/运行形态，拦截不支持的组合
     // 返回true表示通过；返回false并在error中携带原因。
-    bool ValidateFeatureCompatibility(const ValidationContext &ctx, std::string &error) const noexcept;
+    bool ValidateFeatureCompatibility(const ValidationContext &ctx, std::string &error,
+        bool dmiSupportStopWords = false) const noexcept;
+private:
+    bool ValidateFeatureDmi(const ValidationContext &ctx, std::string &error,
+        bool dmiSupportStopWords = false) const noexcept;
+    bool ValidateFeatureBeamSearch(const ValidationContext &ctx, std::string &error) const noexcept;
+    bool ValidateFeatureOverlay(const ValidationContext &ctx, std::string &error) const noexcept;
 };
 
 using InferParamSPtr = std::shared_ptr<InferParam>;
@@ -139,6 +147,10 @@ bool AssignRepetitionPenalty(const OrderedJson &jsonObj, RequestSPtr tmpReq, std
 bool AssignSeed(const OrderedJson &jsonObj, RequestSPtr tmpReq, std::string &error) noexcept;
 bool AssignStopStrings(const OrderedJson &jsonObj, RequestSPtr tmpReq, std::string &error,
                        bool isNumStopStrLimited = false, uint32_t maxLength = MAX_TOTAL_STOP) noexcept;
+bool AssignStopStringList(const OrderedJson &jsonObj, RequestSPtr tmpReq, std::string &error,
+                          bool isNumStopStrLimited = false, uint32_t maxLength = MAX_TOTAL_STOP) noexcept;
+bool AssignStopSingleString(const OrderedJson &jsonObj, RequestSPtr tmpReq, std::string &error,
+                            uint32_t maxLength = MAX_TOTAL_STOP) noexcept;
 bool AssignPresencePenalty(const OrderedJson &jsonObj, RequestSPtr tmpReq, std::string &error) noexcept;
 bool AssignN(const OrderedJson &jsonObj, RequestSPtr tmpReq, std::string &error) noexcept;
 bool AssignBestOf(const OrderedJson &jsonObj, RequestSPtr tmpReq, std::string &error) noexcept;

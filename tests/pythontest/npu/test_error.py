@@ -133,12 +133,15 @@ class TestError(unittest.TestCase):
             )
             spcp_info = (Mock(group_size=1, rank=0), Mock(group_size=1, rank=0))
             context_params = ContextParams(distributed=False)
+            tokenizer = MagicMock()
             infer_context = TGInferContextStore(
                 kvcache_settings=kvcache_settings,
                 batch_context_config=cache_config,
                 spcp_parallel_info=spcp_info,
                 device='cpu',
-                context_params=context_params
+                context_params=context_params,
+                tokenizer=tokenizer,
+                tokenizer_sliding_window_size=3
             )
             input_metadata = InputMetadata(
                 batch_size=1,

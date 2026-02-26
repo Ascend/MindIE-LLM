@@ -187,6 +187,7 @@ TEST_F(PrefillReqHandlerTestF, BuildSamplingParameters_FirstAndNext)
     request->presencyPenalty = 0.3f;
     request->stopTokenIds = std::vector<int64_t>{7, 8};
     request->stopStrings = std::string("STOP");
+    request->stopStrList = {"STOP"};
     request->skipSpecialTokens = true;
     request->includeStopStrInOutput = false;
     request->ignoreEos = true;
@@ -217,6 +218,8 @@ TEST_F(PrefillReqHandlerTestF, BuildSamplingParameters_FirstAndNext)
     EXPECT_EQ(samplingParam.stoptokenids().value(0), 7);
     EXPECT_EQ(samplingParam.stoptokenids().value(1), 8);
     EXPECT_EQ(samplingParam.stopstrings().value(), "STOP");
+    EXPECT_EQ(samplingParam.stopstrings().list_size(), 1);
+    EXPECT_EQ(samplingParam.stopstrings().list(0), "STOP");
     EXPECT_TRUE(samplingParam.skipspecialtokens().value());
     EXPECT_FALSE(samplingParam.includestopstrinoutput().value());
     EXPECT_TRUE(samplingParam.ignoreeos().value());

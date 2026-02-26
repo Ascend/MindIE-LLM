@@ -381,7 +381,7 @@ TEST_F(VllmOpenAiCompletionsInferTest, BuildReComputeBody)
     request->ignoreEos = true;
     request->includeStopStrInOutput = true;
     request->skipSpecialTokens = true;
-    request->stopStrings = std::string(R"(["\n\n","<|end|>"])");
+    request->stopStrList = {"\n\n", "<|end|>"};
     std::vector<TokenId> stopIds{7, 8};
     request->stopTokenIds = stopIds;
 

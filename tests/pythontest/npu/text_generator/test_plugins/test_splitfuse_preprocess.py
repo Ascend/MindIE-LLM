@@ -80,6 +80,7 @@ class TestSplitFusePreprocess(unittest.TestCase):
 
     @patch("mindie_llm.text_generator.plugins.splitfuse.splitfuse_preprocess.ENV.framework_backend", new='ms')
     def test_get_mix_decode_cache_without_hit_mask(self):
+        tokenizer = MagicMock()
         self.device = "npu"
         self.kvcache_settings = Mock(spec=KVCacheSettings)
         self.kvcache_settings.num_npu_blocks = 2
@@ -100,7 +101,9 @@ class TestSplitFusePreprocess(unittest.TestCase):
             context_params=self.context_params,
             batch_context_config=self.batch_config,
             spcp_parallel_info=self.spcp_info,
-            device=self.device
+            device=self.device,
+            tokenizer=tokenizer,
+            tokenizer_sliding_window_size=3
         )
         cache_ids = torch.tensor([0, 2])
         decode_idx = 1
@@ -130,7 +133,7 @@ class TestSplitFusePreprocess(unittest.TestCase):
 
     @patch("mindie_llm.text_generator.plugins.splitfuse.splitfuse_preprocess.ENV.framework_backend", new='ms')
     def test_get_mix_decode_cache_with_hit_mask(self):
-        
+        tokenizer = MagicMock()
         cache_ids = torch.tensor([0, 1])
         decode_idx = 0
         hit_mask = torch.tensor([[True, False]])
@@ -154,7 +157,9 @@ class TestSplitFusePreprocess(unittest.TestCase):
             context_params=self.context_params,
             batch_context_config=self.batch_config,
             spcp_parallel_info=self.spcp_info,
-            device=self.device
+            device=self.device,
+            tokenizer=tokenizer,
+            tokenizer_sliding_window_size=3
         )
         self.batch_ctx.spcp_parallel_info.scp_rank = 0
 
@@ -181,6 +186,7 @@ class TestSplitFusePreprocess(unittest.TestCase):
 
     @patch("mindie_llm.text_generator.plugins.splitfuse.splitfuse_preprocess.ENV.framework_backend", new='ms')
     def test_concatenate_mix_decode_only(self):
+        tokenizer = MagicMock()
         self.device = "npu"
         self.kvcache_settings = Mock(spec=KVCacheSettings)
         self.kvcache_settings.num_npu_blocks = 2
@@ -198,7 +204,9 @@ class TestSplitFusePreprocess(unittest.TestCase):
             batch_context_config=self.batch_config,
             spcp_parallel_info=self.spcp_info,
             device=self.device,
-            context_params=self.context_params
+            context_params=self.context_params,
+            tokenizer=tokenizer,
+            tokenizer_sliding_window_size=3
         )
         store._batch_context = MagicMock(spec=BatchContext)
 
@@ -240,6 +248,7 @@ class TestSplitFusePreprocess(unittest.TestCase):
 
     @patch("mindie_llm.text_generator.plugins.splitfuse.splitfuse_preprocess.ENV.framework_backend", new='ms')
     def test_concatenate_mix_prefill_only(self):
+        tokenizer = MagicMock()
         self.device = "npu"
         self.kvcache_settings = Mock(spec=KVCacheSettings)
         self.kvcache_settings.num_npu_blocks = 50
@@ -257,7 +266,9 @@ class TestSplitFusePreprocess(unittest.TestCase):
             batch_context_config=self.batch_config,
             spcp_parallel_info=self.spcp_info,
             device=self.device,
-            context_params=self.context_params
+            context_params=self.context_params,
+            tokenizer=tokenizer,
+            tokenizer_sliding_window_size=3
         )
         
         mock_batch_ctx = MagicMock(spec=BatchContext)
@@ -302,6 +313,7 @@ class TestSplitFusePreprocess(unittest.TestCase):
 
     @patch("mindie_llm.text_generator.plugins.splitfuse.splitfuse_preprocess.ENV.framework_backend", new='ms')
     def test_concatenate_mix_mixed_prefill_decode(self):
+        tokenizer = MagicMock()
         self.device = "npu"
         self.kvcache_settings = Mock(spec=KVCacheSettings)
         self.kvcache_settings.num_npu_blocks = 100
@@ -319,7 +331,9 @@ class TestSplitFusePreprocess(unittest.TestCase):
             batch_context_config=self.batch_config,
             spcp_parallel_info=self.spcp_info,
             device=self.device,
-            context_params=self.context_params
+            context_params=self.context_params,
+            tokenizer=tokenizer,
+            tokenizer_sliding_window_size=3
         )
         
         mock_batch_ctx = MagicMock(spec=BatchContext)

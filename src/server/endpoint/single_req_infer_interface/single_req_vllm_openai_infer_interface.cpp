@@ -66,7 +66,7 @@ bool SingleReqVllmOpenAiInferInterface::SetupInferParams(RequestSPtr tmpReq, std
         return false;
     }
     auto ctx = BuildValidationContext();
-    if (!inputParam->ValidateFeatureCompatibility(ctx, msg)) {
+    if (!inputParam->ValidateFeatureCompatibility(ctx, msg, true)) {
         return false;
     }
     return true;
@@ -1265,10 +1265,7 @@ std::string SingleReqVllmOpenAiInferInterface::BuildVllmOpenAIReComputeBody(cons
     if (request_->topK.has_value()) {
         newReqJsonObj["top_k"] = request_->topK.value();
     }
-    ParseStopString(newReqJsonObj);
-    if (request_->stopTokenIds.has_value() && request_->stopTokenIds.value().size() != 0) {
-        newReqJsonObj["stop_token_ids"] = request_->stopTokenIds.value();
-    }
+    BuildStopWords(newReqJsonObj);
     if (request_->skipSpecialTokens.has_value()) {
         newReqJsonObj["skip_special_tokens"] = request_->skipSpecialTokens.value();
     }
@@ -1281,20 +1278,19 @@ std::string SingleReqVllmOpenAiInferInterface::BuildVllmOpenAIReComputeBody(cons
     if (request_->topLogprobs.has_value()) {
         newReqJsonObj["top_logprobs"] = request_->topLogprobs.value();
     }
-
     return newReqJsonObj.dump();
 }
 
-void SingleReqVllmOpenAiInferInterface::ParseStopString(nlohmann::ordered_json& newReqJsonObj)
+void SingleReqVllmOpenAiInferInterface::BuildStopWords(nlohmann::ordered_json& newReqJsonObj)
 {
-    std::string stopStr = request_->stopStrings.has_value() ? request_->stopStrings.value() : "";
-    if (stopStr != "") {
-        try {
-            newReqJsonObj["stop"] = nlohmann::json::parse(stopStr, CheckJsonDepthCallbackUlog);
-        } catch(...) {
-            ULOG_ERROR(SUBMODLE_NAME_ENDPOINT, GenerateEndpointErrCode(ERROR, SUBMODLE_FEATURE_SINGLE_INFERENCE,
-                JSON_PARSE_ERROR), "Failed to parse stopStrings");
-        }
+    if (request_->stopStrList.has_value()) {
+        newReqJsonObj["stop"] = nlohmann::ordered_json(request_->stopStrList.value());
+    }
+    if (request_->stopTokenIds.has_value() && request_->stopTokenIds.value().size() != 0) {
+        newReqJsonObj["stop_token_ids"] = request_->stopTokenIds.value();
+    }
+    if (request_->includeStopStrInOutput.has_value()) {
+        newReqJsonObj["include_stop_str_in_output"] = request_->includeStopStrInOutput.value();
     }
 }
 

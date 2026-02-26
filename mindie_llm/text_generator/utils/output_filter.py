@@ -1,4 +1,4 @@
-# Copyright (c) Huawei Technologies Co., Ltd. 2024-2025. All rights reserved.
+# Copyright (c) Huawei Technologies Co., Ltd. 2024-2026. All rights reserved.
 # MindIE is licensed under Mulan PSL v2.
 # You can use this software according to the terms and conditions of the Mulan PSL v2.
 # You may obtain a copy of Mulan PSL v2 at:
@@ -16,7 +16,7 @@ from .tg_infer_context_store import TGInferContextStore
 from .config import ResponseConfig, CacheConfig
 from .input_metadata import InputMetadata
 from .sampling_output import SamplingOutput
-
+from .tg_decode_util import decode_one
 
 
 @njit
@@ -47,20 +47,7 @@ class OutputFilter:
         check_column_equals_numba(np.zeros((2, 2), dtype=np.int64), np.zeros(2, dtype=np.int64), 0)
 
     def decode_one(self, input_tokens, skip_special_tokens):
-        pre_index = len(input_tokens) - 1
-        start_index = max(pre_index - self.tokenizer_sliding_window_size, 0)
-        window_text = self.tokenizer.decode(input_tokens[start_index:], skip_special_tokens=skip_special_tokens)
-        if pre_index == 0:
-            pre_text = ''
-        else:
-            pre_text = self.tokenizer.decode(input_tokens[start_index:pre_index],
-                                             skip_special_tokens=skip_special_tokens)
-            pre_text = pre_text.rstrip('�')
-
-        if len(window_text) > len(pre_text) and not window_text.endswith('�'):
-            return window_text[len(pre_text):]
-        else:
-            return ''
+        return decode_one(self.tokenizer, input_tokens, skip_special_tokens, self.tokenizer_sliding_window_size)
 
     def filter_by_async(self, cache_ids, filter_ids_arr, end_reason):
         async_eos_flags = self.tg_infer_context.get_once_end_flag(cache_ids)
@@ -145,7 +132,7 @@ class OutputFilter:
                     new_token_ids = np.concatenate(
                         [self.tg_infer_context.get_all_output_ids(cache_id)[:total_len], next_token_ids[i][:cur_len]])
                     new_token = self.decode_one(new_token_ids,
-                                                bool(self.tg_infer_context.get_skip_special_tokens(cache_id)))
+                        bool(self.tg_infer_context.get_skip_special_tokens(cache_id)))
                     cached_output_text = self.tg_infer_context.append_and_return_output_text(cache_id, new_token)
 
                     if switch_stop_string:

@@ -447,10 +447,8 @@ void SingleReqInferInterfaceBase::Process() noexcept
 bool SingleReqInferInterfaceBase::GenerateInferRequest(std::string &msg) noexcept
 {
     std::vector<int64_t> inferTokens = reqTokens_; // 在D节点和重计算场景，本次推理的请求id需要加上respTokens
-    size_t outputLenOffset = 0;
     if (respTokenMap.size() == 1) {
         inferTokens.insert(inferTokens.end(), respTokenMap.begin()->second.begin(), respTokenMap.begin()->second.end());
-        outputLenOffset = respTokenMap.begin()->second.size();
     }
     request_->input_ids = inferTokens;
     request_->input_token_num = static_cast<int64_t>(reqTokens_.size());
@@ -462,7 +460,7 @@ bool SingleReqInferInterfaceBase::GenerateInferRequest(std::string &msg) noexcep
     singleLLMReqHandlerBase_->UpdateInferParam(request_, inputParam);
     singleLLMReqHandlerBase_->DumpInferParam(request_);
     if (inputParam->maxNewTokens > 0) {
-        int maxOutputLen = inputParam->maxNewTokens - static_cast<int>(outputLenOffset);
+        int maxOutputLen = inputParam->maxNewTokens - static_cast<int>(inputParam->outputLenOffset);
         if (maxOutputLen < 0) {
             msg = "MaxNewTokens is less than already generated tokens. The requestId is " + std::string(requestId_);
             MINDIE_LLM_LOG_ERROR(msg);
@@ -652,6 +650,11 @@ bool SingleReqInferInterfaceBase::PushLatestCache(std::string &errMsg)
     cache.parsingContentFlag =
         std::map<uint64_t, std::pair<bool, bool>>{parsingContentFlag.begin(), parsingContentFlag.end()};
 
+    uint64_t seqId = 0;
+    if (GetUniqueSequenceId(seqId)) {
+        cache.curTokenNum = respTokenMap[seqId].size();
+    }
+
     for (const auto &[seqId, _] : cache.eosMap) {
         static_cast<void>(_);
         cache.u16TokenText[seqId] = GetU16Str(cache.postSingleText[seqId], &errMsg);
@@ -771,14 +774,12 @@ bool SingleReqInferInterfaceBase::GetAvailableOutputCache(std::vector<StreamCach
     }
     try {
         // If not using stop feature, do not need to filter output content
-        if (!request_->stopStrings.has_value() && !request_->stopTokenIds.has_value()) {
+        if (!request_->HasStopWords()) {
             cacheArr.emplace_back(streamCache[0]);
             streamCache.erase(streamCache.begin());
             return true;
         }
-        // Stop feature is not supported in PD disaggregation
-        auto isDmi = GetServerConfig().inferMode ==
-            INFER_MODE_DMI;
+
         uint32_t popCount = 0;
         for (auto &item : streamCache) {
             // for this round of cache, exists a sequence that
@@ -787,7 +788,7 @@ bool SingleReqInferInterfaceBase::GetAvailableOutputCache(std::vector<StreamCach
                 std::any_of(item.canOutput.begin(), item.canOutput.end(), [&item](auto canOut) {
                     return canOut.second || item.eosMap.at(canOut.first) != InferStatusType::ITERATION_CONTINUE;
                 });
-            if (isDmi || hasOutputReadyOrFinished) {
+            if (hasOutputReadyOrFinished) {
                 // if canOutput value of sequence is absent in cache means sequence has ended before
                 // if canOutput is empty means cache of this round can be dropped
                 if (!item.canOutput.empty()) {
@@ -799,6 +800,9 @@ bool SingleReqInferInterfaceBase::GetAvailableOutputCache(std::vector<StreamCach
             }
         }
         for (uint32_t i = 0; i < popCount; ++i) {
+            if (streamCache[0].curTokenNum.has_value()) {
+                inputParam->preOutputTokenNum = streamCache[0].curTokenNum.value();
+            }
             streamCache.erase(streamCache.begin());
         }
     } catch (const std::out_of_range &e) {
@@ -1045,6 +1049,9 @@ bool SingleReqInferInterfaceBase::GetTokensFromInput(const std::string &input,
             return false;
         }
     }
+    // 重计算场景
+    inputParam->preOutputTokenNum = responseTokens.size();
+    inputParam->outputLenOffset = inputParam->preOutputTokenNum; // maxNewTokens需要减去已输出的token数
     return true;
 }
 
@@ -1149,7 +1156,11 @@ std::string SingleReqInferInterfaceBase::BuildReComputeInput()
     StreamAppend(ssInputs, reqTokens_, oriReqTokenLen_);
     uint64_t seqId;
     if (GetUniqueSequenceId(seqId)) {
-        StreamAppend(ssInputs, this->respTokenMap[seqId], this->respTokenMap[seqId].size(), true);
+        size_t copyLen = this->respTokenMap[seqId].size();
+        if (inputParam->streamMode && request_->HasStopWords()) {
+            copyLen = std::min(copyLen, inputParam->preOutputTokenNum);
+        }
+        StreamAppend(ssInputs, this->respTokenMap[seqId], copyLen, true);
     }
     return ssInputs.str();
 }

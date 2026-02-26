@@ -1,5 +1,5 @@
 /*
- * Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
+ * Copyright (c) Huawei Technologies Co., Ltd. 2025-2026. All rights reserved.
  * MindIE is licensed under Mulan PSL v2.
  * You can use this software according to the terms and conditions of the Mulan PSL v2.
  * You may obtain a copy of Mulan PSL v2 at:
@@ -9,7 +9,9 @@
  * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
  * See the Mulan PSL v2 for more details.
  */
+#include "infer_param.h"
 #include <sstream>
+
 #include "memory_utils.h"
 #include "base64_util.h"
 #include "random_generator.h"
@@ -22,7 +24,7 @@
 #include "common_util.h"
 #include "basic_types.h"
 #include "config_manager_impl.h"
-#include "infer_param.h"
+#include "safe_io.h"
 
 using OrderedJson = nlohmann::ordered_json;
 
@@ -35,7 +37,16 @@ static constexpr double MIN_FREQUENCY_PENALTY = -2.0;
 static constexpr double MAX_FREQUENCY_PENALTY = 2.0;
 static constexpr uint64_t MAX_OPENAI_TOP_LOGPROBS = 20;
 
-bool InferParam::ValidateFeatureCompatibility(const ValidationContext &ctx, std::string &error) const noexcept
+bool InferParam::ValidateFeatureCompatibility(const ValidationContext &ctx, std::string &error,
+    bool dmiSupportStopWords) const noexcept
+{
+    return ValidateFeatureDmi(ctx, error, dmiSupportStopWords) &&
+        ValidateFeatureBeamSearch(ctx, error) &&
+        ValidateFeatureOverlay(ctx, error);
+}
+
+bool InferParam::ValidateFeatureDmi(const ValidationContext &ctx, std::string &error,
+    bool dmiSupportStopWords) const noexcept
 {
     // 规则一：DMI模式限制（pd 架构）
     if (ctx.isDmiMode) {
@@ -51,6 +62,16 @@ bool InferParam::ValidateFeatureCompatibility(const ValidationContext &ctx, std:
             error = "top_logprobs is not supported in dmi mode";
             return false;
         }
+        if (ctx.reqN != 1) {
+            error = "n must be 1 in dmi mode";
+            return false;
+        }
+        if (ctx.reqBestOf != 1) {
+            error = "best_of must be 1 in dmi mode";
+            return false;
+        }
+    }
+    if (ctx.isDmiMode && !dmiSupportStopWords) {
         if (ctx.reqStop) {
             error = "stop is not supported in dmi mode";
             return false;
@@ -63,100 +84,72 @@ bool InferParam::ValidateFeatureCompatibility(const ValidationContext &ctx, std:
             error = "include_stop_str_in_output is not supported in dmi mode";
             return false;
         }
-        if (ctx.reqN != 1) {
-            error = "n must be 1 in dmi mode";
-            return false;
-        }
-        if (ctx.reqBestOf != 1) {
-            error = "best_of must be 1 in dmi mode";
-            return false;
-        }
     }
+    return true;
+}
 
+bool InferParam::ValidateFeatureBeamSearch(const ValidationContext &ctx, std::string &error) const noexcept
+{
     // 规则二：接口能力限制
     if (!ctx.endpoint.useBeamSearch && ctx.reqUseBeamSearch) {
         error = "use_beam_search is not supported by this endpoint";
         return false;
     }
-    if (!ctx.endpoint.useLogprobs && (ctx.reqLogprobs || ctx.reqTopLogprobsSet)) {
-        error = "logprobs/top_logprobs are not supported by this endpoint";
-        return false;
-    }
-    if (!ctx.reqUseBeamSearch) {
-        if (!ctx.endpoint.useBestOfN) {
-            if (ctx.reqBestOf > 1 || ctx.reqN > 1) {
-                error = "best_of/n greater than 1 are not supported by this endpoint";
-                return false;
-            }
+
+    // safety specification of beam search
+    if (ctx.reqUseBeamSearch) {
+        if (maxNewTokens > MAX_NUM_NEW_TOKENS_OF_BEAM_SEARCH) {
+            std::stringstream ss;
+            ss << "Please set the max_tokens to be not larger than " <<
+                std::to_string(MAX_NUM_NEW_TOKENS_OF_BEAM_SEARCH) << " when the use_beam_search is on.";
+            error = ss.str();
+            return false;
         }
+        return true; // 注意：本函数后续仅检查非beamSearch模式！！！
     }
-    if (!ctx.endpoint.useFunctionCall && ctx.reqUseToolsCall) {
-        error = "function/tool calls are not supported by this endpoint";
-        return false;
+
+    // 注意：本函数后续仅检查非beamSearch模式！！！
+    if (!ctx.endpoint.useBestOfN) {
+        if (ctx.reqBestOf > 1 || ctx.reqN > 1) {
+            error = "best_of/n greater than 1 are not supported by this endpoint";
+            return false;
+        }
     }
 
     // 规则三：功能间组合限制
-    if (!ctx.reqUseBeamSearch) {
-        if (ctx.streamMode) {
-            // 流式模式下的best_of和n校验
-            if (ctx.isVllmEntrance) {
-                // vllm入口：允许best_of >= n
-                if (ctx.reqBestOf < ctx.reqN) {
-                    error = "in stream mode for vllm entrance, best_of must be greater than or equal to n";
-                    return false;
-                }
-            } else {
-                // 其他入口：best_of 必须等于 n
-                if (ctx.reqBestOf != ctx.reqN) {
-                    error = "in stream mode, best_of must be equal to n";
-                    return false;
-                }
+    if (ctx.streamMode) {
+        // 流式模式下的best_of和n校验
+        if (ctx.isVllmEntrance) {
+            // vllm入口：允许best_of >= n
+            if (ctx.reqBestOf < ctx.reqN) {
+                error = "in stream mode for vllm entrance, best_of must be greater than or equal to n";
+                return false;
             }
         } else {
-            if (ctx.reqBestOf < ctx.reqN) {
-                error = "best_of must be greater than or equal to n";
+            // 其他入口：best_of 必须等于 n
+            if (ctx.reqBestOf != ctx.reqN) {
+                error = "in stream mode, best_of must be equal to n";
                 return false;
             }
         }
-    } else {  // safety specification of beam search
-        if (maxNewTokens > MAX_NUM_NEW_TOKENS_OF_BEAM_SEARCH) {
-            std::stringstream ss;
-            ss << "Please set the max_tokens to be not larger than "
-               << std::to_string(MAX_NUM_NEW_TOKENS_OF_BEAM_SEARCH)
-               << " when the use_beam_search is on.";
-            error = ss.str();
+    } else {
+        if (ctx.reqBestOf < ctx.reqN) {
+            error = "best_of must be greater than or equal to n";
             return false;
         }
     }
 
     // 当关闭采样（temperature==0或未设置），且未启用beam search时，不允许返回多条
-    if (!ctx.reqUseBeamSearch) {
-        if ((IsFloatEquals(ctx.reqTemperature, 0.0f)) && (ctx.reqBestOf > 1 || ctx.reqN > 1)) {
-            error = "when sampling disabled (temperature=0), best_of/n must be 1 without beam search";
-            return false;
-        }
+    if ((IsFloatEquals(ctx.reqTemperature, 0.0f)) && (ctx.reqBestOf > 1 || ctx.reqN > 1)) {
+        error = "when sampling disabled (temperature=0), best_of/n must be 1 without beam search";
+        return false;
     }
+    return true;
+}
 
-    // 环境变量，当异步推理环境变量开启不支持bestof n, beamsearch
-    const char *mindieAsyncSchedulingEnable = std::getenv("MINDIE_ASYNC_SCHEDULING_ENABLE");
-    bool asyncEnvVariable = mindieAsyncSchedulingEnable != nullptr && std::string(mindieAsyncSchedulingEnable) == "1";
-    if (asyncEnvVariable) {
-        if (ctx.reqUseBeamSearch) {
-            error = "use_beam_search is not supported while MINDIE_ASYNC_SCHEDULING_ENABLE is on";
-            return false;
-        }
-        if (ctx.reqN != 1) {
-            error = "n must be 1 while MINDIE_ASYNC_SCHEDULING_ENABLE is on";
-            return false;
-        }
-        if (ctx.reqBestOf != 1) {
-            error = "best_of must be 1 while MINDIE_ASYNC_SCHEDULING_ENABLE is on";
-            return false;
-        }
-    }
-
-    // 叠加限制：参考规格“该参数不支持与 MTP、Function Call、SplitFuse、Prefix Cache、并行解码、PD 分离等叠加”
-    auto forbid_when = [&](bool cond, const char *msg) {
+bool InferParam::ValidateFeatureOverlay(const ValidationContext &ctx, std::string &error) const noexcept
+{
+    auto forbidWhen = [&error](bool cond, const char *msg) {
         if (cond) {
             error = msg;
             return true;
@@ -164,25 +157,50 @@ bool InferParam::ValidateFeatureCompatibility(const ValidationContext &ctx, std:
         return false;
     };
 
+    if (!ctx.endpoint.useLogprobs && (ctx.reqLogprobs || ctx.reqTopLogprobsSet)) {
+        error = "logprobs/top_logprobs are not supported by this endpoint";
+        return false;
+    }
+    if (!ctx.endpoint.useFunctionCall && ctx.reqUseToolsCall) {
+        error = "function/tool calls are not supported by this endpoint";
+        return false;
+    }
+
+    // 环境变量，当异步推理环境变量开启不支持bestof n, beamsearch
+    const char *mindieAsyncSchedulingEnable = std::getenv("MINDIE_ASYNC_SCHEDULING_ENABLE");
+    bool asyncEnvVariable = mindieAsyncSchedulingEnable != nullptr && std::string(mindieAsyncSchedulingEnable) == "1";
+    if (asyncEnvVariable) {
+        if (forbidWhen(ctx.reqUseBeamSearch,
+            "use_beam_search is not supported while MINDIE_ASYNC_SCHEDULING_ENABLE is on")) {
+            return false;
+        }
+        if (forbidWhen(ctx.reqN != 1, "n must be 1 while MINDIE_ASYNC_SCHEDULING_ENABLE is on")) {
+            return false;
+        }
+        if (forbidWhen(ctx.reqBestOf != 1, "best_of must be 1 while MINDIE_ASYNC_SCHEDULING_ENABLE is on")) {
+            return false;
+        }
+    }
+
     // 插件启用时的限制规则
     if (ctx.pluginEnabled) {
-        if (forbid_when(ctx.reqUseBeamSearch, "beam search cannot be used with plugins")) {
+        if (forbidWhen(ctx.reqUseBeamSearch, "beam search cannot be used with plugins")) {
             return false;
         }
-        if (forbid_when(ctx.reqLogprobs || ctx.reqTopLogprobsSet, "logprobs cannot be used with plugins")) {
+        if (forbidWhen(ctx.reqLogprobs || ctx.reqTopLogprobsSet, "logprobs cannot be used with plugins")) {
             return false;
         }
-        if (forbid_when(ctx.reqBestOf > 1 || ctx.reqN > 1, "best_of/n > 1 cannot be used with plugins")) {
+        if (forbidWhen(ctx.reqBestOf > 1 || ctx.reqN > 1, "best_of/n > 1 cannot be used with plugins")) {
             return false;
         }
     }
 
     // 插件启用时的限制规则
     if (ctx.deepseekEnabled) {
-        if (forbid_when(ctx.reqUseBeamSearch, "beam search cannot be used with deepseek")) {
+        if (forbidWhen(ctx.reqUseBeamSearch, "beam search cannot be used with deepseek")) {
             return false;
         }
-        if (forbid_when(ctx.reqBestOf > 1 || ctx.reqN > 1, "best_of/n > 1 cannot be used with deepseek")) {
+        if (forbidWhen(ctx.reqBestOf > 1 || ctx.reqN > 1, "best_of/n > 1 cannot be used with deepseek")) {
             return false;
         }
     }
@@ -246,49 +264,68 @@ bool AssignStopStrings(const OrderedJson &jsonObj, RequestSPtr tmpReq, std::stri
         return true;
     }
     auto stopStrings = jsonObj[key];
-    bool validFlag = true;
-    uint32_t totalLength = 0;
     switch (stopStrings.type()) {
         case OrderedJson::value_t::array: {
-            for (size_t i = 0; i < stopStrings.size(); i++) {
-                auto stopStrLen = GetU16Str(stopStrings[i]).length();
-                if (stopStrings[i].is_null() || !stopStrings[i].is_string() || stopStrLen < 1 ||
-                    stopStrLen > MAX_STOP_STRING_LEN) {
-                    validFlag = false;
-                    break;
-                }
-                tmpReq->windowSize = std::max(tmpReq->windowSize, static_cast<uint32_t>(stopStrLen));
-                totalLength += stopStrLen;
-            }
-            if (!validFlag || totalLength > MAX_TOTAL_STOP ||
-                (isNumStopStrLimited && stopStrings.size() > MAX_STOP_STRING_NUM)) {
-                ULOG_ERROR(SUBMODLE_NAME_ENDPOINT,
-                           GenerateEndpointErrCode(ERROR, SUBMODLE_FEATURE_SINGLE_INFERENCE, CHECK_ERROR),
-                           "Request param stop content is invalid");
-                error = std::string("Input validation error: `stop` must be list[string] if list, "
-                    "and item length in [1, ") + std::to_string(MAX_STOP_STRING_LEN) +
-                    std::string("] with total <= ") + std::to_string(MAX_TOTAL_STOP);
-                return false;
-            }
-            if (totalLength == 0) {
-                return true;
-            }
-            tmpReq->stopStrings = Base64Util::Encode(stopStrings.dump());
-            break;
+            return AssignStopStringList(stopStrings, tmpReq, error, isNumStopStrLimited, maxLength);
         }
         case OrderedJson::value_t::string: {
-            auto stopStrLen = GetU16Str(stopStrings).length();
-            if (stopStrLen < 1 || stopStrLen > maxLength) {
-                error = "Input validation error: length of `stop` must be in [1, " + std::to_string(maxLength) +
-                        "], but got " + std::to_string(stopStrLen);
-                return false;
-            }
-            tmpReq->windowSize = std::max(tmpReq->windowSize, static_cast<uint32_t>(stopStrLen));
-            tmpReq->stopStrings = Base64Util::Encode(OrderedJson::array({stopStrings}).dump());
+            return AssignStopSingleString(stopStrings, tmpReq, error, maxLength);
+        }
+        default: {
+            error = "Input validation error: param stop must be string or list[string]";
+            return false;
+        }
+    }
+    return true;
+}
+
+bool AssignStopStringList(const OrderedJson &stopStrings, RequestSPtr tmpReq, std::string &error,
+                          bool isNumStopStrLimited, uint32_t maxLength) noexcept
+{
+    bool validFlag = true;
+    uint32_t totalLength = 0;
+    tmpReq->stopStrList = std::vector<std::string>();
+    for (size_t i = 0; i < stopStrings.size(); i++) {
+        auto stopStrLen = GetU16Str(stopStrings[i]).length();
+        if (stopStrings[i].is_null() || !stopStrings[i].is_string() || stopStrLen < 1 ||
+            stopStrLen > MAX_STOP_STRING_LEN) {
+            validFlag = false;
             break;
         }
-        default: error = "Input validation error: param stop must be string or list[string]"; return false;
+        tmpReq->windowSize = std::max(tmpReq->windowSize, static_cast<uint32_t>(stopStrLen));
+        totalLength += stopStrLen;
+        tmpReq->stopStrList.value().emplace_back(stopStrings[i]);
     }
+    if (!validFlag || totalLength > maxLength ||
+        (isNumStopStrLimited && stopStrings.size() > MAX_STOP_STRING_NUM)) {
+        ULOG_ERROR(SUBMODLE_NAME_ENDPOINT,
+            GenerateEndpointErrCode(ERROR, SUBMODLE_FEATURE_SINGLE_INFERENCE, CHECK_ERROR),
+            "Request param stop content is invalid");
+        error = std::string("Input validation error: `stop` must be list[string] if list, "
+            "and item length in [1, ") + std::to_string(MAX_STOP_STRING_LEN) +
+            std::string("] with total <= ") + std::to_string(MAX_TOTAL_STOP);
+        return false;
+    }
+    if (totalLength == 0) {
+        return true;
+    }
+    tmpReq->stopStrings = Base64Util::Encode(stopStrings.dump());
+    return true;
+}
+
+bool AssignStopSingleString(const OrderedJson &stopStrings, RequestSPtr tmpReq, std::string &error,
+                            uint32_t maxLength) noexcept
+{
+    auto stopStrLen = GetU16Str(stopStrings).length();
+    if (stopStrLen < 1 || stopStrLen > maxLength) {
+        error = "Input validation error: length of `stop` must be in [1, " + std::to_string(maxLength) +
+                "], but got " + std::to_string(stopStrLen);
+        return false;
+    }
+    tmpReq->windowSize = std::max(tmpReq->windowSize, static_cast<uint32_t>(stopStrLen));
+    tmpReq->stopStrings = Base64Util::Encode(OrderedJson::array({stopStrings}).dump());
+    tmpReq->stopStrList = std::vector<std::string>();
+    tmpReq->stopStrList.value().emplace_back(stopStrings);
     return true;
 }
 
@@ -384,17 +421,6 @@ bool AssignIncludeStopStrInOutput(const OrderedJson &jsonObj, RequestSPtr tmpReq
     auto res = JsonParse::CheckOptionalItemType(jsonObj, key, OrderedJson::value_t::boolean, error);
     if (!res.isCorrectType) {
         return false;
-    }
-    if (GetServerConfig().inferMode == INFER_MODE_DMI) {
-        tmpReq->includeStopStrInOutput = false;
-        if (res.isPresent) {
-            error = "Request param include_stop_str_in_output is not support in dmi mode";
-            ULOG_ERROR(SUBMODLE_NAME_ENDPOINT,
-                       GenerateEndpointErrCode(ERROR, SUBMODLE_FEATURE_SINGLE_INFERENCE, CHECK_ERROR), error);
-            return false;
-        } else {
-            return true;
-        }
     }
     if (res.isPresent) {
         tmpReq->includeStopStrInOutput = jsonObj[key];

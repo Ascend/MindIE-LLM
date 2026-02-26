@@ -182,7 +182,7 @@ class Generator(PDInterface):
         self.max_input_len = max_input_len
         self.max_prefill_tokens = max_prefill_tokens
         ignore_eos = parse_config(model_config, 'ignore_eos', parse_type=ParseType.TO_BOOL)
-        tokenizer_sliding_window_size = parse_config(model_config, 'tokenizer_sliding_window_size',
+        self.tokenizer_sliding_window_size = parse_config(model_config, 'tokenizer_sliding_window_size',
                                                      parse_type=ParseType.TO_INT, default_value=3)
         self.trust_remote_code = parse_config(model_config, 'trust_remote_code', required=True,
                                               parse_type=ParseType.TO_BOOL, default_value=False)
@@ -261,7 +261,7 @@ class Generator(PDInterface):
             max_seq_len=max_seq_len,
             model_wrapper_config=self.model_wrapper.config,
             rank=self.rank,
-            tokenizer_sliding_window_size=tokenizer_sliding_window_size,
+            tokenizer_sliding_window_size=self.tokenizer_sliding_window_size,
             vocab_size=self.vocab_size
         )
 
@@ -353,6 +353,8 @@ class Generator(PDInterface):
             spcp_parallel_info,
             self.model_wrapper.model_info.device,
             self.context_params,
+            self.tokenizer,
+            self.tokenizer_sliding_window_size,
             self.model_wrapper.generate_position_ids
         )
         self.output_filter = OutputFilter(self.cache_config, self.infer_context, self.tokenizer, self.async_inference)
@@ -765,7 +767,9 @@ class Generator(PDInterface):
             spcp_parallel_info,
             self.model_wrapper.model_info.device,
             self.context_params,
-            self.model_wrapper.generate_position_ids
+            self.tokenizer,
+            self.tokenizer_sliding_window_size,
+            self.model_wrapper.generate_position_ids,
         )
         decode_input_len = self.num_speculative_tokens + 1 if self.num_speculative_tokens > 0 else 1
         warmup_cache_ids = np.zeros(input_metadata.batch_size, dtype=np.int32)

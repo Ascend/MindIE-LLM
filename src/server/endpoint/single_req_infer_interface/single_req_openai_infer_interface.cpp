@@ -106,7 +106,7 @@ bool SingleReqOpenAiInferInterface::SetupInferParams(RequestSPtr tmpReq, std::st
         return false;
     }
     auto ctx = BuildValidationContext();
-    if (!inputParam->ValidateFeatureCompatibility(ctx, msg)) {
+    if (!inputParam->ValidateFeatureCompatibility(ctx, msg, true)) {
         return false;
     }
     return true;

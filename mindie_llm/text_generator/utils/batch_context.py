@@ -1,4 +1,12 @@
-# Copyright (c) Huawei Technologies Co., Ltd. 2024-2025. All rights reserved.
+# Copyright (c) Huawei Technologies Co., Ltd. 2024-2026. All rights reserved.
+# MindIE is licensed under Mulan PSL v2.
+# You can use this software according to the terms and conditions of the Mulan PSL v2.
+# You may obtain a copy of Mulan PSL v2 at:
+#          http://license.coscl.org.cn/MulanPSL2
+# THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+# EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+# MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+# See the Mulan PSL v2 for more details.
 import array
 from copy import deepcopy
 from typing import Union, Tuple, Iterable, List, Callable
@@ -19,6 +27,7 @@ from ...utils.log.logging import logger
 from ...utils.tensor import tensor_backend
 from ...modeling.backend_type import BackendType
 from .stopping_criteria import make_mixed_eos, strings_eos
+from .tg_decode_util import decode_one
 
 
 class DictContext:
@@ -366,7 +375,9 @@ class BatchContext:
         "all_dict_context",
         "device",
         "to_tensor",
-        "position_ids_gen_func"
+        "position_ids_gen_func",
+        "tokenizer",
+        "tokenizer_sliding_window_size"
     ]
 
     def __init__(
@@ -376,6 +387,8 @@ class BatchContext:
         batch_context_config: CacheConfig,  # for sampling params
         spcp_parallel_info: SpCpParallelInfo,  # for sp, cp parallel info
         device,
+        tokenizer,
+        tokenizer_sliding_window_size,
         position_ids_gen_func: Callable = None
     ):
         self.kvcache_settings = kvcache_settings
@@ -418,6 +431,8 @@ class BatchContext:
             self.to_tensor = mindspore_to_tensor
 
         self.position_ids_gen_func = position_ids_gen_func
+        self.tokenizer = tokenizer
+        self.tokenizer_sliding_window_size = tokenizer_sliding_window_size
 
     @staticmethod
     def replace_nans_with_default(
@@ -654,7 +669,14 @@ class BatchContext:
             if is_pd_separate:
                 if any(np.asarray(input_metadata.batch_best_of > 1)):
                     raise RuntimeError("Prefilling-decoding separation deployment does not support best_of > 1.")
+                for i, token in enumerate(prefill_new_tokens):
+                    prefill_text = decode_one(self.tokenizer, [token], input_metadata.batch_skip_special_tokens[i],
+                                              self.tokenizer_sliding_window_size)
+                    self.all_dict_context.output_texts[context_handles[i]] = prefill_text
+
                 self.all_ndarray_context.last_input_ids[context_handles] = prefill_new_tokens
+                self.all_ndarray_context.all_output_ids[context_handles, 0] = prefill_new_tokens
+                self.all_ndarray_context.output_len_count[context_handles] += len(prefill_new_tokens)
                 self.all_ndarray_context.used_block_idx[context_handles] = (
                     self.all_ndarray_context.cpu_cached_seq_idx[context_handles, self.spcp_parallel_info.scp_rank]
                     // self.batch_context_config.max_block_size

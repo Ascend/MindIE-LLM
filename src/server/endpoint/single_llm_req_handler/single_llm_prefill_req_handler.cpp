@@ -382,6 +382,8 @@ void SingleLLMPrefillReqHandler::BuildDecodeParameters(ResponseSPtr response, De
     }
     PROF(prof.NumArrayAttr("firsttoken", firstToken_.begin(), firstToken_.end()));
 
+    params.set_prefilltokennum(firstToken_.size());
+
     for (std::string outputName: inferParam_->outputNames) {
         params.add_outputnames(outputName);
     }
@@ -434,12 +436,6 @@ void SingleLLMPrefillReqHandler::BuildDecodeParameters(ResponseSPtr response, De
     }
     PROF(prof.NumArrayAttr("blocktable", blockTable.begin(), blockTable.end()));
 
-    params.set_prevdecodeindex(0);
-    if (!inferParam_->prevDecodeIndex.empty()) {
-        params.set_prevdecodeindex(inferParam_->prevDecodeIndex.begin()->second);
-        PROF(prof.Attr("prevdecodeindex", inferParam_->prevDecodeIndex.begin()->second));
-    }
-
     std::vector<uint64_t> dpInstanceIds = {
         static_cast<unsigned int>(response->responseContents[0].singleLLMPrefillReqHandlerId)};
     for (uint64_t dpId : dpInstanceIds) {
@@ -447,11 +443,18 @@ void SingleLLMPrefillReqHandler::BuildDecodeParameters(ResponseSPtr response, De
     }
     PROF(prof.NumArrayAttr("dpinstanceids", dpInstanceIds.begin(), dpInstanceIds.end()));
 
+    params.set_prevdecodeindex(0);
+    if (!inferParam_->prevDecodeIndex.empty()) {
+        params.set_prevdecodeindex(inferParam_->prevDecodeIndex.begin()->second);
+        PROF(prof.Attr("prevdecodeindex", inferParam_->prevDecodeIndex.begin()->second));
+    }
     params.set_currentdecodeindex(0);
     if (!inferParam_->currentDecodeIndex.empty()) {
         params.set_currentdecodeindex(inferParam_->currentDecodeIndex.begin()->second);
         PROF(prof.Attr("currentdecodeindex", inferParam_->currentDecodeIndex.begin()->second));
     }
+    params.set_preoutputtokennum(inferParam_->preOutputTokenNum);
+
     params.set_postsingletext("");
     if (!inferParam_->postSingleText.empty()) {
         params.set_postsingletext(inferParam_->postSingleText.begin()->second);
@@ -514,12 +517,17 @@ void SingleLLMPrefillReqHandler::BuildSamplingParametersNext(DecodeParameters& p
     if (request_->stopStrings.has_value()) {
         params.mutable_samplingparams()->mutable_stopstrings()->set_value(request_->stopStrings.value());
     }
-    if (request_->skipSpecialTokens.has_value()) {
-        params.mutable_samplingparams()->mutable_skipspecialtokens()->set_value(request_->skipSpecialTokens.value());
+    if (request_->stopStrList.has_value()) {
+        for (std::string strVal : request_->stopStrList.value()) {
+            params.mutable_samplingparams()->mutable_stopstrings()->add_list(strVal);
+        }
     }
     if (request_->includeStopStrInOutput.has_value()) {
         params.mutable_samplingparams()->mutable_includestopstrinoutput()
             ->set_value(request_->includeStopStrInOutput.value());
+    }
+    if (request_->skipSpecialTokens.has_value()) {
+        params.mutable_samplingparams()->mutable_skipspecialtokens()->set_value(request_->skipSpecialTokens.value());
     }
     if (request_->ignoreEos.has_value()) {
         params.mutable_samplingparams()->mutable_ignoreeos()->set_value(request_->ignoreEos.value());
