@@ -261,6 +261,7 @@ class ATBModelWrapper(ModelWrapper):
             max_seq_len=model_inputs.max_seq_len,
             lm_head_indices=model_inputs.lm_head_indices,
             adapter_ids=model_inputs.adapter_ids,
+            is_need_mask=model_inputs.is_need_mask,
             **kwargs,
         )
         return result
@@ -276,6 +277,7 @@ class ATBModelWrapper(ModelWrapper):
             input_lengths: torch.Tensor,
             max_seq_len: int,
             lm_head_indices: Optional[torch.Tensor] = None,
+            is_need_mask: Optional[List[int]] = None,
             **kwargs):
         from mindie_llm.utils.prof.profiler import span_start, span_end, span_attr, tensor_attr, Level
         prof = span_start(name="forward_tensor", level=Level.DETAILED)
@@ -318,6 +320,7 @@ class ATBModelWrapper(ModelWrapper):
                 input_lengths=input_lengths,
                     max_seq_len=max_seq_len,
                     lm_head_indices=lm_head_indices,
+                    is_need_mask=is_need_mask,
                     **kwargs,
                 )
             except Exception as e:

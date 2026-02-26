@@ -66,6 +66,7 @@ std::map<std::string, std::vector<std::string>> GetLatentAttnInTensorCandidates(
         {"attn_cp_prefill", {"in_seq_len_cp", "in_cp_load_balance_idx_first", "in_cp_load_balance_idx_last",
                              "in_cp_o_recover_idx", "in_cp_kv_recover_idx"}},
         {"attn_inner_sp_decode", {"in_seq_len_sp"}},
+        {"sp_mtp", {"is_need_mask"}},
         {"attn_cp_sp_decode", {"in_filter_mask"}},
         {"qkvdown_dp", {"in_ffn_unpadding_idx"}
         },
@@ -226,6 +227,9 @@ std::map<std::string, uint32_t> ConstructTensorMap(const LatentAttentionParam<No
     if (param.hasAttnInnerSp && !param.isPrefill) {
         AddTensorToList(latentAttnInTensorCandidates, "attn_inner_sp_decode", inTensorList);
         AddTensorToList(latentAttnIntermediateTensorCandidates, "attn_inner_sp_decode", intermediateTensorList);
+        if (param.pageAttentionParam.calcType == atb::infer::PagedAttentionParam::CalcType::CALC_TYPE_SPEC) {
+            AddTensorToList(latentAttnInTensorCandidates, "sp_mtp", inTensorList);
+        }
     }
     if ((param.contextParallelInfo.IsEnabled() || param.hasAttnInnerSp) && !param.isPrefill) {
         AddTensorToList(latentAttnInTensorCandidates, "attn_cp_sp_decode", inTensorList);
@@ -1955,6 +1959,10 @@ atb::Status AddMlaDecoderNode(
         multiLatentAttentionParam.calcType = (param.hasAttnInnerSp || param.contextParallelInfo.IsEnabled()) ?
             atb::infer::MultiLatentAttentionParam::CalcType::CALC_TYPE_SPEC_AND_RING :
             atb::infer::MultiLatentAttentionParam::CalcType::CALC_TYPE_SPEC;
+        if (param.hasAttnInnerSp) {
+            multiLatentAttentionParam.maskUseStatusType =
+                atb::infer::MultiLatentAttentionParam::MaskUseStatusType::MASK_USE_STATUS_TYPE_BATCH_MASK;
+        }
     }
     if (EnableFA3Quant(param)) {
         multiLatentAttentionParam.cacheMode = atb::infer::MultiLatentAttentionParam::CacheMode::INT8_NZCACHE;
@@ -2005,6 +2013,9 @@ atb::Status AddMlaDecoderNode(
             "intermediate_q_sp_nope_int8") : GetTensorIdx(tensorMap, "intermediate_q_sp_nope");
         selfAttentionNode.inTensorIds.at(1) = GetTensorIdx(tensorMap, "intermediate_q_sp_rope");
         selfAttentionNode.inTensorIds.at(5) = GetTensorIdx(tensorMap, "in_seq_len_sp"); // 5:position of in_seq_len_sp
+        if (param.pageAttentionParam.calcType == atb::infer::PagedAttentionParam::CalcType::CALC_TYPE_SPEC) {
+            selfAttentionNode.inTensorIds.push_back(GetTensorIdx(tensorMap, "is_need_mask"));
+        }
     }
     if (param.contextParallelInfo.IsEnabled() || param.hasAttnInnerSp) {
         selfAttentionNode.outTensorIds = GetTensorIdxList(tensorMap, {"intermediate_go", "intermediate_lse"});

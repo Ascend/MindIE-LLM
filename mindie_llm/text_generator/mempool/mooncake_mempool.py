@@ -141,7 +141,7 @@ class MooncakeMempool(MemPool):
             self.rep_config.prefer_alloc_in_same_node = True
 
         if ret != 0:
-            msg = "Initialize mooncake failed."
+            msg = f"Initialize mooncake failed, ret: {ret}"
             logger.error(msg)
             raise RuntimeError(msg)
         
@@ -228,10 +228,10 @@ class MooncakeMempool(MemPool):
             v = kv[1]
             res = self.store.register_buffer(k.data_ptr(), k.numel() * k.element_size())
             if res != 0:
-                logger.error("Failed to register key buffer.")
+                logger.error(f"Failed to register key buffer, ret: {res}")
             res = self.store.register_buffer(v.data_ptr(), v.numel() * v.element_size())
             if res != 0:
-                logger.error("Failed to register value buffer.")
+                logger.error(f"Failed to register value buffer, ret: {res}")
     
     def _put(self, keys: Union[str, List[str]], tensors: Union[torch.Tensor, List], **kwargs) -> List[bool]:
         all_addrs = []
@@ -243,10 +243,10 @@ class MooncakeMempool(MemPool):
        
         try:
             ret = self.store.batch_put_from_multi_buffers(keys, all_addrs, all_sizes, self.rep_config)
-        except Exception:
-            logger.error("Failed to put keys to mooncake mempool.")
+            all_result = [x == 0 for x in ret]
+        except Exception as e:
+            logger.error(f"Failed to put keys to mooncake mempool: {e}")
             all_result = [False] * len(keys)
-        all_result = [x == 0 for x in ret]
         return all_result
     
     def _ascend_transport_put(
@@ -263,7 +263,7 @@ class MooncakeMempool(MemPool):
                 addrs, sizes = self._get_addr_size(tensor)
                 ret = self.store.batch_put_from_ascend(key, addrs, sizes)
                 if ret[0] != 0:
-                    logger.error(f"Failed to put key {key}.")
+                    logger.error(f"Failed to put key {key}, ret: {ret[0]}")
                 all_result.append(ret[0] == 0)
             except Exception:
                 logger.error(f"Failed to put key {key}.")
@@ -283,10 +283,10 @@ class MooncakeMempool(MemPool):
        
         try:
             ret = self.store.batch_get_into_multi_buffers(keys, all_addrs, all_sizes, True)
-        except Exception:
-            logger.error("Failed to get keys from mooncake mempool.")
+            all_result = [x == y for x, y in zip(ret, all_expect)]
+        except Exception as e:
+            logger.error(f"Failed to get keys from mooncake mempool: {e}")
             all_result = [False] * len(keys)
-        all_result = [x == y for x, y in zip(ret, all_expect)]
         return all_result
         
     def _ascend_transport_get(self,
@@ -308,7 +308,7 @@ class MooncakeMempool(MemPool):
                 if res[0] != expect_res:
                     logger.error(f"Failed to get key: [{key}], ret: {res}.")
                 all_result.append(res[0] == expect_res)
-            except Exception:
-                logger.error(f"Failed to get key: [{key}].")
+            except Exception as e:
+                logger.error(f"Failed to get key: [{key}]. {e}")
                 all_result.append(False)
         return all_result

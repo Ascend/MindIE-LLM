@@ -67,6 +67,7 @@ NUM_HIDDEN_LAYERS = 61
 SEQUENCE_LENGTH = "seqLen"
 SEQUENCE_LENGTH_SP = "seqLenSp"
 SEQUENCE_LENGTH_CP = "seqLenCp"
+IS_NEED_MASK = "isNeedMask"
 Q_LEN = "qLen"
 DECODER = "decoder"
 Q_LENS = "q_lens"
@@ -1698,6 +1699,7 @@ class FlashDeepseekv2ForCausalLM(FlashForCausalLM):
                                   input_lengths: torch.Tensor,
                                   max_seq_len: int,
                                   lm_head_indices: Optional[torch.Tensor] = None,
+                                  is_need_mask: Optional[List[int]] = None,
                                   **kwargs):
         perf_time_start = 0
         q_lens = kwargs.get(Q_LENS, [])
@@ -1858,6 +1860,7 @@ class FlashDeepseekv2ForCausalLM(FlashForCausalLM):
                 Q_LEN: [int(i) for i in q_lens if i] if q_lens else None,
                 SEQUENCE_LENGTH_SP: kwargs.get("input_lengths_sp").tolist()
                                     if self.mapping.has_attn_inner_sp() else [],
+                IS_NEED_MASK: is_need_mask if is_need_mask is not None else [],
             })
             self.acl_decoder_operation_inputs = [
                 input_ids,
@@ -1890,7 +1893,11 @@ class FlashDeepseekv2ForCausalLM(FlashForCausalLM):
             if self.mapping.has_attn_inner_sp():
                 input_lengths_sp = kwargs.get("input_lengths_sp", None)
                 input_filter_mask = self.prepare_csp_input_filter_mask(input_lengths_sp, q_lens)
-                self.acl_decoder_operation_inputs.extend([input_lengths_sp, input_filter_mask])
+                self.acl_decoder_operation_inputs.append(input_lengths_sp)
+                if self.num_speculative_tokens:
+                    self.acl_decoder_operation_inputs.append(torch.tensor(is_need_mask,
+                        dtype=torch.int32, device=self.device))
+                self.acl_decoder_operation_inputs.append(input_filter_mask)
             elif self.mapping.has_attn_cp():
                 input_filter_mask = self.prepare_csp_input_filter_mask(input_lengths, q_lens)
                 self.acl_decoder_operation_inputs.extend([input_filter_mask])
@@ -2418,6 +2425,7 @@ class FlashDeepseekv2ForCausalLM(FlashForCausalLM):
             input_lengths: torch.Tensor,
             max_seq_len: int,
             lm_head_indices: Optional[torch.Tensor] = None,
+            is_need_mask: Optional[List[int]] = None,
             **kwargs,
     ) -> torch.Tensor:
         if not self.layerwise_disaggregated:
@@ -2428,7 +2436,7 @@ class FlashDeepseekv2ForCausalLM(FlashForCausalLM):
             if self.num_speculative_tokens:
                 return self.forward_mtp(input_ids, position_ids, \
                     is_prefill, kv_cache, block_tables, slots, input_lengths, \
-                    max_seq_len, lm_head_indices, **kwargs)
+                    max_seq_len, lm_head_indices, is_need_mask, **kwargs)
 
             prof = span_start("prepareInputs", True)
             prof = span_attr(prof, "slots", lambda: tensor_attr(slots, False))
@@ -2479,6 +2487,7 @@ class FlashDeepseekv2ForCausalLM(FlashForCausalLM):
             input_lengths: torch.Tensor,
             max_seq_len: int,
             lm_head_indices: Optional[torch.Tensor] = None,
+            is_need_mask: Optional[List[int]] = None,
             **kwargs,
     ) -> torch.Tensor:
         # prefill
@@ -2525,7 +2534,7 @@ class FlashDeepseekv2ForCausalLM(FlashForCausalLM):
             if sub_model_inputs is not None:
                 return self.forward_mtp_decoding_v2(input_ids, position_ids, \
                     is_prefill, kv_cache, block_tables, slots, input_lengths, \
-                    max_seq_len, lm_head_indices, **kwargs)
+                    max_seq_len, lm_head_indices, is_need_mask, **kwargs)
 
             hidden_states = kwargs.get('hidden_states', None)
             is_mtp = hidden_states is not None
@@ -2597,7 +2606,7 @@ class FlashDeepseekv2ForCausalLM(FlashForCausalLM):
                 acl_inputs, acl_param, _ = self.prepare_inputs_for_ascend(
                     input_ids, position_ids, is_prefill, kv_cache,
                     block_tables, slots, input_lengths, max_seq_len,
-                    lm_head_indices, **kwargs)
+                    lm_head_indices, is_need_mask, **kwargs)
                 if lm_head_indices is None:
                     lm_head_indices = torch.tensor(range(input_ids.shape[0]),
                                                    dtype=torch.int64, device=input_ids.device)
@@ -2642,6 +2651,7 @@ class FlashDeepseekv2ForCausalLM(FlashForCausalLM):
             input_lengths: torch.Tensor,
             max_seq_len: int,
             lm_head_indices: Optional[torch.Tensor] = None,
+            is_need_mask: Optional[List[int]] = None,
             **kwargs,
     ) -> torch.Tensor:
         prof = span_start(name="forward_mtp_decoding_v2", level=Level.DETAILED)
@@ -2664,14 +2674,15 @@ class FlashDeepseekv2ForCausalLM(FlashForCausalLM):
             SEQUENCE_LENGTH: input_lengths.tolist(),
             SEQUENCE_LENGTH_SP: kwargs.get("input_lengths_sp").tolist()
                                 if self.mapping.has_attn_inner_sp() else [],
-            "qLen": q_lens_list
+            "qLen": q_lens_list,
+            IS_NEED_MASK: is_need_mask if is_need_mask is not None else [],
         })
 
         self.init_kvcache(kv_cache)
         acl_inputs_mtp, acl_param_mtp, _ = self.prepare_inputs_for_ascend(
             sub_model_inputs.input_ids, sub_model_inputs.position_ids, is_prefill, kv_cache,
             sub_model_inputs.block_tables, sub_model_inputs.slots, sub_model_inputs.context_length, max_seq_len,
-            sub_model_inputs.prefill_head_indices, **kwargs)
+            sub_model_inputs.prefill_head_indices, sub_model_inputs.is_need_mask, **kwargs)
         # mtp decode
         all_logits_mtp = []
         acl_inputs_mtp = self.delete_local_tp_mtp_inputs(acl_inputs_mtp)
@@ -2684,7 +2695,8 @@ class FlashDeepseekv2ForCausalLM(FlashForCausalLM):
 
         if self.mapping.has_attn_inner_sp():
             acl_inputs_mtp[30] = kwargs.get("sub_input_lengths_sp")
-            acl_inputs_mtp[31] = self.prepare_csp_input_filter_mask(acl_inputs_mtp[30], q_lens_list)
+            acl_inputs_mtp[31] = torch.tensor(is_need_mask, dtype=torch.int32).npu()
+            acl_inputs_mtp[32] = self.prepare_csp_input_filter_mask(acl_inputs_mtp[30], q_lens_list)
 
         if self.eplb_level in [EPLBType.STATIC_EPLB, EPLBType.DYNAMIC_EPLB]:
             map_id = -3 if self.mix_shared_routing else -1 # -3: eplb routing map id
@@ -2775,7 +2787,9 @@ class FlashDeepseekv2ForCausalLM(FlashForCausalLM):
         acl_inputs[12] = lm_head_indices.to(torch.int64)
         if self.mapping.has_attn_inner_sp():
             acl_inputs[30] = kwargs.get("input_lengths_sp")
-            acl_inputs[31] = self.prepare_csp_input_filter_mask(acl_inputs[30], q_lens_list)
+            acl_inputs[31] = torch.tensor(is_need_mask, dtype=torch.int32).npu()
+            acl_inputs[32] = self.prepare_csp_input_filter_mask(acl_inputs[30], q_lens_list)
+           
         elif self.mapping.has_attn_cp():
             acl_inputs[30] = self.prepare_csp_input_filter_mask(acl_inputs[11], q_lens_list)
         del acl_inputs[18]

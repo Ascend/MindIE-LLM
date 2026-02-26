@@ -388,8 +388,10 @@ bool ParamChecker::CheckEngineName(const std::string &engineName)
 
 bool ParamChecker::CheckKvPoolBackend(const std::string &kvPoolBackend)
 {
-    if (kvPoolBackend != "" && kvPoolBackend != "unifiedcache" && kvPoolBackend != "mooncake") {
-        std::cout << "Unknow kv pool backend. And only [`unifiedcache`, `mooncake`, ``] is available!" << std::endl;
+    if (kvPoolBackend != "" && kvPoolBackend != "unifiedcache" && kvPoolBackend != "mooncake" &&
+        kvPoolBackend != "memcache") {
+        std::cout << "Unknow kv pool backend. And only [`unifiedcache`, `mooncake`, `memcache`, ``] is available!"
+                  << std::endl;
         return false;
     }
     return true;

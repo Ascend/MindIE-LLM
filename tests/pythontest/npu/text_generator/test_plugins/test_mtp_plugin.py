@@ -403,6 +403,7 @@ class TestMTP(unittest.TestCase):
         )
 
         self.mtp_plugin.decoding_policy.num_speculative_tokens = 1
+        self.mtp_plugin.decoding_policy.infer_context = infer_context
 
         def to_tensor(data):
             return torch.tensor(data, device=self.device)
@@ -598,6 +599,65 @@ class TestMTP(unittest.TestCase):
             expected = np.array([3, 0, 3, 0])
             self.assertTrue(np.array_equal(model_inputs_mtp.input_ids, expected),
                           f"Expected input_ids {expected}, but got {model_inputs_mtp.input_ids}")
+
+    def test_get_mtp_draft_model_inputs_with_sp(self):
+        mock_hidden_states = torch.randn(2, 768)
+        with patch.object(
+            self.mtp_plugin.decoding_policy,
+            'get_input_hidden_states'
+        ) as mock_method:
+            mock_method.return_value = mock_hidden_states
+            metadata = InputMetadata(
+                batch_size=2,
+                batch_request_ids=np.array([18446744073709551], dtype=np.int64),
+                batch_max_output_lens=np.array([1, 1], dtype=np.int64),
+                block_tables=np.array([[0], [0]], dtype=np.int64),
+                max_block_size=self.block_size,
+                has_sampling=False,
+                is_prefill=False,
+                input_ids=np.array([]),
+                batch_seq_len=np.array([1, 1], dtype=np.int64),
+                total_seq_num=1,
+                batch_sampling_params=np.array([], dtype=np.float64),
+                batch_stop_strings=[],
+                batch_stop_token_ids=[],
+                computed_blocks=None,
+                adapter_ids=[],
+                num_npu_blocks=self.num_npu_blocks,
+                batch_dp_rank_ids=np.array([0], dtype=np.int64),
+                batch_tools=[],
+                batch_tool_choice=[],
+                batch_ignore_eos=np.array([]),
+                batch_skip_special_tokens=np.array([]),
+                batch_include_stop=np.array([]),
+                trace_ids=None,
+                batch_sequence_ids=[np.array([9223372036854775], dtype=np.int64)],
+                batch_best_of=np.array([1, 1]),
+                batch_logprobs=np.array([]),
+                batch_seeds=np.array([]),
+                batch_n=np.array([1, 1]),
+                batch_use_beam_search=np.array([False]),
+                reserved_sequence_ids=[np.array([])],
+                is_dummy_batch=False
+            )
+            model_inputs = ModelInput(
+                input_ids=np.array([1000, 1001], dtype=np.int64),
+                position_ids=np.array([2, 3], dtype=np.int32),
+                block_tables=np.array([[0], [0]], dtype=np.int32),
+                slots=np.array([2, 3], dtype=np.int32),
+                context_length=np.array([2, 2], dtype=np.int32),
+                cached_context_length=np.array([2, 2], dtype=np.int32),
+                max_seq_len=4,
+                prefill_head_indices=None,
+                is_prefill=False,
+                block_tables_array=np.array([[0], [0]]),
+                input_lengths=torch.tensor([2, 2]).to(self.device)
+            )
+            self.mtp_plugin.infer_context.spcp_parallel_info.scp_size = 2
+            self.mtp_plugin.decoding_policy.max_block_size = 128
+            self.mtp_plugin.decoding_policy.sp_token_and_slot_calc_by_context_length(1, np.array([0, 0]), np.array([[0]]), 2)
+
+            self.mtp_plugin.infer_context.spcp_parallel_info.scp_size = 1
 
     def test_all_token_ids_padding(self):
         sampling_metadata = MagicMock()

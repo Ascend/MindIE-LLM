@@ -196,36 +196,12 @@ class DecodingPolicy:
         slots_ids = self.infer_context.block_to_slots(block_to_cache[block_index], block_offset)
         final_slots = np.where(is_current, slots_ids, -1)
 
-        if slots_ids[0] >= 0 and slots_ids[1] == -1:
-            draft_sp_token[scp_rank] += 1
-
         result = final_slots[-slots_num_per_batch:]
         return draft_sp_token, result
-
-    def sp_cp_block_table_append(self, block_tables, pad_value=-1):
-        final_block = self.generator_backend.cache_pool.kvcache_settings.num_npu_blocks - 1
-        batch_size, cols = block_tables.shape
-        new_block = np.full((batch_size, cols + 1), pad_value, dtype=block_tables.dtype)
-        for i in range(batch_size):
-            row = block_tables[i]
-            # 查找第一个 -1 的位置
-            neg_indices = np.where(row == -1)[0]
-
-            if neg_indices.size == 0:
-                insert_pos = cols  # 新行的最后一列
-            else:
-                insert_pos = neg_indices[0]  # 第一个 -1 在原行中的列索引
-
-            new_block[i, :insert_pos] = row[:insert_pos]
-            new_block[i, insert_pos] = final_block
-            new_block[i, insert_pos+1:] = row[insert_pos:]
-
-        return new_block
 
     def get_mtp_draft_model_inputs_standard(self, model_inputs, input_metadata, cached_idx, hit_mask=None):
         batch_size = input_metadata.batch_size
         batch_block_tables = input_metadata.batch_block_tables
-        model_block = model_inputs.block_tables.copy()
 
         # 首先获取上一轮的生成长度信息
         cached_last_token_num = self.infer_context.get_mtp_last_token_num(cached_idx)
@@ -243,7 +219,7 @@ class DecodingPolicy:
         new_slots = np.full(batch_size * slots_num_per_batch, -1, dtype=np.int32)
         start_idx = 0
         draft_sp_tokens = np.zeros((batch_size, self.infer_context.spcp_parallel_info.scp_size), dtype=np.int32)
-
+        is_need_mask = [0] * batch_size
         for i in range(batch_size):
             # mtp场景下，虚推需要特殊处理，构造对应特殊的slots并置为-1不占用正常请求slots
             if input_metadata.all_sequence_ids is not None and \
@@ -285,7 +261,7 @@ class DecodingPolicy:
                             slots_num_per_batch,
                         )
                     )
-
+                    is_need_mask[i] = int(new_slots[(i + 1) * slots_num_per_batch - 1] != -1)
                 # 新的lmhead indices是可接受的最后一个长度， 但是每次start_idx 的累加要是 MTP + 1
                 prefill_head_indices_new[i] = start_idx + last_token_num - 1
             else:
@@ -306,17 +282,19 @@ class DecodingPolicy:
                             slots_num_per_batch,
                         )
                     )
+                    is_need_mask[i] = int(new_slots[(i + 1) * slots_num_per_batch - 1] != -1)
                 new_context_length[i] = model_inputs.context_length[i] + self.num_speculative_tokens
                 prefill_head_indices_new[i] = start_idx + speculative_len - 1
             start_idx += speculative_len
 
         new_max_seq_len = max(new_context_length)
-        if self.infer_context.spcp_parallel_info.scp_size > 0:
-            model_block = self.sp_cp_block_table_append(model_block)
 
+        batch_is_need_mask = None
+        if self.infer_context.spcp_parallel_info.scp_size > 0:
+            batch_is_need_mask = is_need_mask
         mtp_model_inputs = ModelInput(input_ids=new_input_ids,
                                       position_ids=new_position_ids,
-                                      block_tables=model_block,
+                                      block_tables=model_inputs.block_tables.copy(),
                                       slots=new_slots,
                                       context_length=new_context_length,
                                       cached_context_length=new_context_length,
@@ -325,7 +303,8 @@ class DecodingPolicy:
                                       is_prefill=model_inputs.is_prefill,
                                       adapter_ids=model_inputs.adapter_ids,
                                       dp_rank_ids=model_inputs.dp_rank_ids,
-                                      sp_tokens=draft_sp_tokens)
+                                      sp_tokens=draft_sp_tokens,
+                                      is_need_mask=batch_is_need_mask)
 
         # 从cache中获取hidden_states进行组batch拼接
         hidden_states = self.get_input_hidden_states(cached_idx)
@@ -338,12 +317,12 @@ class DecodingPolicy:
         new_slots = np.full(batch_size * (self.num_speculative_tokens + 1), -1, dtype=np.int32)
         new_context_length = model_inputs.context_length + self.num_speculative_tokens
         new_max_seq_len = model_inputs.max_seq_len + self.num_speculative_tokens
-        model_block = model_inputs.block_tables.copy()
 
         if self.infer_context.spcp_parallel_info.scp_size > 1:
             cached_block_rank_id = self.infer_context.get_mtp_seq_block_rank_id(cached_idx)
         draft_sp_tokens = np.zeros((batch_size, self.infer_context.spcp_parallel_info.scp_size), dtype=np.int32)
         sp_tokens = None
+        is_need_mask = [0] * batch_size
         if self.infer_context.spcp_parallel_info.scp_size > 1:
             row_indices = np.arange(model_inputs.sp_tokens.shape[0])
             sp_tokens = model_inputs.sp_tokens.copy()
@@ -380,13 +359,14 @@ class DecodingPolicy:
                         input_len_per_batch,
                     )
                 )
+                is_need_mask[i] = int(new_slots[(i + 1) * input_len_per_batch - 1] != -1)
 
+        batch_is_need_mask = None
         if self.infer_context.spcp_parallel_info.scp_size > 0:
-            model_block = self.sp_cp_block_table_append(model_block)
-
+            batch_is_need_mask = is_need_mask
         new_model_inputs = ModelInput(input_ids=new_input_ids,
                                       position_ids=new_position_ids,
-                                      block_tables=model_block,
+                                      block_tables=model_inputs.block_tables,
                                       slots=new_slots,
                                       context_length=new_context_length,
                                       cached_context_length=new_context_length.copy(),
@@ -395,7 +375,8 @@ class DecodingPolicy:
                                       is_prefill=model_inputs.is_prefill,
                                       adapter_ids=model_inputs.adapter_ids,
                                       dp_rank_ids=model_inputs.dp_rank_ids,
-                                      sp_tokens=draft_sp_tokens)
+                                      sp_tokens=draft_sp_tokens,
+                                      is_need_mask=batch_is_need_mask)
 
         return new_model_inputs
 
