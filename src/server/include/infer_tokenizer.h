@@ -60,11 +60,30 @@ namespace detail {
         E_SEM_STATE_IN_USE = 1,
         E_SEM_STATE_PRE_FREE = 2,
     };
+    enum SharedTokenSemStep : uint32_t {
+        E_SEM_STEP_INIT = 0,
+        E_SEM_STEP_START,
+        E_SEM_STEP_WAIT_HEAD,
+        E_SEM_STEP_WAIT_HEAD_FAIL,
+        E_SEM_STEP_WAIT_HEAD_SUCC,
+
+        E_SEM_STEP_BIND_START,
+        E_SEM_STEP_BIND_NO_IBIS,
+        E_SEM_STEP_BIND_IBIS,
+        E_SEM_STEP_BIND_NO_FUNC,
+        E_SEM_STEP_BIND_CHECK_OK,
+        E_SEM_STEP_BIND_FAIL,
+        E_SEM_STEP_BIND_SUCC,
+
+        E_SEM_STEP_START_SUCC,
+        E_SEM_STEP_RUN = 100,
+    };
     struct SharedTokenSemaphore {
         sem_t produce;
         sem_t consume;
         sem_t subInitialized;
         SharedTokenSemState state;
+        SharedTokenSemStep step;
     };
 }
 
@@ -168,7 +187,8 @@ private:
     pid_t GetAvailablePid();
     void ReturnPid(pid_t pid);
     bool InitSubProcessMemory(const std::shared_ptr<ShareTokenMemory> &curMemory);
-    bool InitSubProcessTokenizer(std::shared_ptr<InferTokenizer> &tokenizer);
+    bool InitSubProcessTokenizer(const std::shared_ptr<ShareTokenMemory> &curMemory,
+        std::shared_ptr<InferTokenizer> &tokenizer);
     Status DoDecode(std::vector<int64_t> &tokenIds, std::string &output, HeadFlag flag, uint32_t prevDecodeIndex,
         uint32_t currentDecodeIndex, const uint64_t &timestamp, bool useToolsCall, const bool &skipSpecialTokens,
         const bool requestEndFlag, const DetokenizeExtraInfo &detokenizeStatus = DetokenizeExtraInfo{});

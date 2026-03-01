@@ -425,9 +425,12 @@ bool TokenizerProcessPool::InitProcesses()
         int ret = sem_timedwait(&header->sems.subInitialized, &ts);
         if (ret == -1 || errno == ETIMEDOUT || header->magic == MAGIC_HEAD_FAILED) {
             ULOG_ERROR(SUBMODLE_NAME_TOKENIZER, GenerateTokenizerErrCode(ERROR, SUBMODLE_FEATURE_TOKENIZER,
-                INIT_ERROR), "Timeout, Failed to init tokenizer process");
+                INIT_ERROR), "Timeout, Failed to init tokenizer process: step=" <<
+                static_cast<uint32_t>(header->sems.step));
             return false;
         }
+        ULOG_INFO(SUBMODLE_NAME_TOKENIZER, "Success to init tokenizer process: step=" <<
+            static_cast<uint32_t>(header->sems.step));
     }
 
     ULOG_INFO(SUBMODLE_NAME_TOKENIZER, "Finished to init tokenizer sub process size " << availablePid.size());
@@ -497,6 +500,7 @@ bool TokenizerProcessPool::InitSharedMemory(int32_t parentPid)
         }
 
         header->sems.state = detail::E_SEM_STATE_FREE;
+        header->sems.step = detail::E_SEM_STEP_INIT;
         sem_init(&header->sems.produce, 1, 0);
         sem_init(&header->sems.consume, 1, 0);
         sem_init(&header->sems.subInitialized, 1, 0);
@@ -952,36 +956,52 @@ bool TokenizerProcessPool::InitSubProcessMemory(const std::shared_ptr<ShareToken
         return false;
     }
 
+    header->sems.step = detail::E_SEM_STEP_WAIT_HEAD;
     while (header->magic != MAGIC_HEAD_BEGIN) {
         sleep(1);
         if (++sleepTotal > maxSleep) {
+            header->sems.step = detail::E_SEM_STEP_WAIT_HEAD_FAIL;
             return false;
         }
     }
+    header->sems.step = detail::E_SEM_STEP_WAIT_HEAD_SUCC;
     return true;
 }
 
-bool TokenizerProcessPool::InitSubProcessTokenizer(std::shared_ptr<InferTokenizer> &tokenizer)
+bool TokenizerProcessPool::InitSubProcessTokenizer(const std::shared_ptr<ShareTokenMemory> &curMemory,
+    std::shared_ptr<InferTokenizer> &tokenizer)
 {
+    auto header = reinterpret_cast<SharedMemoryHeader *>(curMemory->GetBuf());
+    if (header == nullptr) {
+        return false;
+    }
     try {
+        header->sems.step = detail::E_SEM_STEP_BIND_START;
         pybind11::module module = pybind11::module_::import("mindie_llm.tokenizer");
         if (!pybind11::hasattr(module, "IbisTokenizer")) {
+            header->sems.step = detail::E_SEM_STEP_BIND_NO_IBIS;
             return false;
         }
 
+        header->sems.step = detail::E_SEM_STEP_BIND_IBIS;
         pybind11::object autoTokenizerClass = module.attr("IbisTokenizer");
         pybind11::object autoTokenizer = autoTokenizerClass(
             modelWeightPath_, backendType_, trustRemoteCode_, GetModelConfigString()
         );
         if (!pybind11::hasattr(autoTokenizer, "encode") || !pybind11::hasattr(autoTokenizer, "decode") ||
             !pybind11::hasattr(autoTokenizer, "encode_chat")) {
+            header->sems.step = detail::E_SEM_STEP_BIND_NO_FUNC;
             return false;
         }
 
+        header->sems.step = detail::E_SEM_STEP_BIND_CHECK_OK;
         tokenizer = std::make_shared<InferTokenizer>(std::make_shared<pybind11::object>(autoTokenizer));
+        header->sems.step = detail::E_SEM_STEP_BIND_SUCC;
     } catch (const std::exception &e) {
+        header->sems.step = detail::E_SEM_STEP_BIND_FAIL;
         return false;
     } catch (...) {
+        header->sems.step = detail::E_SEM_STEP_BIND_FAIL;
         return false;
     }
     return true;
@@ -996,7 +1016,7 @@ bool TokenizerProcessPool::InitWorkerResource(const std::shared_ptr<ShareTokenMe
         return false;
     }
 
-    init = InitSubProcessTokenizer(tokenizer);
+    init = InitSubProcessTokenizer(curMemory, tokenizer);
     if (!init) {
         auto header = reinterpret_cast<SharedMemoryHeader *>(curMemory->GetBuf());
         if (header == nullptr) {
@@ -1169,18 +1189,22 @@ bool TokenizerProcessPool::ProcessWorker(std::shared_ptr<ShareTokenMemory> shm)
     std::shared_ptr<ShareTokenMemory> curMemory{ std::move(shm) };
     std::shared_ptr<InferTokenizer> tokenizer;
 
+    auto header = reinterpret_cast<SharedMemoryHeader *>(curMemory->GetBuf());
+    if (header == nullptr) {
+        return false;
+    }
+    header->sems.step = detail::E_SEM_STEP_START;
+
     sharedMemory_.clear();
     if (!InitWorkerResource(curMemory, tokenizer)) {
         return false;
     }
 
-    auto header = reinterpret_cast<SharedMemoryHeader *>(curMemory->GetBuf());
-    if (header == nullptr) {
-        return false;
-    }
+    header->sems.step = detail::E_SEM_STEP_START_SUCC;
     sem_post(&header->sems.subInitialized);
 
     while (header->magic == MAGIC_HEAD_BEGIN) {
+        header->sems.step = detail::E_SEM_STEP_RUN;
         sem_wait(&header->sems.consume);
         bool succeeded = true;
         if (header->flag == ENCODE_FLAG || header->flag == ENCODE_CHAT_FLAG) {

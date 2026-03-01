@@ -745,7 +745,7 @@ class IbisTokenizer:
 
         MOCKER_CPP(
             &TokenizerProcessPool::InitSubProcessTokenizer,
-            bool (*)(std::shared_ptr<InferTokenizer>&)
+            bool (*)(const std::shared_ptr<ShareTokenMemory>&, std::shared_ptr<InferTokenizer>&)
         ).stubs().will(returnValue(false));
 
         std::shared_ptr<ShareTokenMemory> shm(
@@ -780,7 +780,7 @@ class IbisTokenizer:
 
         MOCKER_CPP(
             &TokenizerProcessPool::InitSubProcessTokenizer,
-            bool (*)(std::shared_ptr<InferTokenizer>&)
+            bool (*)(const std::shared_ptr<ShareTokenMemory>&, std::shared_ptr<InferTokenizer>&)
         ).stubs().will(returnValue(true));
 
         std::shared_ptr<ShareTokenMemory> shm(
@@ -802,18 +802,43 @@ class IbisTokenizer:
     {
         auto &pool = TokenizerProcessPool::GetInstance();
 
+        auto *hdr = new SharedMemoryHeader{};  // 值初始化
+        hdr->magic = MAGIC_HEAD_BEGIN;
+
+        MOCKER_CPP(&ShareTokenMemory::GetBuf, uint8_t* (*)())
+            .stubs().will(returnValue(reinterpret_cast<uint8_t*>(hdr)));
+        std::shared_ptr<ShareTokenMemory> shm(
+            reinterpret_cast<ShareTokenMemory*>(0x44),
+            [](ShareTokenMemory*) {
+            }
+        );
+
         auto mies = pybind11::module_::import("mindie_llm.tokenizer");
         ASSERT_TRUE(pybind11::hasattr(mies, "IbisTokenizer"));
 
         std::shared_ptr<InferTokenizer> tk;
-        EXPECT_TRUE(pool.InitSubProcessTokenizer(tk));
+        EXPECT_TRUE(pool.InitSubProcessTokenizer(shm, tk));
         EXPECT_NE(tk, nullptr);
+
+        delete hdr;
     }
 
     /** 缺少类：临时删除 IbisTokenizer 属性 -> false，然后恢复 */
     TEST_F(InferenceTokenizerTest, InitSubProcessTokenizer_NoClass_ReturnsFalse)
     {
         auto &pool = TokenizerProcessPool::GetInstance();
+
+        auto *hdr = new SharedMemoryHeader{};  // 值初始化
+        hdr->magic = MAGIC_HEAD_BEGIN;
+
+        MOCKER_CPP(&ShareTokenMemory::GetBuf, uint8_t* (*)())
+            .stubs().will(returnValue(reinterpret_cast<uint8_t*>(hdr)));
+        std::shared_ptr<ShareTokenMemory> shm(
+            reinterpret_cast<ShareTokenMemory*>(0x55),
+            [](ShareTokenMemory*) {
+            }
+        );
+
         auto mies = pybind11::module_::import("mindie_llm.tokenizer");
 
         bool had = pybind11::hasattr(mies, "IbisTokenizer");
@@ -822,9 +847,10 @@ class IbisTokenizer:
         if (had) pybind11::delattr(mies, "IbisTokenizer");
 
         std::shared_ptr<InferTokenizer> tk;
-        EXPECT_FALSE(pool.InitSubProcessTokenizer(tk));
+        EXPECT_FALSE(pool.InitSubProcessTokenizer(shm, tk));
         EXPECT_EQ(tk, nullptr);
 
+        delete hdr;
         if (had) mies.attr("IbisTokenizer") = backup; // 恢复
     }
 
@@ -832,6 +858,18 @@ class IbisTokenizer:
     TEST_F(InferenceTokenizerTest, InitSubProcessTokenizer_MissingMethods_ReturnsFalse)
     {
         auto &pool = TokenizerProcessPool::GetInstance();
+
+        auto *hdr = new SharedMemoryHeader{};  // 值初始化
+        hdr->magic = MAGIC_HEAD_BEGIN;
+
+        MOCKER_CPP(&ShareTokenMemory::GetBuf, uint8_t* (*)())
+            .stubs().will(returnValue(reinterpret_cast<uint8_t*>(hdr)));
+        std::shared_ptr<ShareTokenMemory> shm(
+            reinterpret_cast<ShareTokenMemory*>(0x66),
+            [](ShareTokenMemory*) {
+            }
+        );
+
         auto mies = pybind11::module_::import("mindie_llm.tokenizer");
 
         ASSERT_TRUE(pybind11::hasattr(mies, "IbisTokenizer"));
@@ -844,9 +882,10 @@ class IbisTokenizer:
             });
 
         std::shared_ptr<InferTokenizer> tk;
-        EXPECT_FALSE(pool.InitSubProcessTokenizer(tk));
+        EXPECT_FALSE(pool.InitSubProcessTokenizer(shm, tk));
         EXPECT_EQ(tk, nullptr);
 
+        delete hdr;
         mies.attr("IbisTokenizer") = backup; // 恢复
     }
 
@@ -854,6 +893,18 @@ class IbisTokenizer:
     TEST_F(InferenceTokenizerTest, InitSubProcessTokenizer_CtorRaises_ReturnsFalse)
     {
         auto &pool = TokenizerProcessPool::GetInstance();
+
+        auto *hdr = new SharedMemoryHeader{};  // 值初始化
+        hdr->magic = MAGIC_HEAD_BEGIN;
+
+        MOCKER_CPP(&ShareTokenMemory::GetBuf, uint8_t* (*)())
+            .stubs().will(returnValue(reinterpret_cast<uint8_t*>(hdr)));
+        std::shared_ptr<ShareTokenMemory> shm(
+            reinterpret_cast<ShareTokenMemory*>(0x77),
+            [](ShareTokenMemory*) {
+            }
+        );
+
         auto mies = pybind11::module_::import("mindie_llm.tokenizer");
 
         ASSERT_TRUE(pybind11::hasattr(mies, "IbisTokenizer"));
@@ -865,9 +916,10 @@ class IbisTokenizer:
             });
 
         std::shared_ptr<InferTokenizer> tk;
-        EXPECT_FALSE(pool.InitSubProcessTokenizer(tk));
+        EXPECT_FALSE(pool.InitSubProcessTokenizer(shm, tk));
         EXPECT_EQ(tk, nullptr);
 
+        delete hdr;
         mies.attr("IbisTokenizer") = backup; // 恢复
     }
 
@@ -875,6 +927,17 @@ class IbisTokenizer:
     TEST_F(InferenceTokenizerTest, InitSubTok_ConfigJson_MissingKeys_StillSuccess)
     {
         auto &pool = TokenizerProcessPool::GetInstance();
+
+        auto *hdr = new SharedMemoryHeader{};  // 值初始化
+        hdr->magic = MAGIC_HEAD_BEGIN;
+
+        MOCKER_CPP(&ShareTokenMemory::GetBuf, uint8_t* (*)())
+            .stubs().will(returnValue(reinterpret_cast<uint8_t*>(hdr)));
+        std::shared_ptr<ShareTokenMemory> shm(
+            reinterpret_cast<ShareTokenMemory*>(0x88),
+            [](ShareTokenMemory*) {
+            }
+        );
 
         // 临时覆盖为“缺字段”（按值返回）
         MOCKER_CPP(&ConfigManager::GetConfigJsonStr, std::string (*)())
@@ -884,9 +947,10 @@ class IbisTokenizer:
         ASSERT_TRUE(pybind11::hasattr(mies, "IbisTokenizer"));
 
         std::shared_ptr<InferTokenizer> tk;
-        EXPECT_TRUE(pool.InitSubProcessTokenizer(tk)); // GetModelConfigString 返回 "" 也不影响成功
+        EXPECT_TRUE(pool.InitSubProcessTokenizer(shm, tk)); // GetModelConfigString 返回 "" 也不影响成功
         EXPECT_NE(tk, nullptr);
 
+        delete hdr;
         // 恢复默认
         MOCKER_CPP(&ConfigManager::GetConfigJsonStr, std::string (*)())
             .stubs().will(MOCKCPP_NS::invoke(&Ret_DefaultConfigJson_Value));
@@ -897,6 +961,17 @@ class IbisTokenizer:
     {
         auto &pool = TokenizerProcessPool::GetInstance();
 
+        auto *hdr = new SharedMemoryHeader{};  // 值初始化
+        hdr->magic = MAGIC_HEAD_BEGIN;
+
+        MOCKER_CPP(&ShareTokenMemory::GetBuf, uint8_t* (*)())
+            .stubs().will(returnValue(reinterpret_cast<uint8_t*>(hdr)));
+        std::shared_ptr<ShareTokenMemory> shm(
+            reinterpret_cast<ShareTokenMemory*>(0x99),
+            [](ShareTokenMemory*) {
+            }
+        );
+
         MOCKER_CPP(&ConfigManager::GetConfigJsonStr, std::string (*)())
             .stubs().will(MOCKCPP_NS::invoke(&Ret_InvalidConfigJson_Value));
 
@@ -904,8 +979,9 @@ class IbisTokenizer:
         ASSERT_TRUE(pybind11::hasattr(mies, "IbisTokenizer"));
 
         std::shared_ptr<InferTokenizer> tk;
-        EXPECT_TRUE(pool.InitSubProcessTokenizer(tk));
+        EXPECT_TRUE(pool.InitSubProcessTokenizer(shm, tk));
 
+        delete hdr;
         // 恢复默认
         MOCKER_CPP(&ConfigManager::GetConfigJsonStr, std::string (*)())
             .stubs().will(MOCKCPP_NS::invoke(&Ret_DefaultConfigJson_Value));
