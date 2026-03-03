@@ -50,6 +50,7 @@ class GeneratorRunner:
         self.max_seq_len = self.max_position_embeddings if self.max_position_embeddings else \
             self.max_input_length + self.max_output_length
         self.max_batch_size = kwargs.get('max_batch_size')
+        self.max_prefill_batch_size = kwargs.get('max_prefill_batch_size', 50)
         self.npu_mem = kwargs.get('npu_mem', -1)
         self.chat_template = kwargs.get('chat_template')
 
@@ -105,6 +106,7 @@ class GeneratorRunner:
             'max_input_len': self.max_input_length,
             'max_iter_times': self.max_output_length,
             'max_batch_size': self.max_batch_size,
+            'max_prefill_batch_size': self.max_prefill_batch_size,
             'max_prefill_tokens': self.max_prefill_tokens,
             'max_seq_len': self.max_seq_len,
             'model_id': self.model_path,
