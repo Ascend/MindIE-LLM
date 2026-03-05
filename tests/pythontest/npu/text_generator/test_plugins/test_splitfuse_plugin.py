@@ -236,6 +236,7 @@ class TestPlugin(unittest.TestCase):
             req.split_end_position = len(input1)
             meta_data = InputMetadata.from_requests([req], block_tables, np.array([1]))
             meta_data.batch_block_tables = block_tables
+            meta_data.batch_is_prefill = np.array([True])
 
             generation_output = splitfuse_plugin.generate_token(meta_data)
 
