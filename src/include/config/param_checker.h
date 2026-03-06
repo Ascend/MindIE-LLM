@@ -64,6 +64,9 @@ public:
     */
     static uint32_t GetIntegerParamDefaultValue(nlohmann::json jsonData, const std::string &configName,
                                                 uint32_t defaultVal);
+    
+    static int32_t GetTruncationParamDefaultValue(nlohmann::json jsonData, const std::string &configName,
+                                                uint32_t defaultVal);
 
     static std::string GetStringParamValue(nlohmann::json jsonData, const std::string &configName,
                                            std::string defaultVal);

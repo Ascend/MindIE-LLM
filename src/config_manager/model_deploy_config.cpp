@@ -34,7 +34,7 @@ const size_t PYTHON_VERSION_LEN = 4;
 
 std::vector<std::string> g_checkEngineNameVec;
 static std::vector<ParamSpec> g_modelParentParamsConstraint = {
-    {"maxSeqLen", "uint32_t", true}, {"maxInputTokenLen", "uint32_t", true}, {"truncation", "int32_t", 0},
+    {"maxSeqLen", "uint32_t", true}, {"maxInputTokenLen", "uint32_t", true},
     {"maxLoras", "uint32_t", false}, {"maxLoraRank", "uint32_t", false}};
 
 static std::vector<ParamSpec> g_modelParamsConstraint = {
@@ -398,7 +398,7 @@ bool ModelDeployConfigManager::InitFromJson()
         }
     }
     modelDeployConfig_.maxSeqLen = backendJsonData["ModelDeployConfig"]["maxSeqLen"];
-    modelDeployConfig_.truncation = backendJsonData["ModelDeployConfig"]["truncation"];
+    modelDeployConfig_.truncation = ParamChecker::GetTruncationParamDefaultValue(backendJsonData, "truncation", 0);
 
     // 校验并读取maxLoras和maxLoraRank,负数则取0(负数为异常值，一般不会为负)
     const auto& modelDeployConfig = backendJsonData["ModelDeployConfig"];
