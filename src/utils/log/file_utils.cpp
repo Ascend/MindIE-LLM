@@ -19,7 +19,7 @@
 #include <cerrno>
 #include <regex>
 #include <experimental/filesystem>
-#include "log.h"
+#include <sys/stat.h>
 namespace fs = std::experimental::filesystem;
 namespace {
 constexpr long MIN_MALLOC_SIZE = 1;
@@ -505,8 +505,7 @@ static std::string GetEnvByName(const std::string &name)
     }
     size_t infoLength = strlen(info);
     if (infoLength > MAX_ENV_LENGTH) {
-        MINDIE_LLM_LOG_INFO("The length of env variable: " << name << " is too long, it should be less than "
-                                                           << MAX_ENV_LENGTH);
+        std::cout << name << " is too long, it should be less than " << MAX_ENV_LENGTH << std::endl;
         return "";
     }
     return std::string(info);
@@ -520,8 +519,8 @@ bool FileUtils::GetCheckPermissionFlag()
         return defaultFlag;
     }
     if (checkPermission != "0" && checkPermission != "1") {
-        MINDIE_LLM_LOG_ERROR("Unknown permission flag " << checkPermission
-                                                        << " in env MINDIE_CHECK_INPUTFILES_PERMISSION");
+        std::cout << "Unknown permission flag " << checkPermission
+                                                        << " in env MINDIE_CHECK_INPUTFILES_PERMISSION" << std::endl;
         return defaultFlag;
     }
     return checkPermission == "1";

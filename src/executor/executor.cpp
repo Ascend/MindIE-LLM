@@ -12,7 +12,7 @@
 
 #include <cstring>
 #include <csignal>
-#include "log.h"
+#include "system_log.h"
 #include "string_utils.h"
 #include "math_utils.h"
 #include "common_util.h"
@@ -50,7 +50,7 @@ bool Executor::ParseFromModelConfig(std::unordered_map<std::string, std::string>
 {
     for (auto &key : requiredModelConfigKeys) {
         if (config.find(key) == config.end()) {
-            MINDIE_LLM_LOG_ERROR("Invalid model config without key " << key);
+            LOG_ERROR_LLM << "Invalid model config without key " << key;
             return false;
         }
     }
@@ -73,7 +73,7 @@ bool Executor::ParseFromModelConfig(std::unordered_map<std::string, std::string>
     modelLaunchConfig.executorType = config.at("executor_type");
     modelLaunchConfig.npuNumPerNode = std::stoul(config.at("world_size"));
     if (modelLaunchConfig.npuNumPerNode < 1) {
-        MINDIE_LLM_LOG_ERROR("Invalid world size in model config, localWorldSize: " << modelLaunchConfig.npuNumPerNode);
+        LOG_ERROR_LLM << "Invalid world size in model config, localWorldSize: " << modelLaunchConfig.npuNumPerNode;
         return false;
     }
     modelLaunchConfig.globalWorldSize = std::stoul(config.at("globalWorldSize"));
@@ -86,7 +86,7 @@ bool Executor::ParseFromModelConfig(std::unordered_map<std::string, std::string>
     uint32_t sp = (config.count("sp") > 0) ? std::stoul(config.at("sp")) : 1;
     modelLaunchConfig.scp = cp * sp;
     if (tp > std::numeric_limits<uint32_t>::max() / cp) {
-        MINDIE_LLM_LOG_ERROR("ParseFromModelConfig failed: tp * cp is out of range uint32_t, it should be worldSize/dp.");
+        LOG_ERROR_LLM << "ParseFromModelConfig failed: tp * cp is out of range uint32_t, it should be worldSize/dp.";
         return false;
     }
     modelLaunchConfig.npuNumPerDP = (config.count("tp") > 0) ? tp * cp : modelLaunchConfig.npuNumPerNode;
@@ -95,8 +95,8 @@ bool Executor::ParseFromModelConfig(std::unordered_map<std::string, std::string>
     modelLaunchConfig.ipcCommunicatorNum =
         CeilDiv(modelLaunchConfig.npuNumPerNode, modelLaunchConfig.npuNumPerDP);
     if (modelLaunchConfig.deployType != "INTER_PROCESS") {
-        MINDIE_LLM_LOG_ERROR("Supported deploy_type list should be [INTER_PROCESS], rather than "
-                             << modelLaunchConfig.deployType << ", please check model config");
+        LOG_ERROR_LLM << "Supported deploy_type list should be [INTER_PROCESS], rather than "
+                             << modelLaunchConfig.deployType << ", please check model config";
         return false;
     }
     return true;
@@ -106,11 +106,11 @@ bool Executor::ExecutorInstanceInit(std::map<std::string, std::string> &configFr
                                     size_t rankIdx)
 {
     if (!ExecutorParseConfigAndInitGRPC(configFromManager, isMultiNodesInfer, rankIdx)) {
-        MINDIE_LLM_LOG_ERROR("Failed to initialize Executor with GRPC.");
+        LOG_ERROR_LLM << "Failed to initialize Executor with GRPC.";
         return false;
     }
     if (!ExecutorModelInitAndSync()) {
-        MINDIE_LLM_LOG_ERROR("Failed to initialize Executor model and sync.");
+        LOG_ERROR_LLM << "Failed to initialize Executor model and sync.";
         return false;
     }
     return true;
@@ -124,7 +124,7 @@ bool Executor::ExecutorParseConfigAndInitGRPC(std::map<std::string, std::string>
     configFromManager_ =
         std::unordered_map<std::string, std::string>(configFromManager.begin(), configFromManager.end());
     if (!ParseFromModelConfig(configFromManager_, modelLaunchConfig_, isMultiNodesInfer_)) {
-        MINDIE_LLM_LOG_ERROR("Failed to parse from invalid model config.");
+        LOG_ERROR_LLM << "Failed to parse from invalid model config.";
         return false;
     }
 
@@ -137,8 +137,8 @@ bool Executor::ExecutorParseConfigAndInitGRPC(std::map<std::string, std::string>
         std::make_unique<Communicator>(configFromManager_, isMultiNodesInfer_, rankIdx, remoteDPRankIdx, intraNodeTP);
     communicator_->RegisterModelInitReqHandler(
         std::bind(&Executor::MasterAndSlaveModelInit, this, std::placeholders::_1));
-    MINDIE_LLM_LOG_INFO("Executor instance init with rankIdx " << rankIdx << ", remoteDPRankIdx " << remoteDPRankIdx
-                                                               << ", isMultiNodesInfer " << isMultiNodesInfer_);
+    LOG_INFO_LLM << "Executor instance init with rankIdx " << rankIdx << ", remoteDPRankIdx " << remoteDPRankIdx
+                                                               << ", isMultiNodesInfer " << isMultiNodesInfer_;
 
     bool layerwiseDisaggregated = false;
     if ((configFromManager_.count("layerwiseDisaggregated") != 0) &&
@@ -151,7 +151,7 @@ bool Executor::ExecutorParseConfigAndInitGRPC(std::map<std::string, std::string>
         uint32_t grpcCommunicatorNum = GetGRPCCommunicatorNum(modelLaunchConfig_, intraNodeTP);
         ResponseHandler asyncResponseHandler = std::bind(&Executor::AsyncResponseHandler, this, std::placeholders::_1);
         if (!communicator_->InitGRPCCommunicator(configFromManager_, asyncResponseHandler, grpcCommunicatorNum)) {
-            MINDIE_LLM_LOG_ERROR("Failed to initialize GRPC communicator for multi-nodes inference.");
+            LOG_ERROR_LLM << "Failed to initialize GRPC communicator for multi-nodes inference.";
             return false;
         }
         isGRPCInit_ = true;
@@ -164,31 +164,30 @@ bool Executor::ExecutorModelInitAndSync()
     // Initialize IPC communicator and launch model if needed.
     if (dpRankIdx_ < modelLaunchConfig_.ipcCommunicatorNum) {
         if (!InitIPCAndLaunchModel()) {
-            MINDIE_LLM_LOG_ERROR("Failed to initialize Executor with IPC and launch model.");
+            LOG_ERROR_LLM << "Failed to initialize Executor with IPC and launch model.";
             return false;
         }
     }
     // 以下是集中式场景下，Master和Slave节点之间的同步逻辑
     if ((isMultiNodesInfer_ || (modelLaunchConfig_.layerwiseDisaggregated && dpRankIdx_ < 1)) && isGRPCInit_) {
         if (modelLaunchConfig_.layerwiseDisaggregated) {
-            MINDIE_LLM_LOG_INFO("[layerwiseDisaggregated|executor] "
-                                <<"Start to synchronize model initialization between Master and Slave nodes.");
+            LOG_INFO_LLM << "Start to synchronize model initialization between Master and Slave nodes.";
         }
         if (modelLaunchConfig_.isMasterNode) { // Master node receives init response from slave
             ExecuteResponse rawSlaveResponse;
             communicator_->GRPCGetSyncResponse(rawSlaveResponse);
             if (!MasterHandleSlaveInitResponse(rawSlaveResponse)) {
-                MINDIE_LLM_LOG_ERROR("Failed to handle slave initialization response.");
+                LOG_ERROR_LLM << "Failed to handle slave initialization response.";
                 return false;
             }
         } else { // Slave node sends init response to master
             if (!SlaveSendInitResponseToMaster()) {
-                MINDIE_LLM_LOG_ERROR("Failed to send initialization response to master node.");
+                LOG_ERROR_LLM << "Failed to send initialization response to master node.";
                 return false;
             }
         }
     }
-    MINDIE_LLM_LOG_INFO("Successfully initialize Executor with IPC and lanuch model!");
+    LOG_INFO_LLM << "Successfully initialize Executor with IPC and lanuch model!";
     return true;
 }
 
@@ -200,17 +199,17 @@ bool Executor::InitIPCAndLaunchModel()
 
     uint32_t workerNum = std::min(modelLaunchConfig_.npuNumPerDP, modelLaunchConfig_.npuNumPerNode);
     if (!communicator_->InitIPCCommunicators(sharedMemPrefix, workerNum)) {
-        MINDIE_LLM_LOG_ERROR("Failed to initialize communicator.");
+        LOG_ERROR_LLM << "Failed to initialize communicator.";
         return false;
     }
     // Initialize Python worker processes.
     if (!InitWorkerProcesses(modelLaunchConfig_, sharedMemPrefix)) {
-        MINDIE_LLM_LOG_ERROR("Failed to launch Python worker processes.");
+        LOG_ERROR_LLM << "Failed to launch Python worker processes.";
         return false;
     }
     // Build and send the init request.
     if (!InitModelExecution(configFromManager_)) {
-        MINDIE_LLM_LOG_ERROR("Failed to send initialization request and handle response.");
+        LOG_ERROR_LLM << "Failed to send initialization request and handle response.";
         return false;
     }
     return true;
@@ -225,16 +224,16 @@ bool Executor::InitModelExecution(std::unordered_map<std::string, std::string> &
     }
     std::vector<ExecuteResponse> initResponses;
     if (!communicator_->SendModelInitRequestAndReceive(request, initResponses)) {
-        MINDIE_LLM_LOG_ERROR("Failed to send initialization request to worker.");
+        LOG_ERROR_LLM << "Failed to send initialization request to worker.";
         return false;
     }
     if (!HandleInitResult(initResponses)) {
-        MINDIE_LLM_LOG_ERROR("Invalid initialization response format.");
+        LOG_ERROR_LLM << "Invalid initialization response format.";
         return false;
     }
     ResponseHandler asyncResponseHandler = std::bind(&Executor::AsyncResponseHandler, this, std::placeholders::_1);
     if (!communicator_->LaunchIPCHandleResponseThreads(asyncResponseHandler)) {
-        MINDIE_LLM_LOG_ERROR("Failed to launch IPC handle response threads.");
+        LOG_ERROR_LLM << "Failed to launch IPC handle response threads.";
         return false;
     }
     return true;
@@ -247,7 +246,7 @@ bool Executor::MasterAndSlaveModelInit(const std::map<std::string, std::string> 
     // If the pdRole is not PnD, we need to send a request to the remote slave node.
     if (isMultiNodesInfer_ && modelLaunchConfig_.isMasterNode && isGRPCInit_) {
         if (!MasterSendPDInfoToSlave(pdInfo)) {
-            MINDIE_LLM_LOG_ERROR("Failed to send PD role to remote slave node.");
+            LOG_ERROR_LLM << "Failed to send PD role to remote slave node.";
             return false;
         }
     }
@@ -263,7 +262,7 @@ bool Executor::MasterSendPDInfoToSlave(const std::map<std::string, std::string> 
         (*initSlaveModelReq->mutable_pd_info())[key] = value;
     }
     if (!communicator_->SendAsyncRequestToRemote(request)) {
-        MINDIE_LLM_LOG_ERROR("Failed to send config to remote slave node.");
+        LOG_ERROR_LLM << "Failed to send config to remote slave node.";
         return false;
     }
     return true;
@@ -290,7 +289,7 @@ bool Executor::SlaveSendInitResponseToMaster()
 bool Executor::MasterHandleSlaveInitResponse(ExecuteResponse &response) const
 {
     if (response.msg_type() != REMOTE_MODEL_INIT || !response.has_remote_model_init_results()) {
-        MINDIE_LLM_LOG_ERROR("Invalid model init info response from slave node.");
+        LOG_ERROR_LLM << "Invalid model init info response from slave node.";
         return false;
     }
     auto &slaveInfo = response.remote_model_init_results();
@@ -301,10 +300,10 @@ bool Executor::MasterHandleSlaveInitResponse(ExecuteResponse &response) const
         IExecutor::kvCacheOverview_.UpdateIfSmaller(slaveInfo.cpu_block_num(), slaveInfo.npu_block_num(),
                                                     slaveInfo.max_position_embeddings());
     }
-    MINDIE_LLM_LOG_INFO("[Executor::MasterHandleSlaveInitResponse]: Updated KV cache overview from slave: CPU blocks = "
-                        << IExecutor::kvCacheOverview_.cpuBlockNum
-                        << ", NPU blocks = " << IExecutor::kvCacheOverview_.npuBlockNum
-                        << ", MaxPosEmb = " << IExecutor::kvCacheOverview_.maxPositionEmbeddings);
+    LOG_INFO_LLM << "Updated KV cache overview from slave: CPU blocks = "
+        << IExecutor::kvCacheOverview_.cpuBlockNum
+        << ", NPU blocks = " << IExecutor::kvCacheOverview_.npuBlockNum
+        << ", MaxPosEmb = " << IExecutor::kvCacheOverview_.maxPositionEmbeddings;
     return true;
 }
 
@@ -312,7 +311,7 @@ bool Executor::AsyncExecuteModel(ExecuteModelRequestPtr &modelRequest,
                                  std::function<void(ModelBatchResultSPtr)> executeModelResponseHandler)
 {
     if (modelRequest == nullptr) {
-        MINDIE_LLM_LOG_ERROR("Inference model request is null.");
+        LOG_ERROR_LLM << "Inference model request is null.";
         return false;
     }
 
@@ -320,10 +319,9 @@ bool Executor::AsyncExecuteModel(ExecuteModelRequestPtr &modelRequest,
     request.set_execute_type(MODEL_INFER);
     request.mutable_execute_model_request()->CopyFrom(*modelRequest);
     RegisterExecuteModelResponseHandler(executeModelResponseHandler);
-    MINDIE_LLM_LOG_DEBUG_REQUEST("Ready to execute inference requests.");
 
     if (!communicator_->SendAsyncRequest(request)) {
-        MINDIE_LLM_LOG_ERROR("Failed to send execute message to local workers.");
+        LOG_ERROR_LLM << "Failed to send execute message to local workers.";
         return false;
     }
     return true;
@@ -334,10 +332,8 @@ bool Executor::AsyncTGCleanup(TGCleanupRequestPtr &TGCleanupRequest)
     ExecuteRequest request;
     request.set_execute_type(TEXT_GENERATOR_CLEANUP);
     request.mutable_text_generator_cleanup_request()->CopyFrom(*TGCleanupRequest);
-
-    MINDIE_LLM_LOG_DEBUG_REQUEST("Ready to execute clear cache requests.");
     if (!communicator_->SendAsyncRequest(request)) {
-        MINDIE_LLM_LOG_ERROR("Failed to send clear cache message to local workers.");
+        LOG_ERROR_LLM << "Failed to send clear cache message to local workers.";
         return false;
     }
     return true;
@@ -349,9 +345,8 @@ bool Executor::AsyncEOSCleanup(TGCleanupRequestPtr &TGCleanupRequest)
     request.set_execute_type(EOS_CLEANUP);
     request.mutable_text_generator_cleanup_request()->CopyFrom(*TGCleanupRequest);
  
-    MINDIE_LLM_LOG_DEBUG("[layerwiseDisaggregated|executor] "<<"Ready to execute clear cache requests.");
     if (!communicator_->SendAsyncRequest(request)) {
-        MINDIE_LLM_LOG_ERROR("Failed to send clear cache message to local workers.");
+        LOG_ERROR_LLM << "Failed to send clear cache message to local workers.";
         return false;
     }
     return true;
@@ -367,18 +362,18 @@ bool Executor::SetupPDLink(PDLinkRequest &pdLinkRequest)
     // Wait for PDLink response from local and/or remote workers.
     std::vector<ExecuteResponse> pdLinkResponses;
     if (!communicator_->SendSharedSyncRequestAndReceive(request, pdLinkResponses)) {
-        MINDIE_LLM_LOG_ERROR("Failed to send PDLink request to worker.");
+        LOG_ERROR_LLM << "Failed to send PDLink request to worker.";
         return false;
     }
 
     // Aggregate PDLink responses from Master and Slaves if needed.
     ExecuteResponse aggregatedResponse;
     if (!AggregatePDLinkResponses(pdLinkResponses, aggregatedResponse)) {
-        MINDIE_LLM_LOG_ERROR("Failed to aggregate PDLink responses.");
+        LOG_ERROR_LLM << "Failed to aggregate PDLink responses.";
         return false;
     }
     if (!HandlePDLinkResponse(aggregatedResponse)) {
-        MINDIE_LLM_LOG_ERROR("Failed to handle a PDLink response.");
+        LOG_ERROR_LLM << "Failed to handle a PDLink response.";
         return false;
     }
     return true;
@@ -387,7 +382,7 @@ bool Executor::SetupPDLink(PDLinkRequest &pdLinkRequest)
 bool Executor::ExecuteKVTransfer(PullKVRequestPtr &pullKVRequest, PullKVResponseHandler pullKVResponseHandler)
 {
     if (pullKVRequest == nullptr) {
-        MINDIE_LLM_LOG_ERROR("Pull KV cache request is null.");
+        LOG_ERROR_LLM << "Pull KV cache request is null.";
         return false;
     }
 
@@ -396,10 +391,9 @@ bool Executor::ExecuteKVTransfer(PullKVRequestPtr &pullKVRequest, PullKVResponse
     request.mutable_pull_kv_request()->CopyFrom(*pullKVRequest);
 
     RegisterPullKVResponseHandler(pullKVResponseHandler);
-
-    MINDIE_LLM_LOG_DEBUG_REQUEST("Ready to execute instance transfer request.");
+    LOG_DEBUG_LLM.SetType(LogType::REQUEST) << "Ready to execute instance transfer request.";
     if (!communicator_->SendAsyncRequest(request)) {
-        MINDIE_LLM_LOG_ERROR("Failed to send transfer message to another local worker.");
+        LOG_ERROR_LLM << "Failed to send transfer message to another local worker.";
         return false;
     }
     return true;
@@ -411,12 +405,11 @@ bool Executor::ExecutorInstanceFinalize()
     request.set_execute_type(MODEL_FINALIZE);
 
     if (!communicator_->SendAsyncRequest(request)) {
-        MINDIE_LLM_LOG_ERROR("Failed to send finialize message.");
+        LOG_ERROR_LLM << "Failed to send finialize message.";
         return false;
     }
     communicator_->CleanUp();
     JoinPipeThreads(); // Ensure all pipe threads are joined before finalizing
-    MINDIE_LLM_LOG_DEBUG("Executor finalized and resources cleaned up.");
     return true;
 }
 
@@ -427,13 +420,13 @@ bool Executor::HandleInitResult(std::vector<ExecuteResponse> &responses) const
         if (modelLaunchConfig_.layerwiseDisaggregated) {
             auto itrResultStatus = initResults.find("status");
             if (itrResultStatus != initResults.end() && itrResultStatus->second == "error") {
-                MINDIE_LLM_LOG_ERROR("Init result error: Required fields missing in response.");
+                LOG_ERROR_LLM << "Init result error: Required fields missing in response.";
                 return false;
             }
         }
         if (initResults.count("cpuBlockNum") == 0 || initResults.count("npuBlockNum") == 0 ||
             initResults.count("maxPositionEmbeddings") == 0) {
-            MINDIE_LLM_LOG_ERROR("Init result error: Required fields missing in response.");
+            LOG_ERROR_LLM << "Init result error: Required fields missing in response.";
             return false;
         }
         try {
@@ -441,16 +434,15 @@ bool Executor::HandleInitResult(std::vector<ExecuteResponse> &responses) const
                                                         std::stoul(initResults.at("npuBlockNum")),
                                                         std::stoul(initResults.at("maxPositionEmbeddings")));
         } catch (const std::exception &e) {
-            MINDIE_LLM_LOG_ERROR("Invalid init result format for cpuBlockNum: "
+            LOG_ERROR_LLM << "Invalid init result format for cpuBlockNum: "
                                  << initResults.at("cpuBlockNum") << ", npuBlockNum: " << initResults.at("npuBlockNum")
-                                 << ", maxPositionEmbeddings: " << initResults.at("maxPositionEmbeddings"));
+                                 << ", maxPositionEmbeddings: " << initResults.at("maxPositionEmbeddings");
             return false;
         }
     }
-    MINDIE_LLM_LOG_INFO("[Executor::HandleInitResult]: Initialized KV cache overview: CPU blocks = "
-                        << IExecutor::kvCacheOverview_.cpuBlockNum
-                        << ", NPU blocks = " << IExecutor::kvCacheOverview_.npuBlockNum
-                        << ", MaxPosEmb = " << IExecutor::kvCacheOverview_.maxPositionEmbeddings);
+    LOG_INFO_LLM << "Initialized KV cache overview: CPU blocks = " << IExecutor::kvCacheOverview_.cpuBlockNum
+        << ", NPU blocks = " << IExecutor::kvCacheOverview_.npuBlockNum
+        << ", MaxPosEmb = " << IExecutor::kvCacheOverview_.maxPositionEmbeddings;
     return true;
 }
 
@@ -458,7 +450,7 @@ bool Executor::HandleRecoverCommandResult(RecoverCommandInfo &commandInfo,
                                           std::vector<ExecuteResponse> &responses) const
 {
     if (responses.empty()) {
-        MINDIE_LLM_LOG_ERROR("Recover command result error: empty responses.");
+        LOG_ERROR_LLM << "Recover command result error: empty responses.";
         return false;
     }
 
@@ -477,7 +469,7 @@ bool Executor::HandleRecoverCommandResult(RecoverCommandInfo &commandInfo,
 void Executor::HandleExecuteModelResponse(ExecuteResponse &modelExecuteResponse)
 {
     if (executeModelResponseHandler_ == nullptr) {
-        MINDIE_LLM_LOG_ERROR("No response handler for ExecuteModelResponse.");
+        LOG_ERROR_LLM << "No response handler for ExecuteModelResponse.";
         return;
     }
     if (!modelExecuteResponse.has_execute_model_response()) {
@@ -501,7 +493,7 @@ bool Executor::AggregatePDLinkResponses(const std::vector<ExecuteResponse> &resp
 
     for (const auto &singleResponse : responseVec) {
         if (singleResponse.msg_type() != PD_LINK || !singleResponse.has_pd_link_response()) {
-            MINDIE_LLM_LOG_ERROR("AggregatePDLinkResponses: invalid response type or missing PDLinkResponse field.");
+            LOG_ERROR_LLM << "AggregatePDLinkResponses: invalid response type or missing PDLinkResponse field.";
             aggregatedResponse.Clear();
             return false;
         }
@@ -519,7 +511,7 @@ bool Executor::AggregatePDLinkResponses(const std::vector<ExecuteResponse> &resp
 bool Executor::HandlePDLinkResponse(ExecuteResponse &executeResponse)
 {
     if (!executeResponse.has_pd_link_response()) {
-        MINDIE_LLM_LOG_ERROR("Invalid response: missing PDLinkResponse field.");
+        LOG_ERROR_LLM << "Invalid response: missing PDLinkResponse field.";
         return false;
     }
     pdLinkResponse_ = executeResponse.pd_link_response();
@@ -529,11 +521,11 @@ bool Executor::HandlePDLinkResponse(ExecuteResponse &executeResponse)
 void Executor::HandleKVTransferResponse(ExecuteResponse &executeResponse)
 {
     if (pullKVResponseHandler_ == nullptr) {
-        MINDIE_LLM_LOG_ERROR("No response handler for TransferModelResponse.");
+        LOG_ERROR_LLM << "No response handler for TransferModelResponse.";
         return;
     }
     if (!executeResponse.has_pull_kv_response()) {
-        MINDIE_LLM_LOG_ERROR("Invalid response: missing TransferModelResponse field.");
+        LOG_ERROR_LLM << "Invalid response: missing TransferModelResponse field.";
         return;
     }
     PullKVResponseSPtr pullKVResponse = std::make_shared<PullKVResponse>(executeResponse.pull_kv_response());
@@ -548,7 +540,7 @@ bool Executor::AsyncResponseHandler(ExecuteResponse &response)
     } else if (executeType == KV_TRANSFER) { // Handle KV cache transfer message.
         HandleKVTransferResponse(response);
     } else {
-        MINDIE_LLM_LOG_ERROR("Receive wrong message type: " << executeType);
+        LOG_ERROR_LLM << "Receive wrong message type: " << executeType;
         return false;
     }
     return true;
@@ -575,7 +567,7 @@ void Executor::RegisterPullKVResponseHandler(PullKVResponseHandler handler)
 uint32_t Executor::GetCpuBlockNum() const
 {
     if (IExecutor::kvCacheOverview_.cpuBlockNum == 0xFFFFFFFF) {
-        MINDIE_LLM_LOG_ERROR("CPU block number is not initialized.");
+        LOG_ERROR_LLM << "CPU block number is not initialized.";
         return 0;
     }
     return IExecutor::kvCacheOverview_.cpuBlockNum;
@@ -584,7 +576,7 @@ uint32_t Executor::GetCpuBlockNum() const
 uint32_t Executor::GetNpuBlockNum() const
 {
     if (IExecutor::kvCacheOverview_.npuBlockNum == 0xFFFFFFFF) {
-        MINDIE_LLM_LOG_ERROR("NPU block number is not initialized.");
+        LOG_ERROR_LLM << "NPU block number is not initialized.";
         return 0;
     }
     return IExecutor::kvCacheOverview_.npuBlockNum;
@@ -593,7 +585,7 @@ uint32_t Executor::GetNpuBlockNum() const
 uint32_t Executor::GetLwdCloudNpuBlockNum() const
 {
     if (IExecutor::kvCacheOverview_.lwdCloudNpuBlockNum == 0xFFFFFFFF) {
-        MINDIE_LLM_LOG_ERROR("Cloud NPU block number is not initialized.");
+        LOG_ERROR_LLM << "Cloud NPU block number is not initialized.";
         return 0;
     }
     return IExecutor::kvCacheOverview_.lwdCloudNpuBlockNum;
@@ -602,7 +594,7 @@ uint32_t Executor::GetLwdCloudNpuBlockNum() const
 uint32_t Executor::GetMaxPositionEmbeddings() const
 {
     if (IExecutor::kvCacheOverview_.maxPositionEmbeddings == 0xFFFFFFFF) {
-        MINDIE_LLM_LOG_ERROR("Max position embeddings is not initialized.");
+        LOG_ERROR_LLM << "Max position embeddings is not initialized.";
         return 0;
     }
     return IExecutor::kvCacheOverview_.maxPositionEmbeddings;
@@ -620,11 +612,11 @@ std::vector<std::string> Executor::BuildConnectorCommand(const ModelLaunchConfig
         modelConfig.layerwiseDisaggregatedRoleType == "slave";
     if ((modelConfig.isMultiNodesInfer || lwdCloudMultiNodesInfer) && (rankInNode >= modelConfig.globalRankIds.size() ||
         !StrToUint32(globalRankId, modelConfig.globalRankIds[rankInNode]))) {
-        MINDIE_LLM_LOG_ERROR("Error: Failed to BuildConnectorCommand: could not get globalRankId.");
+        LOG_ERROR_LLM << "Error: Failed to BuildConnectorCommand: could not get globalRankId.";
         return std::vector<std::string>{};
     }
     if (rankInNode >= modelConfig.npuDeviceIds.size()) {
-        MINDIE_LLM_LOG_ERROR("Error: Failed to BuildConnectorCommand: rankInNode out of range.");
+        LOG_ERROR_LLM << "Error: Failed to BuildConnectorCommand: rankInNode out of range.";
         return std::vector<std::string>{};
     }
     uint32_t globalRank = (modelConfig.isMultiNodesInfer || lwdCloudMultiNodesInfer) ? globalRankId : rankInNode;
@@ -679,13 +671,13 @@ bool Executor::ExecuteCommand(const std::vector<std::string> &command)
 {
     int pipefd[2];
     if (pipe(pipefd) == -1) {
-        MINDIE_LLM_LOG_ERROR("Error: Failed to create pipe for backend process");
+        LOG_ERROR_LLM << "Error: Failed to create pipe for backend process";
         return false;
     }
 
     pid_t pid = fork();
     if (pid == -1) {
-        MINDIE_LLM_LOG_ERROR("Error: Failed to fork for backend process");
+        LOG_ERROR_LLM << "Error: Failed to fork for backend process";
         close(pipefd[0]);
         close(pipefd[1]);
         return false;
@@ -724,7 +716,7 @@ bool Executor::ExecuteCommand(const std::vector<std::string> &command)
 
         FILE* pipe = fdopen(pipefd[0], "r");
         if (!pipe) {
-            MINDIE_LLM_LOG_ERROR("Error: Failed to fdopen pipe for backend process");
+            LOG_ERROR_LLM << "Error: Failed to fdopen pipe for backend process";
             close(pipefd[0]);
             return false;
         }
@@ -752,7 +744,7 @@ void Executor::ExecuteRecoverCommand(RecoverCommandInfo &commandInfo)
 
     std::vector<ExecuteResponse> recoverCommandResponses;
     if (!communicator_->SendRecoverCommandRequestAndReceive(request, recoverCommandResponses)) {
-        MINDIE_LLM_LOG_ERROR("Failed to send recover command request to worker.");
+        LOG_ERROR_LLM << "Failed to send recover command request to worker.";
     }
 
     // wait until all recover commands responses are received
@@ -772,7 +764,7 @@ bool Executor::InitWorkerProcesses(const ModelLaunchConfig &modelConfig, const s
             }
             cmdStream << command[i];
         }
-        MINDIE_LLM_LOG_INFO("Execute command: " << cmdStream.str());
+        LOG_INFO_LLM << "Execute command: " << cmdStream.str();
 
         if (!ExecuteCommand(command)) {
             return false;
@@ -804,7 +796,7 @@ int Executor::GetRemoteDPRankIdx(ModelLaunchConfig &modelConfig, int rankIdx, bo
     int slaveCount = static_cast<int>(modelConfig.slaveIPs.size());
     int dpNumPerNode = static_cast<int>(modelConfig.dp) / (slaveCount + 1);
     if (dpNumPerNode < 1) {
-        MINDIE_LLM_LOG_ERROR("Invalid DP number per node: " << dpNumPerNode);
+        LOG_ERROR_LLM << "Invalid DP number per node: " << dpNumPerNode;
         return -1;
     }
 
@@ -815,7 +807,7 @@ int Executor::GetRemoteDPRankIdx(ModelLaunchConfig &modelConfig, int rankIdx, bo
         // Slaves always use all ranks for IPC + gRPC
         auto it = std::find(modelConfig.slaveIPs.begin(), modelConfig.slaveIPs.end(), modelConfig.localIP);
         if (it == modelConfig.slaveIPs.end()) {
-            MINDIE_LLM_LOG_ERROR("Failed to find local IP " << modelConfig.localIP << " in slave IPs.");
+            LOG_ERROR_LLM << "Failed to find local IP " << modelConfig.localIP << " in slave IPs.";
             return -1;
         }
         int slaveIdx = std::distance(modelConfig.slaveIPs.begin(), it);
@@ -850,7 +842,7 @@ LoraOperationResponse Executor::GetLoraOperationResponse() const { return loraOp
 bool Executor::HandleLoraOperationResponse(ExecuteResponse &executeResponse)
 {
     if (!executeResponse.has_lora_operation_response()) {
-        MINDIE_LLM_LOG_ERROR("Invalid response: missing LoraOperationResponse field.");
+        LOG_ERROR_LLM << "Invalid response: missing LoraOperationResponse field.";
         return false;
     }
     loraOperationResponse_ = executeResponse.lora_operation_response();
@@ -864,18 +856,17 @@ bool Executor::ExecutLoraRequest(LoraOperationRequest &loraOperationRequest)
     request.mutable_lora_operation_request()->CopyFrom(loraOperationRequest);
     std::vector<ExecuteResponse> loraOperationResponses;
     if (!communicator_->SendSharedSyncRequestAndReceive(request, loraOperationResponses)) {
-        MINDIE_LLM_LOG_ERROR("Failed to send LoadLoraOperation request to worker.");
+        LOG_ERROR_LLM << "Failed to send LoadLoraOperation request to worker.";
         return false;
     }
     if (loraOperationResponses.size() != 1) {
-        MINDIE_LLM_LOG_ERROR("Invalid LoadLoraOperation response size: " << loraOperationResponses.size());
+        LOG_ERROR_LLM << "Invalid LoadLoraOperation response size: " << loraOperationResponses.size();
         return false;
     }
     if (!HandleLoraOperationResponse(loraOperationResponses[0])) {
-        MINDIE_LLM_LOG_ERROR("Failed to handle LoadLoraOperation response.");
+        LOG_ERROR_LLM << "Failed to handle LoadLoraOperation response.";
         return false;
     }
-    MINDIE_LLM_LOG_DEBUG("Successfully set LoadLoraOperation.");
     return true;
 }
 

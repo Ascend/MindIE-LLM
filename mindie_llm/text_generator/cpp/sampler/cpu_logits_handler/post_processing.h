@@ -22,7 +22,7 @@
 #include <chrono>
 #include <absl/types/span.h>
 #include "post_processing_profiler/profiler.h"
-#include "log.h"
+#include "system_log.h"
 
 namespace mindie_llm {
 namespace cpu_logits_handler {
@@ -45,7 +45,7 @@ inline SamplerType GetSamplerType(std::string inSamplerType)
     } else if (inSamplerType == "multinomial") {
         return SamplerType::MULTINOMIAL;
     } else {
-        MINDIE_LLM_LOG_WARN("Error sampler type {" << inSamplerType << "}, use \"exponential\" for default");
+        LOG_WARN_LLM << "sampler type {" << inSamplerType << "}, use \"exponential\" for default";
         return SamplerType::EXPONENTIAL;
     }
 }
@@ -59,7 +59,7 @@ inline Dtype GetDtype(std::string inDtype)
     } else if (inDtype == "float32" || inDtype == "fp32") {
         return Dtype::FLOAT32;
     } else {
-        MINDIE_LLM_LOG_WARN("Error dtype {" << inDtype << "}, use \"fp16\" for default");
+        LOG_WARN_LLM << "dtype {" << inDtype << "}, use \"fp16\" for default";
         return Dtype::FLOAT16;
     }
 }

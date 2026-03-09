@@ -18,7 +18,7 @@
 #include <numeric>
 
 #include "policy/policy_factory.h"
-#include "log.h"
+#include "system_log.h"
 #include "request_response/request_id.h"
 #include "msServiceProfiler/msServiceProfiler.h"
 #include "pre_scheduler.h"
@@ -80,13 +80,13 @@ Scheduler::Scheduler(const std::shared_ptr<SchedulerConfig> &schedulerConfig,
 
     if (schedulerConfig_->activateAsyncInference) {
         maxScheduledBatch_ = asyncScheduleRound + 1;
-        MINDIE_LLM_LOG_INFO("Scheduler enable async. maxScheduledBatch:" << maxScheduledBatch_);
+        LOG_INFO_LLM << "Scheduler enable async. maxScheduledBatch:" << maxScheduledBatch_;
     }
 
     stagePolicy_ = PolicyFactory::CreateStagePolicy(schedulerConfig, predictor, blockManager_, pdRole);
     dynamicBatchSize_ = std::make_shared<DynamicBatchSize>(schedulerConfig, predictor, blockManager_);
 
-    MINDIE_LLM_LOG_INFO("Scheduler init success!");
+    LOG_INFO_LLM << "Scheduler init success!";
 }
 
 void Scheduler::SetRole(Role role)
@@ -105,7 +105,7 @@ void Scheduler::SetRole(Role role)
     if (role != Role::PnD) {
         transferPolicy_ = PolicyFactory::CreateTransferPolicy(role, schedulerConfig_, blockManager_);
     }
-    MINDIE_LLM_LOG_INFO("Policy create success!");
+    LOG_INFO_LLM << "Policy create success!";
     role_ = role;
     PROF(INFO, AddMetaInfo("Role", static_cast<uint8_t>(role_)));
 }
@@ -115,8 +115,8 @@ void Scheduler::AddSeqGroup(SequenceGroupSPtr &seqGroup)
     // 1. check request id (虚推请求跳过重复检查，因为大EP场景下多个rank会同时添加同一个虚推请求)
     bool isSimulateInference = seqGroup->IsSimulateRequest();
     if (isSimulateInference) {
-        MINDIE_LLM_LOG_DEBUG("[SimulateInference] Simulate inference request entering AddSeqGroup, requestId="
-                            << seqGroup->requestId << ", seqId=" << seqGroup->firstSeq->seqId_);
+        LOG_DEBUG_LLM << "Simulate inference request entering AddSeqGroup, requestId="
+                            << seqGroup->requestId << ", seqId=" << seqGroup->firstSeq->seqId_;
     }
     if (!isSimulateInference && LiveInferContext::GetInstance(localDPRank_)->GetSeqGroup(seqGroup->requestId)) {
         throw std::runtime_error("the requestId exist, requestId=" + seqGroup->requestId);
@@ -157,13 +157,13 @@ void Scheduler::EnqueueSimulateInferenceRequest(SequenceGroupSPtr &seqGroup)
         seqGroup->firstSeq->data_.stage_ = SequenceStage::DECODE;
         running_.PushBack(seqGroup);
         PROF(prof.Metric("QueueSize", running_.Size()).Attr("status", "running").Event("Enqueue"));
-        MINDIE_LLM_LOG_DEBUG("[SimulateInference] D/PnD node: special seqId enter running queue directly, seqId="
-                            << seqGroup->firstSeq->seqId_ << ", role=" << static_cast<int>(role_));
+        LOG_DEBUG_LLM << "D/PnD node: special seqId enter running queue directly, seqId="
+                            << seqGroup->firstSeq->seqId_ << ", role=" << static_cast<int>(role_);
     } else {
         waiting_.PushBack(seqGroup);
         PROF(prof.Metric("QueueSize", waiting_.Size()).Attr("status", "waiting").Event("Enqueue"));
-        MINDIE_LLM_LOG_DEBUG("[SimulateInference] P node: special seqId enter waiting queue, seqId="
-                            << seqGroup->firstSeq->seqId_ << ", role=" << static_cast<int>(role_));
+        LOG_DEBUG_LLM << "P node: special seqId enter waiting queue, seqId="
+                            << seqGroup->firstSeq->seqId_ << ", role=" << static_cast<int>(role_);
     }
 }
 
@@ -229,7 +229,7 @@ void Scheduler::WaitingAvoidDummyBatch(PDPriorityType priority, bool needSync)
         if (waiting_.Size() < schedulerConfig_->maxPrefillBatchSize) {
             std::this_thread::sleep_for(std::chrono::milliseconds(PREFILL_SCHEDULER_SLEEP_INTERVAL));
         } else {
-            MINDIE_LLM_LOG_INFO("waiting queue sleep time is " << i);
+            LOG_INFO_LLM << "waiting queue sleep time is " << i;
             break;
         }
     }
@@ -299,13 +299,13 @@ std::pair<SequenceGroupMetaDatas, SchedulerOutputs> Scheduler::Schedule(bool nee
     if ((!schedulerOut.IsEmpty() && schedulerOut.forwardMode_ == ForwardMode::PREFILL) ||
         (!schedulerOut.IsEmpty() && iterTimes_++ % LOG_INTERVAL_COUNT == 0) ||
         iterTimes_++ % LOG_EMPTY_BATCH_INTERVAL_COUNT == 0) {
-        MINDIE_LLM_LOG_INFO_REQUEST("[Scheduler|Schedule-scheduling] DP RankId: "
+        LOG_INFO_LLM.SetType(LogType::REQUEST) << "DP RankId: "
                             << dpRankId_ << ". After Backfill, running size:" << running_.Size()
                             << "; waiting size: " << waiting_.Size() << "; swapped size:" << swapped_.Size()
                             << "; batch size:" << schedulerOut.scheduledSeqGroups_.size()
                             << "; transferring size:" << transferringMap_.Size()
                             << "; schedule forwardMode:" << static_cast<int>(schedulerOut.forwardMode_)
-                            << "; PD PriorityType:" << static_cast<int>(pdPriorityType));
+                            << "; PD PriorityType:" << static_cast<int>(pdPriorityType);
     }
 
     // 5.获取cpu和npu的空闲块个数，用于构造metric统计信息
@@ -335,10 +335,10 @@ std::unordered_set<SequenceId> Scheduler::ReleaseKvPulledBlocks()
         kvCachePulledSeqIds_.PopFront(seqId);
         if (transferringMap_.Count(seqId) == 0) {
             // abort流程也会触发release kv，如果abort和release kv 并发，可能会存在这个场景。增加日志打印
-            MINDIE_LLM_LOG_WARN("Try to release kv, but kv has released before. seqid:" << seqId);
+            LOG_WARN_LLM << "Try to release kv, but kv has released before. seqid:" << seqId;
         }
-        MINDIE_LLM_LOG_INFO_REQUEST("[LlmEngine|Request-Release KV] DP RankId: "
-                            << dpRankId_ << ". KV blocks of seqId: " << seqId << " are released.");
+        LOG_INFO_LLM.SetType(LogType::REQUEST) << "DP RankId: "
+                            << dpRankId_ << ". KV blocks of seqId: " << seqId << " are released.";
         blockManager_->Free(seqId);
         transferringMap_.Erase(seqId);
         LiveInferContext::GetInstance(localDPRank_)->Remove(seqId);
@@ -429,16 +429,15 @@ bool Scheduler::ShouldImmediatePrefill()
 PDPriorityType Scheduler::LayerwiseDecidePDPriority(size_t freeBlocksNum, size_t reserveBlockNum4Decode)
 {
     PDPriorityType priority = PDPriorityType::PREFILL_FIRST;
-    MINDIE_LLM_LOG_DEBUG("[layerwiseDisaggregated|scheduler] "<<"lastScheduleEmpty_: "
+    LOG_DEBUG_LLM <<"lastScheduleEmpty_: "
         << lastScheduleEmpty_ << ", running_.Empty(): " << running_.Empty() << ", swapped_.Empty(): "
         << swapped_.Empty() << ", ShouldImmediatePrefill(): " << ShouldImmediatePrefill()
-        << ", freeBlocksNum < reserveBlockNum4Decode: " << (freeBlocksNum < reserveBlockNum4Decode));
+        << ", freeBlocksNum < reserveBlockNum4Decode: " << (freeBlocksNum < reserveBlockNum4Decode);
 
     std::shared_ptr<EdgeCloudPolicy> lwdPolicy = std::static_pointer_cast<EdgeCloudPolicy>(stagePolicy_);
     if (((lastScheduleEmpty_ && !running_.Empty()) || !swapped_.Empty() ||
         freeBlocksNum < reserveBlockNum4Decode) && (lwdPolicy->GetDecodeBatchCnt() == 0)) {
-        MINDIE_LLM_LOG_DEBUG("[layerwiseDisaggregated|scheduler] "
-            <<"last batch empty, no decode is processing, force schedule decode!");
+        LOG_DEBUG_LLM <<"last batch empty, no decode is processing, force schedule decode!";
         priority = PDPriorityType::DECODE_FIRST;
     } else {
         priority = stagePolicy_->Apply(waiting_, running_, swapped_);
@@ -622,9 +621,9 @@ void Scheduler::BackfillConcurrentQueue(PolicyOutput &policyOut)
     if (role_ == Role::PnD || role_ == Role::FlexPnD) {
         for (SequenceGroupSPtr &seqGroup : policyOut.preemptedSeqGroups_) {
             if (seqGroup->sampling->enableParallelSampling) {
-                MINDIE_LLM_LOG_WARN_REQUEST(
-                    "Parallel sampling does not support RECOMPUTE preemption now, request(requestId: "
-                    << seqGroup->requestId << ") will be aborted!");
+                LOG_WARN_LLM.SetType(LogType::REQUEST)
+                    << "Parallel sampling does not support RECOMPUTE preemption now, request(requestId: "
+                    << seqGroup->requestId << ") will be aborted!";
                 abortedParallelSeqGroups_.push_back(seqGroup);
             }
             layerwiseMixin_.LwdSetRecomputeArrTime(schedulerConfig_->layerwiseDisaggregated, seqGroup,
@@ -817,23 +816,23 @@ void Scheduler::ReplacePlaceHolderWithToken(SequenceGroupSPtr seqGrpSPtr)
         size_t tokenNumPerIter = 1 + schedulerConfig_->speculationGamma;
         if (placeholderCount < numGenTokens ||
             placeholderCount - numGenTokens >= maxScheduledBatch_ * tokenNumPerIter + tokenNumPerIter) {
-            MINDIE_LLM_LOG_ERROR("Replace place holder error, seqid: "
+            LOG_ERROR_LLM << "Replace place holder error, seqid: "
                                  << seq->seqId_ << ", trailingPlaceholderCount:" << placeholderCount
-                                 << ", is prefill:" << seq->IsPrefill() << "; numPredictedTokens:" << numGenTokens);
+                                 << ", is prefill:" << seq->IsPrefill() << "; numPredictedTokens:" << numGenTokens;
             std::string newTokens = "";
             for (auto token : generatedTokens) {
                 newTokens += std::to_string(token) + ", ";
             }
-            MINDIE_LLM_LOG_ERROR("Replace place holder error, seqid: " << seq->seqId_
+            LOG_ERROR_LLM << "Replace place holder error, seqid: " << seq->seqId_
                                                                        << ", token size:" << generatedTokens.size()
-                                                                       << ", new tokens:" << newTokens);
+                                                                       << ", new tokens:" << newTokens;
             std::string outputTokens = "";
             for (auto token : seq->data_.outputTokenIds) {
                 outputTokens += std::to_string(token) + ", ";
             }
-            MINDIE_LLM_LOG_ERROR("Replace place holder error, seqid: " << seq->seqId_ << ", out size:"
+            LOG_ERROR_LLM << "Replace place holder error, seqid: " << seq->seqId_ << ", out size:"
                                                                        << seq->data_.outputTokenIds.size()
-                                                                       << ", all output tokens:" << outputTokens);
+                                                                       << ", all output tokens:" << outputTokens;
             throw std::runtime_error("The num of place holder is wrong. Check logs.");
         }
 
@@ -1056,7 +1055,7 @@ SequenceGroupMetaDatas Scheduler::GenerateSequenceGroupMetadata(const SchedulerO
         // 普通场景只有1个runningSeqSPtrs，是beam search会返回多个runningSeqSPtrs
         std::vector<SequenceSPtr> runningSeqSPtrs = seqGroup->GetSequences(SequenceStatus::RUNNING);
         if (runningSeqSPtrs.size() == 0) {
-            MINDIE_LLM_LOG_WARN("the sequence group is not in running status. requestId=:" << seqGroup->requestId);
+            LOG_WARN_LLM << "the sequence group is not in running status. requestId=:" << seqGroup->requestId;
             continue;
         }
 
@@ -1067,7 +1066,7 @@ SequenceGroupMetaDatas Scheduler::GenerateSequenceGroupMetadata(const SchedulerO
             std::vector<BlockId> lwdCloudBlockIds;
             bool isSimulateSeq = (seq->seqId_ == SIMULATE_SEQUENCE_ID);
             if (isSimulateSeq) {
-                MINDIE_LLM_LOG_INFO("GetBlockIds called for special seqId: " << seq->seqId_);
+                LOG_INFO_LLM << "GetBlockIds called for special seqId: " << seq->seqId_;
                 blockIds.push_back(static_cast<BlockId>(schedulerConfig_->npuBlockNum - 1));
             } else if (schedulerConfig_->spSize * schedulerConfig_->cpSize <= 1) {
                 blockIds = GetAllBlocks(seqGroup, seq->seqId_);
@@ -1228,7 +1227,8 @@ template <typename T> void Scheduler::PopAndSave_(ConcurrentDeque<T> &src, std::
         T resId = T{}; // if Request is int, it is not initialized.
         src.PopFront(resId);
         if (dst.count(resId) != 0) {
-            MINDIE_LLM_LOG_INFO_REQUEST("Request(id:" << resId << ") is already in the finished/aborted queue.");
+            LOG_INFO_LLM.SetType(LogType::REQUEST)
+                << "Request(id:" << resId << ") is already in the finished/aborted queue.";
         } else {
             dst.insert(resId);
         }
@@ -1270,9 +1270,8 @@ template <typename T> void Scheduler::LifeEndKVCleanup(std::unordered_set<T> &li
         // 已经在transferring map的请求加入到pulled清理队列由后面调度线程统一清理KV.
         this->kvCachePulledSeqIds_.PushBack(seqGrpSPtr->firstSeq->seqId_);
         it = lifeEndSet.erase(it);
-        MINDIE_LLM_LOG_INFO_REQUEST("[LlmEngine|Life End, add to release-kv queue] Add to pulled. requestId: "
-                            << seqGrpSPtr->metrics_.inferReqId_
-                            << "; seqId: " << seqGrpSPtr->firstSeq->seqId_);
+        LOG_INFO_LLM.SetType(LogType::REQUEST) << "Life End, add to release-kv queue] Add to pulled. requestId: "
+            << seqGrpSPtr->metrics_.inferReqId_ << "; seqId: " << seqGrpSPtr->firstSeq->seqId_;
         processNum++;
     }
 }
@@ -1314,20 +1313,20 @@ void Scheduler::KVPulledReqEnterRunningQueue(ConcurrentDeque<RequestId> &pulledR
 
         SequenceGroupSPtr seqGrpSPtr = LiveInferContext::GetInstance(localDPRank_)->GetSeqGroup(reqId);
         if (!seqGrpSPtr) {
-            MINDIE_LLM_LOG_WARN("Pull kv finished, but request has been aborted. RequestID:" << reqId);
+            LOG_WARN_LLM << "Pull kv finished, but request has been aborted. RequestID:" << reqId;
             continue;
         }
         auto prof = PROF(INFO, Domain("Schedule").Resource(seqGrpSPtr->requestId));
         running_.PushBack(seqGrpSPtr);
         PROF(prof.Metric("QueueSize", running_.Size()).Attr("status", "running").Event("Enqueue"));
         transferringMap_.Erase(seqGrpSPtr->firstSeq->seqId_);
-        MINDIE_LLM_LOG_INFO_REQUEST("[LlmEngine|Request-Enter running queue] DP RankId: "
+        LOG_INFO_LLM.SetType(LogType::REQUEST) << "DP RankId: "
                             << dpRankId_ << ". Pull kv ended, enter running queue. requestId: "
                             << seqGrpSPtr->metrics_.inferReqId_
                             << "; seqId: " << seqGrpSPtr->firstSeq->seqId_
                             << "; running size:" << running_.Size() << "; waiting size: " << waiting_.Size()
                             << "; swapped size:" << swapped_.Size()
-                            << "; transferring size:" << transferringMap_.Size());
+                            << "; transferring size:" << transferringMap_.Size();
     }
 }
 
@@ -1363,7 +1362,7 @@ bool Scheduler::LayerwiseDiscardToken(LiveInferContextSPtr &contextSPtr, Sequenc
         && contextSPtr->GetSeqGroup(seqId)->firstSeq->data_.layerwiseDiscard_) {
         // 边云协同场景特殊情况需要丢弃
         contextSPtr->GetSeqGroup(seqId)->firstSeq->data_.layerwiseDiscard_ = false;
-        MINDIE_LLM_LOG_INFO("[layerwiseDisaggregated|scheduler] "<<"seq id= " << seqId << ", is discarded");
+        LOG_INFO_LLM << "seq id= " << seqId << ", is discarded";
         return true;
     }
     return false;
@@ -1411,11 +1410,11 @@ SequenceStatus Scheduler::FinalizeSeqGrpStatus(SequenceGroupSPtr seqGroup)
         bool inFinished = finishedSeqIds_.count(seqGroup->seqs_[0]->seqId_) > 0;
         bool inException = exceptionSeqIds_.count(seqGroup->seqs_[0]->seqId_) > 0;
         if (inFinished || inException) {
-            MINDIE_LLM_LOG_INFO("[SimulateInference] P node skip status check. "
+            LOG_INFO_LLM << "P node skip status check. "
                                 << "seqId=" << seqGroup->seqs_[0]->seqId_
                                 << ", inFinishedSeqIds=" << inFinished
                                 << ", inExceptionSeqIds=" << inException
-                                << ", requestId=" << seqGroup->requestId);
+                                << ", requestId=" << seqGroup->requestId;
         }
         // P节点跳过检查，直接返回RUNNING
         return SequenceStatus::RUNNING;
@@ -1446,11 +1445,11 @@ void Scheduler::ClearSeqGrp(SequenceGroupSPtr seqGroup, SequenceStatus finalStat
 {
     // sequence group处于终止态，则删除各个容器中的资源（有可能被aborted的同时Response的返回也是终止态）
     LiveInferContext::GetInstance(localDPRank_)->Remove(seqGroup->requestId);
-    MINDIE_LLM_LOG_INFO_REQUEST("[LlmEngine|Request-Life End] Request life endup. DP RankId: "
+    LOG_INFO_LLM.SetType(LogType::REQUEST) << "Request life endup. DP RankId: "
                         << dpRankId_
                         << ". requestId: " << seqGroup->metrics_.inferReqId_
                         << "; seqId: " << seqGroup->firstSeq->seqId_
-                        << "; final status:" << static_cast<int>(finalStatus));
+                        << "; final status:" << static_cast<int>(finalStatus);
     abortedReqIds_.erase(seqGroup->requestId);
     for (auto &seq : seqGroup->GetFirstSequence()) {
         ClearSeq(seq->seqId_);
@@ -1651,8 +1650,7 @@ void Scheduler::StopRunningRequest()
     ClearQueueAndSendAbortedResponse(running_);
     ClearQueueAndSendAbortedResponse(swapped_);
     LiveInferContext::GetInstance(localDPRank_)->RemoveAll();
-    MINDIE_LLM_LOG_DEBUG(
-        "[Scheduler] Cleared all running, swapped, waiting and transferring requests (status=FINISH_ABORTED).]");
+    LOG_DEBUG_LLM << "Cleared all running, swapped, waiting and transferring requests (status=FINISH_ABORTED).]";
 }
 
 std::unordered_set<SequenceId> Scheduler::ClearAndReturnTerminatedSeqIds()
@@ -1736,7 +1734,7 @@ void Scheduler::CollectAndClearAbortedParallelSeqGroups()
     for (SequenceGroupSPtr &seqGroup : abortedParallelSeqGroups_) {
         RequestId reqId = seqGroup->requestId;
         if (!abortedReqIds_.insert(reqId).second) {
-            MINDIE_LLM_LOG_WARN("Request(id:" << reqId << ") is already in the abortedReqIds queue.");
+            LOG_WARN_LLM << "Request(id:" << reqId << ") is already in the abortedReqIds queue.";
         }
     }
     abortedParallelSeqGroups_.clear();

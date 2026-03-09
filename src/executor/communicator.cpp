@@ -13,7 +13,7 @@
 #include <algorithm>
 #include <functional>
 #include "string_utils.h"
-#include "log.h"
+#include "system_log.h"
 #include "msServiceProfiler/msServiceProfiler.h"
 #include "config_manager.h"
 #include "communicator.h"
@@ -69,7 +69,7 @@ bool Communicator::InitIPCCommunicators(const std::string &sharedMemPrefix, uint
     ShmSizeConfig executeShmConfig{SHARED_MEMORY_256MB, DEFAULT_SHARED_MEMORY_SIZE};
     ipcCommunicatorExecute_ = InitSingleIPCCommunicator(sharedMemPrefix + "_execute", localWorldSize, executeShmConfig);
     if (ipcCommunicatorExecute_ == nullptr) {
-        MINDIE_LLM_LOG_ERROR("Failed to initialize IPC Communicator for Execute channel.");
+        LOG_ERROR_LLM << "Failed to initialize IPC Communicator for Execute channel.";
         return false;
     }
 
@@ -77,7 +77,7 @@ bool Communicator::InitIPCCommunicators(const std::string &sharedMemPrefix, uint
     ipcCommunicatorSharedSync_ =
         InitSingleIPCCommunicator(sharedMemPrefix + "_shared_sync_link", localWorldSize, sharedSyncShmConfig);
     if (ipcCommunicatorSharedSync_ == nullptr) {
-        MINDIE_LLM_LOG_ERROR("Failed to initialize IPC Communicator for Shared Link channel.");
+        LOG_ERROR_LLM << "Failed to initialize IPC Communicator for Shared Link channel.";
         return false;
     }
 
@@ -85,7 +85,7 @@ bool Communicator::InitIPCCommunicators(const std::string &sharedMemPrefix, uint
     ipcCommunicatorKVTransfer_ =
         InitSingleIPCCommunicator(sharedMemPrefix + "_transfer", localWorldSize, kvTransferShmConfig);
     if (ipcCommunicatorKVTransfer_ == nullptr) {
-        MINDIE_LLM_LOG_ERROR("Failed to initialize IPC Communicator for KV Transfer channel.");
+        LOG_ERROR_LLM << "Failed to initialize IPC Communicator for KV Transfer channel.";
         return false;
     }
 
@@ -98,12 +98,12 @@ bool Communicator::LwdGRPCCommunicatorInit(std::unordered_map<std::string, std::
     auto itrFindDp = config.find("dp");
     uint32_t dpNum = std::stol(itrFindDp->second);
     if (dpNum == 0) {
-        MINDIE_LLM_LOG_ERROR("Lwd The value of dp_num must be greater than 0.");
+        LOG_ERROR_LLM << "Lwd The value of dp_num must be greater than 0.";
         return false;
     }
     if (dpNum == grpcCommunicatorNum) { /* dp(excutor)数量与grpcCommunicatorNum一致, 由excutor保证调用次数 */
         if (!grpcCommunicator_->Init(grpcCommunicatorNum)) {
-            MINDIE_LLM_LOG_ERROR("Lwd Failed to initialize GRPC Communicator.");
+            LOG_ERROR_LLM << "Lwd Failed to initialize GRPC Communicator.";
             return false;
         }
 
@@ -119,7 +119,7 @@ bool Communicator::LwdGRPCCommunicatorInit(std::unordered_map<std::string, std::
     for (uint32_t i = 0; i < multiGrpcNumPerExcutor; i++) {
         futures.push_back(std::async(std::launch::async, [&, i, grpcCommunicatorNum]() {
             if (!grpcCommunicator_->Init(grpcCommunicatorNum)) {
-                MINDIE_LLM_LOG_ERROR("Lwd Failed to initialize GRPC Communicator:" << i << ".");
+                LOG_ERROR_LLM << "Lwd Failed to initialize GRPC Communicator:" << i << ".";
                 return false;
             }
 
@@ -130,7 +130,7 @@ bool Communicator::LwdGRPCCommunicatorInit(std::unordered_map<std::string, std::
     // 检查所有的future结果都为true
     for (auto &fut : futures) {
         if (!fut.get()) {
-            MINDIE_LLM_LOG_ERROR("Lwd Failed to initialize GRPC Communicator, one of Communicator failed.");
+            LOG_ERROR_LLM << "Lwd Failed to initialize GRPC Communicator, one of Communicator failed.";
             return false;
         }
     }
@@ -145,14 +145,14 @@ bool Communicator::InitGRPCCommunicator(std::unordered_map<std::string, std::str
 
     if (msRole_ == MasterSlaveRole::MASTER) {
         if (!grpcCommunicator_->RegisterResponseHandler(responseFromSlaveHandler, dpRankIdx_)) {
-            MINDIE_LLM_LOG_ERROR("Failed to register response handler for master node.");
+            LOG_ERROR_LLM << "Failed to register response handler for master node.";
             return false;
         }
     } else if (msRole_ == MasterSlaveRole::SLAVE) {
         RequestHandler requestFromMasterHandler =
             std::bind(&Communicator::SlaveNodeGRPCRequestHandler, this, std::placeholders::_1);
         if (!grpcCommunicator_->RegisterRequestHandler(requestFromMasterHandler, dpRankIdx_)) {
-            MINDIE_LLM_LOG_ERROR("Failed to register request handler for slave node.");
+            LOG_ERROR_LLM << "Failed to register request handler for slave node.";
             return false;
         }
     }
@@ -163,7 +163,7 @@ bool Communicator::InitGRPCCommunicator(std::unordered_map<std::string, std::str
     }
 
     if (!grpcCommunicator_->Init(grpcCommunicatorNum)) {
-        MINDIE_LLM_LOG_ERROR("Failed to initialize GRPC Communicator.");
+        LOG_ERROR_LLM << "Failed to initialize GRPC Communicator.";
         return false;
     }
     return true;
@@ -177,12 +177,12 @@ void Communicator::RegisterModelInitReqHandler(SlaveModelInitReqHandler handler)
 bool Communicator::SendModelInitRequestAndReceive(ExecuteRequest &request, std::vector<ExecuteResponse> &responses)
 {
     if (!ipcCommunicatorExecute_->SendMessageViaSM(request)) {
-        MINDIE_LLM_LOG_ERROR("Failed to send MODEL_INIT request to local executors.");
+        LOG_ERROR_LLM << "Failed to send MODEL_INIT request to local executors.";
         return false;
     }
     // Wait until the responses are received.
     if (!ipcCommunicatorExecute_->ReceiveInitResponses(responses)) {
-        MINDIE_LLM_LOG_ERROR("Failed to receive MODEL_INIT responses from local executors.");
+        LOG_ERROR_LLM << "Failed to receive MODEL_INIT responses from local executors.";
         return false;
     }
     return true;
@@ -193,14 +193,14 @@ bool Communicator::SendSharedSyncRequestAndReceive(ExecuteRequest &request, std:
     // Send the sync request to local workers if ipcCommunicatoSharedSyncLink_ is initialized.
     if (ipcCommunicatorSharedSync_ != nullptr) {
         if (!ipcCommunicatorSharedSync_->SendMessageViaSM(request)) {
-            MINDIE_LLM_LOG_ERROR("Failed to send a sync request to local workers.");
+            LOG_ERROR_LLM << "Failed to send a sync request to local workers.";
             return false;
         }
     }
     // Send the sync request to remote slave node if grpcCommunicator_ is initialized.
     if (grpcCommunicator_ != nullptr) {
         if (!grpcCommunicator_->SendRequest(request, dpRankIdx_, remoteDPRankIdx_, remoteSlaveIP_)) {
-            MINDIE_LLM_LOG_ERROR("Failed to send a sync request to remote slave node.");
+            LOG_ERROR_LLM << "Failed to send a sync request to remote slave node.";
             return false;
         }
     }
@@ -208,7 +208,7 @@ bool Communicator::SendSharedSyncRequestAndReceive(ExecuteRequest &request, std:
     if (ipcCommunicatorSharedSync_ != nullptr) {
         ExecuteResponse ipcResponse;
         if (!ipcCommunicatorSharedSync_->ReceiveResponse(ipcResponse)) {
-            MINDIE_LLM_LOG_ERROR("Failed to receive a sync response from local workers.");
+            LOG_ERROR_LLM << "Failed to receive a sync response from local workers.";
             return false;
         }
         responses.emplace_back(std::move(ipcResponse));
@@ -217,7 +217,7 @@ bool Communicator::SendSharedSyncRequestAndReceive(ExecuteRequest &request, std:
     if (grpcCommunicator_ != nullptr) {
         ExecuteResponse grpcResponse;
         if (!grpcCommunicator_->GetSyncResponse(grpcResponse, dpRankIdx_)) {
-            MINDIE_LLM_LOG_ERROR("Failed to receive a sync response from remote slave node.");
+            LOG_ERROR_LLM << "Failed to receive a sync response from remote slave node.";
             return false;
         }
         responses.emplace_back(std::move(grpcResponse));
@@ -229,7 +229,7 @@ bool Communicator::SendRecoverCommandRequestAndReceive(ExecuteRequest &request, 
 {
     if (ipcCommunicatorSharedSync_ != nullptr) {
         if (!ipcCommunicatorSharedSync_->SendMessageViaSM(request)) {
-            MINDIE_LLM_LOG_ERROR("Failed to send a sync recover command request to local workers.");
+            LOG_ERROR_LLM << "Failed to send a sync recover command request to local workers.";
             return false;
         }
     }
@@ -237,7 +237,7 @@ bool Communicator::SendRecoverCommandRequestAndReceive(ExecuteRequest &request, 
     // Wait until the responses are received.
     if (ipcCommunicatorSharedSync_ != nullptr) {
         if (!ipcCommunicatorSharedSync_->ReceiveRecoverCommandResponses(responses)) {
-            MINDIE_LLM_LOG_ERROR("Failed to receive a sync recover command responses from local executors.");
+            LOG_ERROR_LLM << "Failed to receive a sync recover command responses from local executors.";
             return false;
         }
     }
@@ -247,11 +247,11 @@ bool Communicator::SendRecoverCommandRequestAndReceive(ExecuteRequest &request, 
 bool Communicator::SendAsyncReponseToRemote(ExecuteResponse &response)
 {
     if (grpcCommunicator_ == nullptr) {
-        MINDIE_LLM_LOG_ERROR("grpcCommunicator_ is null, cannot send response to master.");
+        LOG_ERROR_LLM << "grpcCommunicator_ is null, cannot send response to master.";
         return false;
     }
     if (!grpcCommunicator_->SendResponse(response, dpRankIdx_, remoteDPRankIdx_)) {
-        MINDIE_LLM_LOG_ERROR("Slave Node: failed to send response to remote master node.");
+        LOG_ERROR_LLM << "Slave Node: failed to send response to remote master node.";
         return false;
     }
     return true;
@@ -267,17 +267,17 @@ bool Communicator::LaunchIPCHandleResponseThreads(ResponseHandler handler)
     }
 
     if (!RegisterAndStartIPCHandler(ipcCommunicatorExecute_, responseHandler)) {
-        MINDIE_LLM_LOG_ERROR("Failed to register and start handler for Execute channel.");
+        LOG_ERROR_LLM << "Failed to register and start handler for Execute channel.";
         return false;
     }
     if (!RegisterAndStartIPCHandler(ipcCommunicatorKVTransfer_, responseHandler)) {
-        MINDIE_LLM_LOG_ERROR("Failed to register and start handler for KV Transfer channel.");
+        LOG_ERROR_LLM << "Failed to register and start handler for KV Transfer channel.";
         return false;
     }
     if (msRole_ == MasterSlaveRole::SLAVE) {
         // Only slave node needs to asynchronously send sync response to master node.
         if (!RegisterAndStartIPCHandler(ipcCommunicatorSharedSync_, responseHandler)) {
-            MINDIE_LLM_LOG_ERROR("Failed to register and start handler for PD Link channel.");
+            LOG_ERROR_LLM << "Failed to register and start handler for PD Link channel.";
             return false;
         }
     }
@@ -288,11 +288,11 @@ bool Communicator::RegisterAndStartIPCHandler(std::shared_ptr<IPCCommunicator> i
                                               ResponseHandler handler) const
 {
     if (!ipcCommunicator->RegisterResponseHandler(handler)) {
-        MINDIE_LLM_LOG_ERROR("Failed to register response handler for IPC Communicator.");
+        LOG_ERROR_LLM << "Failed to register response handler for IPC Communicator.";
         return false;
     }
     if (!ipcCommunicator->StartHandleResponseThread()) {
-        MINDIE_LLM_LOG_ERROR("Failed to start handle response thread for IPC Communicator.");
+        LOG_ERROR_LLM << "Failed to start handle response thread for IPC Communicator.";
         return false;
     }
     return true;
@@ -307,12 +307,12 @@ bool Communicator::SlaveNodeGRPCRequestHandler(ExecuteRequest &request)
             pdInfo[pair.first] = pair.second;
         }
         if (slaveModelInitReqHandler_ == nullptr || !slaveModelInitReqHandler_(pdInfo)) {
-            MINDIE_LLM_LOG_ERROR("Slave Node: failed to handle model init request from master node.");
+            LOG_ERROR_LLM << "Slave Node: failed to handle model init request from master node.";
             return false;
         }
     } else {
         if (!SendAsyncRequestToLocal(request)) {
-            MINDIE_LLM_LOG_ERROR("Slave Node: failed to send asynchronous request to local workers.");
+            LOG_ERROR_LLM << "Slave Node: failed to send asynchronous request to local workers.";
             return false;
         }
     }
@@ -335,7 +335,7 @@ bool Communicator::SlaveNodeIPCResponseHandler(ExecuteResponse &response)
 bool Communicator::GRPCGetSyncResponse(ExecuteResponse &response)
 {
     if (grpcCommunicator_ == nullptr) {
-        MINDIE_LLM_LOG_ERROR("grpcCommunicator_ is null, cannot get sync response.");
+        LOG_ERROR_LLM << "grpcCommunicator_ is null, cannot get sync response.";
         return false;
     }
     return grpcCommunicator_->GetSyncResponse(response, dpRankIdx_);
@@ -347,7 +347,7 @@ std::unique_ptr<IPCCommunicator> Communicator::InitSingleIPCCommunicator(const s
 {
     std::unique_ptr<IPCCommunicator> ipcCommunicator = std::make_unique<IPCCommunicator>(sharedMemName, localWorldSize);
     if (!ipcCommunicator->SetupChannel(shmSizeConfig)) {
-        MINDIE_LLM_LOG_ERROR("Failed to initialize Execute channel.");
+        LOG_ERROR_LLM << "Failed to initialize Execute channel.";
         return nullptr;
     }
     return ipcCommunicator;
@@ -356,14 +356,14 @@ std::unique_ptr<IPCCommunicator> Communicator::InitSingleIPCCommunicator(const s
 bool Communicator::SendAsyncRequest(ExecuteRequest &request)
 {
     if (isMultiNodesInfer_ && msRole_ == MasterSlaveRole::SLAVE) {
-        MINDIE_LLM_LOG_ERROR("Slave nodes cannot call SendAsyncRequest themselves.");
+        LOG_ERROR_LLM << "Slave nodes cannot call SendAsyncRequest themselves.";
         return false;
     }
 
     if (ipcCommunicatorExecute_ != nullptr) {
         auto spanLocal = PROF(INFO, Domain("Executor").SpanStart("SendRequestToLocal"));
         if (!SendAsyncRequestToLocal(request)) {
-            MINDIE_LLM_LOG_ERROR("Failed to send asynchronous request to local workers.");
+            LOG_ERROR_LLM << "Failed to send asynchronous request to local workers.";
             PROF(spanLocal.SpanEnd());
             return false;
         }
@@ -378,7 +378,7 @@ bool Communicator::SendAsyncRequest(ExecuteRequest &request)
             return true;
         }
         if (!SendAsyncRequestToRemote(request)) {
-            MINDIE_LLM_LOG_ERROR("Failed to send asynchronous request to remote workers.");
+            LOG_ERROR_LLM << "Failed to send asynchronous request to remote workers.";
             PROF(spanRemote.SpanEnd());
             return false;
         }
@@ -398,12 +398,12 @@ bool Communicator::SendAsyncRequestToLocal(ExecuteRequest &request)
     } else if (request.execute_type() == PD_LINK) {
         ipcCommunicator = ipcCommunicatorSharedSync_.get();
     } else {
-        MINDIE_LLM_LOG_ERROR("Unsupported execute type for asynchronous request: " << request.execute_type());
+        LOG_ERROR_LLM << "Unsupported execute type for asynchronous request: " << request.execute_type();
         return false;
     }
 
     if (!ipcCommunicator->SendMessageViaSM(request)) {
-        MINDIE_LLM_LOG_ERROR("Failed to send asynchronous request to local workers.");
+        LOG_ERROR_LLM << "Failed to send asynchronous request to local workers.";
         return false;
     }
     return true;
@@ -427,7 +427,7 @@ bool Communicator::SendAsyncRequestToRemote(ExecuteRequest &request)
         }
     }
     if (!grpcCommunicator_->SendRequest(request, dpRankIdx_, remoteDPRankIdx_, remoteSlaveIP_)) {
-        MINDIE_LLM_LOG_ERROR("Failed to send request from DP " << dpRankIdx_ << " to remote DP " << remoteDPRankIdx_);
+        LOG_ERROR_LLM << "Failed to send request from DP " << dpRankIdx_ << " to remote DP " << remoteDPRankIdx_;
         return false;
     }
     return true;

@@ -120,8 +120,6 @@ namespace mindie_llm {
                 return false;
             }
             static uint64_t sendCnt = 0;
-            ULOG_INFO(SUBMODLE_NAME_ENDPOINT, "D send kv release to P " << receiverAddr_ <<
-                " success. requestId: " << message.reqid() << ", send "<< ++sendCnt);
             return true;
         }
 

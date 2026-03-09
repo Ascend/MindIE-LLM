@@ -9,9 +9,13 @@
  * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
  * See the Mulan PSL v2 for more details.
  */
-#include <chrono>
-#include "policy/stage_policy/edge_cloud_policy.h"
+
 #include "layerwise_mixin/layerwise_mixin.h"
+
+#include <chrono>
+
+#include "policy/stage_policy/edge_cloud_policy.h"
+#include "system_log.h"
 
 using namespace std;
 using namespace std::chrono;
@@ -27,9 +31,7 @@ void LayerwiseMixin::LwdPrepareBatch(bool layerwiseDisaggregated, SchedulerOutpu
         for (auto prefillSeqGrpSPtr : scheduleOut.scheduledSeqGroups_) {
             SequenceGroupSPtr prefillSeqGroup = prefillSeqGrpSPtr->seqGroup_;
             auto prefillSeqId = prefillSeqGroup->firstSeq->seqId_;
-            MINDIE_LLM_LOG_INFO("[layerwiseDisaggregated|Scheduler]:"<<"prefillSeqId in prefill batch is: "
-                                << prefillSeqId << ", set prefill:1, recompute:0");
-
+            LOG_INFO_LLM << "prefillSeqId in prefill batch is: " << prefillSeqId << ", set prefill:1, recompute:0";
             bool isPrefill = true;
             prefillSeqGroup->firstSeq->data_.SetLayerwiseStage(isPrefill);
             if (prefillSeqGroup->firstSeq->data_.layerwiseRecompute_) {
@@ -113,14 +115,13 @@ bool LayerwiseMixin::LwdProcessResponse(bool layerwiseDisaggregated, SequenceGro
     if (seqGroup == nullptr) {
         lastForwardMode = lwdCurrBatchType;
         std::string forwardModeString = lastForwardMode == ForwardMode::PREFILL ? "prefill" : "decode";
-        MINDIE_LLM_LOG_INFO("[layerwiseDisaggregated|handler] "<<"seqGoup is nullptr!!! "
-            << forwardModeString<<" return");
+        LOG_INFO_LLM << "seqGoup is nullptr! " << forwardModeString <<" return";
         return false;
     }
     auto returnSeqId = seqGroup->firstSeq->seqId_;
     ForwardMode forwardMode = seqGroup->IsLayerwisePrefill() ? ForwardMode::PREFILL : ForwardMode::DECODE;
     if (forwardMode == ForwardMode::PREFILL) {
-        MINDIE_LLM_LOG_INFO("[layerwiseDisaggregated|handler] "<<"prefill return seq id:"<< returnSeqId);
+        LOG_INFO_LLM << "prefill return seq id: "<< returnSeqId;
         
         // recompute in decode batch
         if (seqGroup->firstSeq->data_.layerwiseRunning_) {
@@ -134,16 +135,16 @@ bool LayerwiseMixin::LwdProcessResponse(bool layerwiseDisaggregated, SequenceGro
         } else {
             // 记录recompute的seq返回，之后才允许下发重计算的P
             seqGroup->firstSeq->data_.layerwiseRecomputeReturn_ = true;
-            MINDIE_LLM_LOG_INFO("[layerwiseDisaggregated|handler] "<<"recompute return seq id:"<< returnSeqId);
+            LOG_INFO_LLM << "recompute return seq id: "<< returnSeqId;
         }
     } else {
-        MINDIE_LLM_LOG_INFO("[layerwiseDisaggregated|handler] "<<"decode return seq id:"<< returnSeqId);
+        LOG_INFO_LLM << "decode return seq id: "<< returnSeqId;
     }
     if (lastForwardMode == ForwardMode::DUMMY) {
         lastForwardMode = forwardMode;
     } else {
         if (lastForwardMode != forwardMode) {
-            MINDIE_LLM_LOG_INFO("[layerwiseDisaggregated|handler] "<<"P/D Type is not same in one batch!!!!!");
+            LOG_INFO_LLM << "P/D Type is not same in one batch!";
         }
         lastForwardMode = forwardMode;
     }
@@ -160,8 +161,7 @@ void LayerwiseMixin::LwdProcessRecomputeSeq(bool layerwiseNeedUpdate, ForwardMod
     if (lastForwardMode == ForwardMode::DECODE && recomputeInDBatchQueue.size() > 0) {
         for (auto recomputeSeqGroup: recomputeInDBatchQueue) {
             auto recomputeSeqId = recomputeSeqGroup->firstSeq->seqId_;
-            MINDIE_LLM_LOG_INFO("[layerwiseDisaggregated|handler] "<<"if SeqId="
-                << recomputeSeqId << "return in decode batch, ignore");
+            LOG_INFO_LLM << "SeqId=" << recomputeSeqId << "return in decode batch, ignore";
             // 兜底一
             bool isPrefill = true;
             recomputeSeqGroup->firstSeq->data_.SetLayerwiseStage(isPrefill);
@@ -192,7 +192,7 @@ void LayerwiseMixin::LwdWaitingResponse(PDPriorityType pdPriorityType, std::shar
 
     size_t waitTime = 5;
     while (needWaiting) {
-        MINDIE_LLM_LOG_INFO("scheduler need waiting for response!");
+        LOG_INFO_LLM << "scheduler need waiting for response!";
         std::this_thread::sleep_for(std::chrono::milliseconds(waitTime));
         needWaiting = lwdPolicy->LwdNeedWaiting4Response(forwardMode);
     }

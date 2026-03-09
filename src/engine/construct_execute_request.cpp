@@ -10,7 +10,6 @@
  * See the Mulan PSL v2 for more details.
  */
 #include "construct_execute_request.h"
-#include "log.h"
 #include "id_utils.h"
 
 namespace mindie_llm {

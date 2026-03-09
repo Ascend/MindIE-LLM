@@ -23,6 +23,6 @@ target_link_directories(memory_bridge
     ${CMAKE_CURRENT_SOURCE_DIR}/../../../../src/utils/log/lib
 )
 
-target_link_libraries(memory_bridge PUBLIC mindie_llm_log mindie_llm_utils ascendcl stdc++ pybind11::pybind11)
+target_link_libraries(memory_bridge PUBLIC system_log mindie_llm_utils ascendcl stdc++ pybind11::pybind11)
 
 install(TARGETS memory_bridge DESTINATION lib)

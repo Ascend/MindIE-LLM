@@ -28,6 +28,7 @@
 #include "dummy_quota_manager.h"
 #include "layerwise_mixin/layerwise_mixin.h"
 #include "data_type.h"
+#include "system_log.h"
 
 namespace mindie_llm {
 // 调度完2轮batch后，让出1ms cpu时间
@@ -177,10 +178,10 @@ private:
         if (diffTime > std::chrono::seconds(HEARTBEAT_INTERVAL_SECONDS)) {
             heartbeatBegin = std::chrono::high_resolution_clock::now();
             auto passed_seconds = std::chrono::duration_cast<std::chrono::seconds>(diffTime).count();
-            MINDIE_LLM_LOG_INFO_REQUEST("Since last schedule, pass " << passed_seconds
+            LOG_INFO_LLM.SetType(LogType::REQUEST) << "Since last schedule, pass " << passed_seconds
                 << " seconds, AsyncBatchNum=" << enginePerDP->modelExecOutputHandler->GetAsyncBatchNum()
                 << ", freeNpuBlockNum=" << enginePerDP->scheduler->CollectSchedulerMetric().blockInfo.freeNpuBlockNum_
-                << ", freeCpuBlockNum=" << enginePerDP->scheduler->CollectSchedulerMetric().blockInfo.freeCpuBlockNum_);
+                << ", freeCpuBlockNum=" << enginePerDP->scheduler->CollectSchedulerMetric().blockInfo.freeCpuBlockNum_;
         }
     }
     // 边云新增

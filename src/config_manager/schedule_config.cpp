@@ -13,7 +13,7 @@
 #include "base_config_manager.h"
 #include "common_util.h"
 #include "env_util.h"
-#include "log.h"
+#include "system_log.h"
 
 using Json = nlohmann::json;
 using namespace nlohmann::literals;
@@ -140,9 +140,9 @@ void ScheduleConfigManager::LoadPolicyConfig(Json &scheduleJsonData)
 void ScheduleConfigManager::LoadSplitFuseConfig(Json &scheduleJsonData)
 {
     if (scheduleJsonData.contains("enableSplit")) {
-        MINDIE_LLM_LOG_WARN("To enable the splitfuse, you only need to configure the 'plugin_params'."
+        LOG_WARN_LLM << "To enable the splitfuse, you only need to configure the 'plugin_params'."
                             << " 'enableSplit' parameter no longer needs to be configured,"
-                            << " and any value set for it will not take effect.");
+                            << " and any value set for it will not take effect.";
     }
 
     if (scheduleJsonData.contains("splitType")) {
@@ -184,9 +184,9 @@ void ScheduleConfigManager::LoadChunkedPrefillConfig(Json &scheduleJsonData)
 void ScheduleConfigManager::LoadPrefixCacheConfig(Json &scheduleJsonData) const
 {
     if (scheduleJsonData.contains("enablePrefixCache")) {
-        MINDIE_LLM_LOG_WARN("To enable the prefixcache, you only need to configure the 'plugin_params'."
+        LOG_WARN_LLM << "To enable the prefixcache, you only need to configure the 'plugin_params'."
                             << " 'enablePrefixCache' parameter no longer needs to be configured,"
-                            << " and any value set for it will not take effect.");
+                            << " and any value set for it will not take effect.";
     }
 }
 
@@ -259,8 +259,8 @@ bool ScheduleConfigManager::CheckParam()
     checkRes = checkRes && ParamChecker::CheckMaxMinValue<uint32_t>(scheduleConfig_.maxBatchSize, 819200U, 1U,
                                                                     "scheduleParam.maxBatchSize");
     if (scheduleConfig_.maxPreemptCount > scheduleConfig_.maxBatchSize) {
-        MINDIE_LLM_LOG_ERROR("The maxPreemptCount cannot be set greater than maxBatchsize"
-                             << ", please set 'maxPreemptCount' to be not greater than 'maxBatchsize' in config.json.");
+        LOG_ERROR_LLM << "The maxPreemptCount cannot be set greater than maxBatchsize"
+            << ", please set 'maxPreemptCount' to be not greater than 'maxBatchsize' in config.json.";
         checkRes = checkRes && false;
     }
     checkRes = checkRes && ParamChecker::CheckMaxMinValue<uint32_t>(scheduleConfig_.maxPrefillTokens, MAX_INPUT_LEN, 1U,
@@ -285,11 +285,11 @@ bool ScheduleConfigManager::CheckParam()
     checkRes = checkRes && ParamChecker::CheckMaxMinValue<uint32_t>(scheduleConfig_.longPrefillTokenThreshold, 8192U,
                                                                     1U, "scheduleParam.longPrefillTokenThreshold");
     if (scheduleConfig_.templateType != "Standard" && scheduleConfig_.templateType != "Mix") {
-        MINDIE_LLM_LOG_ERROR("The templateType must be Standard or Mix, but is " << scheduleConfig_.templateType);
+        LOG_ERROR_LLM << "The templateType must be Standard or Mix, but is " << scheduleConfig_.templateType;
         checkRes = checkRes && false;
     }
     if (scheduleConfig_.templateName != "Standard_LLM") {
-        MINDIE_LLM_LOG_ERROR("The templateName must be Standard_LLM, but is " << scheduleConfig_.templateName);
+        LOG_ERROR_LLM << "The templateName must be Standard_LLM, but is " << scheduleConfig_.templateName;
         checkRes = checkRes && false;
     }
     CheckSLOParam(checkRes);

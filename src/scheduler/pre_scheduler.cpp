@@ -13,7 +13,7 @@
 #include "pre_scheduler.h"
 #include "process_group.h"
 #include "thread_group_cc.h"
-#include "log.h"
+#include "system_log.h"
 
 namespace mindie_llm {
 std::vector<SchedInfo> PreScheduler::ShareSchedInfo(const SchedInfo &schedInfo, size_t dpRank, bool enableDistributed)
@@ -77,7 +77,7 @@ std::vector<SchedInfo> PreScheduler::ShareSchedInfoCrossNode(const SchedInfo &sc
         }
         return result;
     } catch (const std::exception& e) {
-        MINDIE_LLM_LOG_ERROR("ShareSchedInfoCrossNode failed: outputs is invalid.");
+        LOG_ERROR_LLM << "ShareSchedInfoCrossNode failed: outputs is invalid.";
         return {};
     }
 }

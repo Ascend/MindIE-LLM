@@ -7,7 +7,7 @@ find_library(LIBRT rt)
 message(STATUS "LIBRT: ${LIBRT}")
 add_library(mindie_llm_utils SHARED ${SOURCE_FILES})
 
-target_link_libraries(mindie_llm_utils PUBLIC mindie_llm_log ${OPENSSL_LIBRARIES} ${LIBRT} ${PROTOBUF_SO_FILES} ${TORCH_LIBRARIES} stdc++fs pybind11::embed boundscheck)
+target_link_libraries(mindie_llm_utils PUBLIC system_log mindie_llm_log ${OPENSSL_LIBRARIES} ${LIBRT} ${PROTOBUF_SO_FILES} ${TORCH_LIBRARIES} stdc++fs pybind11::embed boundscheck)
 
 set_target_properties(mindie_llm_utils PROPERTIES LIBRARY_OUTPUT_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/lib")
 

@@ -9,9 +9,10 @@
  * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
  * See the Mulan PSL v2 for more details.
  */
-#include <algorithm>
-#include "log.h"
+
 #include "sequence.h"
+
+#include <algorithm>
 
 namespace mindie_llm {
 bool sequence_status::IsFinish(const SequenceStatus status) { return status > SequenceStatus::SWAPPED; }

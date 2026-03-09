@@ -94,6 +94,14 @@ function(build_test module type list_libraries list_includes)
     target_link_directories(${TEST_BINARY} PRIVATE
         ${THIRD_PARTY_OUTPUT_DIR}/gtest/lib
         ${THIRD_PARTY_OUTPUT_DIR}/mockcpp/lib
+        ${THIRD_PARTY_OUTPUT_DIR}/grpc/lib
+        ${THIRD_PARTY_OUTPUT_DIR}/cares/lib
+        ${THIRD_PARTY_OUTPUT_DIR}/re2/lib
+        ${THIRD_PARTY_OUTPUT_DIR}/zlib/lib
+        ${THIRD_PARTY_OUTPUT_DIR}/protobuf/lib
+        ${THIRD_PARTY_OUTPUT_DIR}/abseil-cpp/lib
+        ${THIRD_PARTY_OUTPUT_DIR}/openssl/lib
+        ${THIRD_PARTY_OUTPUT_DIR}/boost/lib
     )
     target_link_libraries(${TEST_BINARY} PUBLIC
         gtest

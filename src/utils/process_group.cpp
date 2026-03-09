@@ -11,7 +11,6 @@
  */
 
 #include "process_group.h"
-#include "log.h"
 
 #include <arpa/inet.h>
 #include <cerrno>
@@ -23,19 +22,21 @@
 
 #include <torch/csrc/distributed/c10d/TCPStore.hpp>
 
+#include "system_log.h"
+
 namespace mindie_llm {
 namespace {
 int CreateMasterListenSocket(const std::string &masterAddr, uint16_t masterPort)
 {
     int listenFd = ::socket(AF_INET, SOCK_STREAM, 0);
     if (listenFd < 0) {
-        MINDIE_LLM_LOG_ERROR("CreateMasterListenSocket socket failed, errno=" << errno);
+        LOG_ERROR_LLM << "CreateMasterListenSocket socket failed, errno=" << errno;
         return -1;
     }
 
     int opt = 1;
     if (::setsockopt(listenFd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) < 0) {
-        MINDIE_LLM_LOG_ERROR("CreateMasterListenSocket setsockopt SO_REUSEADDR failed, errno=" << errno);
+        LOG_ERROR_LLM << "CreateMasterListenSocket setsockopt SO_REUSEADDR failed, errno=" << errno;
         ::close(listenFd);
         return -1;
     }
@@ -44,22 +45,22 @@ int CreateMasterListenSocket(const std::string &masterAddr, uint16_t masterPort)
     addr.sin_family = AF_INET;
     addr.sin_port = htons(masterPort);
     if (::inet_pton(AF_INET, masterAddr.c_str(), &addr.sin_addr) != 1) {
-        MINDIE_LLM_LOG_ERROR("CreateMasterListenSocket inet_pton failed, masterAddr=" << masterAddr <<
-                                                                                       ", errno=" << errno);
+        LOG_ERROR_LLM << "CreateMasterListenSocket inet_pton failed, masterAddr=" << masterAddr <<
+                                                                                       ", errno=" << errno;
         ::close(listenFd);
         return -1;
     }
 
     if (::bind(listenFd, static_cast<sockaddr *>(static_cast<void *>(&addr)), sizeof(addr)) < 0) {
-        MINDIE_LLM_LOG_ERROR("CreateMasterListenSocket bind failed, masterAddr=" << masterAddr <<
+        LOG_ERROR_LLM << "CreateMasterListenSocket bind failed, masterAddr=" << masterAddr <<
                                                                                  ", port=" << masterPort <<
-                                                                                 ", errno=" << errno);
+                                                                                 ", errno=" << errno;
         ::close(listenFd);
         return -1;
     }
 
     if (::listen(listenFd, SOMAXCONN) < 0) {
-        MINDIE_LLM_LOG_ERROR("CreateMasterListenSocket listen failed, errno=" << errno);
+        LOG_ERROR_LLM << "CreateMasterListenSocket listen failed, errno=" << errno;
         ::close(listenFd);
         return -1;
     }
@@ -81,10 +82,10 @@ ProcessGroup::ProcessGroup(const std::string &masterAddr, uint16_t masterPort, c
     : masterAddr_(masterAddr), masterPort_(masterPort), localAddr_(localAddr), rank_(rank), worldSize_(worldSize),
       isMaster_(isMaster)
 {
-    MINDIE_LLM_LOG_WARN("ProcessGroup construct, masterAddr="
+    LOG_WARN_LLM << "ProcessGroup construct, masterAddr="
                         << masterAddr << ", masterPort=" << masterPort << ", localAddr=" << localAddr
                         << ", rank=" << rank << ", worldSize=" << worldSize << ", isMaster=" << isMaster
-                        << ", timeoutInSeconds=" << timeoutInSeconds);
+                        << ", timeoutInSeconds=" << timeoutInSeconds;
    
     try {
             // 1. 创建TCPStore
@@ -97,10 +98,10 @@ ProcessGroup::ProcessGroup(const std::string &masterAddr, uint16_t masterPort, c
         int masterListenFd = -1;
         if (isMaster_) {
             masterListenFd = CreateMasterListenSocket(masterAddr_, masterPort_);
-            MINDIE_LLM_LOG_INFO("ProcessGroup construct CreateMasterListenSocket success, masterListenFd=" <<
-                                 masterListenFd);
+            LOG_INFO_LLM << "ProcessGroup construct CreateMasterListenSocket success, masterListenFd="
+                << masterListenFd;
             if (masterListenFd < 0) {
-                MINDIE_LLM_LOG_ERROR("ProcessGroup construct CreateMasterListenSocket failed.");
+                LOG_ERROR_LLM << "ProcessGroup construct CreateMasterListenSocket failed.";
                 throw std::runtime_error("CreateMasterListenSocket failed");
             }
             tcpOptions.masterListenFd = masterListenFd;
@@ -114,10 +115,10 @@ ProcessGroup::ProcessGroup(const std::string &masterAddr, uint16_t masterPort, c
         options->devices.emplace_back(c10d::ProcessGroupGloo::createDeviceForHostname(localAddr_));
         processGroup_ = std::make_unique<c10d::ProcessGroupGloo>(store, rank_, worldSize_, options);
     } catch (const std::exception &e) {
-        MINDIE_LLM_LOG_ERROR("Failed to initialize ProcessGroup: " << e.what());
+        LOG_ERROR_LLM << "Failed to initialize ProcessGroup: " << e.what();
         throw;
     } catch (...) {
-        MINDIE_LLM_LOG_ERROR("Unknown error occurred while initializing ProcessGroup.");
+        LOG_ERROR_LLM << "Unknown error occurred while initializing ProcessGroup.";
         throw;
     }
 }

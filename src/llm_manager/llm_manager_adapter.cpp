@@ -16,7 +16,7 @@
 #include "src/server/endpoint/utils/parameters_checker.h"
 #include "check_utils.h"
 #include "memory_utils.h"
-#include "log.h"
+#include "system_log.h"
 
 namespace mindie_llm {
 
@@ -25,12 +25,12 @@ void TransformInputId(std::shared_ptr<InferRequest>& req, std::shared_ptr<Reques
     TensorPtr inputIdTensorPtr = nullptr;
     req->GetTensorByName("INPUT_IDS", inputIdTensorPtr);
     if (inputIdTensorPtr == nullptr) {
-        MINDIE_LLM_LOG_ERROR("INPUT_IDS tensor not found in request");
+        LOG_ERROR_LLM << "INPUT_IDS tensor not found in request";
         return;
     }
     int64_t* inputIdData = static_cast<int64_t*>(inputIdTensorPtr->GetData());
     if (inputIdData == nullptr) {
-        MINDIE_LLM_LOG_ERROR("INPUT_IDS tensor data is null");
+        LOG_ERROR_LLM << "INPUT_IDS tensor data is null";
         return;
     }
     v2Req->input_token_num = inputIdTensorPtr->GetShape()[1];
@@ -44,12 +44,12 @@ void TransformStopTokenIds(std::shared_ptr<InferRequest>& req, std::shared_ptr<R
     TensorPtr stopTokenIdsTensorPtr = nullptr;
     req->GetTensorByName("STOP_TOKEN_IDS", stopTokenIdsTensorPtr);
     if (stopTokenIdsTensorPtr == nullptr) {
-        MINDIE_LLM_LOG_ERROR("STOP_TOKEN_IDS tensor not found in request");
+        LOG_ERROR_LLM << "STOP_TOKEN_IDS tensor not found in request";
         return;
     }
     TokenId* stopTokenIdsTensorData = static_cast<TokenId*>(stopTokenIdsTensorPtr->GetData());
     if (stopTokenIdsTensorData == nullptr) {
-        MINDIE_LLM_LOG_ERROR("INCLUDE_STOP_STR_IN_OUTPUT tensor data is null");
+        LOG_ERROR_LLM << "INCLUDE_STOP_STR_IN_OUTPUT tensor data is null";
         return;
     }
     for (int i = 0; i < stopTokenIdsTensorPtr->GetShape()[1]; i++) {
@@ -62,8 +62,8 @@ void TransformRequest(std::shared_ptr<InferRequest>& req, std::shared_ptr<Reques
     auto transform = [&](const std::string& name, auto processor) {
         TensorPtr tensor = nullptr;
         req->GetTensorByName(name.c_str(), tensor);
-        if (tensor == nullptr || tensor->GetData() == nullptr) {
-            MINDIE_LLM_LOG_ERROR(name + " tensor not found or data is null");
+        if (tensor == nullptr || (tensor->GetData() == nullptr)) {
+            LOG_ERROR_LLM << name << " tensor not found or data is null";
             return;
         }
         processor(tensor->GetData(), tensor);
@@ -157,7 +157,7 @@ void CreateScalarTensor(const std::string &tensorName, std::vector<size_t> tenso
     for (size_t dimSize : tensorShape) {
         tensorSize = IntMulWithCheckOverFlow(tensorSize, dimSize, overflowFlag);
         if (overflowFlag) {
-            MINDIE_LLM_LOG_ERROR("Overflow detected during AddTensorToResponse");
+            LOG_ERROR_LLM << "Overflow detected during AddTensorToResponse";
             return;
         }
     }
@@ -169,7 +169,7 @@ void CreateScalarTensor(const std::string &tensorName, std::vector<size_t> tenso
     auto responseTensor = std::make_shared<InferTensor>(tensorName, tensorType, tensorShapeAsInt64);
     auto ret = tensors.insert(std::make_pair(responseTensor->GetName(), responseTensor));
     if (!ret.second) {
-        MINDIE_LLM_LOG_ERROR("The tensor " + responseTensor->GetName() + " already exists!");
+        LOG_ERROR_LLM << "The tensor " << responseTensor->GetName() << " already exists!";
     }
     // 重新分配内存
     // 解决 infer engine 回调与 endpoint 层超时撞上，引起内存释放后使用问题, from commit 9446b0b

@@ -10,8 +10,11 @@
  * See the Mulan PSL v2 for more details.
  */
  
-#include <cmath>
 #include "decode_regression.h"
+
+#include <cmath>
+
+#include "system_log.h"
 
 namespace mindie_llm {
 DecodeRegression::DecodeRegression() : count_(0), index_(0) {}
@@ -23,12 +26,12 @@ void DecodeRegression::AddDataPoint(uint32_t tokenNum, uint32_t kvBlockNum, floa
         double coefficientTokenNum = coefficients_[0][0];
         double coefficientKVBlock = coefficients_[0][1];
         double intercept = coefficients_[0][2];
-        MINDIE_LLM_LOG_DEBUG("decode predictor: update coefficients: " << coefficientTokenNum << " * tokenNum + "
+        LOG_DEBUG_LLM << "decode predictor: update coefficients: " << coefficientTokenNum << " * tokenNum + "
                                                                        << coefficientKVBlock << " * kvBlockNum + "
-                                                                       << intercept);
+                                                                       << intercept;
     }
-    MINDIE_LLM_LOG_DEBUG("decode predictor: add data: " << tokenNum << " tokenNum + " << kvBlockNum << " kvBlockNum + "
-                                                        << execTime << " time");
+    LOG_DEBUG_LLM << "decode predictor: add data: " << tokenNum << " tokenNum + " << kvBlockNum << " kvBlockNum + "
+                                                        << execTime << " time";
     index_ = count_ % storeDataLength_;
     std::vector<double> data = {static_cast<double>(tokenNum), static_cast<double>(kvBlockNum), static_cast<double>(1)};
     std::vector<double> dataAttribute = {static_cast<double>(execTime)};
@@ -61,10 +64,10 @@ void DecodeRegression::Train()
         double tmpCoefficientKVBlock = Transpose(tmp)[0][1];
         double tmpIntercept = Transpose(tmp)[0][2];
         if (tmpCoefficientTokenNum > 0 && tmpCoefficientKVBlock > 0 && tmpIntercept > 0) {
-            MINDIE_LLM_LOG_DEBUG("decode predictor: Update happened and all parameters are positive.");
+            LOG_DEBUG_LLM << "decode predictor: Update happened and all parameters are positive.";
             coefficients_ = Transpose(tmp);
         } else {
-            MINDIE_LLM_LOG_DEBUG("decode predictor: Update failed and will still use parameters in last round.");
+            LOG_DEBUG_LLM << "decode predictor: Update failed and will still use parameters in last round.";
         }
     }
 }

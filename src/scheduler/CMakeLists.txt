@@ -6,6 +6,7 @@ target_link_libraries(mindie_scheduler
         mindie_block_manager
         sequence
         mindie_llm_utils
+        system_log
 )
 
 install(TARGETS mindie_scheduler DESTINATION lib)

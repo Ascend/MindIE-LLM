@@ -16,14 +16,13 @@ set_target_properties(cpu_logits_handler PROPERTIES PREFIX "_")
 target_link_directories(cpu_logits_handler
         PUBLIC
         $ENV{ASCEND_HOME_PATH}/runtime/lib64/stub
-        ${CMAKE_CURRENT_SOURCE_DIR}/../../../../../src/utils/lib
-        ${CMAKE_CURRENT_SOURCE_DIR}/../../../../../src/utils/log/lib)
+        ${CMAKE_CURRENT_SOURCE_DIR}/../../../../../src/utils/lib)
 
 target_link_libraries(cpu_logits_handler PUBLIC
         -Wl,--start-group
         -lpthread
         -Wl,--end-group
-        mindie_llm_log
+        system_log
         mindie_llm_utils
         ascendcl
         ${Python3_LIBRARIES}

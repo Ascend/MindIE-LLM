@@ -13,7 +13,7 @@
 #include "common_util.h"
 #include "file_utils.h"
 #include "env_util.h"
-#include "log.h"
+#include "system_log.h"
 #include "base_config_manager.h"
 #include "check_utils.h"
 
@@ -225,8 +225,8 @@ void ServerConfigManager::InitLayerwiseDisaggregatedConfigFromJson(Json &serveJs
     if (serveJsonData.contains("layerwiseDisaggregatedSlaveIpAddress")) {
         auto ret = ParamChecker::CheckJsonArray(serveJsonData["layerwiseDisaggregatedSlaveIpAddress"], "string", "");
         if (!ret) {
-            MINDIE_LLM_LOG_ERROR("layerwiseDisaggregatedSlaveIpAddress format is incorrect, "
-                         "it should be of type string-JsonArray." << std::endl);
+            LOG_ERROR_LLM << "layerwiseDisaggregatedSlaveIpAddress format is incorrect, "
+                         "it should be of type string-JsonArray.";
             jsonDecodeSuccess_ = false;
             return;
         } else {
@@ -239,8 +239,8 @@ void ServerConfigManager::InitLayerwiseDisaggregatedConfigFromJson(Json &serveJs
     if (serveJsonData.contains("layerwiseDisaggregatedCrtlPort")) {
         auto ret = ParamChecker::CheckJsonArray(serveJsonData["layerwiseDisaggregatedCrtlPort"], "integer", "int32_t");
         if (!ret) {
-            MINDIE_LLM_LOG_ERROR("layerwiseDisaggregatedCrtlPort format is incorrect, "
-                         "it should be of type integer-JsonArray." << std::endl);
+            LOG_ERROR_LLM << "layerwiseDisaggregatedCrtlPort format is incorrect, "
+                         "it should be of type integer-JsonArray.";
             jsonDecodeSuccess_ = false;
             return;
         } else {
@@ -354,7 +354,7 @@ void ServerConfigManager::LoadOptionalParameters(Json& serverParamsJsonData)
         try {
             InitHttpsConfigFromJson(serverParamsJsonData, checkManagement);
         } catch (const nlohmann::json::type_error &e) {
-            std::cout << "JSON type error: " << "[ServerConfigManager::InitFromJson] " << e.what() << std::endl;
+            LOG_ERROR_LLM << "JSON type error: " << e.what();
             initFlag = false;
             return;
         }

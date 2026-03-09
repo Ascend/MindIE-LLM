@@ -14,7 +14,7 @@
 #include "env_util.h"
 #include "file_utils.h"
 #include "base_config_manager.h"
-#include "log.h"
+#include "system_log.h"
 
 using Json = nlohmann::json;
 using namespace nlohmann::literals;
@@ -40,12 +40,10 @@ bool ParamChecker::ReadJsonFile(const std::string &jsonPath, std::string &baseDi
     std::string regularPath;
     if (!FileUtils::RegularFilePath(jsonPath, baseDir, errMsg, regularPath) ||
         !FileUtils::IsFileValid(regularPath, errMsg, true, FileUtils::FILE_MODE_640, checkFlag)) {
-        std::cout << errMsg << std::endl;
         return false;
     }
     std::ifstream file(regularPath);
     if (!file.is_open()) {
-        std::cout << "Error: Open json file failed" << std::endl;
         return false;
     }
 
@@ -55,7 +53,6 @@ bool ParamChecker::ReadJsonFile(const std::string &jsonPath, std::string &baseDi
         file.close();
     } catch (const std::exception &e) {
         file.close();
-        std::cout << "Json file is invalid. Please check json format! " << std::endl;
         return false;
     }
 
@@ -66,7 +63,6 @@ bool ParamChecker::ReadJsonFile(const std::string &jsonPath, std::string &baseDi
             inputJsonData = jsonData.at(configType);
         }
     } catch (const Json::exception &e) {
-        std::cout << configType << ": " << e.what() << std::endl;
         return false;
     }
 
@@ -115,19 +111,19 @@ bool ParamChecker::CheckJsonArray(Json jsonData, const std::string &eleType, con
 {
     for (auto &ele : jsonData) {
         if (eleType == "string" && !ele.is_string()) {
-            std::cout << "Type of element in json array does not match " << eleType << std::endl;
+            LOG_ERROR_LLM << "Type of element in json array does not match " << eleType;
             return false;
         } else if (eleType == "integer") {
             if (!ele.is_number_integer()) {
-                std::cout << "Type of element in json array does not match " << eleType << std::endl;
+                LOG_ERROR_LLM << "Type of element in json array does not match " << eleType;
                 return false;
             }
             if (!IsWithinRange(integerType, ele)) {
-                std::cout << "The value of element in json array for " << integerType << " is invalid." << std::endl;
+                LOG_ERROR_LLM << "The value of element in json array for " << integerType << " is invalid.";
                 return false;
             }
         } else if (eleType == "bool" && !ele.is_boolean()) {
-            std::cout << "Type of element in json array does not match " << eleType << std::endl;
+            LOG_ERROR_LLM << "Type of element in json array does not match " << eleType;
             return false;
         }
     }
@@ -145,7 +141,6 @@ bool ParamChecker::GetJsonData(const std::string &configFile, std::string &baseD
         std::string regularPath;
         if (!FileUtils::RegularFilePath(configFile, baseDir, errMsg, regularPath) ||
             !FileUtils::IsFileValid(regularPath, errMsg, true, FileUtils::FILE_MODE_750, checkFlag)) {
-            std::cout << errMsg << std::endl;
             return false;
         }
         std::ifstream file(configFile);
@@ -157,7 +152,6 @@ bool ParamChecker::GetJsonData(const std::string &configFile, std::string &baseD
         file.close();
         return true;
     } catch (const std::exception &e) {
-        std::cout << "ERR: model config.json file is invalid. Please check it! " << std::endl;
         return false;
     }
 }
@@ -176,12 +170,10 @@ bool ParamChecker::CheckAndGetLoraJsonFile(std::string &baseDir, nlohmann::json 
     std::string errMsg{};
     std::string regularPath;
     if (!FileUtils::RegularFilePath(jsonPath, baseDir, errMsg, regularPath) || !FileUtils::IsFileValid(regularPath, errMsg)) {
-        std::cout << errMsg << std::endl;
         return false;
     }
 
     if (!GetJsonData(regularPath, baseDir, tmpLoraJson)) {
-        std::cout << "ERR: Read lora_adapter.json file in " << baseDir << " failed, Please check it!" << std::endl;
         return false;
     }
 
@@ -203,15 +195,15 @@ uint32_t ParamChecker::GetIntegerParamDefaultValue(nlohmann::json jsonData, cons
             if (ParamChecker::IsWithinRange("uint32_t", jsonData[configName])) {
                 targetParam = jsonData[configName];
             } else {
-                std::cout << "The value of configName " << configName << " for  uint32_t is invalid, use default value."
-                          << std::endl;
+                LOG_INFO_LLM << "The value of configName " << configName
+                    << " for  uint32_t is invalid, use default value.";
             }
         } else {
-            std::cout << "The type of configName " << configName << " should be integer, but is "
-                      << jsonData[configName].type_name() << ", use default value." << std::endl;
+            LOG_INFO_LLM << "The type of configName " << configName << " should be integer, but is "
+                      << jsonData[configName].type_name() << ", use default value.";
         }
     } else {
-        std::cout << "The configName " << configName << " is not found, use default value." << std::endl;
+        LOG_INFO_LLM << "The configName " << configName << " is not found, use default value.";
     }
     return targetParam;
 }
@@ -240,20 +232,19 @@ bool ParamChecker::CheckNpuRange(Json jsonValue)
     try {
         for (const auto &setArray : jsonValue) {
             if (!setArray.is_array()) {
-                std::cout << "The type of param in each npuDeviceIds set should be array, but is "
-                          << setArray.type_name() << std::endl;
+                LOG_ERROR_LLM << "The type of param in each npuDeviceIds set should be array, but is "
+                          << setArray.type_name();
                 return false;
             }
             for (auto &npuId : setArray) {
                 if (!IsWithinRange("size_t", npuId)) {
-                    std::cout << "The values of npu_ids should not be less than 0, but got " << npuId << std::endl;
+                    LOG_ERROR_LLM << "The values of npu_ids should not be less than 0, but got " << npuId;
                     return false;
                 }
             }
         }
         return true;
     } catch (const std::exception &e) {
-        std::cout << "npu_ids in json is invalid. Please check it!" << std::endl;
         return false;
     }
 }
@@ -261,8 +252,6 @@ bool ParamChecker::CheckNpuRange(Json jsonValue)
 bool ParamChecker::IsArrayValid(const std::string &configName, Json jsonValue)
 {
     if (!jsonValue.is_array()) {
-        std::cout << "The type of param " << configName << " should be array, but is " << jsonValue.type_name()
-                  << std::endl;
         return false;
     }
     if (configName == "npuDeviceIds") {
@@ -279,8 +268,7 @@ bool ParamChecker::CheckJsonParamType(Json &jsonData, std::vector<ParamSpec> &pa
             param = jsonData.at(paramSpec.name); // 存在就取
         } else {
             if (paramSpec.compulsory) {
-                std::cout << "[ParamChecker::CheckJsonParamType] " << paramSpec.name << ": missing compulsory field"
-                          << std::endl;
+                LOG_ERROR_LLM << "missing compulsory field: " << paramSpec.name;
                 return false;
             } else {
                 continue; // 可选参数，不存在也没事
@@ -288,18 +276,17 @@ bool ParamChecker::CheckJsonParamType(Json &jsonData, std::vector<ParamSpec> &pa
         }
 
         if (paramSpec.Type == "string" && !param.is_string()) {
-            std::cout << "The type of param " << paramSpec.name << " should be string, but got " << param.type_name()
-                      << std::endl;
+            LOG_ERROR_LLM << "The type of param " << paramSpec.name
+                << " should be string, but got " << param.type_name();
             return false;
         } else if (paramSpec.Type == "int32_t" || paramSpec.Type == "uint32_t" || paramSpec.Type == "size_t") {
             if (!param.is_number_integer()) {
-                std::cout << "The type of param " << paramSpec.name << " should be " << paramSpec.Type << ", but got "
-                          << param.type_name() << std::endl;
+                LOG_ERROR_LLM << "The type of param " << paramSpec.name << " should be " << paramSpec.Type
+                    << ", but got " << param.type_name();
                 return false;
             }
             if (!IsWithinRange(paramSpec.Type, param)) {
-                std::cout << "The value of param " << paramSpec.name << " for " << paramSpec.Type << " is invalid."
-                          << std::endl;
+                LOG_ERROR_LLM << "The value of param " << paramSpec.name << " for " << paramSpec.Type << " is invalid.";
                 return false;
             }
         } else if (paramSpec.Type == "array") {
@@ -307,12 +294,11 @@ bool ParamChecker::CheckJsonParamType(Json &jsonData, std::vector<ParamSpec> &pa
                 return false;
             }
         } else if (paramSpec.Type == "bool" && !param.is_boolean()) {
-            std::cout << "The type of param " << paramSpec.name << " should be bool, but got " << param.type_name()
-                      << std::endl;
+            LOG_ERROR_LLM << "The type of param " << paramSpec.name << " should be bool, but got " << param.type_name();
             return false;
         } else if (paramSpec.Type == "object" && !param.is_object()) {
-            std::cout << "The type of param " << paramSpec.name << " should be object, but got " << param.type_name()
-                      << std::endl;
+            LOG_ERROR_LLM << "The type of param " << paramSpec.name
+                << " should be object, but got " << param.type_name();
             return false;
         }
     }
@@ -366,7 +352,7 @@ bool ParamChecker::CheckPolicyValue(uint32_t inputValue, const std::string &inpu
 bool ParamChecker::CheckMixPolicyValue(uint32_t inputValue, const std::string &inputName)
 {
     if (inputValue != 0 && inputValue != 4U && inputValue != 5U && inputValue != 6U && inputValue != 7U) {
-        MINDIE_LLM_LOG_ERROR("The " << inputName << " [" << inputValue << "] is outside the expected range: 0 or 4~7.");
+        LOG_ERROR_LLM << "The " << inputName << " [" << inputValue << "] is outside the expected range: 0 or 4~7.";
         return false;
     }
     return true;
@@ -375,12 +361,12 @@ bool ParamChecker::CheckMixPolicyValue(uint32_t inputValue, const std::string &i
 bool ParamChecker::CheckEngineName(const std::string &engineName)
 {
     if (engineName.size() > 50U) {
-        std::cout << "The length of backendName exceeds 50." << std::endl;
+        LOG_ERROR_LLM << "The length of backendName exceeds 50.";
         return false;
     }
     std::regex pattern("^[a-z]+(_[a-z]+)*$");
     if (!std::regex_match(engineName, pattern)) {
-        std::cout << "The pattern of backendName is invalid." << std::endl;
+        LOG_ERROR_LLM << "The pattern of backendName is invalid.";
         return false;
     }
     return true;

@@ -23,6 +23,7 @@ target_link_directories(mindie_llm_connector
     ${CMAKE_CURRENT_SOURCE_DIR}/../../../src/utils/log/lib
 )
 
-target_link_libraries(mindie_llm_connector PUBLIC mindie_llm_log mindie_llm_utils mindie_protobuf ${Boost_LIBRARIES} stdc++ pybind11::pybind11)
+target_link_libraries(mindie_llm_connector PUBLIC system_log mindie_llm_utils
+    mindie_protobuf ${Boost_LIBRARIES} stdc++ pybind11::pybind11)
 
 install(TARGETS mindie_llm_connector DESTINATION lib)

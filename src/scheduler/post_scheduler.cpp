@@ -14,9 +14,10 @@
 
 #include <vector>
 #include <stdexcept>
+
 #include "process_group.h"
 #include "thread_group_cc.h"
-#include "log.h"
+#include "system_log.h"
 
 namespace mindie_llm {
 void PostScheduler::SyncBatchInfo(BatchInfo &batchInfo, size_t dpRank, bool enableDistributed)
@@ -132,7 +133,7 @@ void PostScheduler::SyncBatchInfoAcrossNodes(BatchInfo &batchInfo)
             batchInfo.maxSeqLen_ = std::max(batchInfo.maxSeqLen_, tensor[1].item<int64_t>());
         }
     } catch (const std::exception& e) {
-        MINDIE_LLM_LOG_ERROR("SyncBatchInfoAcrossNodes failed: outputs is invalid.");
+        LOG_ERROR_LLM << "SyncBatchInfoAcrossNodes failed: outputs is invalid.";
     }
 }
 
@@ -148,7 +149,7 @@ void PostScheduler::SyncSeqLenListAcrossDP(std::vector<std::vector<int64_t>> &to
 void PostScheduler::SyncSeqLenListAcrossNodes(std::vector<std::vector<int64_t>> &tokenNumList)
 {
     if (tokenNumList.size() == 0) {
-        MINDIE_LLM_LOG_ERROR("SyncSeqLenList failed: tokenNumList is null");
+        LOG_ERROR_LLM << "SyncSeqLenList failed: tokenNumList is null";
         return;
     }
     // 1. syncronize token num
@@ -167,7 +168,7 @@ void PostScheduler::SyncSeqLenListAcrossNodes(std::vector<std::vector<int64_t>> 
             tokenNumList.emplace_back(std::vector<int64_t>(pTextNum, pTextNum + tensor.size(0)));
         }
     } catch (const std::exception& e) {
-        MINDIE_LLM_LOG_ERROR("SyncSeqLenListAcrossNodes failed: outputs is invalid.");
+        LOG_ERROR_LLM << "SyncSeqLenListAcrossNodes failed: outputs is invalid.";
     }
 }
 } // namespace mindie_llm

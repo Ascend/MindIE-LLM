@@ -12,7 +12,7 @@
  
 #include "transfer_output_handler.h"
 #include "model_exec_output_handler.h"
-#include "log.h"
+#include "system_log.h"
 
 using namespace model_execute_data;
 namespace mindie_llm {
@@ -37,7 +37,7 @@ void TransferOutputHandler::Entry4Executor(PullKVResponseSPtr pullKvResponse)
         // RequestId => InferRequestId
         SequenceGroupSPtr seqGroup = LiveInferContext::GetInstance(localDPRank_)->GetSeqGroup(result.request_id());
         if (seqGroup == nullptr) {
-            MINDIE_LLM_LOG_INFO("Pull kv done while seggrp is aborted:" << result.request_id());
+            LOG_INFO_LLM << "Pull kv done while seggrp is aborted:" << result.request_id();
             continue;
         }
         RequestIdNew inferRequestId = seqGroup->metrics_.inferReqId_;
@@ -54,9 +54,8 @@ void TransferOutputHandler::Entry4Executor(PullKVResponseSPtr pullKvResponse)
             response->isEos = true;
             response->inferStatusFlag = InferStatusType::PULL_KV_ERROR;
         }
-        MINDIE_LLM_LOG_INFO_REQUEST("[LlmEngine|Request-Pull KV Complete] requestId: " << inferRequestId << ", seqId: "
-                                                                                       << seqGroup->firstSeq->seqId_
-                                                                                       << ", errorCode:" << errorCode);
+        LOG_INFO_LLM.SetType(LogType::REQUEST) << "Request-Pull KV Complete. requestId: "
+            << inferRequestId << ", seqId: " << seqGroup->firstSeq->seqId_ << ", errorCode:" << errorCode;
         forwardRespToManagerCall_(response);
     }
 }

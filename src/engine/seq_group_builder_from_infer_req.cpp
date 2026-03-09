@@ -10,7 +10,7 @@
  * See the Mulan PSL v2 for more details.
  */
 #include <functional>
-#include "log.h"
+#include "system_log.h"
 #include "request_response/request.h"
 #include "request_response/request_id.h"
 #include "common_util.h"
@@ -97,8 +97,8 @@ SequenceSPtr SeqGroupBuilderFromInferReq::InitSeqFromInferRequest(RequestSPtr re
     // 虚推请求使用固定 seqId，便于 LLM 引擎层特殊处理
     if (request->isSimulateRequest) {
         seqId = SIMULATE_SEQUENCE_ID;
-        MINDIE_LLM_LOG_DEBUG("[SimulateInference] Detected simulate inference request, requestId: "
-            << request->requestId << ", assigned fixed seqId: " << seqId);
+        LOG_DEBUG_LLM << "Detected simulate inference request, requestId: "
+            << request->requestId << ", assigned fixed seqId: " << seqId;
     }
     // 获取prompt的token信息
     std::vector<TokenId> inputsTokenIds = request->input_ids;

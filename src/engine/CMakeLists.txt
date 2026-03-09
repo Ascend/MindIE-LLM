@@ -7,6 +7,7 @@ target_link_libraries(mindie_engine PUBLIC
         mindie_load_balancer
         sequence
         mindie_llm_utils
+        system_log
         mindie_protobuf
         ${Boost_LIBRARIES}
 )

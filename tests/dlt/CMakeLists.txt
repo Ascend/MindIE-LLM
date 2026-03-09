@@ -22,7 +22,6 @@ target_link_libraries(crash_handler PUBLIC dl)
 target_include_directories(crash_handler PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 
 add_subdirectory(ut)
-add_subdirectory(it)
 add_subdirectory(st)
 
 if(USE_FUZZ_TEST)

@@ -21,7 +21,7 @@
 #include "param_checker.h"
 #include "file_utils.h"
 #include "base_config_manager.h"
-#include "log.h"
+#include "system_log.h"
 #include "safe_io.h"
 
 using mindie_llm::Json;
@@ -47,7 +47,7 @@ static std::set<std::string> g_modelInstanceType = {"Standard", "StandardMock", 
 void ModelDeployConfigManager::CheckTemplateConfig(const std::string &templateType, const uint32_t modelConfigNum)
 {
     if (templateType == "Standard" && modelConfigNum != 1U) {
-        MINDIE_LLM_LOG_ERROR("There should be one modelParam for Standard templateType.");
+        LOG_ERROR_LLM << "There should be one modelParam for Standard templateType.";
         initFlag = false;
     }
 }
@@ -58,7 +58,7 @@ void GetJsonModelConfig(struct ModelDeployConfig &modelConfig)
     Json configJsonData;
     Result r = LoadJson(modelConfigPath, configJsonData);
     if (!r.IsOk()) {
-        MINDIE_LLM_LOG_ERROR(r.message());
+        LOG_ERROR_LLM << r.message();
         modelConfig.modelWeightPath.clear();
         return;
     }
@@ -71,6 +71,7 @@ void GetJsonModelConfig(struct ModelDeployConfig &modelConfig)
     if (configJsonData.contains("vocab_size") &&
         ParamChecker::IsWithinRange("uint32_t", configJsonData["vocab_size"])) {
         modelConfig.vocabSize = configJsonData["vocab_size"];
+        LOG_INFO_LLM << "modelConfig::vocabSize=" << modelConfig.vocabSize;
     } else if (configJsonData.contains("padded_vocab_size") &&
                ParamChecker::IsWithinRange("uint32_t", configJsonData["padded_vocab_size"])) {
         modelConfig.vocabSize = configJsonData["padded_vocab_size"];
@@ -81,12 +82,13 @@ void GetJsonModelConfig(struct ModelDeployConfig &modelConfig)
     Json generationConfigJsonData;
     r = LoadJson(modelGenerationConfigPath, generationConfigJsonData);
     if (!r.IsOk()) {
-        MINDIE_LLM_LOG_WARN(r.message());
+        LOG_WARN_LLM << r.message();
         return;
     }
     if (generationConfigJsonData.contains("top_k") &&
         ParamChecker::IsWithinRange("int32_t", generationConfigJsonData["top_k"])) {
         modelConfig.maxTopK = generationConfigJsonData["top_k"];
+        LOG_INFO_LLM << "modelConfig::maxTopK=" << modelConfig.maxTopK;
     }
 }
 
@@ -98,24 +100,21 @@ static void CheckIfParallelInfoIsValid(const std::map<std::string, std::string> 
         if (it != modelConfig.end()) {
             try {
                 parallelSize = std::stoi(it->second);
-                MINDIE_LLM_LOG_INFO("CheckIfParallelInfoIsValid: " <<
-                    parallelInfo << " is " << parallelSize);
+                LOG_INFO_LLM << "CheckIfParallelInfoIsValid: " << parallelInfo << " is " << parallelSize;
             } catch (const std::invalid_argument& e) {
-                MINDIE_LLM_LOG_ERROR("Invalid value for " << parallelInfo <<
-                    ", which is " << it->second);
+                LOG_ERROR_LLM << "Invalid value for " << parallelInfo << ", which is " << it->second;
                 throw;
             } catch (const std::out_of_range& e) {
-                MINDIE_LLM_LOG_ERROR("Value for " << parallelInfo <<
-                    " out of range, got " << it->second);
+                LOG_ERROR_LLM << "Value for " << parallelInfo << " out of range, got " << it->second;
                 throw;
             } catch (const std::exception& e) {
-                MINDIE_LLM_LOG_ERROR("Invalid " << parallelInfo);
+                LOG_ERROR_LLM << "Invalid " << parallelInfo;
                 throw;
             }
         }
 
         if (parallelSize <= 0) {
-            MINDIE_LLM_LOG_ERROR(parallelInfo << " cannot be smaller than 1.");
+            LOG_ERROR_LLM << parallelInfo << " cannot be smaller than 1.";
             throw std::runtime_error(parallelInfo + " cannot be smaller than 1.");
         }
     };
@@ -226,7 +225,7 @@ void ModelDeployConfigManager::InitModelConfigImpl(const Json &modelJsonData, ui
             for (const auto &type : g_modelInstanceType) {
                 supportedTypes += (supportedTypes.empty() ? "" : ",") + type;
             }
-            std::cout << "Model instance type is invalid. supported values: [" << supportedTypes << "]" << std::endl;
+            LOG_WARN_LLM << "Model instance type is invalid. supported values: [" << supportedTypes << "]";
             initFlag = initFlag && false;
         }
 
@@ -244,11 +243,8 @@ void ModelDeployConfigManager::InitModelConfigImpl(const Json &modelJsonData, ui
         modelParam.maxLoraRank = modelDeployConfig_.maxLoraRank;
 
         GetJsonModelConfig(modelParam);
-        MINDIE_LLM_LOG_INFO("ModelDeployConfig::vocabSize=" << modelParam.vocabSize);
-        MINDIE_LLM_LOG_INFO("ModelDeployConfig::maxTopK=" << modelParam.maxTopK);
         modelParamVec_.push_back(modelParam);
     }
-
     InitLoraConfigImpl(modelJsonData);
 }
 
@@ -273,19 +269,19 @@ static void InitLoraConfigFromJson(const Json &modelJsonData, std::vector<ModelD
         loraPath = singleLoraData.at("path");
         loraBaseModel = singleLoraData.at("baseModelName");
         if (loraBaseCorrespondence.find(loraBaseModel) == loraBaseCorrespondence.end()) {
-            MINDIE_LLM_LOG_WARN("`baseModelName` does not exist and corresponding lora adpater is ignored. "
+            LOG_WARN_LLM << "`baseModelName` does not exist and corresponding lora adpater is ignored. "
                       << "Please verify that `baseModelName` "
                       << "is defined in $BackendConfig.ModelDeployConfig.ModelConfig.modelName, "
                       << "which is loaded from $BackendConfig.ModelDeployConfig.LoraModules.baseModelName "
-                      << "in ${MINDIE_LLM_HOME_PATH}/conf/config.json.");
+                      << "in ${MINDIE_LLM_HOME_PATH}/conf/config.json.";
         } else {
             loraBaseCorrespondence.at(loraBaseModel).push_back(loraName);
         }
 
         if (uniqueLoraNames.find(loraName) != uniqueLoraNames.end()) {
-            MINDIE_LLM_LOG_WARN("The `name` in `LoraModules` is duplicated and `path` is set to the first one. "
+            LOG_WARN_LLM << "The `name` in `LoraModules` is duplicated and `path` is set to the first one. "
                       << "Please check $BackendConfig.ModelDeployConfig.LoraModules "
-                      << "in ${MINDIE_LLM_HOME_PATH}/conf/config.json.");
+                      << "in ${MINDIE_LLM_HOME_PATH}/conf/config.json.";
         } else {
             uniqueLoraNames.insert(loraName);
             loraNamePaths.insert(std::make_pair(loraName, loraPath));
@@ -327,8 +323,8 @@ static void InitLoraConfigFromFile(std::vector<ModelDeployConfig> &modelParamVec
         for (Json::iterator it = loraJson.begin(); it != loraJson.end(); ++it) {
             // service 初始化时已check json 是否key value全为string
             if (uniqueLoraNames.find(it.key()) != uniqueLoraNames.end()) {
-                MINDIE_LLM_LOG_WARN("The `name` in `LoraModules` is duplicated and `path` is set to the first one. "
-                          << "Please check lora_adapter.json under `modelWeightPath`.");
+                LOG_WARN_LLM << "The `name` in `LoraModules` is duplicated and `path` is set to the first one. "
+                    << "Please check lora_adapter.json under `modelWeightPath`.";
             } else {
                 uniqueLoraNames.insert(it.key());
                 singleModelParam.loraModules.insert(std::make_pair(it.key(), it.value()));
@@ -380,7 +376,7 @@ bool ModelDeployConfigManager::InitFromJson()
     Json backendJsonData;
     if (!CheckSystemConfig(jsonPath_, backendJsonData, "BackendConfig")) {
         initFlag = false;
-        MINDIE_LLM_LOG_ERROR("Failed to parse the json data of backendJsonData.");
+        LOG_ERROR_LLM << "Failed to parse the json data of backendJsonData.";
         return false;
     }
     Json modelJsonData = backendJsonData["ModelDeployConfig"];
@@ -388,7 +384,7 @@ bool ModelDeployConfigManager::InitFromJson()
         return false;
     }
     if (!modelJsonData["ModelConfig"].is_array()) {
-        MINDIE_LLM_LOG_ERROR("The type of ModelConfig should be array.");
+        LOG_ERROR_LLM << "The type of ModelConfig should be array.";
         return false;
     }
 
@@ -404,24 +400,24 @@ bool ModelDeployConfigManager::InitFromJson()
     // 校验并读取maxLoras和maxLoraRank,负数则取0(负数为异常值，一般不会为负)
     const auto& modelDeployConfig = backendJsonData["ModelDeployConfig"];
     if (modelDeployConfig.contains("maxLoras") && modelDeployConfig["maxLoras"].is_number()) {
-        MINDIE_LLM_LOG_INFO("maxLoras :" << modelDeployConfig["maxLoras"].get<int32_t>());
+        LOG_INFO_LLM << "maxLoras=" << modelDeployConfig["maxLoras"].get<int32_t>();
         modelDeployConfig_.maxLoras = static_cast<uint32_t>(std::max(modelDeployConfig["maxLoras"].get<int32_t>(), 0));
     } else {
         modelDeployConfig_.maxLoras = 0;
-        MINDIE_LLM_LOG_WARN("maxLoras not found or invalid in ModelDeployConfig, using default 0");
+        LOG_WARN_LLM << "maxLoras not found or invalid in ModelDeployConfig, using default 0";
     }
     if (modelDeployConfig.contains("maxLoraRank") && modelDeployConfig["maxLoraRank"].is_number()) {
-        MINDIE_LLM_LOG_INFO("maxLoraRank:" << modelDeployConfig["maxLoraRank"].get<int32_t>());
+        LOG_INFO_LLM << "maxLoraRank=" << modelDeployConfig["maxLoraRank"].get<int32_t>();
         modelDeployConfig_.maxLoraRank = static_cast<uint32_t>(
           std::max(modelDeployConfig["maxLoraRank"].get<int32_t>(), 0));
     } else {
         modelDeployConfig_.maxLoraRank = 0;
-        MINDIE_LLM_LOG_WARN("maxLoraRank not found or invalid in ModelDeployConfig, using default 0");
+        LOG_WARN_LLM << "maxLoraRank not found or invalid in ModelDeployConfig, using default 0";
     }
 
     uint32_t speculationGamma = ParamChecker::GetIntegerParamDefaultValue(modelJsonData, "speculationGamma", 0);
     if (!backendJsonData["ModelDeployConfig"]["ModelConfig"].is_array()) {
-        MINDIE_LLM_LOG_ERROR("The type of ModelConfig or npuDeviceIds should be array.");
+        LOG_ERROR_LLM << "The type of ModelConfig or npuDeviceIds should be array.";
         initFlag = false;
     }
     CheckTemplateConfig(backendJsonData["ScheduleConfig"]["templateType"],
@@ -439,9 +435,9 @@ static bool CheckModelNameLength(std::string &name, std::string paramType)
 {
     std::regex regexPattern("^[a-zA-Z0-9_.-]{1,256}$");
     if (!std::regex_match(name, regexPattern) || !isalnum(name[0]) || !isalnum(name[name.size() - 1])) {
-        MINDIE_LLM_LOG_ERROR("The value of " << paramType << " must meet the following rules: "
+        LOG_ERROR_LLM << "The value of " << paramType << " must meet the following rules: "
                   << "The string length is [1, 256] and consists of a match of the type "
-                  << "[a-zA-Z0-9_.-]. The first and last characters must be characters or digits.");
+                  << "[a-zA-Z0-9_.-]. The first and last characters must be characters or digits.";
         return false;
     }
     return true;
@@ -452,38 +448,38 @@ bool ModelDeployConfigManager::CheckParam()
     std::set<std::string> modelNames;
     for (auto &modelParam : modelParamVec_) {
         if (modelParam.modelName.empty()) {
-            MINDIE_LLM_LOG_ERROR("Error: modelName is not set in modelParam");
+            LOG_ERROR_LLM << "modelName is not set in modelParam";
             initFlag = false;
         }
         std::string modelName = modelParam.modelName;
         initFlag = CheckModelNameLength(modelName, "modelName");
         if (modelParam.maxSeqLen == 0) {
-            MINDIE_LLM_LOG_ERROR("The value of modelParam.maxSeqLen can not be 0.");
+            LOG_ERROR_LLM << "The value of modelParam.maxSeqLen can not be 0.";
             initFlag = false;
         }
         if (modelParam.maxInputTokenLen == 0U || modelParam.maxInputTokenLen > MAX_INPUT_LEN) {
-            MINDIE_LLM_LOG_ERROR("The value of modelParam.maxInputTokenLen should be in [1, 4194304].");
+            LOG_ERROR_LLM << "The value of modelParam.maxInputTokenLen should be in [1, 4194304].";
             initFlag = false;
         }
         if (modelParam.worldSize == 0) {
-            MINDIE_LLM_LOG_ERROR("The value of modelParam.worldSize can not be 0.");
+            LOG_ERROR_LLM << "The value of modelParam.worldSize can not be 0.";
             initFlag = false;
         }
         if (modelParam.backendType != "atb" && modelParam.backendType != "ms" && modelParam.backendType != "torch") {
-            MINDIE_LLM_LOG_ERROR("Backend type only supports atb, ms, torch.");
+            LOG_ERROR_LLM << "Backend type only supports atb, ms, torch.";
             initFlag = false;
         }
         if (modelParam.npuMemSize == 0 || modelParam.npuMemSize <= NPU_MEM_SZIE_LIMIT) {
-            MINDIE_LLM_LOG_ERROR("The value of 'npuMemSize' in ModelDeployConfig in config.json is " <<
-                modelParam.npuMemSize << " it should be within (0, 4294967295] or -1" <<
-                "please set 'npuMemSize' in config.json within (0, 4294967295] or -1",
-                LLM_MANAGER_CONFIG_FAILED);
+            LOG_ERROR_LLM << ERROR_CODE.at("LLM_MANAGER_CONFIG_FAILED")
+                << "The value of 'npuMemSize' in ModelDeployConfig in config.json is "
+                << modelParam.npuMemSize << " it should be within (0, 4294967295] or -1"
+                << "please set 'npuMemSize' in config.json within (0, 4294967295] or -1";
             initFlag = false;
         }
         SafePath modelWeightPath(modelParam.modelWeightPath, PathType::DIR, "r", PERM_750);
         Result r = modelWeightPath.Check(modelParam.modelWeightPath);
         if (!r.IsOk()) {
-            MINDIE_LLM_LOG_ERROR(r.message());
+            LOG_ERROR_LLM << r.message();
             initFlag = false;
         }
         if (initFlag != false) {
@@ -497,11 +493,11 @@ bool ModelDeployConfigManager::CheckParam()
         SafePath modelWeightPath(loraParam.loraPath, PathType::DIR, "r", PERM_750);
         Result r = modelWeightPath.Check(loraParam.loraPath);
         if (!r.IsOk()) {
-            MINDIE_LLM_LOG_ERROR(r.message());
+            LOG_ERROR_LLM << r.message();
             initFlag = false;
         }
         if (modelNames.find(loraParam.baseModel) == modelNames.end()) {
-            MINDIE_LLM_LOG_ERROR("Lora base model not found. Please check. Lora name is " << loraName);
+            LOG_ERROR_LLM << "Lora base model not found. Please check. Lora name is " << loraName;
             initFlag = false;
         }
     }

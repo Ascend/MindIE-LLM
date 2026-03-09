@@ -10,10 +10,12 @@
  * See the Mulan PSL v2 for more details.
  */
 
+#include "latency_stage_policy.h"
+
 #include <cmath>
 #include "policy/seq_group_collection.h"
 #include "dataclass/metric.h"
-#include "latency_stage_policy.h"
+#include "system_log.h"
 
 namespace mindie_llm {
 LatencyStagePolicy::LatencyStagePolicy(const SchedulerConfigSPtr schedulerConfig,
@@ -36,7 +38,7 @@ PDPriorityType LatencyStagePolicy::Apply(ConcurrentDeque<SequenceGroupSPtr> &wai
         return PDPriorityType::DECODE_FIRST;
     };
     if (schedulerConfig_->maxPrefillBatchSize == 0) {
-        MINDIE_LLM_LOG_DEBUG("[LatencyStagePolicy] maxPrefillBatchSize is zero, Selected priority: DECODE_FIRST");
+        LOG_DEBUG_LLM << "maxPrefillBatchSize is zero, Selected priority: DECODE_FIRST";
         return PDPriorityType::DECODE_FIRST;
     }
     UpdateCounter(waiting, running, swapped); // 更新Latency policy需要的参数
@@ -50,15 +52,15 @@ PDPriorityType LatencyStagePolicy::Apply(ConcurrentDeque<SequenceGroupSPtr> &wai
 
     auto priority = (prefillLaxity < decodeLaxity) ? PDPriorityType::PREFILL_FIRST : PDPriorityType::DECODE_FIRST;
 
-    MINDIE_LLM_LOG_DEBUG("prefillDeadline: " << prefillDeadline << ", prefillProcCostTime: " << prefillProcCostTime
-                                             << ", prefillProcWaitTime: " << prefillProcWaitTime);
-    MINDIE_LLM_LOG_DEBUG("decodeDeadline: " << decodeDeadline << ", decodeProcCostTime: " << decodeProcCostTime);
-    MINDIE_LLM_LOG_DEBUG("prefillLaxity: " << prefillLaxity << ", decodeLaxity: " << decodeLaxity);
+    LOG_DEBUG_LLM << "prefillDeadline: " << prefillDeadline << ", prefillProcCostTime: " << prefillProcCostTime
+                                             << ", prefillProcWaitTime: " << prefillProcWaitTime;
+    LOG_DEBUG_LLM << "decodeDeadline: " << decodeDeadline << ", decodeProcCostTime: " << decodeProcCostTime;
+    LOG_DEBUG_LLM << "prefillLaxity: " << prefillLaxity << ", decodeLaxity: " << decodeLaxity;
     std::string res = (priority == PDPriorityType::PREFILL_FIRST  ? "PREFILL_FIRST"
                        : priority == PDPriorityType::DECODE_FIRST ? "DECODE_FIRST"
                        : priority == PDPriorityType::MIX          ? "MIX"
                                                                   : "UNKNOWN");
-    MINDIE_LLM_LOG_DEBUG("[LatencyStagePolicy] LatencyFirst Selected priority: " << res);
+    LOG_DEBUG_LLM << "LatencyFirst Selected priority: " << res;
     return priority;
 }
 
@@ -70,12 +72,12 @@ float LatencyStagePolicy::GetExpectProcessTime(ForwardMode stage)
         BatchStats batchStats{ForwardMode::DECODE, static_cast<uint32_t>(decodeCounter_->waitBatchesCount),
                               static_cast<uint32_t>(decodeCounter_->waitBlockNum)};
         costTime = predictor_->PredictBatchExecTime(batchStats);
-        MINDIE_LLM_LOG_DEBUG("decode tokens: " << batchStats.numBatchedTokens << ", block num: "
-                                               << batchStats.numBatchedTokens << ", predict time: " << costTime);
+        LOG_DEBUG_LLM << "decode tokens: " << batchStats.numBatchedTokens << ", block num: "
+                                               << batchStats.numBatchedTokens << ", predict time: " << costTime;
     } else if (stage == ForwardMode::PREFILL) {
         BatchStats batchStats{ForwardMode::PREFILL, static_cast<uint32_t>(prefillCounter_->waitTokensCount)};
         costTime = predictor_->PredictBatchExecTime(batchStats);
-        MINDIE_LLM_LOG_DEBUG("prefill tokens: " << batchStats.numBatchedTokens << ", predict time: " << costTime);
+        LOG_DEBUG_LLM << "prefill tokens: " << batchStats.numBatchedTokens << ", predict time: " << costTime;
     }
     return costTime;
 }
@@ -83,7 +85,7 @@ float LatencyStagePolicy::GetExpectProcessTime(ForwardMode stage)
 float LatencyStagePolicy::CalStageLaxity(float deadline, float processCostTime, float stageWaitTime) const
 {
     if (std::fabs(deadline) < 1e-6f) {
-        MINDIE_LLM_LOG_DEBUG("deadline is zero");
+        LOG_DEBUG_LLM << "deadline is zero";
         return 0;
     }
     float laxity = (deadline - stageWaitTime - processCostTime) / deadline;
@@ -121,6 +123,6 @@ void LatencyStagePolicy::UpdateCounter(ConcurrentDeque<SequenceGroupSPtr> &waiti
     // 更新decode计数器（running + swapped队列）
     UpdateDecodeCounter(running, swapped);
 
-    MINDIE_LLM_LOG_DEBUG("prefillCounter_:" << *prefillCounter_ << "decodeCounter_:" << *decodeCounter_);
+    LOG_DEBUG_LLM << "prefillCounter_:" << *prefillCounter_ << "decodeCounter_:" << *decodeCounter_;
 }
 } // namespace mindie_llm

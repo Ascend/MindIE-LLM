@@ -8,7 +8,7 @@ target_include_directories(mindie_executor
     ${THIRD_PARTY_OUTPUT_DIR}/openssl/include
 )
 target_link_libraries(mindie_executor
-    mindie_llm_utils
+    system_log
     ${PROTOBUF_SO_FILES}
     ${RE2_SO_FILES}
     ${GRPC_SO_FILES}

@@ -10,7 +10,7 @@
  * See the Mulan PSL v2 for more details.
  */
 #include "buffered_responser.h"
-#include "log.h"
+#include "system_log.h"
 
 using namespace std;
 using namespace mindie_llm;
@@ -66,7 +66,7 @@ void BufferedResponser::TryRespond(const ResponseSPtr &response)
     string reqId = response->reqId;
     std::optional<ResponseBufferPtr> bufferOpt = respBufferMap_.Get(reqId);
     if (!bufferOpt.has_value()) {
-        MINDIE_LLM_LOG_DEBUG("[BufferedResponser] No buffer found for request: " + reqId);
+        LOG_DEBUG_LLM << "No buffer found for request: " << reqId;
         return;
     }
     ResponseBufferPtr responseBuffer = bufferOpt.value();

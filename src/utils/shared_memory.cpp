@@ -15,10 +15,11 @@
 #include <algorithm>
 #include <cstring>
 #include <sys/mman.h>
+#include <sys/stat.h>
 #include <sys/statfs.h>
 
 #include "file_utils.h"
-#include "log.h"
+#include "system_log.h"
 #include "memory_utils.h"
 constexpr mode_t FULL_PERMISSION_MASK = 0777;
 constexpr mode_t REQUIRED_PERMISSION = 0600;
@@ -45,20 +46,20 @@ bool SharedMemorySizeCheck(const uint64_t &pendingMemoryAllocationSize)
  
     // check path exists or not
     if (!FileUtils::CheckDirectoryExists(path)) {
-        MINDIE_LLM_LOG_ERROR("Shared memory directory does not exist for path %s.", path);
+        LOG_ERROR_LLM << "Shared memory directory does not exist for path " << path;
         return false;
     }
  
     // check path is a link or not
     if (FileUtils::IsSymlink(path)) {
-        MINDIE_LLM_LOG_ERROR("Shared memory path is symlink for path %s.", path);
+        LOG_ERROR_LLM << "Shared memory path is symlink for path " << path;
         return false;
     }
     
     struct statfs buf;
     // get filesystem information by statfs function
     if (statfs(path.c_str(), &buf) == -1) {
-        MINDIE_LLM_LOG_ERROR("Failed to get shared memory file system information for path %s.", path);
+        LOG_ERROR_LLM << "Failed to get shared memory file system information for path " << path;
         return false;
     }
 
@@ -66,8 +67,8 @@ bool SharedMemorySizeCheck(const uint64_t &pendingMemoryAllocationSize)
     uint64_t availSize = static_cast<uint64_t>(buf.f_bsize) * buf.f_bavail;
 
     if (availSize < pendingMemoryAllocationSize) {
-        MINDIE_LLM_LOG_ERROR("Shared memory available is not enough on the filesystem with "
-            " available size " << availSize << " and pending allocation size " << pendingMemoryAllocationSize);
+        LOG_ERROR_LLM << "Shared memory available is not enough on the filesystem with "
+            << "available size " << availSize << " and pending allocation size " << pendingMemoryAllocationSize;
         return false;
     }
     return true;
@@ -92,19 +93,19 @@ bool SharedMemory::SharedMemoryUIDAndPermissionChecker(FileDesc mFd)
 {
     struct stat shm_stat;
     if (fstat(mFd, &shm_stat) != 0) {
-        MINDIE_LLM_LOG_ERROR("Failed to fstat shared memory " << this->mName);
+        LOG_ERROR_LLM << "Failed to fstat shared memory " << this->mName;
         close(mFd);
         return false;
     }
     uid_t current_uid = getuid();
     if (shm_stat.st_uid != current_uid) {
-        MINDIE_LLM_LOG_ERROR("Shared memory " << this->mName << " owned by uid " << shm_stat.st_uid
-                                              << ", but current uid is " << current_uid);
+        LOG_ERROR_LLM << "Shared memory " << this->mName << " owned by uid " << shm_stat.st_uid
+                                              << ", but current uid is " << current_uid;
         close(mFd);
         return false;
     }
     if ((shm_stat.st_mode & FULL_PERMISSION_MASK) != REQUIRED_PERMISSION) {
-        MINDIE_LLM_LOG_ERROR("Shared memory " << this->mName << " permission expected 0600");
+        LOG_ERROR_LLM << "Shared memory " << this->mName << " permission expected 0600";
         close(mFd);
         return false;
     }
@@ -116,20 +117,20 @@ bool SharedMemory::Create(const std::string &name, uint32_t size)
     this->mName = name;
     this->mCurSize = size;
     if (!SharedMemorySizeCheck(size)) {
-        MINDIE_LLM_LOG_ERROR("Available shared memory size is not enough with name " << name << ", size " << size);
+        LOG_ERROR_LLM << "Available shared memory size is not enough with name " << name << ", size " << size;
         return false;
     }
     if (!SharedMemoryNameChecker(name)) {
-        MINDIE_LLM_LOG_ERROR("The shared memory name format is abnormal with name " << name);
+        LOG_ERROR_LLM << "The shared memory name format is abnormal with name " << name;
         return false;
     }
     mFd_ = shm_open(name.c_str(), O_CREAT | O_RDWR, S_IRUSR | S_IWUSR);
     if (mFd_ < 0 || !SharedMemoryUIDAndPermissionChecker(mFd_)) {
-        MINDIE_LLM_LOG_ERROR("Failed to open shared memory with name " << name);
+        LOG_ERROR_LLM << "Failed to open shared memory with name " << name;
         return false;
     }
     if (ftruncate(mFd_, size) == -1) {
-        MINDIE_LLM_LOG_ERROR("Failed to ftruncate the shared memory with size " << size);
+        LOG_ERROR_LLM << "Failed to ftruncate the shared memory with size " << size;
         close(mFd_);
         return false;
     }
@@ -137,7 +138,7 @@ bool SharedMemory::Create(const std::string &name, uint32_t size)
     if (mMapBuf == MAP_FAILED) {
         close(mFd_);
         mFd_ = 0;
-        MINDIE_LLM_LOG_ERROR("Failed to mmap shared memory with size " << size);
+        LOG_ERROR_LLM << "Failed to mmap shared memory with size " << size;
         return false;
     }
     // 确保内存物理页被分配
@@ -154,25 +155,25 @@ bool SharedMemory::Create(const std::string &name, uint32_t size)
 bool SharedMemory::Write(uint32_t dstOffset, const char *src, uint32_t size) const
 {
     if (!valid) {
-        MINDIE_LLM_LOG_ERROR("Shared memory allocation is invalid.");
+        LOG_ERROR_LLM << "Shared memory allocation is invalid.";
         return false;
     }
     if (src == nullptr) {
-        MINDIE_LLM_LOG_ERROR("Src is invalid.");
+        LOG_ERROR_LLM << "Src is invalid.";
         return false;
     }
     if (UINT32_MAX - size < dstOffset) {
-        MINDIE_LLM_LOG_ERROR("Integer overflow: " << size << " + " << dstOffset);
+        LOG_ERROR_LLM << "Integer overflow: " << size << " + " << dstOffset;
         return false;
     }
 
     if (dstOffset + size > this->mCurSize) {
-        MINDIE_LLM_LOG_ERROR("No enough shared memory, try lower request length with size " << size);
+        LOG_ERROR_LLM << "No enough shared memory, try lower request length with size " << size;
         return false;
     }
     int ret = memcpy_s(mMapBuf + dstOffset, this->mCurSize - dstOffset, src, size);
     if (ret != 0) {
-        MINDIE_LLM_LOG_ERROR("Failed to memory copy with size " << size);
+        LOG_ERROR_LLM << "Failed to memory copy with size " << size;
         return false;
     }
     return true;

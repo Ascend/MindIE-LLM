@@ -11,8 +11,9 @@
  */
 
 #include "llm_manager/infer_request.h"
+
 #include "llm_manager/infer_request_impl.h"
-#include "log.h"
+#include "system_log.h"
 namespace mindie_llm {
 InferRequest::InferRequest(InferRequestId requestId)
 {
@@ -57,7 +58,7 @@ uint32_t InferRequest::GetMaxOutputLen() const
 std::shared_ptr<mindie_llm::InferRequestImpl> InferRequest::GetRequestInner() const
 {
     if (impl_ == nullptr) {
-        MINDIE_LLM_LOG_ERROR("RequestInner in InferRequest is null");
+        LOG_ERROR_LLM << "RequestInner in InferRequest is null";
     }
     return impl_;
 }

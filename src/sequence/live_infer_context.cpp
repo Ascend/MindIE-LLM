@@ -12,7 +12,7 @@
 
 #include "live_infer_context.h"
 
-#include "utils/log.h"
+#include "system_log.h"
 #include "utils/spin_lock_guard.h"
 
 namespace mindie_llm {
@@ -44,27 +44,23 @@ void LiveInferContext::Add(SequenceGroupSPtr &seqGroup)
 
     bool reqIdExists = reqId2SeqGroupMap_.find(seqGroup->requestId) != reqId2SeqGroupMap_.end();
     bool seqIdExists = seqId2SeqGroupMap_.find(seqGroup->firstSeq->seqId_) != seqId2SeqGroupMap_.end();
-
     if (reqIdExists) {
-        MINDIE_LLM_LOG_WARN("The sequence group(requestId=" << seqGroup->requestId << ", seqId="
-                            << seqGroup->firstSeq->seqId_ << ") requestId already exist");
+        LOG_WARN_LLM << "The sequence group(requestId=" << seqGroup->requestId << ", seqId="
+                            << seqGroup->firstSeq->seqId_ << ") requestId already exist";
         return;
     }
-
     if (seqIdExists && seqGroup->firstSeq->seqId_ == SIMULATE_SEQUENCE_ID) {
         reqId2SeqGroupMap_.insert({seqGroup->requestId, seqGroup});
-        MINDIE_LLM_LOG_DEBUG("[VirtualInference] Simulate seqId=" << seqGroup->firstSeq->seqId_
-                            << " already in seqId2SeqGroupMap_, keep first entry. requestId="
-                            << seqGroup->requestId << " registered in reqId2SeqGroupMap_ only.");
+        LOG_DEBUG_LLM << "Simulate seqId=" << seqGroup->firstSeq->seqId_
+            << " already in seqId2SeqGroupMap_, keep first entry. requestId="
+            << seqGroup->requestId << " registered in reqId2SeqGroupMap_ only.";
         return;
     }
-
     if (seqIdExists) {
-        MINDIE_LLM_LOG_WARN("The sequence group(requestId=" << seqGroup->requestId << ", seqId="
-                            << seqGroup->firstSeq->seqId_ << ") seqId already exist");
+        LOG_WARN_LLM << "The sequence group(requestId=" << seqGroup->requestId << ", seqId="
+                            << seqGroup->firstSeq->seqId_ << ") seqId already exist";
         return;
     }
-
     seqId2SeqGroupMap_.insert({seqGroup->firstSeq->seqId_, seqGroup});
     reqId2SeqGroupMap_.insert({seqGroup->requestId, seqGroup});
 }
@@ -74,7 +70,7 @@ void LiveInferContext::AddIntoSeqRootMap(SequenceId seqId, SequenceGroupSPtr &ro
     SpinLockGuard lockGuard(spinlock_);
 
     if (seqId2RootSeqGroupMap_.find(seqId) != seqId2RootSeqGroupMap_.end()) {
-        MINDIE_LLM_LOG_WARN("The mapping seqId(" << seqId << ") to root sequence group is aready exist");
+        LOG_WARN_LLM << "The mapping seqId(" << seqId << ") to root sequence group is aready exist";
         return;
     }
 
@@ -87,7 +83,7 @@ void LiveInferContext::Remove(SequenceId seqId)
 
     auto it = seqId2SeqGroupMap_.find(seqId);
     if (it == seqId2SeqGroupMap_.end()) {
-        MINDIE_LLM_LOG_DEBUG_REQUEST("The sequence id(" << seqId << ") is not exist");
+        LOG_DEBUG_LLM.SetType(LogType::REQUEST) << "The sequence id(" << seqId << ") is not exist";
         return;
     }
 
@@ -103,7 +99,7 @@ void LiveInferContext::Remove(RequestId reqId)
 
     auto it = reqId2SeqGroupMap_.find(reqId);
     if (it == reqId2SeqGroupMap_.end()) {
-        MINDIE_LLM_LOG_DEBUG_REQUEST("The request id(" << reqId << ") is not exist");
+        LOG_DEBUG_LLM.SetType(LogType::REQUEST) << "The request id(" << reqId << ") is not exist";
         return;
     }
 
@@ -124,7 +120,7 @@ void LiveInferContext::RemoveFromSeqRootMap(SequenceId seqId)
 
     auto it = seqId2RootSeqGroupMap_.find(seqId);
     if (it == seqId2RootSeqGroupMap_.end()) {
-        MINDIE_LLM_LOG_DEBUG_REQUEST("The sequence id(" << seqId << ") is not in seqId2RootSeqGroupMap_");
+        LOG_DEBUG_LLM.SetType(LogType::REQUEST) << "The sequence id(" << seqId << ") is not in seqId2RootSeqGroupMap_";
         return;
     }
 

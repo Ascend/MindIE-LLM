@@ -9,12 +9,15 @@
  * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
  * See the Mulan PSL v2 for more details.
  */
+
+#include "layerwise_fcfs_policy.h"
+
 #include <cstdlib>
 #include <string>
-#include "log.h"
+
+#include "system_log.h"
 #include "math_utils.h"
 #include "msServiceProfiler/msServiceProfiler.h"
-#include "layerwise_fcfs_policy.h"
 
 using namespace std::chrono;
 
@@ -70,14 +73,13 @@ int LayerwiseFcfsPolicy::GeneratePrefillBatch(SchedulingBudget &budget,
 
     SequenceData &data = seqGroup->firstSeq->data_;
     auto promptTokenIdsLen = data.layerwiseRecompute_ ? data.GetLength() : data.promptTokenIds.size();
-    MINDIE_LLM_LOG_INFO("[layerwiseDisaggregated|FcfsPolicy] " << "waiting, current count is " << curCount <<
-    ", seqId is " << seqGroup->firstSeq->seqId_  << ", promptTokenIdsLen is " << promptTokenIdsLen <<
-    ", waiting_.size is " << queuesCollection_->waiting_.size());
-    
-    MINDIE_LLM_LOG_INFO("[layerwiseDisaggregated|FcfsPolicy] " <<
-    "layerwiseStage_ is " << static_cast<int>(seqGroup->firstSeq->data_.layerwiseStage_) <<
-    ", layerwiseRecompute_ is " << seqGroup->firstSeq->data_.layerwiseRecompute_ <<
-    ", layerwiseRecomputeReturn_ is " << seqGroup->firstSeq->data_.layerwiseRecomputeReturn_);
+    LOG_INFO_LLM << "waiting, current count is " << curCount
+        << ", seqId is " << seqGroup->firstSeq->seqId_  << ", promptTokenIdsLen is " << promptTokenIdsLen
+        << ", waiting_.size is " << queuesCollection_->waiting_.size();
+
+    LOG_INFO_LLM << "layerwiseStage_ is " << static_cast<int>(seqGroup->firstSeq->data_.layerwiseStage_)
+        << ", layerwiseRecompute_ is " << seqGroup->firstSeq->data_.layerwiseRecompute_
+        << ", layerwiseRecomputeReturn_ is " << seqGroup->firstSeq->data_.layerwiseRecomputeReturn_;
 
     if (budget.statistics4PartialPrefill_ && !budget.statistics4PartialPrefill_->CanSchedule(seqGroup)) {
         leftOverSeqGroups.push_front(seqGroup);
@@ -142,7 +144,7 @@ int LayerwiseFcfsPolicy::GeneratePrefillBatchInner(SchedulingBudget &budget,
     // 缓存重计算且未return prefill的seq
     if (seqGroup->firstSeq->data_.layerwiseStage_ == SequenceStage::PREFILL && \
         seqGroup->firstSeq->data_.layerwiseRecompute_ && !seqGroup->firstSeq->data_.layerwiseRecomputeReturn_) {
-        MINDIE_LLM_LOG_INFO("[layerwiseDisaggregated|FcfsPolicy] " << "recompute but not return");
+        LOG_INFO_LLM << "recompute but not return";
         recomputeprefillQueue_.emplace_back(seqGroup);
         return 1; // continue
     }

@@ -10,7 +10,7 @@
  * See the Mulan PSL v2 for more details.
  */
 #include "scheduling_budget.h"
-#include "utils/log.h"
+#include "system_log.h"
 
 namespace mindie_llm {
 SchedulingBudget::SchedulingBudget(const size_t maxNumBatchedTokens, const size_t maxNumSeqs,
@@ -62,8 +62,8 @@ size_t SchedulingBudget::GetPrefillSlots()
 
     size_t numSchedulablePrefills = statistics4PartialPrefill_->SchedulablePrefills();
     if (partialPrefillOccupiedBudgetPerSlot_.size() <= numSchedulablePrefills) {
-        MINDIE_LLM_LOG_ERROR("index is out of range of partialPrefillOccupiedBudgetPerSlot_. index="
-                             << numSchedulablePrefills);
+        LOG_ERROR_LLM << "index is out of range of partialPrefillOccupiedBudgetPerSlot_. index="
+            << numSchedulablePrefills;
         throw std::runtime_error("index is out of range of partialPrefillOccupiedBudgetPerSlot_. index=" +
                                  std::to_string(numSchedulablePrefills));
     }

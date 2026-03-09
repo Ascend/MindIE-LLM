@@ -10,11 +10,13 @@
  * See the Mulan PSL v2 for more details.
  */
  
+#include "thread_pool.h"
+
 #include <iostream>
 #include <stdexcept>
+
 #include "securec.h"
-#include "log.h"
-#include "thread_pool.h"
+#include "system_log.h"
 
 const int MAX_NUM_THREADS = 256;
 
@@ -26,29 +28,28 @@ void mindie_llm::cpu_logits_handler::ThreadPool::Init()
     m_taskQ->Init();
     do {
         if (m_threadNum < 1 || m_threadNum > MAX_NUM_THREADS) {
-            MINDIE_LLM_LOG_ERROR("The threadNum exceeds the limit of 1 to " << MAX_NUM_THREADS);
+            LOG_ERROR_LLM << "The threadNum exceeds the limit of 1 to " << MAX_NUM_THREADS;
             throw runtime_error("The threadNum exceeds the limit.");
         }
         m_threadIDs = new pthread_t[m_threadNum];
         int ret = memset_s(m_threadIDs, sizeof(pthread_t) * m_threadNum, 0, sizeof(pthread_t) * m_threadNum);
         if (ret != 0) {
-            MINDIE_LLM_LOG_ERROR("memset_s thread_t[] failed");
+            LOG_ERROR_LLM << "memset_s thread_t[] failed";
             throw runtime_error("memset_s thread_t[] failed.");
         }
 
         if (pthread_mutex_init(&m_lock, nullptr) != 0 || pthread_mutex_init(&m_taskLock, nullptr) != 0 ||
             pthread_cond_init(&m_notEmpty, nullptr) != 0 || pthread_cond_init(&m_empty, nullptr) != 0) {
-            MINDIE_LLM_LOG_ERROR("Init mutext or condition failed");
+            LOG_ERROR_LLM << "Init mutext or condition failed";
             throw runtime_error("Init mutext or condition failed.");
         }
 
         for (int i = 0; i < m_threadNum; ++i) {
             ret = pthread_create(&m_threadIDs[i], nullptr, Worker, this);
             if (ret != 0) {
-                MINDIE_LLM_LOG_ERROR("pthread_create failed, error code: " << ret);
+                LOG_ERROR_LLM << "pthread_create failed, error code: " << ret;
                 throw runtime_error("pthread_create failed with error " + std::to_string(ret));
             }
-            MINDIE_LLM_LOG_INFO("Create pthread id: " << std::to_string(m_threadIDs[i]));
         }
     } while (0);
 }
@@ -109,9 +110,7 @@ void *mindie_llm::cpu_logits_handler::ThreadPool::Worker(void *arg)
 
         Task task = pool->m_taskQ->TakeTask();
         pthread_mutex_unlock(&pool->m_lock);
-        MINDIE_LLM_LOG_DEBUG("Thread " << to_string(pthread_self()) << " start working ");
         task.function(task.arg);
-        MINDIE_LLM_LOG_DEBUG("Thread " << to_string(pthread_self()) << " finish working ");
         task.arg = nullptr;
 
         pthread_mutex_lock(&pool->m_taskLock);

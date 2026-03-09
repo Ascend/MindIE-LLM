@@ -14,11 +14,9 @@
 
 #include <iostream>
 
-#include "log.h"
-
+#include "system_log.h"
 
 namespace mindie_llm {
-constexpr uint64_t MAX_HIT_NUM = 62;
 /*
     Record the cache hit/miss when a cacheable block is allocated
     This should be called every time the allocator allocates an immutable block
@@ -26,13 +24,18 @@ constexpr uint64_t MAX_HIT_NUM = 62;
 */
 void HitRateCalculator::Record(bool hit)
 {
+    static constexpr uint64_t maxHitNum = 62;
+    static constexpr uint64_t limit = (1ULL << maxHitNum);
     if (hit) {
         hitNum_++;
     } else {
         missNum_++;
     }
-    if (hitNum_ >= (1ULL << MAX_HIT_NUM) || missNum_ >= (1ULL << MAX_HIT_NUM)) {
-        MINDIE_LLM_LOG_WARN("HitRateCalculator may overflow!");
+    if (hitNum_ >= limit || missNum_ >= limit) {
+        uint64_t hitExceed  = (hitNum_  >= limit) ? (hitNum_  - limit) : 0;
+        uint64_t missExceed = (missNum_ >= limit) ? (missNum_ - limit) : 0;
+        LOG_WARN_LLM << "HitRateCalculator may overflow! " << "hitNum=" << hitNum_ << ", missNum=" << missNum_
+                     << ", limit=" << limit << ", hitExceed=" << hitExceed << ", missExceed=" << missExceed;
     }
 }
 

@@ -11,7 +11,7 @@
  */
  
 #include "task_queue.h"
-#include "log.h"
+#include "system_log.h"
 
 void mindie_llm::cpu_logits_handler::TaskQueue::Init()
 {
@@ -23,18 +23,18 @@ void mindie_llm::cpu_logits_handler::TaskQueue::Init()
 mindie_llm::cpu_logits_handler::TaskQueue::~TaskQueue()
 {
     if (pthread_mutex_destroy(&m_mutex) != 0) {
-        MINDIE_LLM_LOG_ERROR("Failed to destroy the task queue of sampling.");
+        LOG_ERROR_LLM << "Failed to destroy the task queue of sampling.";
     }
 }
 
 void mindie_llm::cpu_logits_handler::TaskQueue::AddTask(const Task &task)
 {
     if (pthread_mutex_lock(&m_mutex) != 0) {
-        MINDIE_LLM_LOG_ERROR("Failed to lock task when adding it into task queue.");
+        LOG_ERROR_LLM << "Failed to lock task when adding it into task queue.";
     } else {
         m_queue.push(task);
         if (pthread_mutex_unlock(&m_mutex) != 0) {
-            MINDIE_LLM_LOG_ERROR("Failed to unlock task when adding it into task queue.");
+            LOG_ERROR_LLM << "Failed to unlock task when adding it into task queue.";
         }
     }
 }
@@ -45,14 +45,14 @@ void mindie_llm::cpu_logits_handler::TaskQueue::AddTask(
     )
 {
     if (pthread_mutex_lock(&m_mutex) != 0) {
-        MINDIE_LLM_LOG_ERROR("Failed to lock task when adding it into task queue.");
+        LOG_ERROR_LLM << "Failed to lock task when adding it into task queue.";
     } else {
         mindie_llm::cpu_logits_handler::Task task;
         task.function = func;
         task.arg = arg;
         m_queue.push(task);
         if (pthread_mutex_unlock(&m_mutex) != 0) {
-            MINDIE_LLM_LOG_ERROR("Failed to unlock task when adding it into task queue.");
+            LOG_ERROR_LLM << "Failed to unlock task when adding it into task queue.";
         }
     }
 }
@@ -61,14 +61,14 @@ mindie_llm::cpu_logits_handler::Task mindie_llm::cpu_logits_handler::TaskQueue::
 {
     mindie_llm::cpu_logits_handler::Task t;
     if (pthread_mutex_lock(&m_mutex) != 0) {
-        MINDIE_LLM_LOG_ERROR("Failed to lock task when taking it out from task queue.");
+        LOG_ERROR_LLM << "Failed to lock task when taking it out from task queue.";
     } else {
         if (m_queue.size() > 0) {
             t = m_queue.front();
             m_queue.pop();
         }
         if (pthread_mutex_unlock(&m_mutex) != 0) {
-            MINDIE_LLM_LOG_ERROR("Failed to unlock task when taking it out from task queue.");
+            LOG_ERROR_LLM << "Failed to unlock task when taking it out from task queue.";
         }
     }
     return t;

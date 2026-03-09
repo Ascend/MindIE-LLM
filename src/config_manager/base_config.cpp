@@ -21,7 +21,6 @@ bool BaseConfig::CheckSystemConfig(const std::string &jsonPath, Json &inputJsonD
 {
     std::string homePath;
     if (!GetHomePath(homePath).IsOk()) {
-        std::cout << "Failed to get home path." << std::endl;
         return false;
     }
     std::string systemConfigPath = homePath + "/conf/config.json";

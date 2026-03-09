@@ -9,16 +9,21 @@
  * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
  * See the Mulan PSL v2 for more details.
  */
+
+#include "config_dynamic_handler.h"
+
 #include <thread>
 #include <string>
 #include <iostream>
 #include <cstdlib>
 #include <chrono>
 #include <algorithm>
+
 #include <nlohmann/json.hpp>
+
 #include "common_util.h"
 #include "param_checker.h"
-#include "config_dynamic_handler.h"
+#include "system_log.h"
 
 namespace mindie_llm {
 
@@ -95,7 +100,7 @@ bool DynamicConfigHandler::CheckSystemConfig(const std::string &jsonPath, nlohma
 {
     std::string homePath;
     if (!GetHomePath(homePath).IsOk()) {
-        std::cout << "Failed to get home path." << std::endl;
+        LOG_ERROR_LLM << "Failed to get home path.";
         return false;
     }
     std::string systemConfigPath = homePath + "/conf/config.json";
@@ -123,10 +128,8 @@ bool DynamicConfigHandler::isTriggered(const std::string pathExpression) const
         }
         return static_cast<bool>(configJson);
     } catch (nlohmann::json::parse_error& e) {
-        std::cout << "DynamicConfigHandler parse_error: " << e.what() << std::endl;
         return false;
     } catch (std::exception& e) {
-        std::cout << "DynamicConfigHandler exception: " << e.what() << std::endl;
         return false;
     }
     return true;

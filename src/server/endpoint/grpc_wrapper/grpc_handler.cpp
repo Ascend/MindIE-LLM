@@ -131,7 +131,6 @@ void HandleDecodeRequest(const prefillAndDecodeCommunication::DecodeParameters &
     response.set_errormessage("");
     response.set_isvaliddecodeparameters(true);
     if (inferInterface != nullptr) {
-        ULOG_INFO(SUBMODLE_NAME_ENDPOINT, "D rcv requestId: " << serverInfo.reqId << ", total " << ++receiveCnt);
         inferInterface->SetDMIReComputeBuilder();
         inferInterface->DecodeProcess(response);
     } else {

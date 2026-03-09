@@ -16,7 +16,7 @@
 #include "construct_execute_request.h"
 #include "live_infer_context.h"
 #include "id_utils.h"
-#include "log.h"
+#include "system_log.h"
 #include "request_response/request_id.h"
 #include "msServiceProfiler/msServiceProfiler.h"
 #include "thread_group_cc.h"
@@ -54,7 +54,7 @@ LlmEngine::LlmEngine(SchedulerConfig schedulerConfig, std::vector<IExecutorSPtr>
         schedulerConfig_->tpSize = schedulerConfig_->worldSize / schedulerConfig_->dpSize;
     }
     if (schedulerConfig_->tpSize == 0) {
-        MINDIE_LLM_LOG_ERROR("`tpSize` should not be 0!");
+        LOG_ERROR_LLM << "`tpSize` should not be 0!";
     }
     role_ = pdRole;
     for (size_t i = 0; i < executors.size(); ++i) {
@@ -83,12 +83,10 @@ LlmEngine::LlmEngine(SchedulerConfig schedulerConfig, std::vector<IExecutorSPtr>
     if (role_ == Role::PnD && schedulerConfig_->isMultiNodeInfer && enginePerDPs_.size() > 1) {
         loadBalancer_ = MakeLoadBalancer(enginePerDPs_, schedulerConfig_->maxPrefillBatchSize);
     }
-
     // 构造loraManager
     mindie_llm::LoraManager::Initialize(executors, schedulerConfig_->maxLoras);
-
-    MINDIE_LLM_LOG_INFO("LlmEngine init succeeds! " << enginePerDPs_.size() << " enginePerDPs are created. "
-                                                    << "Need to call StartEngineThread to start Engine thread(s).");
+    LOG_INFO_LLM << "LlmEngine init succeeds! " << enginePerDPs_.size() << " enginePerDPs are created. "
+                                                    << "Need to call StartEngineThread to start Engine thread(s).";
 }
 
 LlmEngine::~LlmEngine()
@@ -104,7 +102,7 @@ LlmEngine::~LlmEngine()
 bool LlmEngine::AddRequest(RequestSPtr request)
 {
     if (stop_.load(std::memory_order_relaxed)) {
-        MINDIE_LLM_LOG_DEBUG("[LlmEngine]Engine hasn't initialized. Cann't add request:" << request->requestId);
+        LOG_DEBUG_LLM << "Engine hasn't initialized. Cann't add request:" << request->requestId;
         return false;
     }
 
@@ -123,10 +121,6 @@ bool LlmEngine::AddRequest(RequestSPtr request)
         EnginePerDPSPtr &engine = enginePerDPs_.at(rankId);
         engine->scheduler->AddSeqGroup(seqGroup);
         engine->addedRequestNum++;
-        MINDIE_LLM_LOG_INFO_REQUEST("[LlmEngine|Request-Enter Waiting] DP RankId: "
-                            << (dpRankId_ > 0 ? dpRankId_ : rankId) << ", Add request(requestId: " << request->requestId
-                            << ", seqId: " << seqGroup->firstSeq->seqId_ << ") successfully."
-                            << " Total added request num is:" << engine->addedRequestNum);
     }
     return true;
 }
@@ -160,18 +154,16 @@ void LlmEngine::AbortRequests(std::unordered_set<RequestId> &requestIds)
     for (RequestId reqId : requestIds) {
         auto [localDPRank, seqGrpSptr] = LiveInferContext::FindSeqGroupInAllRank(reqId);
         if (seqGrpSptr == nullptr) {
-            MINDIE_LLM_LOG_WARN_REQUEST("[LlmEngine]Abort request(requestId: "
-                                 << reqId << ") does not exist. This request may have been kv-released.");
+            LOG_WARN_LLM.SetType(LogType::REQUEST) << "Abort request(requestId: " << reqId
+                << ") does not exist. This request may have been kv-released.";
             continue;
         }
-
         SendAbortResponse(seqGrpSptr, localDPRank, InferStatusType::ABORT);
         // PD分离场景，加入到abortedRequestIds后，后续调度线程会回收transferringMap_，
         enginePerDPs_.at(localDPRank)->abortedRequestIds.PushBack(reqId);
         enginePerDPs_.at(localDPRank)->abortedRequestNum++;
-        MINDIE_LLM_LOG_INFO_REQUEST("[LlmEngine]Abort request(requestId: "
-                            << reqId << ") successfully."
-                            << " Total aborted request num is:" << enginePerDPs_.at(localDPRank)->abortedRequestNum);
+        LOG_INFO_LLM.SetType(LogType::REQUEST) << "Abort request(requestId: " << reqId
+            << ") successfully. Total aborted request num is: " << enginePerDPs_.at(localDPRank)->abortedRequestNum;
     }
 }
 
@@ -180,23 +172,20 @@ void LlmEngine::ReleaseKvCache(std::unordered_set<RequestId> &requestIds)
     for (auto reqId : requestIds) {
         auto [localDPRank, seqGroup] = LiveInferContext::FindSeqGroupInAllRank(reqId);
         if (seqGroup == nullptr) {
-            MINDIE_LLM_LOG_WARN_REQUEST("[LlmEngine]Try to release kv.The request(" << reqId
-                                                                            << ") is not exist. Maybe been aborted");
+            LOG_WARN_LLM.SetType(LogType::REQUEST) << "Try to release kv.The request("
+                << reqId << ") is not exist. Maybe been aborted";
             continue;
         }
-
         SequenceId seqId = seqGroup->firstSeq->seqId_;
         enginePerDPs_[localDPRank]->scheduler->NotifyMeKvPulledSeqIds(seqId);
-        MINDIE_LLM_LOG_INFO_REQUEST("[LlmEngine] DP RankId: " << (dpRankId_ > 0 ? dpRankId_ : localDPRank)
-                                                      << ". Send Release KV response(requestId: " << reqId
-                                                      << ") successfully.");
+        LOG_INFO_LLM.SetType(LogType::REQUEST) << "DP RankId: " << (dpRankId_ > 0 ? dpRankId_ : localDPRank)
+            << ". Send Release KV response(requestId: " << reqId << ") successfully.";
     }
 }
 
 void LlmEngine::Stop()
 {
     stop_.store(true, std::memory_order_relaxed);
-    MINDIE_LLM_LOG_INFO("[LlmEngine]Engine stopped successfully.");
 }
 
 void LlmEngine::StartEngineThread()
@@ -206,34 +195,34 @@ void LlmEngine::StartEngineThread()
         EnginePerDPSPtr enginePerDP = enginePerDPs_.at(i);
         if (role_ == Role::D && schedulerConfig_->distributedEnable) {
             enginePerDP->dummyQuotaManagerSPtr_ = std::make_shared<DummyQuotaManager>(dpRankId_);
-            MINDIE_LLM_LOG_INFO("[LlmEngine]Start dummyQuotaManager thread(" << dpRankId_ << ") successfully!!!");
+            LOG_INFO_LLM << "Start dummyQuotaManager thread(" << dpRankId_ << ") successfully!";
         }
         enginePerDP->schedulerThread =
             std::thread([this, localDPRank = i]() { this->SchedulerThreadEntry(localDPRank); });
         pthread_setname_np(enginePerDP->schedulerThread.native_handle(), ("scheduler-" + std::to_string(i)).c_str());
-        MINDIE_LLM_LOG_INFO("[LlmEngine]Start thread(" << i << ") successfully.");
+        LOG_INFO_LLM << "Start thread(" << i << ") successfully.";
     }
-    MINDIE_LLM_LOG_INFO("[LlmEngine]Engine thread(s) start successfully.");
+    LOG_INFO_LLM << "Engine thread(s) start successfully.";
 }
 
 void LlmEngine::InitProcessGroup(const std::vector<NodeInfo> &nodeInfos, std::string &processGroupMasterIP,
                                  uint32_t processGroupMasterPort)
 {
-    MINDIE_LLM_LOG_INFO("Initialize Process Group: masterIP=" << processGroupMasterIP
-                                                              << ", masterPort=" << processGroupMasterPort);
+    LOG_INFO_LLM << "Initialize Process Group: masterIP=" << processGroupMasterIP
+                                                              << ", masterPort=" << processGroupMasterPort;
     // 根据infos信息创建ProcessGroup
     std::vector<std::string> hostIps = GetHostIP();
     std::string hostIp = GetLocalHostIP(nodeInfos, hostIps);
 
     if (processGroupMasterIP.size() != 0 && processGroupMasterPort != 0) {
-        MINDIE_LLM_LOG_INFO("Initialize Process Group: worldSize=" << schedulerConfig_->dpSize
-                                                                   << ", rank=" << dpRankId_);
+        LOG_INFO_LLM << "Initialize Process Group: worldSize=" << schedulerConfig_->dpSize
+                                                                   << ", rank=" << dpRankId_;
         bool isMaster = std::find(hostIps.begin(), hostIps.end(), processGroupMasterIP) != hostIps.end();
         isMaster = isMaster && (dpRankId_ == 0); // TBC，当前认为dpRank为0的一定是master节点
         ProcessGroup::GetInstance(processGroupMasterIP, processGroupMasterPort, hostIp, dpRankId_,
                                   schedulerConfig_->dpSize, isMaster);
         isProcessGroupInit = true;
-        MINDIE_LLM_LOG_INFO("Process Group initialized successfully.");
+        LOG_INFO_LLM << "Process Group initialized successfully.";
         PROF(INFO, AddMetaInfo("isMaster", isMaster));
         PROF(INFO, AddMetaInfo("rankHostIp", hostIp));
     }
@@ -256,21 +245,18 @@ void LlmEngine::SendRecomputeResponse(std::vector<SequenceId> &recomputeSeqIds, 
     for (SequenceId seqId : recomputeSeqIds) {
         SequenceGroupSPtr seqGroup = LiveInferContext::GetInstance(localDPRank)->GetSeqGroup(seqId);
         if (seqGroup == nullptr) {
-            MINDIE_LLM_LOG_INFO(
-                "Can not find sequence group when try to send recompute response, seqId :" << seqId);
+            LOG_INFO_LLM << "Can not find sequence group when try to send recompute response, seqId :" << seqId;
             continue;
         }
-
         ResponseSPtr response = std::make_shared<Response>(seqGroup->metrics_.inferReqId_);
         response->isEos = true;
         response->iterTimes = seqGroup->iterTimes;
         response->transferStatusFlag = TransferStatusType::RECOMPUTED_TRIGGERED;
         enginePerDPs_.at(localDPRank)->abortRespToManagerCall(response);
-        MINDIE_LLM_LOG_INFO_REQUEST("[LlmEngine] DP RankId: "
-                            << (dpRankId_ > 0 ? dpRankId_ : localDPRank)
-                            << ". Engine(Decode Node) send recompute response successfully. seqId: " << seqId
-                            << ", requestId: " << seqGroup->metrics_.inferReqId_);
-
+        LOG_INFO_LLM.SetType(LogType::REQUEST) << "DP RankId: "
+            << (dpRankId_ > 0 ? dpRankId_ : localDPRank)
+            << ". Engine(Decode Node) send recompute response successfully. seqId: " << seqId
+            << ", requestId: " << seqGroup->metrics_.inferReqId_;
         // recompute的请求不再进入waiting队列，不会再被轮询，需要结束清理资源
         enginePerDPs_.at(localDPRank)->scheduler->ClearSeqGrp(seqGroup, SequenceStatus::FINISH_RECOMPUTE);
     }
@@ -313,12 +299,11 @@ SchOutDataPair LlmEngine::PostScheduleSyncUp(bool needSync, SequenceGroupMetaDat
     if (syncSecondCost > LOG_CC_TIME_THRESHOLD_MS) {
         auto syncFirstCost = duration_cast<milliseconds>(syncUpAfterBatchInfo - syncUpBegin).count();
         auto syncUpCost = duration_cast<milliseconds>(syncUpEnd - syncUpBegin).count();
-        MINDIE_LLM_LOG_INFO_REQUEST("[Scheduler|Schedule-Sync up] PostSchedule sync too long :"
-                            << syncUpCost << ", DP RankId:" << (dpRankId_ > 0 ? dpRankId_ : localDPRank)
-                            << ", maxBatchSize:" << metas.maxBatchSize << ", maxSeqLen:" << metas.maxSeqLen
-                            << ", syncFirstCost:" << syncFirstCost << ", syncSecondCost:" << syncSecondCost);
+        LOG_INFO_LLM.SetType(LogType::REQUEST) << "PostSchedule sync too long :"
+            << syncUpCost << ", DP RankId:" << (dpRankId_ > 0 ? dpRankId_ : localDPRank)
+            << ", maxBatchSize:" << metas.maxBatchSize << ", maxSeqLen:" << metas.maxSeqLen
+            << ", syncFirstCost:" << syncFirstCost << ", syncSecondCost:" << syncSecondCost;
     }
-
     return {allDpMetas, allDpOuts};
 }
 
@@ -339,7 +324,7 @@ void LlmEngine::ExecuteDummy(EnginePerDPSPtr enginePerDP, SequenceGroupMetaDatas
     bool succ = enginePerDP->modelExecutor->AsyncExecuteModel(
         dummyRequest, std::function<void(ModelBatchResultSPtr)>(responseHandler));
     if (!succ) {
-        MINDIE_LLM_LOG_ERROR("Call AsyncExecuteModel(dummy) failed.");
+        LOG_ERROR_LLM << "Call AsyncExecuteModel(dummy) failed.";
         throw runtime_error("The async execution failed.Check logs.");
     }
 }
@@ -368,13 +353,13 @@ bool LlmEngine::DistDecodeAcquireDummyQuota(bool isDummy, EnginePerDPSPtr engine
 void LlmEngine::PauseScheduling()
 {
     isPauseScheduling_.store(true, std::memory_order_relaxed);
-    MINDIE_LLM_LOG_INFO("[LlmEngine]Scheduling paused.");
+    LOG_INFO_LLM << "Scheduling paused.";
 }
 
 void LlmEngine::ResumeScheduling()
 {
     isPauseScheduling_.store(false, std::memory_order_relaxed);
-    MINDIE_LLM_LOG_INFO("[LlmEngine]Scheduling resumed.");
+    LOG_INFO_LLM << "Scheduling resumed.";
 }
 
 void LlmEngine::LayerwiseEosClean(bool layerwiseDisaggregated, std::unordered_set<SequenceId> &eosCleanupSeqIds,
@@ -387,12 +372,11 @@ void LlmEngine::LayerwiseEosClean(bool layerwiseDisaggregated, std::unordered_se
     const size_t eosCleanupThreshold = 10;
     if (eosCleanupSeqIds.size() > eosCleanupThreshold) {
         // 多dp扩展下是否要同步需分析
-        MINDIE_LLM_LOG_INFO("[layerwiseDisaggregated|Scheduler]:"
-            << "Clean EOS seqIds number is: " << eosCleanupSeqIds.size());
+        LOG_INFO_LLM << "Clean EOS seqIds number is: " << eosCleanupSeqIds.size();
         TGCleanupRequestPtr EOSCleanupRequest = BuildTGCleanupRequest(eosCleanupSeqIds);
         bool succ = enginePerDP->modelExecutor->AsyncEOSCleanup(EOSCleanupRequest);
         if (!succ) {
-            MINDIE_LLM_LOG_ERROR("Call AsyncEOSCleanup failed.");
+            LOG_ERROR_LLM << "Call AsyncEOSCleanup failed.";
             throw runtime_error("The async eos clean up failed. Check logs.");
         } // clear the container after send success
         eosCleanupSeqIds.clear();
@@ -455,11 +439,10 @@ void LlmEngine::SchedulerThreadEntry(size_t localDPRank)
         int64_t totalIterCost = scheduleCost + responseCost;
         if (totalIterCost > LOG_TIME_THRESHOLD_MS) {
             auto transferKVCost = duration_cast<milliseconds>(transferEnd - transferBegin).count();
-            MINDIE_LLM_LOG_INFO_REQUEST(
-                "[Scheduler|Schedule-Response] Response and schedule transfer cost too long. DP RankId:"
+            LOG_INFO_LLM.SetType(LogType::REQUEST) << "Response and schedule transfer cost too long. DP RankId:"
                 << (dpRankId_ > 0 ? dpRankId_ : localDPRank) << ", response cost:" << responseCost
                 << ", ScheduleExecTransfer cost:" << transferKVCost << ", scheduleCost:" << scheduleCost
-                << ", totalIterCost:" << totalIterCost << ", schedulingRound:" << schedulingRound);
+                << ", totalIterCost:" << totalIterCost << ", schedulingRound:" << schedulingRound;
         }
         schedulingRound++;
 
@@ -493,9 +476,8 @@ void LlmEngine::SchedulerThreadEntry(size_t localDPRank)
                 }));
             PROF(spanSchedule.Attr("batchType", static_cast<int>(scheduleOut.forwardMode_)));
         if (schedulerConfig_->layerwiseDisaggregated) {
-            MINDIE_LLM_LOG_INFO("[layerwiseDisaggregated|Scheduler]:"
-                << "batchType is: " << static_cast<int>(scheduleOut.forwardMode_)
-                << ", batchsize is: " << scheduleOut.scheduledSeqGroups_.size());
+            LOG_INFO_LLM << "batchType is: " << static_cast<int>(scheduleOut.forwardMode_)
+                << ", batchsize is: " << scheduleOut.scheduledSeqGroups_.size();
         }
             PROF(spanSchedule.SpanEnd());
         }
@@ -523,10 +505,10 @@ void LlmEngine::SchedulerThreadEntry(size_t localDPRank)
         if (!scheduleOut.IsEmpty() || (isCentralizedThreadCCReady_ && seqGroupMetadata.maxBatchSize > 0)) {
             for (const auto& scheduledSeqGroup : scheduleOut.scheduledSeqGroups_) {
                 if (scheduledSeqGroup->seqGroup_->IsSimulateRequest()) {
-                    MINDIE_LLM_LOG_DEBUG("[SimulateInference] Building ExecuteRequest, forwardMode="
-                                        << static_cast<int>(scheduleOut.forwardMode_)
-                                        << ", batchSize=" << scheduleOut.scheduledSeqGroups_.size()
-                                        << ", requestId=" << scheduledSeqGroup->seqGroup_->requestId);
+                    LOG_DEBUG_LLM << "Building ExecuteRequest, forwardMode="
+                        << static_cast<int>(scheduleOut.forwardMode_)
+                        << ", batchSize=" << scheduleOut.scheduledSeqGroups_.size()
+                        << ", requestId=" << scheduledSeqGroup->seqGroup_->requestId;
                 }
             }
             ExecuteModelRequestPtr request =
@@ -551,7 +533,7 @@ void LlmEngine::SchedulerThreadEntry(size_t localDPRank)
             bool succ = enginePerDP->modelExecutor->AsyncExecuteModel(
                 request, std::function<void(ModelBatchResultSPtr)>(responseHandler));
             if (!succ) {
-                MINDIE_LLM_LOG_ERROR("Call AsyncExecuteModel failed.");
+                LOG_ERROR_LLM << "Call AsyncExecuteModel failed.";
                 // 异步调用失败是代码bug或者系统故障， 对于推理服务来说无法自行恢复
                 PROF(spanExecute.SpanEnd());
                 throw runtime_error("The async execution failed.Check logs.");
@@ -610,7 +592,7 @@ void LlmEngine::SchedulerThreadEntry(size_t localDPRank)
             TGCleanupRequestPtr TGCleanupRequest = BuildTGCleanupRequest(allDPCleanSeqIds);
             bool succ = enginePerDP->modelExecutor->AsyncTGCleanup(TGCleanupRequest);
             if (!succ) {
-                MINDIE_LLM_LOG_ERROR("Call AsyncTGCleanup failed.");
+                LOG_ERROR_LLM << "Call AsyncTGCleanup failed.";
                 throw runtime_error("The async text generator clean up failed. Check logs.");
             }
             enginePerDP->TGCleanupSeqIds_.clear(); // clear the container after send success
@@ -621,12 +603,12 @@ void LlmEngine::SchedulerThreadEntry(size_t localDPRank)
         auto scheduleEnd = high_resolution_clock::now();
         scheduleCost = duration_cast<milliseconds>(scheduleEnd - scheduleBegin).count();
         if (scheduleCost > LOG_TIME_THRESHOLD_MS) {
-            MINDIE_LLM_LOG_INFO_REQUEST("[Scheduler|Schedule-Batch] Schedule too long :"
-                                << scheduleCost << ", DP RankId:" << (dpRankId_ > 0 ? dpRankId_ : localDPRank)
-                                << ",cur dp batch size:" << scheduleOut.scheduledSeqGroups_.size()
-                                << ", all dp max batch size:" << seqGroupMetadata.maxBatchSize
-                                << ", forward mode:" << static_cast<int>(scheduleOut.forwardMode_)
-                                << ", schedulingRound:" << schedulingRound);
+            LOG_INFO_LLM.SetType(LogType::REQUEST) << "Schedule too long :"
+                << scheduleCost << ", DP RankId:" << (dpRankId_ > 0 ? dpRankId_ : localDPRank)
+                << ",cur dp batch size:" << scheduleOut.scheduledSeqGroups_.size()
+                << ", all dp max batch size:" << seqGroupMetadata.maxBatchSize
+                << ", forward mode:" << static_cast<int>(scheduleOut.forwardMode_)
+                << ", schedulingRound:" << schedulingRound;
         }
     }
 }
@@ -663,7 +645,7 @@ void LlmEngine::ScheduleExecTransfer(std::shared_ptr<EnginePerDP> &engine) const
     bool succ = engine->modelExecutor->ExecuteKVTransfer(
         request, std::function<void(PullKVResponseSPtr)>(kvPullResponseHandler));
     if (!succ) {
-        MINDIE_LLM_LOG_ERROR("Call ExecuteKVTransfer failed.");
+        LOG_ERROR_LLM << "Call ExecuteKVTransfer failed.";
         // 异步调用失败是代码bug或者系统故障， 对于推理服务来说无法自行恢复
         throw runtime_error("The KV transfer failed.Check logs.");
     }
@@ -689,7 +671,7 @@ void LlmEngine::SyncBatchInfoAcrossNodes(SequenceGroupMetaDatas &metadata) const
             metadata.maxSeqLen = std::max(metadata.maxSeqLen, info[1].item<int64_t>());
         }
     } catch (const std::exception& e) {
-        MINDIE_LLM_LOG_ERROR("SyncBatchInfoAcrossNodes failed: batchInfos is invalid.");
+        LOG_ERROR_LLM << "SyncBatchInfoAcrossNodes failed: batchInfos is invalid.";
     }
 }
 
@@ -793,7 +775,7 @@ EngineMetric LlmEngine::CollectEngineMetric(size_t localDPRank)
 void LlmEngine::AccumulateDpMetricInto(size_t dpIndex, EngineMetric &aggregatedMetric)
 {
     EngineMetric metric = CollectEngineMetric(dpIndex);
-    MINDIE_LLM_LOG_DEBUG("DP[" << dpIndex << "] metrics: "
+    LOG_DEBUG_LLM << "DP[" << dpIndex << "] metrics: "
         << "freeNpuBlock=" << metric.schedulerInfo.blockInfo.freeNpuBlockNum_
         << ", totalNpuBlock=" << metric.schedulerInfo.blockInfo.totalNpuBlockNum_
         << ", freeCpuBlock=" << metric.schedulerInfo.blockInfo.freeCpuBlockNum_
@@ -805,7 +787,7 @@ void LlmEngine::AccumulateDpMetricInto(size_t dpIndex, EngineMetric &aggregatedM
         << ", npuRadixHit=" << metric.schedulerInfo.reqsInfo.npuRadixMatchHitNum_
         << ", preemptCount=" << metric.schedulerInfo.reqsInfo.cumulativePreemptCount_
         << ", prefillTput=" << metric.prefillThroughput_
-        << ", decodeTput=" << metric.decodeThroughput_);
+        << ", decodeTput=" << metric.decodeThroughput_;
 
     aggregatedMetric.schedulerInfo.blockInfo.freeNpuBlockNum_ +=
         metric.schedulerInfo.blockInfo.freeNpuBlockNum_;
@@ -838,7 +820,7 @@ EngineMetric LlmEngine::CollectAllDpEngineMetric()
     EngineMetric aggregatedMetric{};
     size_t dpSize = enginePerDPs_.size();
     if (dpSize == 0) {
-        MINDIE_LLM_LOG_WARN("No DP ranks available to collect metrics.");
+        LOG_WARN_LLM << "No DP ranks available to collect metrics.";
         return aggregatedMetric;
     }
 
@@ -850,7 +832,7 @@ EngineMetric LlmEngine::CollectAllDpEngineMetric()
     aggregatedMetric.prefillThroughput_ /= static_cast<float>(dpSize);
     aggregatedMetric.decodeThroughput_ /= static_cast<float>(dpSize);
 
-    MINDIE_LLM_LOG_DEBUG("Aggregated metrics from " << dpSize << " DP ranks: "
+    LOG_DEBUG_LLM << "Aggregated metrics from " << dpSize << " DP ranks: "
         << "totalFreeNpuBlock=" << aggregatedMetric.schedulerInfo.blockInfo.freeNpuBlockNum_
         << ", totalNpuBlock=" << aggregatedMetric.schedulerInfo.blockInfo.totalNpuBlockNum_
         << ", totalFreeCpuBlock=" << aggregatedMetric.schedulerInfo.blockInfo.freeCpuBlockNum_
@@ -862,7 +844,7 @@ EngineMetric LlmEngine::CollectAllDpEngineMetric()
         << ", totalNpuRadixHit=" << aggregatedMetric.schedulerInfo.reqsInfo.npuRadixMatchHitNum_
         << ", totalPreemptCount=" << aggregatedMetric.schedulerInfo.reqsInfo.cumulativePreemptCount_
         << ", avgPrefillTput=" << aggregatedMetric.prefillThroughput_
-        << ", avgDecodeTput=" << aggregatedMetric.decodeThroughput_);
+        << ", avgDecodeTput=" << aggregatedMetric.decodeThroughput_;
     return aggregatedMetric;
 }
 
@@ -872,9 +854,9 @@ void LlmEngine::SetPrefillPercentage(uint32_t prefillPercentage)
         EnginePerDPSPtr enginePerDP = enginePerDPs_.at(i);
         if (enginePerDP != nullptr && enginePerDP->scheduler != nullptr) {
             enginePerDP->scheduler->SetPrefillPercentage(prefillPercentage);
-            MINDIE_LLM_LOG_INFO("Set prefill ratio successfully, dp rank id:" << i);
+            LOG_INFO_LLM << "Set prefill ratio successfully, dp rank id:" << i;
         } else {
-            MINDIE_LLM_LOG_ERROR("Set prefill ratio failed, engine or scheduler is null, dp rank id:" << i);
+            LOG_ERROR_LLM << "Set prefill ratio failed, engine or scheduler is null, dp rank id:" << i;
         }
     }
 }
@@ -882,14 +864,14 @@ void LlmEngine::SetPrefillPercentage(uint32_t prefillPercentage)
 void LlmEngine::ExecuteRecoverCommand(RecoverCommandInfo &commandInfo)
 {
     if (enginePerDPs_.empty()) {
-        MINDIE_LLM_LOG_ERROR("No enginePerDp available to execute recover command.");
+        LOG_ERROR_LLM << "No enginePerDp available to execute recover command.";
         return;
     }
 
     for (size_t i = 0; i < enginePerDPs_.size(); ++i) {
         EnginePerDPSPtr enginePerDP = enginePerDPs_.at(i);
         enginePerDP->modelExecutor->ExecuteRecoverCommand(commandInfo);
-        MINDIE_LLM_LOG_INFO("Execute Recover command: " << commandInfo.command);
+        LOG_INFO_LLM << "Execute Recover command: " << commandInfo.command;
     }
 }
 

@@ -10,14 +10,15 @@
  * See the Mulan PSL v2 for more details.
  */
  
+#include "post_processing_manager.h"
+
 #include <algorithm>
 #include <iostream>
 #include <stdexcept>
 #include <absl/types/span.h>
+
 #include "check_utils.h"
-#include "log.h"
-#include "log_level_dynamic_handler.h"
-#include "post_processing_manager.h"
+#include "system_log.h"
 
 namespace {
 
@@ -125,7 +126,7 @@ ErrorType ScoreIndexCpy(int batchSize, int scoreSize, bool speedMode, std::strin
     } catch (const std::overflow_error &e) {
         return ErrorType::OVERFLOW_ERROR;
     } catch (const std::exception &e) {
-        MINDIE_LLM_LOG_ERROR("Unknown error occurs in ScoreIndexCpy: " << e.what());
+        LOG_ERROR_LLM << "Unknown error occurs in ScoreIndexCpy: " << e.what();
         return ErrorType::UNKNOWN_ERROR;
     }
 
@@ -137,7 +138,7 @@ void RunFunc(void *arg)
     mindie_llm::cpu_logits_handler::PostProcessing *task =
     static_cast<mindie_llm::cpu_logits_handler::PostProcessing *>(arg);
     if (task == nullptr) {
-        MINDIE_LLM_LOG_ERROR("Task is nullptr in RunFunc.");
+        LOG_ERROR_LLM << "Task is nullptr in RunFunc.";
         throw std::runtime_error("Task is nullptr in RunFunc.");
     }
     task->Run();
@@ -161,28 +162,23 @@ public:
 
 void PostProcessingManager::Init()
 {
-    spdlog::init_thread_pool(mindie_llm::LOGGER_QUEUE_SIZE, mindie_llm::LOGGER_THREAD_NUM);
-    mindie_llm::Log::CreateInstance(mindie_llm::LoggerType::MINDIE_LLM);
-    mindie_llm::LogLevelDynamicHandler::Init(5000); // 每5秒检查动态日志配置
-    MINDIE_LLM_LOG_INFO("Get post processing manager");
     m_pool = new mindie_llm::cpu_logits_handler::ThreadPool(threadNum);
     m_pool->Init();
 
     if (aclrtSetDevice(deviceId) != ACL_ERROR_NONE) {
-        MINDIE_LLM_LOG_ERROR("Open device failed. device id = " << deviceId);
+        LOG_ERROR_LLM << "Open device failed. device id = " << deviceId;
     }
 }
 
 PostProcessingManager::~PostProcessingManager()
 {
-    MINDIE_LLM_LOG_INFO("Destroy post processing manager");
     if (m_pool != nullptr) {
         delete m_pool;
         m_pool = nullptr;
     }
     aclError ret = aclrtResetDevice(deviceId);
     if (ret != ACL_SUCCESS) {
-        MINDIE_LLM_LOG_ERROR("Device resetting failed with error number " << ret);
+        LOG_ERROR_LLM << "Device resetting failed with error number " << ret;
     }
     aclFinalize();
 }
@@ -251,10 +247,10 @@ std::pair<py::array_t<int>, py::array_t<float>> PostProcessingManager::NextToken
         }
         m_pool->Join();
     } catch (const std::overflow_error &e) {
-        MINDIE_LLM_LOG_ERROR("Overflow occurs in NextTokenChooser.");
+        LOG_ERROR_LLM << "Overflow occurs in NextTokenChooser.";
         throw;
     } catch (const std::exception &e) {
-        MINDIE_LLM_LOG_ERROR("Error occurs in NextTokenChooser: " << e.what());
+        LOG_ERROR_LLM << "Error occurs in NextTokenChooser: " << e.what();
         throw;
     }
     return std::pair<py::array_t<int>, py::array_t<float>>(result, logprobs);
@@ -264,7 +260,7 @@ void PostProcessingManager::SetBatchConfigs(py::array_t<int> requestIds, py::arr
     py::array_t<bool> sample, py::array_t<int> numLogprobs, py::array_t<unsigned long long> seed,
     std::string sampleMethod)
 {
-    MINDIE_LLM_LOG_INFO("sampling method is " << sampleMethod);
+    LOG_INFO_LLM << "sampling method is " << sampleMethod;
     auto size = requestIds.size();
     if ((size != topK.size()) || (size != topP.size()) || (size != sample.size()) || (size != seed.size())) {
         throw std::invalid_argument("The size of params requestIds, topK, topP, sample and seed not equal.");
@@ -309,7 +305,6 @@ void PostProcessingManager::DeleteConf(py::array_t<int> requestIdsD)
 
     for (long int i = 0; i < size; i++) {
         dictConf.erase(requestIdsDPtr[i]);
-        MINDIE_LLM_LOG_DEBUG("Delete conf for " << requestIdsDPtr[i]);
     }
 }
 

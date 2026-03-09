@@ -26,7 +26,6 @@
 #include "model_execute_data.pb.h"
 #include "model_execute_data.grpc.pb.h"
 #include "concurrent_map.h"
-#include "log.h"
 #include "common_util.h"
 #include "string_utils.h"
 

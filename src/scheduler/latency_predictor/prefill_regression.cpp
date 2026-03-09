@@ -11,8 +11,10 @@
  */
  
 #include "prefill_regression.h"
+
 #include <cmath>
-#include "log.h"
+
+#include "system_log.h"
 
 namespace mindie_llm {
 PrefillRegression::PrefillRegression() : count_(0), sumX_(0), sumY_(0), sumXX_(0), sumXY_(0) {}
@@ -20,15 +22,15 @@ PrefillRegression::PrefillRegression() : count_(0), sumX_(0), sumY_(0), sumXX_(0
 void PrefillRegression::AddDataPoint(float tokenNum, float execTime)
 {
     count_++;
-    MINDIE_LLM_LOG_DEBUG("prefill predictor: AddDataPoint count: " << count_);
-    MINDIE_LLM_LOG_DEBUG("prefill predictor: AddDataPoint tokenNum: " << tokenNum << " execTime: " << execTime);
+    LOG_DEBUG_LLM << "prefill predictor: AddDataPoint count: " << count_;
+    LOG_DEBUG_LLM << "prefill predictor: AddDataPoint tokenNum: " << tokenNum << " execTime: " << execTime;
     LinearRegression(tokenNum, execTime);
-    MINDIE_LLM_LOG_DEBUG("prefill predictor: update coefficients: " << slope_ << " * tokenNum + " << intercept_);
+    LOG_DEBUG_LLM << "prefill predictor: update coefficients: " << slope_ << " * tokenNum + " << intercept_;
 }
 
 float PrefillRegression::Predict(int tokenNum) const
 {
-    MINDIE_LLM_LOG_DEBUG("prefill predictor: predict tokenNum: " << tokenNum);
+    LOG_DEBUG_LLM << "prefill predictor: predict tokenNum: " << tokenNum;
     return slope_ * tokenNum + intercept_;
 }
 

@@ -13,7 +13,7 @@
 #include <vector>
 #include <mutex>
 #include "acl/acl.h"
-#include "log.h"
+#include "system_log.h"
 #include "swapper.h"
 
 namespace hmm {
@@ -37,7 +37,7 @@ namespace hmm {
             const std::vector<uint64_t> &params) const override
         {
             if (params.size() != 4U) {
-                MINDIE_LLM_LOG_ERROR("params.size() is not 4" << ".");
+                LOG_ERROR_LLM << "params.size() is not 4.";
                 throw std::invalid_argument("Invalid params size, expected 4 elements.");
             }
             UnUInt64VPtr cBlock(cpuBlock);
@@ -53,7 +53,7 @@ namespace hmm {
             const std::vector<uint64_t> &params) const override
         {
             if (params.size() != 4U) {
-                MINDIE_LLM_LOG_ERROR("params.size() is not 4" << ".");
+                LOG_ERROR_LLM << "params.size() is not 4.";
                 throw std::invalid_argument("Invalid params size, expected 4 elements.");
             }
             UnUInt64VPtr cBlock(cpuBlock);

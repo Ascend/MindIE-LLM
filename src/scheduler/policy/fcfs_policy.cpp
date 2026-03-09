@@ -11,7 +11,7 @@
  */
 #include "fcfs_policy.h"
 
-#include "log.h"
+#include "system_log.h"
 #include "math_utils.h"
 #include "request_response/request_id.h"
 #include "msServiceProfiler/msServiceProfiler.h"
@@ -201,9 +201,9 @@ PrefillOutputs FcfsPolicy::ApplyToWaitingQueue(SchedulingBudget &budget, const b
             ignoredSeqGroups.push_back(seqGroup);
             queuesCollection_->waiting_.pop_front();
             // 在Add request的时候已经做过一次长度不超过最大值的判断，理论在prefill过程中不应该再出现这种情况
-            MINDIE_LLM_LOG_ERROR("Prompt token exceeds limit. seq id:" << seqGroup->firstSeq->seqId_
+            LOG_ERROR_LLM << "Prompt token exceeds limit. seq id:" << seqGroup->firstSeq->seqId_
                                                                        << "; prompt len:" << numNewTokens
-                                                                       << "; Prompt limit:" << promptLimit);
+                                                                       << "; Prompt limit:" << promptLimit;
             continue;
         }
 
@@ -216,9 +216,9 @@ PrefillOutputs FcfsPolicy::ApplyToWaitingQueue(SchedulingBudget &budget, const b
                 seqGroup->arriveTime).count());
             size_t maxFirstTokenWaitTime = schedulerConfig_->maxFirstTokenWaitTime;
             if (seqGroup->firstSeq->data_.outputTokenIds.size() == 0 && reqArriveTime > maxFirstTokenWaitTime) {
-                MINDIE_LLM_LOG_DEBUG_REQUEST("Request(requestId: " << seqGroup->metrics_.inferReqId_
+                LOG_DEBUG_LLM.SetType(LogType::REQUEST) << "Request(requestId: " << seqGroup->metrics_.inferReqId_
                     << ") exceeded first token wait time (" << reqArriveTime << " > " << maxFirstTokenWaitTime
-                    << ", preempting current request, Only effective in the PD mix scenario.");
+                    << ", preempting current request, Only effective in the PD mix scenario.";
                 newRequestFirst_ = true;
             }
             break;
@@ -227,8 +227,8 @@ PrefillOutputs FcfsPolicy::ApplyToWaitingQueue(SchedulingBudget &budget, const b
              * 1、如果prompt长度很长，则在add request的时候就做长度校验，返回添加失败。
              * 2、decode阶段，text generator判断长度等于maxSeqLen时就结束请求。maxSeqLen不可能比npu最大可用的内存大。
              *  */
-            MINDIE_LLM_LOG_ERROR("Sequence can never be scheduled due to too long sequence len. seq id:"
-                                 << seqGroup->firstSeq->seqId_ << "; seq len:" << seqGroup->firstSeq->GetLen());
+            LOG_ERROR_LLM << "Sequence can never be scheduled due to too long sequence len. seq id:"
+                                 << seqGroup->firstSeq->seqId_ << "; seq len:" << seqGroup->firstSeq->GetLen();
             throw std::runtime_error("Prompt sequence too long.");
         }
 
@@ -453,19 +453,19 @@ PreemptionMode FcfsPolicy::Preempt(SequenceGroupSPtr &seqGroup,
         preemptionMode = PreemptionMode::SWAP;
         swapNum++;
     }
-
-    MINDIE_LLM_LOG_INFO_REQUEST("Preemption is triggered. CumulativePreemptionNum:"
+    LOG_INFO_LLM.SetType(LogType::REQUEST) << "Preemption is triggered. CumulativePreemptionNum:"
                                 << (numCumulativePreemption_ + 1)
                                 << "; seqId: " << seqGroup->firstSeq->seqId_
                                 << "; requestId: " << seqGroup->metrics_.inferReqId_
                                 << "; preempt mode:" << static_cast<int>(preemptionMode)
                                 << "; maxPreemptCount config:" << schedulerConfig_->maxPreemptCount
-                                << "; swapNum:" << swapNum);
+                                << "; swapNum:" << swapNum;
     numCumulativePreemption_ += 1;
 
     if (newRequestFirst_) {
-        MINDIE_LLM_LOG_WARN_REQUEST("Preemption is triggered to ensure that some requests with long waiting time "
-                                    "can be scheduled with priority.");
+        LOG_WARN_LLM.SetType(LogType::REQUEST)
+            << "Preemption is triggered to ensure that some requests with long waiting time "
+            << "can be scheduled with priority.";
     }
 
     // do preempt

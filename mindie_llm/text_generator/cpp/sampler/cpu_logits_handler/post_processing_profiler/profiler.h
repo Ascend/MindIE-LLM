@@ -21,7 +21,7 @@
 #include <stack>
 #include <thread>
 #include <mutex>
-#include "log.h"
+#include "system_log.h"
 
 namespace PostProcessingProfiler {
 class TimeCost {
@@ -82,7 +82,7 @@ public:
             std::thread::id threadId = std::this_thread::get_id();
             auto tstack = timeStack[threadId];
             if (tstack.empty()) {
-                MINDIE_LLM_LOG_WARN("Inside timer, try to timerEnd without timerStart!");
+                LOG_WARN_LLM << "Inside timer, try to timerEnd without timerStart!";
                 return;
             }
 
@@ -99,10 +99,9 @@ public:
     {
         for (auto &kv : timeStack) {
             if (!kv.second.empty()) {
-                MINDIE_LLM_LOG_WARN("There are unclosed timer, with name: " << kv.second.top().name);
+                LOG_WARN_LLM << "There are unclosed timer, with name: " << kv.second.top().name;
             }
         }
-
         return timeVec;
     }
 

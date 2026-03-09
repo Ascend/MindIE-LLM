@@ -612,7 +612,7 @@ void LogManager::Writer()
         auto& sink = sinks_[i];
         for (auto& m : msgs) {
             const auto& cfg = componentCfgs_[static_cast<size_t>(m.component)];
-            if (cfg.toStdout) {
+            if (cfg.toStdout && (static_cast<LogType>(i) != LogType::TOKEN)) {
                 struct iovec iov[2] = {
                     { const_cast<char*>(m.msg.data()), m.msg.size() },
                     { const_cast<char*>("\n"), 1 }
