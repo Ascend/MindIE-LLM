@@ -168,7 +168,7 @@ class RouterImpl:
             id_to_block_table_map[inst_id][REQ_INDEX].append(index)
             start_src += segment_len
             start_dst += valid_block_num
-
+        
     def initialize(self, model_config: DmiConfig) -> dict:
         self.config = model_config
         self.max_seq_len = model_config.max_seq_len
@@ -201,6 +201,7 @@ class RouterImpl:
                 self.generator.max_position_embeddings,
                 model_config.model_weight_path,
             )
+        
         num_npu_blocks = self.generator.kvcache_settings.num_npu_blocks
         if hasattr(self.generator.model_wrapper, "mapping") and self.generator.model_wrapper.mapping.has_dp():
             num_npu_blocks = num_npu_blocks - 1

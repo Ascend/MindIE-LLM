@@ -790,6 +790,82 @@ EngineMetric LlmEngine::CollectEngineMetric(size_t localDPRank)
     return engineMetric;
 }
 
+void LlmEngine::AccumulateDpMetricInto(size_t dpIndex, EngineMetric &aggregatedMetric)
+{
+    EngineMetric metric = CollectEngineMetric(dpIndex);
+    MINDIE_LLM_LOG_DEBUG("DP[" << dpIndex << "] metrics: "
+        << "freeNpuBlock=" << metric.schedulerInfo.blockInfo.freeNpuBlockNum_
+        << ", totalNpuBlock=" << metric.schedulerInfo.blockInfo.totalNpuBlockNum_
+        << ", freeCpuBlock=" << metric.schedulerInfo.blockInfo.freeCpuBlockNum_
+        << ", totalCpuBlock=" << metric.schedulerInfo.blockInfo.totalCpuBlockNum_
+        << ", waitingReq=" << metric.schedulerInfo.reqsInfo.waitingRequestNum_
+        << ", runningReq=" << metric.schedulerInfo.reqsInfo.runningRequestNum_
+        << ", swappedReq=" << metric.schedulerInfo.reqsInfo.swappedRequestNum_
+        << ", allRadixMatch=" << metric.schedulerInfo.reqsInfo.allRadixMatchNum_
+        << ", npuRadixHit=" << metric.schedulerInfo.reqsInfo.npuRadixMatchHitNum_
+        << ", preemptCount=" << metric.schedulerInfo.reqsInfo.cumulativePreemptCount_
+        << ", prefillTput=" << metric.prefillThroughput_
+        << ", decodeTput=" << metric.decodeThroughput_);
+
+    aggregatedMetric.schedulerInfo.blockInfo.freeNpuBlockNum_ +=
+        metric.schedulerInfo.blockInfo.freeNpuBlockNum_;
+    aggregatedMetric.schedulerInfo.blockInfo.freeCpuBlockNum_ +=
+        metric.schedulerInfo.blockInfo.freeCpuBlockNum_;
+    aggregatedMetric.schedulerInfo.blockInfo.totalNpuBlockNum_ +=
+        metric.schedulerInfo.blockInfo.totalNpuBlockNum_;
+    aggregatedMetric.schedulerInfo.blockInfo.totalCpuBlockNum_ +=
+        metric.schedulerInfo.blockInfo.totalCpuBlockNum_;
+
+    aggregatedMetric.schedulerInfo.reqsInfo.waitingRequestNum_ +=
+        metric.schedulerInfo.reqsInfo.waitingRequestNum_;
+    aggregatedMetric.schedulerInfo.reqsInfo.runningRequestNum_ +=
+        metric.schedulerInfo.reqsInfo.runningRequestNum_;
+    aggregatedMetric.schedulerInfo.reqsInfo.swappedRequestNum_ +=
+        metric.schedulerInfo.reqsInfo.swappedRequestNum_;
+    aggregatedMetric.schedulerInfo.reqsInfo.allRadixMatchNum_ +=
+        metric.schedulerInfo.reqsInfo.allRadixMatchNum_;
+    aggregatedMetric.schedulerInfo.reqsInfo.npuRadixMatchHitNum_ +=
+        metric.schedulerInfo.reqsInfo.npuRadixMatchHitNum_;
+    aggregatedMetric.schedulerInfo.reqsInfo.cumulativePreemptCount_ +=
+        metric.schedulerInfo.reqsInfo.cumulativePreemptCount_;
+
+    aggregatedMetric.prefillThroughput_ += metric.prefillThroughput_;
+    aggregatedMetric.decodeThroughput_ += metric.decodeThroughput_;
+}
+
+EngineMetric LlmEngine::CollectAllDpEngineMetric()
+{
+    EngineMetric aggregatedMetric{};
+    size_t dpSize = enginePerDPs_.size();
+    if (dpSize == 0) {
+        MINDIE_LLM_LOG_WARN("No DP ranks available to collect metrics.");
+        return aggregatedMetric;
+    }
+
+    for (size_t i = 0; i < dpSize; ++i) {
+        AccumulateDpMetricInto(i, aggregatedMetric);
+    }
+
+    // 吞吐量取平均值
+    aggregatedMetric.prefillThroughput_ /= static_cast<float>(dpSize);
+    aggregatedMetric.decodeThroughput_ /= static_cast<float>(dpSize);
+
+    MINDIE_LLM_LOG_DEBUG("Aggregated metrics from " << dpSize << " DP ranks: "
+        << "totalFreeNpuBlock=" << aggregatedMetric.schedulerInfo.blockInfo.freeNpuBlockNum_
+        << ", totalNpuBlock=" << aggregatedMetric.schedulerInfo.blockInfo.totalNpuBlockNum_
+        << ", totalFreeCpuBlock=" << aggregatedMetric.schedulerInfo.blockInfo.freeCpuBlockNum_
+        << ", totalCpuBlock=" << aggregatedMetric.schedulerInfo.blockInfo.totalCpuBlockNum_
+        << ", totalWaitingReq=" << aggregatedMetric.schedulerInfo.reqsInfo.waitingRequestNum_
+        << ", totalRunningReq=" << aggregatedMetric.schedulerInfo.reqsInfo.runningRequestNum_
+        << ", totalSwappedReq=" << aggregatedMetric.schedulerInfo.reqsInfo.swappedRequestNum_
+        << ", totalAllRadixMatch=" << aggregatedMetric.schedulerInfo.reqsInfo.allRadixMatchNum_
+        << ", totalNpuRadixHit=" << aggregatedMetric.schedulerInfo.reqsInfo.npuRadixMatchHitNum_
+        << ", totalPreemptCount=" << aggregatedMetric.schedulerInfo.reqsInfo.cumulativePreemptCount_
+        << ", avgPrefillTput=" << aggregatedMetric.prefillThroughput_
+        << ", avgDecodeTput=" << aggregatedMetric.decodeThroughput_);
+    return aggregatedMetric;
+}
+
 void LlmEngine::SetPrefillPercentage(uint32_t prefillPercentage)
 {
     for (size_t i = 0; i < enginePerDPs_.size(); i++) {

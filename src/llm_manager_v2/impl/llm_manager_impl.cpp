@@ -1201,7 +1201,6 @@ Status LlmManagerImpl::LaunchLlmEngine(Role pdRole)
     }
 
     BlockNum blockNum = GetMinBlockNumFromExecutors();
-
     SchedulerConfig schedulerConfig;
     LLMInitSchedulerConfig(schedulerConfig, blockNum, engineConfig_, ipInfo_);
     if (schedulerConfig.layerwiseDisaggregated && schedulerConfig.cpSize * schedulerConfig.spSize > 1) {
@@ -1572,7 +1571,8 @@ void LlmManagerImpl::SendRuntimeStatus()
         return;
     }
 
-    EngineMetric engineMetric = llmEnginePtr_->CollectEngineMetric();
+    // 收集所有 DP Rank 的聚合指标
+    EngineMetric engineMetric = llmEnginePtr_->CollectAllDpEngineMetric();
     SendJsonData(engineMetric);
 }
 

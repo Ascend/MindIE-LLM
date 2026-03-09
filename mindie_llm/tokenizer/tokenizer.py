@@ -366,11 +366,11 @@ class IbisTokenizer:
         except ValueError as value_error:
             self.delete_multimodal_cache(self.timestamp, self.cache_prefix)
             logger.warning("[Tokenizer]\t>>> Exception:%s", value_error)
-            raise RuntimeError("[Tokenizer] encode chat template failed.") from value_error
+            raise RuntimeError(f"[Tokenizer] encode failed. Original error: {value_error}") from value_error
         except Exception as e:
             self.delete_multimodal_cache(self.timestamp, self.cache_prefix)
             logger.warning("[Tokenizer]\t>>> Exception:%s", e)
-            raise RuntimeError("[Tokenizer] encode chat template failed.") from e
+            raise RuntimeError(f"[Tokenizer] encode failed. Original error: {e}") from e
 
     def decode(self, all_token_ids: List[int], kwargs: dict = None):
         """

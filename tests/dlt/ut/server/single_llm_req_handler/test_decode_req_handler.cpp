@@ -422,7 +422,7 @@ TEST_F(DecodeReqHandlerTestF, ServerResponseCallback_RecomputeTriggeredHandling)
     handler->SetBackManagerCallBack(request);
     ResponseSPtr response = std::make_shared<Response>(RequestIdNew{});
     response->transferStatusFlag = TransferStatusType::RECOMPUTED_TRIGGERED;
-    handler->dmiReCompBuildMeothd_ = nullptr;
+    handler->dmiReCompBuildMethod_ = nullptr;
     handler->constructOneResponseCallBack_ = func;
     request->serverResponseCallback_(response);
     EXPECT_TRUE(handler->isFinish_.load());
@@ -431,7 +431,7 @@ TEST_F(DecodeReqHandlerTestF, ServerResponseCallback_RecomputeTriggeredHandling)
     [](const std::vector<BestNTokens> &) {
         return std::string("ok");
     };
-    handler->dmiReCompBuildMeothd_ = rcb;
+    handler->dmiReCompBuildMethod_ = rcb;
     handler->constructOneResponseCallBack_ = func;
     handler->isFinish_.store(false);
     request->serverResponseCallback_(response);

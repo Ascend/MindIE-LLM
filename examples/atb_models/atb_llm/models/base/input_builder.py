@@ -52,6 +52,40 @@ class InputBuilder:
         """
         return range(len(input_ids))
 
+    @staticmethod
+    def update_chat_template(**kwargs):
+        """
+        If the chat_template parameter is present in the chat argument, the template passed via the parameter 
+        will be used. Both string templates and file paths are supported as valid formats for this parameter.
+        """
+        import os
+        from atb_llm.utils.file_utils import safe_readlines, safe_open
+        if kwargs is None:
+            return
+        chat_template_kwargs_string = "chat_template_kwargs"
+        chat_template_string = "chat_template"
+        chat_template_kwargs = kwargs.get(chat_template_kwargs_string)
+        if chat_template_kwargs is None:
+            return
+        chat_template = chat_template_kwargs.get(chat_template_string)
+        if chat_template is None:
+            return
+        if isinstance(chat_template, str):
+            if os.path.isfile(chat_template):
+                if not os.path.isabs(chat_template):
+                    logger.error("chat_template should not be a relative file path.")
+                    raise ValueError("chat_template is a relative file path, Only absolute file paths are allowed.")
+                try:
+                    with safe_open(chat_template, 'r', encoding='utf-8') as f:
+                        template_content = safe_readlines(f)
+                        template_str = ''.join(template_content)
+                    chat_template_kwargs[chat_template_string] = template_str
+                except Exception as e:
+                    logger.error(f"Failed to load chat template from {chat_template}: {e}")
+                    raise ValueError(f"Failed to load chat template: {e}") from e
+            else:
+                chat_template_kwargs[chat_template_string] = chat_template
+
     def make_context(self, rank: int, conversation: List[Dict[str, str]], add_generation_prompt: bool = True,
                      adapt_to_max_length: bool = False, **kwargs) -> List[int]:
         """Make chat context.
@@ -72,6 +106,10 @@ class InputBuilder:
         if len(conversation) != 0 and conversation[-1].get(self.role_key) == self.tool_call_name:
             tools_msg = conversation.pop()
         _preprocess_messages(conversation)
+        InputBuilder.update_chat_template(**kwargs)
+        request_chat_template = kwargs.get("chat_template_kwargs", {}).get("chat_template", None)
+        if request_chat_template is not None:
+            kwargs["chat_template"] = request_chat_template
         if adapt_to_max_length:
             conversation = deepcopy(conversation)
             if not conversation:

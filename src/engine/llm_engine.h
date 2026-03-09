@@ -96,6 +96,8 @@ public:
 
     EngineMetric CollectEngineMetric(size_t localDPRank = 0) override;
 
+    EngineMetric CollectAllDpEngineMetric() override;
+
     void SetPrefillPercentage(uint32_t prefillPercentage) override;
 
     void PauseScheduling() override;
@@ -125,6 +127,8 @@ protected:
     void CalculateThroughput(std::shared_ptr<EnginePerDP> enginePerDP) const;
 
 private:
+    /// 将第 dpIndex 个 DP 的指标累加到 aggregatedMetric，并打单 DP 日志
+    void AccumulateDpMetricInto(size_t dpIndex, EngineMetric &aggregatedMetric);
 
     void AbortParallelSeqGroups(size_t localDPRank) const;
 

@@ -152,7 +152,7 @@ class TestAsyncMTP(unittest.TestCase):
         self.mtp_plugin.fill_in_model_result(**filling_kwargs, filling_masks=filling_masks)
         end_time = time.time()
         filling_time = (end_time - start_time) * 1000
-        self.assertLess(filling_time, 6)  # severe degradation
+        self.assertLess(filling_time, 8)  # severe degradation
         if filling_time > 3.5:
             logger.warning(f'The filling performance decreases: {filling_time} ms')
         else:

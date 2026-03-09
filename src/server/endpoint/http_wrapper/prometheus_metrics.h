@@ -113,6 +113,10 @@ private:
     prometheus::Gauge* npuPrefixCacheHitRate_ = nullptr;   // npu cache hit rate
     prometheus::Counter* requestNumPreemptionsTotal_ = nullptr;   // Cumulative number of preemption from the engine
 
+    // 新增：上报原始数据，供 Coordinator 加权计算命中率
+    prometheus::Gauge* allRadixMatchNumGauge_ = nullptr;      // 总的 radix match 尝试次数
+    prometheus::Gauge* npuRadixMatchHitNumGauge_ = nullptr;   // radix match 命中次数
+
     std::chrono::steady_clock::time_point TTFTStartTime_ = std::chrono::steady_clock::time_point();
     std::chrono::steady_clock::time_point TTFTEndTime_ = std::chrono::steady_clock::time_point();
     std::chrono::steady_clock::time_point TBTStartTime_ = std::chrono::steady_clock::time_point();

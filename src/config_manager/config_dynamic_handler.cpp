@@ -115,7 +115,11 @@ bool DynamicConfigHandler::isTriggered(const std::string pathExpression) const
 
         std::vector<std::string> pathVec = splitString(pathExpression);
         for (std::string& path : pathVec) {
-            configJson = configJson.at(path);
+            if (path == "EnableDynamicAdjustTimeoutConfig" && !configJson.contains(path)) {
+                return false;
+            } else {
+                configJson = configJson.at(path);
+            }
         }
         return static_cast<bool>(configJson);
     } catch (nlohmann::json::parse_error& e) {

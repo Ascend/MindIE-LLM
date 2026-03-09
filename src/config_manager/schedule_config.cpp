@@ -256,7 +256,7 @@ bool ScheduleConfigManager::CheckParam()
         checkRes && ParamChecker::CheckPolicyValue(scheduleConfig_.decodePolicyType, "scheduleParam.decodePolicyType");
     checkRes = checkRes && ParamChecker::CheckMaxMinValue<uint32_t>(scheduleConfig_.decodeTimeMsPerReq, 1000U, 0U,
                                                                     "scheduleParam.decodeTimeMsPerReq");
-    checkRes = checkRes && ParamChecker::CheckMaxMinValue<uint32_t>(scheduleConfig_.maxBatchSize, 5000U, 1U,
+    checkRes = checkRes && ParamChecker::CheckMaxMinValue<uint32_t>(scheduleConfig_.maxBatchSize, 819200U, 1U,
                                                                     "scheduleParam.maxBatchSize");
     if (scheduleConfig_.maxPreemptCount > scheduleConfig_.maxBatchSize) {
         MINDIE_LLM_LOG_ERROR("The maxPreemptCount cannot be set greater than maxBatchsize"

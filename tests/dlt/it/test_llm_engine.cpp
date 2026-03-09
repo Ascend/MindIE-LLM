@@ -124,6 +124,7 @@ public:
     {
         return true;
     }
+
     bool ExecutorInstanceFinalize() override { return true; }
     uint32_t GetCpuBlockNum() const override { return 1; }
     uint32_t GetNpuBlockNum() const override { return 1; }

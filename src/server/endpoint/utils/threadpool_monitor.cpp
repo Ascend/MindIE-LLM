@@ -45,15 +45,28 @@ ThreadPoolMonitor::~ThreadPoolMonitor()
 
 bool ThreadPoolMonitor::enqueue(std::function<void()> fn)
 {
+    bool enqueSuc = false;
+    size_t num = 0;
     {
         std::unique_lock<std::mutex> lock(mutex_);
+        num = jobs_.size();
         if (max_queued_requests_ > 0 && jobs_.size() >= max_queued_requests_) {
-            return false;
+            enqueSuc = false;
+        } else {
+            jobs_.push_back(std::move(fn));
+            enqueSuc = true;
         }
-        jobs_.push_back(std::move(fn));
     }
-    cond_.notify_one();
-    return true;
+
+    if (enqueSuc) {
+        cond_.notify_one();
+        return true;
+    } else {
+        ULOG_ERROR(SUBMODLE_NAME_ENDPOINT,
+            GenerateEndpointErrCode(ERROR, SUBMODLE_FEATURE_SERVER_REQUEST, SUBPROCESS_ERROR),
+            "[ThreadPoolMonitor] enqueue fail: wait num is " << num << ", max is " << max_queued_requests_);
+        return false;
+    }
 }
 
 void ThreadPoolMonitor::shutdown()

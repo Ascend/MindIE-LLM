@@ -93,7 +93,7 @@ target_link_libraries(mindieservice_endpoint_static
         -Wl,--start-group
         ${Boost_LIBRARIES}
         ${OPENSSL_LIBRARIES}
-        config_manager mindie_llm_utils
+        config_manager mindie_llm_utils system_log
         mindieservice_infer_instances mindieservice_tokenizer
         -Wl,--end-group
 )
@@ -113,6 +113,7 @@ target_link_libraries(mindieservice_endpoint
         prometheus-cpp::pull
         mindieservice_infer_instances
         mindie_llm_utils
+        system_log
         config_manager
         mindieservice_tokenizer
         pd_grpc_proto_file

@@ -84,7 +84,7 @@ protected:
 
     const ReqCtxPtr ctx;
     ConstructOneResponseCallBack constructOneResponseCallBack_{};
-    DMIReComputeBuildMethod dmiReCompBuildMeothd_{};
+    DMIReComputeBuildMethod dmiReCompBuildMethod_{};
     uint64_t simulatedSeqIndex{1};
     std::shared_ptr<EventDispatcher> eventDispatcher{nullptr};
     InferParamSPtr inferParam_{nullptr};

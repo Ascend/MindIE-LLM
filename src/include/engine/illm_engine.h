@@ -51,6 +51,10 @@ public:
 
     virtual EngineMetric CollectEngineMetric(size_t localDPRank = 0) = 0;
 
+    /// @brief 收集所有 DP Rank 的聚合指标
+    /// @return EngineMetric 所有 DP Rank 的聚合指标
+    virtual EngineMetric CollectAllDpEngineMetric() = 0;
+
     virtual void SetPrefillPercentage(uint32_t prefillPercentage) = 0;
 };
 using LlmEnginePtr = std::unique_ptr<ILlmEngine>;

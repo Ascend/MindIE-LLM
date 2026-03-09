@@ -86,7 +86,6 @@ struct Request {
     std::optional<InstanceId> pInstanceId; // pull kv will use management port (pInstanceId)
     std::vector<int64_t> srcBlockTable; // block table from prefill
     std::vector<uint64_t> dpInstanceIds; // dp instance ids from prefill [maybe unused]
-
     // For Link/Unlink
     // {dpInstanceId: [host_ip1, host_ip2, ...]}
     std::unordered_map<InstanceId, std::vector<std::string>> dpInstance2HostIps;

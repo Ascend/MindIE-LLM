@@ -435,7 +435,6 @@ void SingleLLMPrefillReqHandler::BuildDecodeParameters(ResponseSPtr response, De
         params.add_blocktable(block);
     }
     PROF(prof.NumArrayAttr("blocktable", blockTable.begin(), blockTable.end()));
-
     std::vector<uint64_t> dpInstanceIds = {
         static_cast<unsigned int>(response->responseContents[0].singleLLMPrefillReqHandlerId)};
     for (uint64_t dpId : dpInstanceIds) {

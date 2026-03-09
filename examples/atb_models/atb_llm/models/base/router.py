@@ -25,13 +25,12 @@ from .tool_call_parser import ToolsCallProcessor, ToolParserManager
 from ...utils.env import ENV
 from ...utils.log import logger, message_filter
 from ...utils.log.error_code import ErrorCode
-from ...utils.configuration_utils import LLMConfig
+from ...utils.configuration_utils import LLMConfig, GraphType
 from ...utils import file_utils
 from ...utils.parameter_validators import (
     IntParameterValidator, DictionaryParameterValidator, BooleanParameterValidator,
     RangeParamaterValidator, FileParameterValidator, StringParameterValidator, Field
 )
-from ...utils.configuration_utils import GraphType
 
 
 GLM4_1V = "glm41v"
@@ -154,6 +153,14 @@ class BaseRouter:
             self.tokenizer_path = self.model_name_or_path
 
         if self.llm_config is not None:
+            # Python graph construction is deprecated. Force reset to C++ graph if detected.
+            if self.llm_config.llm.engine.graph == GraphType.PYTHON:
+                logger.warning(
+                    "Python Graph is deprecated, "
+                    "config field llm.engine.graph will be removed on 2027/3/31."
+                    "Automatically falling back to C++ graph."
+                )
+                self.llm_config.llm.engine.graph = GraphType.CPP
             llm_config_validators = self.get_llm_config_validators()
             self.llm_config.check_config(llm_config_validators)
             self._check_llm_config_model_type(self.model_type)
@@ -370,7 +377,7 @@ class BaseRouter:
                 "micro_batch": BooleanParameterValidator()
             }),
             "engine": DictionaryParameterValidator({
-                "graph": RangeParamaterValidator(range_list=["cpp", "python"])
+                "graph": RangeParamaterValidator(range_list=[GraphType.CPP, GraphType.PYTHON])
             }),
             "parallel_options": DictionaryParameterValidator({
                 "o_proj_local_tp": IntParameterValidator(Field(ge=1, le=16), special_values=[-1]),
@@ -586,7 +593,7 @@ class BaseRouter:
             logger.error(error_msg, ErrorCode.ATB_MODELS_PARAM_INVALID)
             raise ValueError(error_msg)
         
-        if self.llm_config.llm.engine.graph == "python" and model_type not in [LLAMA, QWEN2, QWEN3]:
+        if self.llm_config.llm.engine.graph == GraphType.PYTHON and model_type not in [LLAMA, QWEN2, QWEN3]:
             error_msg = f"engine.graph only supports [llama, qwen2, qwen3] when set to \"python\", " \
                         f"but model_type is {model_type}, please refer to the MindIE official document" \
                         f"and modify config.json."
@@ -611,7 +618,7 @@ class BaseRouter:
         weights_options = self.llm_config.get("llm").get("weights_options")
         if weights_options is not None and weights_options.low_cpu_memory_mode:
             engine_graph = self.llm_config.get("llm").get("engine").get("graph")
-            if engine_graph != "python" or model_type not in [QWEN2, QWEN3]:
+            if engine_graph != GraphType.PYTHON or model_type not in [QWEN2, QWEN3]:
                 logger.warning(f"low_cpu_memory_mode is only effective for [qwen2, qwen3] " \
                             f"when engine graph is set to \"python\". " \
                             f"For {model_type} with engine graph {engine_graph}, this mode will not work.")

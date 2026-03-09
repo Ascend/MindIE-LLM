@@ -88,7 +88,7 @@ struct BestNTokens {
     constexpr uint32_t MIN_BEST_OF = 1;
     constexpr uint32_t MAX_BEST_OF = 128;
     constexpr uint32_t MIN_N = 1;
-    constexpr uint32_t MAX_N = 128;
+    constexpr uint32_t MAX_N = 8192;
 
     constexpr float MAX_FLOAT_VALUE = std::numeric_limits<float>::max();
     constexpr float MAX_TEMPERATURE = std::numeric_limits<float>::max();

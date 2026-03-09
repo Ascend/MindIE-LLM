@@ -21,9 +21,11 @@
 #include "parameters_checker.h"
 #include "infer_tokenizer.h"
 #include "log.h"
+#include "system_log.h"
 #include "common_util.h"
 #include "basic_types.h"
 #include "config_manager_impl.h"
+#include "string_utils.h"
 #include "safe_io.h"
 
 using OrderedJson = nlohmann::ordered_json;
@@ -210,14 +212,18 @@ bool InferParam::ValidateFeatureOverlay(const ValidationContext &ctx, std::strin
 bool AssignDoSample(const OrderedJson &jsonObj, RequestSPtr tmpReq, std::string &error) noexcept
 {
     const std::string key = "do_sample";
-    return ParametersChecker::OptionalBooleanJsonCheck(jsonObj, key, tmpReq->doSample, error);
+    bool res = ParametersChecker::OptionalBooleanJsonCheck(jsonObj, key, tmpReq->doSample, error);
+    if (jsonObj.contains(key)) {
+        LOG_DEBUG_SERVER.SetType(LogType::REQUEST) << "Sampling param `" << key << "` value: " << jsonObj[key];
+    }
+    return res;
 }
 
 bool AssignRepetitionPenalty(const OrderedJson &jsonObj, RequestSPtr tmpReq, std::string &error,
                              double maxValue) noexcept
 {
     const std::string key = "repetition_penalty";
-    return ParametersChecker::OptionalFloatJsonCheck(
+    bool res = ParametersChecker::OptionalFloatJsonCheck(
         jsonObj, key, tmpReq->repetitionPenalty, error, [&](auto value, auto &ss) {
             if (!(value > 0.0 && value <= maxValue)) {
                 ss << "Parameter '" << key << "' must be in (0.0, " << maxValue << "], got "
@@ -226,6 +232,10 @@ bool AssignRepetitionPenalty(const OrderedJson &jsonObj, RequestSPtr tmpReq, std
             }
             return true;
         });
+    if (jsonObj.contains(key)) {
+        LOG_DEBUG_SERVER.SetType(LogType::REQUEST) << "Sampling param `" << key << "` value: " << jsonObj[key];
+    }
+    return res;
 }
 
 bool AssignSeed(const OrderedJson &jsonObj, RequestSPtr tmpReq, std::string &error) noexcept
@@ -245,6 +255,7 @@ bool AssignSeed(const OrderedJson &jsonObj, RequestSPtr tmpReq, std::string &err
             return false;
         }
         tmpReq->seed = random->GetRand();
+        LOG_DEBUG_SERVER.SetType(LogType::REQUEST) << "Sampling param `" << key << "` value: " << random->GetRand();
         return true;
     }
     uint64_t value = jsonObj[key];
@@ -253,6 +264,7 @@ bool AssignSeed(const OrderedJson &jsonObj, RequestSPtr tmpReq, std::string &err
         return false;
     }
     tmpReq->seed = value;
+    LOG_DEBUG_SERVER.SetType(LogType::REQUEST) << "Sampling param `" << key << "` value: " << value;
     return true;
 }
 
@@ -264,6 +276,7 @@ bool AssignStopStrings(const OrderedJson &jsonObj, RequestSPtr tmpReq, std::stri
         return true;
     }
     auto stopStrings = jsonObj[key];
+    LOG_DEBUG_SERVER.SetType(LogType::REQUEST) << "Sampling param `" << key << "` value: " << stopStrings.dump();
     switch (stopStrings.type()) {
         case OrderedJson::value_t::array: {
             return AssignStopStringList(stopStrings, tmpReq, error, isNumStopStrLimited, maxLength);
@@ -332,7 +345,7 @@ bool AssignStopSingleString(const OrderedJson &stopStrings, RequestSPtr tmpReq, 
 bool AssignPresencePenalty(const OrderedJson &jsonObj, RequestSPtr tmpReq, std::string &error) noexcept
 {
     const std::string key = "presence_penalty";
-    return ParametersChecker::OptionalFloatJsonCheck(
+    bool res = ParametersChecker::OptionalFloatJsonCheck(
         jsonObj, key, tmpReq->presencyPenalty, error, [&](auto value, auto &ss) {
             if (!(value >= MIN_PRESENCE_PENALTY && value <= MAX_PRESENCE_PENALTY)) {
                 ss << "Parameter presence_penalty not in [-2.0, 2.0], but got " << jsonObj[key] << ".";
@@ -340,6 +353,10 @@ bool AssignPresencePenalty(const OrderedJson &jsonObj, RequestSPtr tmpReq, std::
             }
             return true;
         });
+    if (jsonObj.contains(key)) {
+        LOG_DEBUG_SERVER.SetType(LogType::REQUEST) << "Sampling param `" << key << "` value: " << jsonObj[key];
+    }
+    return res;
 }
 
 bool AssignN(const OrderedJson &jsonObj, RequestSPtr tmpReq, std::string &error) noexcept
@@ -365,8 +382,7 @@ bool AssignBestOf(const OrderedJson &jsonObj, RequestSPtr tmpReq, std::string &e
     const std::string key = "best_of";
     return ParametersChecker::OptionalUint32JsonCheck(
         jsonObj, key, tmpReq->bestOf, error, [&](auto value, auto &ss) {
-        if (value != 1 &&
-            GetServerConfig().inferMode == mindie_llm::INFER_MODE_DMI) {
+        if (value != 1 && GetServerConfig().inferMode == mindie_llm::INFER_MODE_DMI) {
             ss << "Paramter [best_of] can only be set to 1 in pd disaggregation mode, got " << value << ".";
             return false;
         }
@@ -396,7 +412,7 @@ bool AssignBeamSearch(const OrderedJson &jsonObj, RequestSPtr tmpReq, std::strin
 bool AssignFrequencyPenalty(const OrderedJson &jsonObj, RequestSPtr tmpReq, std::string &error) noexcept
 {
     const std::string key = "frequency_penalty";
-    return ParametersChecker::OptionalFloatJsonCheck(
+    bool res = ParametersChecker::OptionalFloatJsonCheck(
         jsonObj, key, tmpReq->frequencyPenalty, error, [&](auto value, auto &ss) {
             if (!(value >= MIN_FREQUENCY_PENALTY && value <= MAX_FREQUENCY_PENALTY)) {
                 ss << "Parameter frequency_penalty should be in [-2.0, 2.0], got " << jsonObj[key] << ".";
@@ -404,12 +420,20 @@ bool AssignFrequencyPenalty(const OrderedJson &jsonObj, RequestSPtr tmpReq, std:
             }
             return true;
         });
+    if (jsonObj.contains(key)) {
+        LOG_DEBUG_SERVER.SetType(LogType::REQUEST) << "Sampling param `" << key << "` value: " << jsonObj[key];
+    }
+    return res;
 }
 
 bool AssignSkipSpecialTokens(const OrderedJson &jsonObj, RequestSPtr tmpReq, std::string &error) noexcept
 {
     const std::string key = "skip_special_tokens";
-    return ParametersChecker::OptionalBooleanJsonCheck(jsonObj, key, tmpReq->skipSpecialTokens, error);
+    bool res = ParametersChecker::OptionalBooleanJsonCheck(jsonObj, key, tmpReq->skipSpecialTokens, error);
+    if (jsonObj.contains(key)) {
+        LOG_DEBUG_SERVER.SetType(LogType::REQUEST) << "Sampling param `" << key << "` value: " << jsonObj[key];
+    }
+    return res;
 }
 
 bool AssignIncludeStopStrInOutput(const OrderedJson &jsonObj, RequestSPtr tmpReq, std::string &error)
@@ -424,6 +448,7 @@ bool AssignIncludeStopStrInOutput(const OrderedJson &jsonObj, RequestSPtr tmpReq
     }
     if (res.isPresent) {
         tmpReq->includeStopStrInOutput = jsonObj[key];
+        LOG_DEBUG_SERVER.SetType(LogType::REQUEST) << "Sampling param `" << key << "` value: " << jsonObj[key];
     }
     return true;
 }
@@ -432,7 +457,7 @@ bool AssignTemperature(const OrderedJson &jsonObj, RequestSPtr tmpReq, std::stri
                        double maxValue) noexcept
 {
     const std::string key = "temperature";
-    return ParametersChecker::OptionalFloatJsonCheck(
+    bool res = ParametersChecker::OptionalFloatJsonCheck(
         jsonObj, key, tmpReq->temperature, error, [&](auto value, auto &ss) {
             const bool isValid = allowLowerBound
                 ? (value >= 0.0 && value <= maxValue)
@@ -443,6 +468,10 @@ bool AssignTemperature(const OrderedJson &jsonObj, RequestSPtr tmpReq, std::stri
             }
             return true;
         });
+    if (jsonObj.contains(key)) {
+        LOG_DEBUG_SERVER.SetType(LogType::REQUEST) << "Sampling param `" << key << "` value: " << jsonObj[key];
+    }
+    return res;
 }
 
 bool AssignMaxTokens(const OrderedJson &jsonObj, InferParamSPtr param, std::string &error)
@@ -482,6 +511,7 @@ bool AssignTopK(const OrderedJson &jsonObj, RequestSPtr tmpReq, std::string &err
     int64_t value = jsonObj[key];
     if (value == -1 && allowNegativeOne) {
         tmpReq->topK = 0;
+        LOG_DEBUG_SERVER.SetType(LogType::REQUEST) << "Sampling param `" << key << "` value: 0";
         return true;
     }
     bool isValid = (value <= MAX_INT32_VALUE) && (allowLowerBound ? value >= 0 : value > 0);
@@ -491,13 +521,14 @@ bool AssignTopK(const OrderedJson &jsonObj, RequestSPtr tmpReq, std::string &err
         return false;
     }
     tmpReq->topK = static_cast<int32_t>(value);
+    LOG_DEBUG_SERVER.SetType(LogType::REQUEST) << "Sampling param `" << key << "` value: " << value;
     return true;
 }
 
 bool AssignTopP(const OrderedJson &jsonObj, RequestSPtr tmpReq, std::string &error, bool allowUpperBound) noexcept
 {
     const std::string key = "top_p";
-    return ParametersChecker::OptionalFloatJsonCheck(
+    bool res = ParametersChecker::OptionalFloatJsonCheck(
         jsonObj, key, tmpReq->topP, error, [&](auto topPValue, auto &ss) {
             if (!(topPValue > 0.0 && (allowUpperBound ? topPValue <= 1.0 : topPValue < 1.0))) {
                 ss << "Parameter top_p must be in (0.0,1.0], got " << jsonObj[key] << ".";
@@ -505,12 +536,20 @@ bool AssignTopP(const OrderedJson &jsonObj, RequestSPtr tmpReq, std::string &err
             }
             return true;
         });
+    if (jsonObj.contains(key)) {
+        LOG_DEBUG_SERVER.SetType(LogType::REQUEST) << "Sampling param `" << key << "` value: " << jsonObj[key];
+    }
+    return res;
 }
 
 bool AssignIgnoreEos(const OrderedJson &jsonObj, RequestSPtr tmpReq, std::string &error) noexcept
 {
     const std::string key = "ignore_eos";
-    return ParametersChecker::OptionalBooleanJsonCheck(jsonObj, key, tmpReq->ignoreEos, error);
+    bool res = ParametersChecker::OptionalBooleanJsonCheck(jsonObj, key, tmpReq->ignoreEos, error);
+    if (jsonObj.contains(key)) {
+        LOG_DEBUG_SERVER.SetType(LogType::REQUEST) << "Sampling param `" << key << "` value: " << jsonObj[key];
+    }
+    return res;
 }
 
 bool AssignStopTokenIds(const OrderedJson &jsonObj, RequestSPtr tmpReq, std::string &error) noexcept
@@ -547,13 +586,15 @@ bool AssignStopTokenIds(const OrderedJson &jsonObj, RequestSPtr tmpReq, std::str
     std::set<TokenId> tempStopTokenIds(tmpReq->stopTokenIds.value().begin(), tmpReq->stopTokenIds.value().end());
     tmpReq->stopTokenIds.value().clear();
     tmpReq->stopTokenIds.value().assign(tempStopTokenIds.begin(), tempStopTokenIds.end());
+    LOG_DEBUG_SERVER.SetType(LogType::REQUEST) << "Sampling param `" << key << "` value: "
+        << Join(tmpReq->stopTokenIds.value(), ",");
     return true;
 }
 
 bool AssignTypicalP(const OrderedJson &jsonObj, RequestSPtr tmpReq, std::string &error) noexcept
 {
     const std::string key = "typical_p";
-    return ParametersChecker::OptionalFloatJsonCheck(
+    bool res = ParametersChecker::OptionalFloatJsonCheck(
         jsonObj, key, tmpReq->typicalP, error, [&](auto value, auto &ss) {
             if (!(value > 0.0 && value <= 1.0)) {
                 ss << "Parameter typical_p must be in (0.0,1.0], got " << jsonObj[key] << ".";
@@ -561,12 +602,20 @@ bool AssignTypicalP(const OrderedJson &jsonObj, RequestSPtr tmpReq, std::string 
             }
             return true;
         });
+    if (jsonObj.contains(key)) {
+        LOG_DEBUG_SERVER.SetType(LogType::REQUEST) << "Sampling param `" << key << "` value: " << jsonObj[key];
+    }
+    return res;
 }
 
 bool AssignWatermark(const OrderedJson &jsonObj, RequestSPtr tmpReq, std::string &error) noexcept
 {
     const std::string key = "watermark";
-    return ParametersChecker::OptionalBooleanJsonCheck(jsonObj, key, tmpReq->watermark, error);
+    bool res = ParametersChecker::OptionalBooleanJsonCheck(jsonObj, key, tmpReq->watermark, error);
+    if (jsonObj.contains(key)) {
+        LOG_DEBUG_SERVER.SetType(LogType::REQUEST) << "Sampling param `" << key << "` value: " << jsonObj[key];
+    }
+    return res;
 }
 
 bool AssignBatchSize(const OrderedJson &jsonObj, InferParamSPtr param, std::string &error) noexcept
@@ -602,7 +651,7 @@ bool AssignBoolValue(const OrderedJson &jsonObj, const std::string &key, bool &v
 bool AssignPriority(const OrderedJson &jsonObj, RequestSPtr tmpReq, std::string &error) noexcept
 {
     const std::string key = "priority";
-    return ParametersChecker::UInt64JsonCheck(
+    bool res = ParametersChecker::UInt64JsonCheck(
         jsonObj, key, tmpReq->priority, error, [&](auto value, auto &ss) {
             if (value < 1 || value > MAX_PRIORITY) {
                 ss << "Parameter priority must be in [1," << MAX_PRIORITY << "], got " << value << ".";
@@ -610,6 +659,10 @@ bool AssignPriority(const OrderedJson &jsonObj, RequestSPtr tmpReq, std::string 
             }
             return true;
         });
+    if (jsonObj.contains(key)) {
+        LOG_DEBUG_SERVER.SetType(LogType::REQUEST) << "Sampling param `" << key << "` value: " << jsonObj[key];
+    }
+    return res;
 }
 
 bool AssignTimeout(const OrderedJson &jsonObj, InferParamSPtr param, std::string &error) noexcept

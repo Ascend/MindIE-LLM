@@ -15,6 +15,7 @@
 #include <climits>
 #include <stdexcept>
 #include <algorithm>
+#include <numeric>
 
 #include "policy/policy_factory.h"
 #include "log.h"
@@ -176,9 +177,18 @@ void Scheduler::RecordMetricsStatics(SchedulerOutputs &schedulerOut, SequenceGro
 
     if (schedulerOut.forwardMode_ == ForwardMode::PREFILL) {
         for (SequenceGroupMetaData meta : seqGroupMetadata.metaList) {
-            // ToDo: 未区分rank，待增加
-            schedulerMetricsStatics_.npuRadixMatchHitNum_.fetch_add(meta.computedLens_.at(0));
-            schedulerMetricsStatics_.allRadixMatchNum_.fetch_add(meta.tokenIds_.size());
+            // prefix cache 命中率口径：cached_tokens / prefill_tokens
+            // - computedLens_：命中的 block 数（可能是每个 rank 一项）
+            // - 分母用 prompt token 数（用 promptLens_ 聚合，避免 tokenIds_ 在 recompute 场景包含 outputTokenIds）
+            const uint64_t promptTokens =
+                std::accumulate(meta.promptLens_.begin(), meta.promptLens_.end(), static_cast<uint64_t>(0));
+            const uint64_t blockSize = static_cast<uint64_t>(schedulerConfig_->cacheBlockSize);
+            const uint64_t hitBlocks =
+                std::accumulate(meta.computedLens_.begin(), meta.computedLens_.end(), static_cast<uint64_t>(0));
+            const uint64_t hitTokens = (blockSize == 0) ? 0 : std::min(promptTokens, hitBlocks * blockSize);
+
+            schedulerMetricsStatics_.allRadixMatchNum_.fetch_add(promptTokens);
+            schedulerMetricsStatics_.npuRadixMatchHitNum_.fetch_add(hitTokens);
         }
     }
     schedulerMetricsStatics_.cumulativePreemptCount_.fetch_add(schedulerOut.numPreempted_);

@@ -38,8 +38,8 @@ struct ReqStatistic {
     uint64_t swappedRequestNum_{0};
 
     uint64_t cumulativePreemptCount_{0};
-    uint64_t allRadixMatchNum_{0};    // 统计所有请求的prompt token占用的block个数
-    uint64_t npuRadixMatchHitNum_{0}; // 统计所有请求的prompt cache命中的block个数
+    uint64_t allRadixMatchNum_{0};    // 统计所有请求的 prefill prompt token 总数
+    uint64_t npuRadixMatchHitNum_{0}; // 统计所有请求的 prefix cache 命中的 token 总数
 };
 
 struct SchedulerMetric {

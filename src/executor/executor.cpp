@@ -424,9 +424,9 @@ bool Executor::HandleInitResult(std::vector<ExecuteResponse> &responses) const
 {
     for (size_t i = 0; i < responses.size(); ++i) {
         const auto &initResults = responses[i].init_results().init_result_map();
-            if (modelLaunchConfig_.layerwiseDisaggregated) {
-                auto itrResultStatus = initResults.find("status");
-                if (itrResultStatus != initResults.end() && itrResultStatus->second == "error") {
+        if (modelLaunchConfig_.layerwiseDisaggregated) {
+            auto itrResultStatus = initResults.find("status");
+            if (itrResultStatus != initResults.end() && itrResultStatus->second == "error") {
                 MINDIE_LLM_LOG_ERROR("Init result error: Required fields missing in response.");
                 return false;
             }

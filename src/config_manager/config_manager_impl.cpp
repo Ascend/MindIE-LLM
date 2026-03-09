@@ -152,7 +152,14 @@ ConfigManager::Impl::Impl(const std::string &jsonPath)
         }
         backendConfig_->UpdateMultiNodesInfer(ranktableConfig_->GetParam());
     }
-    
+
+    if (!configJson_.contains("EnableDynamicAdjustTimeoutConfig")) {
+        std::cout << "The configName EnableDynamicAdjustTimeoutConfig is not found, "
+                  << "using default value false. If you need to customize this "
+                  << "configuration item, please add it to the config file."
+                  << std::endl;
+    }
+
     // 执行配置交互
     ExecuteConfigInteractions();
     jsonPath_ = jsonPath;

@@ -65,7 +65,6 @@ void ModelExecOutputHandler::AsyncPublishPrefilledKvCache(ModelBatchResultSPtr &
                                 << dpRankId_ << ". Request Prefill Complete, requestId: "
                                 << seqGroup->metrics_.inferReqId_ << ", seqId: " << firstSample.seq_id()
                                 << ", pInstanceId:" << seqGroup->pInstanceId << ", localDPRank_:" << localDPRank_);
-
             // 返回推理结果给上层的回调函数
             forwardRespToManagerCall_(response);
         }
@@ -208,7 +207,6 @@ void ModelExecOutputHandler::ProcessSequenceStatus(SequenceId seqId, int64_t fin
 void ModelExecOutputHandler::HandleGreedySampling(const model_execute_data::SequenceOutput &sample)
 {
     auto spanGreedySampling = PROF(INFO, Domain("Engine").SpanStart("HandleGreedySampling"));
-
     int64_t tokenIdx = 0;
     for (int64_t output_token : sample.output_token()) {
         if (schedulerConfig_->speculationGamma > 0 && tokenIdx >= sample.num_speculative_tokens()) {
@@ -225,7 +223,6 @@ void ModelExecOutputHandler::HandleGreedySampling(const model_execute_data::Sequ
                 << sample.seq_id() << ", output_token is -1");
         }
     }
-
     ProcessSequenceStatus(sample.seq_id(), sample.finish_reason());
 
     PROF(spanGreedySampling.SpanEnd());

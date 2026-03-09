@@ -15,7 +15,6 @@
 #include "config_manager.h"
 #include "infer_instances.h"
 #include "env_util.h"
-#include "env_util.h"
 #include "log.h"
 #include "log_utils.h"
 #include "endpoint_def.h"
@@ -23,6 +22,10 @@
 #include "prometheus_metrics.h"
 
 namespace mindie_llm {
+// 手动递增的改动标识：每次你确认要发版本/验证生效时，把数字 +1。
+// 目的：仅通过日志即可确认当前运行二进制是否包含最新改动。
+static constexpr int TABLEIDLEN = 2;
+
 constexpr uint32_t MILLISEC_TO_SEC = 1000;
 const prometheus::Histogram::BucketBoundaries TOKEN_BUCKETS = {10, 50, 100, 200, 500, 1000, 2000, 5000, 10000,
     16000, 20000, 32000, 50000, 64000, 128000};
@@ -65,6 +68,9 @@ PrometheusMetrics::PrometheusMetrics() : inputTokens(0)
     }
 
     if (isActivate_) {
+        ULOG_INFO(SUBMODLE_NAME_ENDPOINT,
+            std::string("[Metrics][PatchId] prometheus_metrics_patch_id=") + std::to_string(TABLEIDLEN));
+
         const std::vector<ModelDeployConfig> &modelConfig = GetModelDeployConfig();
         std::string modelName = "";
         for (size_t i = 0; i < modelConfig.size(); ++i) {
@@ -156,11 +162,20 @@ Status PrometheusMetrics::InitPrometheusMetrics(std::string modelName)
             .Add({{"model_name", modelName}});
 
         npuPrefixCacheHitRate_ = &prometheus::BuildGauge()
-            .Name("npu_prefix_cache_hit_rate").Help("NPU prefix cache block hit rate..").Register(*registry)
+            .Name("npu_prefix_cache_hit_rate").Help("NPU prefix cache block hit rate.").Register(*registry)
             .Add({{"model_name", modelName}});
         requestNumPreemptionsTotal_ = &prometheus::BuildCounter()
             .Name("num_preemptions_total").Help("Cumulative number of preemption from the engine.").Register(*registry)
             .Add({{"model_name", modelName}});
+        // 新增：上报原始数据，供 Coordinator 加权计算命中率
+        allRadixMatchNumGauge_ = &prometheus::BuildGauge()
+            .Name("all_radix_match_num")
+            .Help("Total number of prefill prompt tokens participating in prefix cache radix match.")
+            .Register(*registry).Add({{"model_name", modelName}});
+        npuRadixMatchHitNumGauge_ = &prometheus::BuildGauge()
+            .Name("npu_radix_match_hit_num")
+            .Help("Number of prefill prompt tokens hit by prefix cache radix match.")
+            .Register(*registry).Add({{"model_name", modelName}});
     } catch (const std::exception &e) {
         ULOG_WARN(SUBMODLE_NAME_ENDPOINT, GenerateEndpointErrCode(WARNING, SUBMODLE_FEATURE_MANAGE_REQUEST,
             STATUS_WARNING), "Init prometheus metrics error!");
@@ -388,6 +403,11 @@ void PrometheusMetrics::CacheBlockDataCollect(uint32_t freeNpuBlockNums, uint32_
 void PrometheusMetrics::RadixMatchDataCollect(uint64_t allRadixMatchNum, uint64_t npuRadixMatchHitNum)
 {
     if (isActivate_) {
+        // 上报原始数据（供 Coordinator 聚合计算加权命中率）
+        allRadixMatchNumGauge_->Set(static_cast<double>(allRadixMatchNum));
+        npuRadixMatchHitNumGauge_->Set(static_cast<double>(npuRadixMatchHitNum));
+
+        // 本地计算命中率（保持兼容性，单 endpoint 场景仍可直接使用此指标）
         float npuCacheHitRate = 0.0;
         if (allRadixMatchNum > 0) {
             npuCacheHitRate = static_cast<float>(npuRadixMatchHitNum) / static_cast<float>(allRadixMatchNum);
@@ -395,6 +415,9 @@ void PrometheusMetrics::RadixMatchDataCollect(uint64_t allRadixMatchNum, uint64_
             npuCacheHitRate = 1.0;
         }
         npuPrefixCacheHitRate_->Set(npuCacheHitRate);
+        ULOG_DEBUG(SUBMODLE_NAME_ENDPOINT, "RadixMatchDataCollect: allRadixMatchNum=" << allRadixMatchNum
+            << ", npuRadixMatchHitNum=" << npuRadixMatchHitNum
+            << ", npuCacheHitRate=" << npuCacheHitRate);
     }
 }
 
