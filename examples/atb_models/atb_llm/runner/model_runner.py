@@ -57,6 +57,15 @@ TLS_CRL_PATH = "tls_crl_path"
 TLS_CRL_FILES = "tls_crl_files"
 
 
+PREALLOC_SUPPORTED_QUANT_TYPES = {
+    QuantType.FLOAT,
+    QuantType.W8A8,
+    QuantType.W8A8_DYNAMIC,
+    QuantType.W8A8_PDMIX,
+    QuantType.W8A8_MIX
+}
+
+
 # Allow tensor initialization and casting with internal format(e.g., NZ)
 torch.npu.config.allow_internal_format = True
 
@@ -181,13 +190,6 @@ class ModelRunner:
         self.postprocessor = router_ins.postprocessor
         self.config_dict = router_ins.config_dict
         self.enable_atb_torch = router_ins.enable_atb_torch
-        self.prealloc_weight_mem_on_npu = router_ins.prealloc_weight_mem_on_npu and \
-            not self.layerwise_disaggregated and \
-            (self.config.quantize is None or \
-             self.config.quantize in [
-                QuantType.FLOAT, QuantType.W8A8, QuantType.W8A8_DYNAMIC,
-                QuantType.W8A8_PDMIX, QuantType.W8A8_MIX
-            ])
         self.llm_config = router_ins.llm_config
 
         if hasattr(self.config, "max_position_embeddings"):
@@ -203,6 +205,12 @@ class ModelRunner:
         self.fa_quant_type = self.config.quantization_config.fa_quant_type
         self.kv_cache_dtype = torch.int8 if self.kv_quant_type is not None or \
             self.fa_quant_type == "FAQuant" else self.dtype
+        self.prealloc_weight_mem_on_npu = (
+            router_ins.prealloc_weight_mem_on_npu and            # Router allows memory preallocation
+            not self.layerwise_disaggregated and                 # Layerwise disaggregation is disabled
+            self._is_quantization_supported() and                # Quantization configuration check
+            (self.kv_cache_dtype != torch.int8)                 # KV cache is not int8 type
+        )
         self.enable_nz = self.llm_config.llm.kv_cache_options.enable_nz
         
         if self.dtype not in [torch.float16, torch.bfloat16]:
@@ -899,3 +907,10 @@ class ModelRunner:
 
     def clear_internal_tensors(self):
         self.dummy_operation.clear_internal_tensors()
+
+    def _is_quantization_supported(self):
+        """Check if current quantization configuration is supported"""
+        return (
+            self.config.quantize is None or 
+            self.config.quantize in PREALLOC_SUPPORTED_QUANT_TYPES
+        )

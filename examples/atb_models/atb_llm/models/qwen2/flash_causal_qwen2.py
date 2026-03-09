@@ -393,28 +393,34 @@ class FlashQwen2ForCausalLM(FlashForCausalLM):
         pack_quant_configs = None
         linear_descs_configs = None
         linear_transpose_types = None
-        if self.quantize == QuantType.W8A8_PDMIX:
-            self.ascend_weight, linear_descs_configs, linear_transpose_types = self.get_model_weights(
-                quant_type=QuantType.W8A8_DYNAMIC)
-            self.decode_weight, _, _ = self.get_model_weights(quant_type=QuantType.W8A8)
-        else:
-            if not self.layerwise_disaggregated:
-                if self.prealloc_weight_mem_on_npu:
+
+        if not self.layerwise_disaggregated:
+            if self.prealloc_weight_mem_on_npu:
+                if self.quantize == QuantType.W8A8_PDMIX:
+                    self.ascend_weight, linear_descs_configs, linear_transpose_types = self.get_model_weights(
+                        quant_type=QuantType.W8A8_DYNAMIC)
+                    self.decode_weight, _, _ = self.get_model_weights(quant_type=QuantType.W8A8)
+                else:
                     self.ascend_weight, linear_descs_configs, linear_transpose_types = self.get_model_weights()
+            else:
+                if self.quantize == QuantType.W8A8_PDMIX:
+                    weight_wrapper = self.get_weights(quantize_type=QuantType.W8A8_DYNAMIC)
+                    decode_weight_wrapper = self.get_weights(quantize_type=QuantType.W8A8)
+                    self.decode_weight = decode_weight_wrapper.weights
                 else:
                     weight_wrapper = self.get_weights()
+        else:
+            if self.layerwise.split_type == DistributedType.CLOUD:
+                self.layerwise.weight_wrappers = []
+                for i in range(self.layerwise.edge_start_layer_count, 
+                                self.config.num_hidden_layers - self.layerwise.edge_end_layer_count):
+                    self.layerwise.weight_wrappers.append(self.get_layerwise_weights(
+                        mode=LwdLayerStatus.CLOUD_MIDDLE_LAYER, layer_no=i, is_prefill=True))
+                decode_weight_wapper = self.get_layerwise_weights(mode=LwdLayerStatus.CLOUD_MIDDLE_LAYER,
+                                                                is_prefill=False)
             else:
-                if self.layerwise.split_type == DistributedType.CLOUD:
-                    self.layerwise.weight_wrappers = []
-                    for i in range(self.layerwise.edge_start_layer_count, 
-                                   self.config.num_hidden_layers - self.layerwise.edge_end_layer_count):
-                        self.layerwise.weight_wrappers.append(self.get_layerwise_weights(
-                            mode=LwdLayerStatus.CLOUD_MIDDLE_LAYER, layer_no=i, is_prefill=True))
-                    decode_weight_wapper = self.get_layerwise_weights(mode=LwdLayerStatus.CLOUD_MIDDLE_LAYER,
-                                                                  is_prefill=False)
-                else:
-                    weight_wrapper_head = self.get_layerwise_weights(mode=LwdLayerStatus.EDGE_START_LAYER)
-                    weight_wrapper_tail = self.get_layerwise_weights(mode=LwdLayerStatus.EDGE_END_LAYER)
+                weight_wrapper_head = self.get_layerwise_weights(mode=LwdLayerStatus.EDGE_START_LAYER)
+                weight_wrapper_tail = self.get_layerwise_weights(mode=LwdLayerStatus.EDGE_END_LAYER)
 
         if not self.prealloc_weight_mem_on_npu and not self.layerwise_disaggregated:    
             self.ascend_weight = weight_wrapper.weights
