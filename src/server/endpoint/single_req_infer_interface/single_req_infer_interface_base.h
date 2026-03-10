@@ -81,6 +81,7 @@ protected:
     bool GetTokensFromInput(const std::string &input, std::vector<std::int64_t> &requestTokens,
                             std::vector<std::int64_t> &responseTokens, std::string &errorMsg);
     bool GetUniqueSequenceId(uint64_t &seqId);
+    bool GetUniqueSequenceIdNoLogger(uint64_t &seqId);
     bool DecodeSingleToken(std::vector<int64_t> &tokenIds, std::string &output,
         const uint32_t &prevDecodeIndex, const uint32_t &currentDecodeIndex, const bool &skipSpecialTokens);
     Status InsertPerfInfoIntoJson(nlohmann::ordered_json &body, const std::vector<int32_t> perfInfoTypeList,

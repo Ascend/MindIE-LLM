@@ -623,6 +623,15 @@ bool SingleReqInferInterfaceBase::GetUniqueSequenceId(uint64_t &seqId)
     return true;
 }
 
+bool SingleReqInferInterfaceBase::GetUniqueSequenceIdNoLogger(uint64_t &seqId)
+{
+    if (respTokenMap.size() != 1) {
+        return false;
+    }
+    seqId = respTokenMap.begin()->first;
+    return true;
+}
+
 bool SingleReqInferInterfaceBase::PushLatestCache(std::string &errMsg)
 {
     StreamCache cache;
@@ -651,7 +660,7 @@ bool SingleReqInferInterfaceBase::PushLatestCache(std::string &errMsg)
         std::map<uint64_t, std::pair<bool, bool>>{parsingContentFlag.begin(), parsingContentFlag.end()};
 
     uint64_t seqId = 0;
-    if (GetUniqueSequenceId(seqId)) {
+    if (GetUniqueSequenceIdNoLogger(seqId)) {
         cache.curTokenNum = respTokenMap[seqId].size();
     }
 
