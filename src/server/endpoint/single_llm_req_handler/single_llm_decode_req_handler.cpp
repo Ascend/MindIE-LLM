@@ -66,6 +66,10 @@ bool SingleLLMDecodeReqHandler::GetContextJsonBody(InferParamSPtr inputParam, Re
     inputParam->preOutputTokenNum = grpcContext_->GetDecodeParams().preoutputtokennum();
     inputParam->respStreamStr = {{SPECIAL_SEQ_ID_PRESET, grpcContext_->GetDecodeParams().postsingletext()}};
     inputParam->useToolsCall = grpcContext_->GetDecodeParams().usetoolcall();
+    // PD: derive isChatReq from msgType so decode uses reasoning/tool-call parsing (bfcl-simple etc.)
+    const uint32_t msgType = grpcContext_->GetDecodeParams().msgtype();
+    inputParam->isChatReq = (msgType == static_cast<uint32_t>(MsgType::MSG_TYPE_OPENAI) ||
+                            msgType == static_cast<uint32_t>(MsgType::MSG_TYPE_VLLM_OPENAI));
 
     int64_t tokenNum = grpcContext_->GetDecodeParams().tokens_size();
     for (int64_t i = 0; i < tokenNum; i++) {
