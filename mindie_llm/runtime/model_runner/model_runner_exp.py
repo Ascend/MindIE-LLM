@@ -19,7 +19,6 @@ from mindie_llm.utils.env import ENV as ENV_utils
 from mindie_llm.runtime.utils.helpers.env import ENV
 from mindie_llm.runtime.utils.cpu.affinity import bind_cpus
 from mindie_llm.runtime.utils.npu.device_utils import get_npu_hbm_info
-from mindie_llm.runtime.layers.embedding.position_rotary_embedding import PositionRotaryEmbedding
 from mindie_llm.runtime.models import get_router_ins
 from mindie_llm.runtime.model_runner.forward_context_exp import create_forward_context, set_forward_context, \
     get_forward_context, BatchDescriptor, ForwardContext
@@ -118,6 +117,7 @@ class ModelRunnerExp:
         self._max_num_token = self._max_batch_size
         local_rank = local_rank if local_rank is not None else rank
         self.device = set_device(rank, npu_id if npu_id is not None else local_rank)
+        self._max_seq_len = kwargs.get("max_seq_len", -1)
 
         # bin cpus to the NUMA
         if ENV.bind_cpu:
@@ -178,9 +178,6 @@ class ModelRunnerExp:
 
         # NOTE: default mask and rotary_emb will be refactored later.
         self._mask = torch.triu(torch.ones(2048, 2048), diagonal=1).to(torch.int8).npu()
-        self.rotary_emb = None
-        self.cos_table = None
-        self.sin_table = None
 
         self._is_warmup_completed = False
 
@@ -203,27 +200,19 @@ class ModelRunnerExp:
             os.environ["OMP_NUM_THREADS"] = "1"
 
         # load model
+        if self._max_seq_len > self._mindie_llm_config.hf_config.rope_scaling.max_position_embeddings:
+            _msg = (f"`max_seq_len` cannot be larger than `max_position_embeddings` "
+                "or `max_position_embeddings`*`scaling_factor` when scaling. "
+                f"max_seq_len={self._max_seq_len} but max_position_embeddings"
+                f"={self._mindie_llm_config.hf_config.rope_scaling.max_position_embeddings}")
+            logger.error(_msg)
+            raise ValueError(_msg)
         with set_default_torch_dtype(self.config.torch_dtype):
             with self.device:
                 self.model = self._model_cls(self._mindie_llm_config)
         logger.info("Initialize model cls done.")
         DefaultModelLoader().load_weights(self.model, self._model_name_or_path)
         logger.info("Load weight done.")
-
-        # NOTE: `PositionRotaryEmbedding` will be moved to model
-        self.rotary_emb = PositionRotaryEmbedding.static(
-            dim=self._mindie_llm_config.hf_config.head_dim,
-            base=self._mindie_llm_config.hf_config.rope_theta,
-            device="cpu",
-            scaling_factor=self._mindie_llm_config.hf_config.rope_scaling.factor
-        ).to(self.device)
-        self.rotary_emb.update_cos_sin_cache_total(
-            self.config.torch_dtype,
-            self.device,
-            self.max_position_embeddings
-        )
-        self.cos_table = self.rotary_emb.get_cos_cached_total().npu()
-        self.sin_table = self.rotary_emb.get_sin_cached_total().npu()
 
         # NOTE: These attributes maybe depreciated after TG is refactored.
         self.index_head_dim = getattr(self._mindie_llm_config.hf_config, "index_head_dim", None)
@@ -315,7 +304,7 @@ class ModelRunnerExp:
             Forward context.
         """
         forward_context = create_forward_context(
-            model_inputs, self.cos_table, self.sin_table, self._mask, self.num_speculative_tokens)
+            model_inputs, self._mask, self.num_speculative_tokens)
         forward_context.to_device(self.device)
         return forward_context
 
@@ -463,7 +452,7 @@ class ModelRunnerExp:
 
         # capturing is True to set address for capturing
         forward_context = create_forward_context(
-            model_inputs, self.cos_table, self.sin_table, self._mask, self.num_speculative_tokens)
+            model_inputs, self._mask, self.num_speculative_tokens)
         if DPMetadata.is_enabled():
             forward_context.dp_metadata.get_num_tokens_across_dp_cpu()
         forward_context.batch_descriptor = BatchDescriptor(

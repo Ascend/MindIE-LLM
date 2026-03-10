@@ -59,24 +59,41 @@ class GenerationConfig:
 
 
 @dataclass
-class RopeScaling:
-    """RoPE embedding scaling configuration."""
-    factor: float = field(default=1.0, metadata={
-        'validator': FloatParameterValidator(Field(ge=-65504, le=65504))})
-    rope_type: str = field(default='linear', metadata={
-        'validator': RangeParamaterValidator(['linear', 'dynamic', 'yarn'])})
-    original_max_position_embeddings: int | None = field(default=None, metadata={
-        'validator': IntParameterValidator(Field(ge=1, le=2147483647), allow_none=True)})
-    beta_fast: int | None = field(default=32, metadata={
-        'validator': IntParameterValidator(Field(ge=1, le=2147483647))})
-    beta_slow: int | None = field(default=1, metadata={
-        'validator': IntParameterValidator(Field(ge=1, le=2147483647))})
-
+class BaseRopeScaling:
+    """Base class for RoPE scaling configuration.
+    
+    Provides the basic fields rope_theta and max_position_embeddings.
+    Each model should implement its own RopeScaling class that inherits from this base class.
+    """
+    rope_theta: float = field(default=1000000.0, metadata={
+        'validator': FloatParameterValidator(Field(ge=-1e9, le=1e9))
+    })
+    
+    max_position_embeddings: int | None = field(default=None, metadata={
+        'validator': IntParameterValidator(Field(ge=1, le=2147483647), allow_none=True)
+    })
+    
     @classmethod
-    def from_dict(cls, config_dict: dict[str, Any]):
-        field_names = {field.name for field in fields(cls)}
-        filtered_dict = {k: v for k, v in config_dict.items() if k in field_names}
-        return cls(**filtered_dict)
+    def from_dict(cls, config_dict: dict[str, Any], 
+                  rope_theta: float = 1000000.0,
+                  max_position_embeddings: int | None = None) -> 'BaseRopeScaling':
+        """Create BaseRopeScaling instance from config dictionary.
+        
+        Args:
+            config_dict: The rope_scaling dictionary from config.json
+            rope_theta: The model's rope_theta value
+            max_position_embeddings: The model's max_position_embeddings value
+            
+        Returns:
+            Configured BaseRopeScaling instance
+        """
+        if config_dict is None:
+            config_dict = {}
+        
+        return cls(
+            rope_theta=rope_theta,
+            max_position_embeddings=max_position_embeddings
+        )
 
 
 @dataclass
@@ -104,14 +121,26 @@ class HuggingFaceConfig(PretrainedConfig):
     bos_token_id: int | None = None
     eos_token_id: int | list[int | list[int]] = None
     
-    rope_scaling: RopeScaling | None = None
+    rope_scaling: BaseRopeScaling | None = None
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        if self.rope_scaling is None:
-            self.rope_scaling = {}
-        self.rope_scaling = RopeScaling.from_dict(self.rope_scaling)
-
+        rope_scaling_dict = kwargs.get('rope_scaling', None)
+        rope_theta = kwargs.get('rope_theta', 1000000.0)
+        max_position_embeddings = kwargs.get('max_position_embeddings', None)
+        
+        if hasattr(self, '_create_rope_scaling'):
+            self.rope_scaling = self._create_rope_scaling(
+                rope_scaling_dict or {},
+                rope_theta,
+                max_position_embeddings
+            )
+        else:
+            self.rope_scaling = BaseRopeScaling.from_dict(
+                rope_scaling_dict,
+                rope_theta=rope_theta,
+                max_position_embeddings=max_position_embeddings
+            )
 
     @classmethod
     def from_dict(cls, config_dict: dict[str, Any]) -> 'HuggingFaceConfig':

@@ -20,7 +20,9 @@ from mindie_llm.runtime.config.mindie_llm_config import MindIELLMConfig
 
 from mindie_llm.runtime.layers.quantization.quantization_config_base import QuantizationConfigBase
 from mindie_llm.runtime.model_runner.forward_context import get_forward_context
-from mindie_llm.runtime.models.qwen2.qwen2 import Qwen2Attention, Qwen2Mlp, Qwen2Layer, Qwen2Model, Qwen2ForCausalLM
+from mindie_llm.runtime.models.qwen2.qwen2 import (
+    Qwen2Attention, Qwen2Mlp, Qwen2Layer, Qwen2Model, Qwen2ForCausalLM
+)
 
 
 class Qwen3Attention(Qwen2Attention):
@@ -81,7 +83,7 @@ class Qwen3Attention(Qwen2Attention):
     def forward(
         self,
         positions: torch.Tensor,
-        hidden_states: torch.Tensor
+        hidden_states: torch.Tensor,
     ) -> torch.Tensor:
         """
         Forward pass of the attention module.
@@ -103,24 +105,7 @@ class Qwen3Attention(Qwen2Attention):
             k_by_head = key.view(*key.shape[:-1], key.shape[-1] // self.head_dim, self.head_dim)
             k_by_head = self.k_norm(k_by_head)
             key = k_by_head.view(key.shape)
-
-        forward_context = get_forward_context()
-        attn_metadata = forward_context.attn_metadata
-        if isinstance(attn_metadata, dict):
-            attn_metadata = attn_metadata[self.prefix]
-        cos_table = attn_metadata.cos_table
-        sin_table = attn_metadata.sin_table
-
-        query = query.contiguous().view(1, query.shape[0], -1,
-                                        self.head_dim)
-        key = key.contiguous().view(1, key.shape[0], -1, self.head_dim)
-        last_dim = cos_table.size()[-1]
-        cos_table = torch.index_select(cos_table, 0, positions)
-        sin_table = torch.index_select(sin_table, 0, positions)
-        cos_table = cos_table.view(1, -1, 1, last_dim).contiguous()
-        sin_table = sin_table.view(1, -1, 1, last_dim).contiguous()
-        torch_npu.npu_apply_rotary_pos_emb(query, key, cos_table, sin_table)
-        
+        query, key = self.rope_emb(positions, query, key)
         attn_output = self.attn(query, key, value)
 
         output = self.o_proj(attn_output)
@@ -167,8 +152,6 @@ class Qwen3Mlp(Qwen2Mlp):
  
 
 class Qwen3Layer(Qwen2Layer):
-    attn_cls = Qwen3Attention
-    mlp_cls = Qwen3Mlp
     """
     Qwen3 transformer layer.
 
@@ -195,6 +178,8 @@ class Qwen3Layer(Qwen2Layer):
         input_layernorm: Input layer normalization
         post_attention_layernorm: Post-attention layer normalization
     """
+    attn_cls = Qwen3Attention
+    mlp_cls = Qwen3Mlp
 
     def __init__(
             self,
@@ -216,7 +201,6 @@ class Qwen3Layer(Qwen2Layer):
 
         
 class Qwen3Model(Qwen2Model):
-    layer_cls = Qwen3Layer
     """
     Qwen3 base model.
 
@@ -239,6 +223,7 @@ class Qwen3Model(Qwen2Model):
         layers: List of transformer layers
         norm: Final layer normalization
     """
+    layer_cls = Qwen3Layer
 
     def __init__(
             self,
@@ -280,6 +265,8 @@ class Qwen3ForCausalLM(Qwen2ForCausalLM):
         model: Base Qwen3 model
         lm_head: Language modeling head
     """
+    model_cls = Qwen3Model
+
     def __init__(self, mindie_llm_config: MindIELLMConfig):
         """
         Initialize the Qwen3 causal language model.
@@ -290,8 +277,3 @@ class Qwen3ForCausalLM(Qwen2ForCausalLM):
                 - quant_config: Quantization configuration
         """
         super().__init__(mindie_llm_config)
-
-
-        
-        
-        

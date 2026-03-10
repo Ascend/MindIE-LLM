@@ -34,7 +34,5 @@ class AttentionMetadata(ModuleMetadata):
     seq_lens: torch.Tensor
     block_tables: torch.Tensor
     attn_mask: torch.Tensor
-    cos_table: torch.Tensor
-    sin_table: torch.Tensor
     seq_lens_list: Optional[List[int]] = None
     max_seq_len: int = 0

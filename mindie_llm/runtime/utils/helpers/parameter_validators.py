@@ -281,6 +281,7 @@ class ListParameterValidator(ParameterValidator):
 
     def create_validation_pipeline(self, value_type: Union[Type, Tuple[Type, ...]] | None):
         self.pipeline.refresh()
+        self.pipeline.add(ValidationStrategies.validate_none, self.allow_none)
         self.pipeline.add(ValidationStrategies.validate_type, value_type)
         self.pipeline.add(ValidationStrategies.validate_range, self.fields, self.constraints)
         self.pipeline.add(self.validate_elements)

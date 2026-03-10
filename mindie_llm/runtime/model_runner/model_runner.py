@@ -20,7 +20,6 @@ import torch.nn.functional as F
 from mindie_llm.runtime.utils.helpers.env import ENV
 from mindie_llm.runtime.utils.cpu.affinity import bind_cpus
 from mindie_llm.runtime.utils.npu.device_utils import get_npu_hbm_info
-from mindie_llm.runtime.layers.embedding.position_rotary_embedding import PositionRotaryEmbedding
 from mindie_llm.runtime.models import get_router_ins
 from mindie_llm.runtime.model_runner.forward_context import create_forward_context, set_forward_context, \
     get_forward_context, AttentionMetadata, BatchDescriptor
@@ -148,9 +147,6 @@ class ModelRunner:
         else:
             self.kv_cache_dtype = self.dtype
         self.mask = None
-        self.rotary_emb = None
-        self.cos_table = None
-        self.sin_table = None
         
         self.head_size = None
         self.num_heads = None
@@ -206,6 +202,11 @@ class ModelRunner:
             os.environ["OMP_NUM_THREADS"] = "1"
 
         # load model
+        if self.max_seq_len > self.mindie_llm_config.hf_config.max_position_embeddings:
+            _msg = f"`max_seq_len` cannot be larger than `max_position_embeddings`\
+                or `max_position_embeddings`*`scaling_factor` when scaling."
+            logger.error(_msg)
+            raise ValueError(_msg)
         with set_default_torch_dtype(self.config.torch_dtype):
             with self.device:
                 self.model = self.model_cls(self.mindie_llm_config)
@@ -213,22 +214,7 @@ class ModelRunner:
         DefaultModelLoader().load_weights(self.model, self.model_name_or_path)
         print_log(self.rank, logger.info, f"load weight done")
 
-        # deepseek use qk_nope_head_dim, qwen use head_dim
-        head_dim = self.config.head_dim if hasattr(self.config, 'head_dim') else self.config.qk_nope_head_dim
-        self.rotary_emb = PositionRotaryEmbedding.static(dim=head_dim,
-                                                         base=self.config.rope_theta,
-                                                         device="cpu",
-                                                         scaling_factor=self.config.rope_scaling.factor).to(self.device)
-        self.rotary_emb.update_cos_sin_cache_total(
-                self.dtype,
-                self.device,
-                self.max_position_embeddings
-            )
         self.mask = torch.triu(torch.ones(2048, 2048), diagonal=1).to(torch.int8).npu()
-        
-        self.cos_table = self.rotary_emb.get_cos_cached_total().npu()
-        self.sin_table = self.rotary_emb.get_sin_cached_total().npu()
-
         if self.world_size > 1:
             torch_dist.barrier()
         self.head_size = self.mindie_llm_config.hf_config.head_dim
@@ -405,8 +391,6 @@ class ModelRunner:
             "seq_lens_list": seq_lens_list,
             "q_lens": q_lens,
             "lm_head_indices": lm_head_indices,
-            "cos_table": self.cos_table,
-            "sin_table": self.sin_table,
             "actual_seq_lengths_kv": actual_seq_lengths_kv,
             "actual_seq_lengths_query": actual_seq_lengths_query,
             "num_tokens_across_dp_cpu": num_tokens_across_dp_cpu,
@@ -592,8 +576,6 @@ class ModelRunner:
             "lm_head_indices": lm_head_indices,
             "num_tokens": num_tokens,
             "num_actual_tokens": num_tokens,
-            "cos_table": self.cos_table,
-            "sin_table": self.sin_table,
             "num_tokens_across_dp_cpu": num_tokens_across_dp_cpu,
             "actual_seq_lengths_kv": actual_seq_lengths_kv,
             "actual_seq_lengths_query": actual_seq_lengths_query,

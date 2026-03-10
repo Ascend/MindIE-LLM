@@ -7,7 +7,6 @@
 # EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
 # MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
 # See the Mulan PSL v2 for more details.
-from typing import Any, NamedTuple, Optional, Tuple, Dict
 import math
 import torch
 import torch_npu
@@ -25,81 +24,9 @@ from mindie_llm.runtime.model_runner.forward_context import get_forward_context
 from mindie_llm.runtime.utils.distributed import get_parallel_info_manager
 from mindie_llm.runtime.layers.attention import get_global_attn_dict
 from mindie_llm.runtime.layers.parameter import BaseParameter
-
-
-# (Note): rewrite to a public function
-def bind_cos_sin_table(cos_sin) -> None:
-    attns = get_global_attn_dict()
-    for _, prefix in enumerate(attns):
-        attn_layer = attns[prefix]
-        attn_layer.cos_sin = cos_sin
-
-
-def init_rope(self) -> None:
-    if self.config.rope_scaling_dict is None:
-        self.rotary_emb = DeepseekV3RotaryEmbedding(
-            self.config.qk_rope_head_dim,
-            max_position_embeddings=self.config.max_position_embeddings,
-            base=self.config.rope_theta,
-        )
-    else:
-        scaling_type = self.config.rope_scaling_dict["type"]
-        scaling_factor = self.config.rope_scaling_dict["factor"]
-        if scaling_type == "yarn":
-            kwargs = {}
-            important_keys = [
-                "original_max_position_embeddings",
-                "beta_fast", 
-                "beta_slow",
-                "mscale",
-                "mscale_all_dim"
-            ]
-            for key in important_keys:
-                if key in self.config.rope_scaling_dict:
-                    kwargs[key] = self.config.rope_scaling_dict[key]
-            self.rotary_emb = DeepseekV3YarnRotaryEmbedding(
-                self.config.qk_rope_head_dim,
-                max_position_embeddings=self.config.max_position_embeddings,
-                scaling_factor=scaling_factor,
-                base=self.config.rope_theta,
-                **kwargs,
-            )
-        else:
-            raise ValueError(f"Unknown RoPE scaling type {scaling_type}")
-
-
-def _yarn_get_mscale(scale=1, mscale=1) -> float:
-    if scale <= 1:
-        return 1.0
-    return 0.1 * mscale * math.log(scale) + 1.0
-
-
-def _yarn_find_correction_dim(
-    num_rotations, dim, base=10000, max_position_embeddings=2048
-) -> float:
-    return (dim * math.log(max_position_embeddings / (num_rotations * 2 * math.pi))) / (
-        2 * math.log(base)
-    )
-
-
-def _yarn_find_correction_range(
-    low_rot, high_rot, dim, base=10000, max_position_embeddings=2048
-) -> float:
-    low = math.floor(
-        _yarn_find_correction_dim(low_rot, dim, base, max_position_embeddings)
-    )
-    high = math.ceil(
-        _yarn_find_correction_dim(high_rot, dim, base, max_position_embeddings)
-    )
-    return max(low, 0), min(high, dim - 1)  # Clamp values just in case
-
-
-def _yarn_linear_ramp_mask(min_val, max_val, dim):
-    if min_val == max:
-        max_val += 0.001  # Prevent singularity
-    linear_func = (torch.arange(dim, dtype=torch.float32) - min_val) / (max_val - min_val)
-    ramp_func = torch.clamp(linear_func, 0, 1)
-    return ramp_func
+from mindie_llm.runtime.layers.embedding.rotary_embedding import get_rope
+from mindie_llm.runtime.layers.embedding.rotary_embedding.yarn_scaling_rope import yarn_get_mscale
+from mindie_llm.runtime.config.huggingface_config import HuggingFaceConfig
 
 
 class DeepseekV3Moe(nn.Module):
@@ -201,112 +128,6 @@ class DeepseekV3Moe(nn.Module):
         return final_hidden_states + shared_expert_out
 
 
-class DeepseekV3RotaryEmbedding(nn.Module):
-    def __init__(self, dim, max_position_embeddings=2048, base=10000, device=None) -> None:
-        super().__init__()
-        self.dim = dim
-        self.max_position_embeddings = max_position_embeddings
-        self.base = base
-        inv_freq = 1.0 / (
-            self.base ** (torch.arange(0, self.dim, 2).float().to(device) / self.dim)
-        )
-        self.register_buffer("inv_freq", inv_freq, persistent=False)
-        self._set_cos_sin_cache(
-            seq_len=max_position_embeddings,
-            device=self.inv_freq.device,
-            dtype=torch.get_default_dtype(),
-        )
-
-    def forward(self, x, position_ids, kv_len, max_seq_len=None):
-        if max_seq_len is None:
-            self._set_cos_sin_cache(seq_len=kv_len, device=x.device, dtype=x.dtype)
-        elif max_seq_len > self.max_seq_len_cached:
-            self._set_cos_sin_cache(seq_len=max_seq_len, device=x.device, dtype=x.dtype)
-        cos = torch.index_select(self.cos_cached, dim=0, index=position_ids.view(-1)).unsqueeze(1).unsqueeze(1)
-        sin = torch.index_select(self.sin_cached, dim=0, index=position_ids.view(-1)).unsqueeze(1).unsqueeze(1)        
-        return (
-            cos.to(dtype=x.dtype),
-            sin.to(dtype=x.dtype),
-        )
-
-    def _set_cos_sin_cache(self, seq_len, device, dtype):
-        self.max_seq_len_cached = seq_len
-        t = torch.arange(
-            self.max_seq_len_cached, device=device, dtype=self.inv_freq.dtype
-        )
-        freqs = torch.outer(t, self.inv_freq.to(t.device))
-        emb = torch.cat((freqs, freqs), dim=-1)
-        self.register_buffer("cos_cached", emb.cos().to(dtype), persistent=False)
-        self.register_buffer("sin_cached", emb.sin().to(dtype), persistent=False)
-
-
-class DeepseekV3YarnRotaryEmbedding(DeepseekV3RotaryEmbedding):
-    def __init__(
-        self,
-        dim,
-        max_position_embeddings=2048,
-        base=10000,
-        device=None,
-        scaling_factor=1.0,
-        original_max_position_embeddings=4096,
-        beta_fast=32,
-        beta_slow=1,
-        mscale=1,
-        mscale_all_dim=0,
-    ) -> None:
-        self.scaling_factor = scaling_factor
-        self.original_max_position_embeddings = original_max_position_embeddings
-        self.beta_fast = beta_fast
-        self.beta_slow = beta_slow
-        self.mscale = mscale
-        self.mscale_all_dim = mscale_all_dim
-        super().__init__(dim, max_position_embeddings, base, device)
-
-    def _set_cos_sin_cache(self, seq_len, device, dtype):
-        self.max_seq_len_cached = seq_len
-        dim = self.dim
-
-        freq_extra = 1.0 / (
-            self.base
-            ** (torch.arange(0, dim, 2, dtype=torch.float32, device=device) / dim)
-        )
-        freq_inter = 1.0 / (
-            self.scaling_factor
-            * self.base
-            ** (torch.arange(0, dim, 2, dtype=torch.float32, device=device) / dim)
-        )
-
-        low, high = _yarn_find_correction_range(
-            self.beta_fast,
-            self.beta_slow,
-            dim,
-            self.base,
-            self.original_max_position_embeddings,
-        )
-        inv_freq_mask = 1.0 - _yarn_linear_ramp_mask(low, high, dim // 2).to(
-            device=device, dtype=torch.float32
-        )
-        inv_freq = freq_inter * (1 - inv_freq_mask) + freq_extra * inv_freq_mask
-        self.register_buffer("inv_freq", inv_freq, persistent=False)
-
-        t = torch.arange(seq_len, device=device, dtype=torch.float32)
-
-        freqs = torch.outer(t, inv_freq)
-
-        _mscale = float(
-            _yarn_get_mscale(self.scaling_factor, self.mscale)
-            / _yarn_get_mscale(self.scaling_factor, self.mscale_all_dim)
-        )
-
-        emb = torch.cat((freqs, freqs), dim=-1)
-        self.register_buffer(
-            "cos_cached", (emb.cos() * _mscale).to(dtype), persistent=False
-        )
-        self.register_buffer(
-            "sin_cached", (emb.sin() * _mscale).to(dtype), persistent=False
-        )
-
-
 class Indexer(nn.Module):
     """
     Indexer module for Deepseek V3.2
@@ -359,7 +180,7 @@ class DeepseekV3Attention(nn.Module):
     Multi-Head Latent Attention module for Deepseek V3
     """
     def __init__(self,
-                config,
+                config: HuggingFaceConfig,
                 prefix: str,
                 quant_config,
                 enable_mlapo,
@@ -445,13 +266,22 @@ class DeepseekV3Attention(nn.Module):
         )
 
         self.softmax_scale = self.qk_head_dim ** (-0.5)
-        if self.config.rope_scaling_dict is not None:
-            mscale_all_dim = self.config.rope_scaling_dict.get("mscale_all_dim", 0)
-            scaling_factor = self.config.rope_scaling_dict["factor"]
-            if mscale_all_dim:
-                mscale = _yarn_get_mscale(scaling_factor, mscale_all_dim)
-                self.softmax_scale = self.softmax_scale * mscale * mscale
-
+        rope_config = config.rope_scaling
+        mscale_all_dim = rope_config.mscale_all_dim
+        if mscale_all_dim:
+            mscale = yarn_get_mscale(rope_config.factor, mscale_all_dim)
+            self.softmax_scale = self.softmax_scale * mscale * mscale
+        
+        
+        rope_config.rope_type = "deepseek_yarn"
+        self.rope_emb = get_rope(
+            head_size=self.config.qk_rope_head_dim,
+            rotary_dim=self.config.qk_rope_head_dim,
+            max_position=rope_config.original_max_position_embeddings,
+            is_neox_style=True,
+            dtype=torch.get_default_dtype(),
+            rope_config=rope_config
+        )
         ## v32
         self.indexer = Indexer(
             self.config,
@@ -494,7 +324,9 @@ class DeepseekV3Attention(nn.Module):
         Returns:
             torch.Tensor: Output hidden states after attention
         """
-        return self.attn(hidden_states)
+        return self.attn(hidden_states,
+                        cos=self.rope_emb.cos_indexed_cache,
+                        sin=self.rope_emb.sin_indexed_cache)
 
 
 class DeepseekV3MLP(nn.Module):
@@ -557,7 +389,7 @@ class DeepseekV3Layer(nn.Module):
     - Normalization after attention
     - Mixture-of-Experts (MoE) or standard MLP
     """
-    def __init__(self, config, prefix: str, layer_idx: int, quant_config) -> None:
+    def __init__(self, config: HuggingFaceConfig, prefix: str, layer_idx: int, quant_config) -> None:
         """
         Initialize the MTP layer.
 
@@ -610,7 +442,11 @@ class DeepseekV3Layer(nn.Module):
                 quant_config
             )
 
-    def forward(self, hidden_states, past_residual) -> tuple[torch.Tensor, torch.Tensor]:
+    def forward(
+        self,
+        hidden_states,
+        past_residual,
+    ) -> tuple[torch.Tensor, torch.Tensor]:
         """
         Forward pass of the deepseek layer.
 
@@ -657,7 +493,7 @@ class DeepseekV3Model(nn.Module):
     - Multiple layers
     - Final layer normalization
     """
-    def __init__(self, config, prefix, quant_config) -> None:
+    def __init__(self, config: HuggingFaceConfig, prefix, quant_config) -> None:
         """
         Initialize the Deepseekv3 model.
 
@@ -687,7 +523,6 @@ class DeepseekV3Model(nn.Module):
             quant_config=quant_config,
             prefix=f"{self.prefix}.norm"
         )
-        init_rope(self)
 
     def forward(self, input_ids, positions) -> torch.Tensor:
         """
@@ -701,15 +536,8 @@ class DeepseekV3Model(nn.Module):
             torch.Tensor: Final hidden states after processing
         """
         hidden_states = self.embed_tokens(input_ids)
-
-        forward_context = get_forward_context()    
-        cos_sin = self.rotary_emb(
-            hidden_states, 
-            positions, forward_context.attn_metadata.seq_lens, 
-            self.config.max_position_embeddings
-        )
-        bind_cos_sin_table(cos_sin)
-
+        # NOTE precompute indexed cos sin cache for each layer.
+        self.layers[0].self_attn.rope_emb.set_cos_sin_indexed_cache(positions)
         residual = None
         for layer in self.layers:
             residual, hidden_states = layer(hidden_states, residual)
@@ -733,7 +561,7 @@ class DeepseekV3ForCausalLM(BaseModelForCausalLM):
                 - quant_config: Quantization configuration
         """
         super().__init__(mindie_llm_config)
-        self.config = mindie_llm_config.hf_config
+        self.config: HuggingFaceConfig = mindie_llm_config.hf_config
         self.quant_config = mindie_llm_config.quant_config
         self.parallel_info = get_parallel_info_manager()
         self.ds_config = mindie_llm_config.llm_config.llm

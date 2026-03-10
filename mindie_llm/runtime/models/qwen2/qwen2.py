@@ -27,6 +27,7 @@ from mindie_llm.runtime.utils.distributed.parallel_info_manager import ParallelT
 from mindie_llm.runtime.layers.quantization.quantization_config_base import QuantizationConfigBase
 from mindie_llm.runtime.models.base.model import BaseModelForCausalLM
 from mindie_llm.runtime.model_runner.forward_context import get_forward_context
+from mindie_llm.runtime.layers.embedding.rotary_embedding import get_rope
 
 
 class Qwen2Attention(nn.Module):
@@ -108,6 +109,14 @@ class Qwen2Attention(nn.Module):
             parallel_info=attn_tp
         )
 
+        self.rope_emb = get_rope(
+            self.head_dim,
+            self.head_dim,
+            self.config.rope_scaling.max_position_embeddings,
+            is_neox_style=True,
+            rope_config=config.rope_scaling,
+        )
+
         self.attn = Attention(
             head_size=self.head_dim,
             num_heads=self.num_heads_per_rank,
@@ -122,7 +131,7 @@ class Qwen2Attention(nn.Module):
     def forward(
         self,
         positions: torch.Tensor,
-        hidden_states: torch.Tensor
+        hidden_states: torch.Tensor,
     ) -> torch.Tensor:
         """
         Forward pass of the attention module.
@@ -136,24 +145,7 @@ class Qwen2Attention(nn.Module):
         """
         qkv = self.qkv_proj(hidden_states)
         query, key, value = qkv.split([self.q_size, self.kv_size, self.kv_size], dim=-1)
-       
-        forward_context = get_forward_context()
-        attn_metadata = forward_context.attn_metadata
-        if isinstance(attn_metadata, dict):
-            attn_metadata = attn_metadata[self.prefix]
-        cos_table = attn_metadata.cos_table
-        sin_table = attn_metadata.sin_table
-
-        query = query.contiguous().view(1, query.shape[0], -1,
-                                        self.head_dim)
-        key = key.contiguous().view(1, key.shape[0], -1, self.head_dim)
-        last_dim = cos_table.size()[-1]
-        cos_table = torch.index_select(cos_table, 0, positions)
-        sin_table = torch.index_select(sin_table, 0, positions)
-        cos_table = cos_table.view(1, -1, 1, last_dim).contiguous()
-        sin_table = sin_table.view(1, -1, 1, last_dim).contiguous()
-        torch_npu.npu_apply_rotary_pos_emb(query, key, cos_table, sin_table)
-        
+        query, key = self.rope_emb(positions, query, key)
         attn_output = self.attn(query, key, value)
 
         output = self.o_proj(attn_output)
@@ -264,6 +256,8 @@ class Qwen2Layer(nn.Module):
         input_layernorm: Input layer normalization
         post_attention_layernorm: Post-attention layer normalization
     """
+    attn_cls = Qwen2Attention
+    mlp_cls = Qwen2Mlp
 
     def __init__(
             self,
@@ -358,6 +352,7 @@ class Qwen2Model(nn.Module):
         layers: List of transformer layers
         norm: Final layer normalization
     """
+    layer_cls = Qwen2Layer
 
     def __init__(
             self,
@@ -417,6 +412,7 @@ class Qwen2Model(nn.Module):
         """
         residual = None
         hidden_states = self.embed_tokens(input_ids)
+        self.layers[0].self_attn.rope_emb.set_cos_sin_indexed_cache(positions)
         for layer in self.layers:
             hidden_states, residual = layer(positions, hidden_states, residual)
         
@@ -426,7 +422,6 @@ class Qwen2Model(nn.Module):
 
 
 class Qwen2ForCausalLM(BaseModelForCausalLM):
-    model_cls = Qwen2Model
     """
     Qwen2 model for causal language modeling.
 
@@ -448,6 +443,8 @@ class Qwen2ForCausalLM(BaseModelForCausalLM):
         model: Base Qwen2 model
         lm_head: Language modeling head
     """
+    model_cls = Qwen2Model
+
     def __init__(self, mindie_llm_config: MindIELLMConfig):
         """
         Initialize the Qwen2 causal language model.

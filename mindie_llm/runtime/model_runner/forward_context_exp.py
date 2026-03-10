@@ -132,8 +132,6 @@ def set_forward_context(context: ForwardContext) -> None:
 # NOTE: This API will be refactored
 def create_forward_context(
     model_inputs: any,
-    cos_table: torch.Tensor,
-    sin_table: torch.Tensor,
     mask: torch.Tensor,
     num_speculative_tokens: int = 0
 ) -> ForwardContext:
@@ -141,8 +139,6 @@ def create_forward_context(
     
     Args:
         model_inputs: Model input data.
-        cos_table: Cosine table for rotary embedding.
-        sin_table: Sine table for rotary embedding.
         mask: Attention mask.
         num_speculative_tokens: Number of speculative tokens.
         
@@ -154,7 +150,8 @@ def create_forward_context(
     attn_backend = attn_layer.get_attn_backend()
     metadata_cls = attn_backend.get_builder_cls().get_metadata_cls()
     # NOTE: This API will be refactored
-    attn_metadata = metadata_cls.from_model_input(model_inputs, cos_table, sin_table, mask, num_speculative_tokens)
+    attn_metadata = metadata_cls.from_model_input(model_inputs, mask, num_speculative_tokens)
+
 
     dp_metadata = None
     if DPMetadata.is_enabled():

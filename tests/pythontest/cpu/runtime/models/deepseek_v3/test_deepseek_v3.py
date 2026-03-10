@@ -3,8 +3,7 @@ from unittest.mock import patch, MagicMock
 import torch
 from torch import nn
 from mindie_llm.runtime.models.deepseek_v3.deepseek_v3 import DeepseekV3Layer, DeepseekV3Model, \
-    DeepseekV3Moe, DeepseekV3MLP, Indexer, DeepseekV3Attention, DeepseekV3ForCausalLM, \
-    DeepseekV3YarnRotaryEmbedding, DeepseekV3RotaryEmbedding
+    DeepseekV3Moe, DeepseekV3MLP, Indexer, DeepseekV3Attention, DeepseekV3ForCausalLM
 from mindie_llm.runtime.models.deepseek_v3.config_deepseek_v3 import DeepseekV3Config
 from mindie_llm.runtime.utils.distributed import set_parallel_info_manager
 from mindie_llm.runtime.layers.quantization.ms_model_slim.quantization_config import QuantizationConfig
@@ -563,99 +562,6 @@ class TestDeepseekV3CausalLM(unittest.TestCase):
         self.assertEqual(ds.kv_lora_rank, 512)
         self.assertEqual(ds.qk_rope_head_dim, 64)
         self.assertEqual(ds.softmax_scale, expect_scale)
-
-
-class TestRotaryEmbeddings(unittest.TestCase):
-    def setUp(self):
-        self.dim = 64
-        self.max_position_embeddings = 2048
-        self.base = 10000
-        self.device = "cpu"
-        self.scaling_factor = 2.0
-        self.original_max_position_embeddings = 4096
-        self.beta_fast = 32
-        self.beta_slow = 1
-        self.mscale = 1.0
-        self.mscale_all_dim = 0.0
-
-    def test_rope_initialization(self):
-        rope = DeepseekV3RotaryEmbedding(
-            self.dim, self.max_position_embeddings, self.base, self.device
-        )
-        self.assertEqual(rope.dim, self.dim)
-        self.assertEqual(rope.base, self.base)
-        self.assertEqual(rope.max_position_embeddings, self.max_position_embeddings)
-        self.assertIsInstance(rope.inv_freq, torch.Tensor)
-        self.assertEqual(rope.inv_freq.shape[0], self.dim // 2)
-
-    def test_yarn_rope_initialization(self):
-        yarn_rope = DeepseekV3YarnRotaryEmbedding(
-            self.dim,
-            self.max_position_embeddings,
-            self.base,
-            self.device,
-            scaling_factor=self.scaling_factor,
-            original_max_position_embeddings=self.original_max_position_embeddings,
-            beta_fast=self.beta_fast,
-            beta_slow=self.beta_slow,
-            mscale=self.mscale,
-            mscale_all_dim=self.mscale_all_dim,
-        )
-        self.assertEqual(yarn_rope.scaling_factor, self.scaling_factor)
-        self.assertEqual(yarn_rope.original_max_position_embeddings, self.original_max_position_embeddings)
-        self.assertIsInstance(yarn_rope.inv_freq, torch.Tensor)
-        self.assertEqual(yarn_rope.inv_freq.shape[0], self.dim // 2)
-
-    def test_set_cos_sin_cache(self):
-        rope = DeepseekV3RotaryEmbedding(
-            self.dim, self.max_position_embeddings, self.base, self.device
-        )
-        rope._set_cos_sin_cache(seq_len=128, device=rope.inv_freq.device, dtype=rope.inv_freq.dtype)
-        self.assertEqual(rope.cos_cached.shape, (128, self.dim))
-        self.assertEqual(rope.sin_cached.shape, (128, self.dim))
-
-    def test_forward(self):
-        rope = DeepseekV3RotaryEmbedding(
-            self.dim, self.max_position_embeddings, self.base, self.device
-        )
-        x = torch.randn(1, 4, 64)  # (batch, seq_len, dim)
-        position_ids = torch.arange(0, 4).view(1, -1)
-        kv_len = 4
-        cos, sin = rope(x, position_ids, kv_len)
-        self.assertEqual(cos.shape, (4, 1, 1, self.dim))
-        self.assertEqual(sin.shape, (4, 1, 1, self.dim))
-        self.assertTrue((cos.dtype == x.dtype) and (sin.dtype == x.dtype))
-
-    def test_yarn_forward(self):
-        yarn_rope = DeepseekV3YarnRotaryEmbedding(
-            self.dim,
-            self.max_position_embeddings,
-            self.base,
-            self.device,
-            scaling_factor=self.scaling_factor,
-            original_max_position_embeddings=self.original_max_position_embeddings,
-            beta_fast=self.beta_fast,
-            beta_slow=self.beta_slow,
-            mscale=self.mscale,
-            mscale_all_dim=self.mscale_all_dim,
-        )
-        x = torch.randn(1, 4, 64)  # (batch, seq_len, dim)
-        position_ids = torch.arange(0, 4).view(1, -1)
-        kv_len = 4
-        cos, sin = yarn_rope(x, position_ids, kv_len)
-        self.assertEqual(cos.shape, (4, 1, 1, self.dim))
-        self.assertEqual(sin.shape, (4, 1, 1, self.dim))
-        self.assertTrue((cos.dtype == x.dtype) and (sin.dtype == x.dtype))
-
-    def test_resize_cache(self):
-        rope = DeepseekV3RotaryEmbedding(
-            self.dim, self.max_position_embeddings, self.base, self.device
-        )
-        rope(x=torch.randn(1, 8, self.dim), position_ids=torch.arange(0, 8).view(1, -1), kv_len=8)
-        self.assertEqual(rope.max_seq_len_cached, 8)
-
-        rope(x=torch.randn(1, 16, self.dim), position_ids=torch.arange(0, 16).view(1, -1), kv_len=16)
-        self.assertEqual(rope.max_seq_len_cached, 16)
 
 
 if __name__ == '__main__':

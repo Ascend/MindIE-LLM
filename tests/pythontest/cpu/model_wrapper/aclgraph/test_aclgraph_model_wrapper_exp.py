@@ -35,6 +35,7 @@ def mock_model_runner_exp():
     mock_runner.index_head_dim = 128
     mock_runner.num_index_heads = 0
     mock_runner.max_position_embeddings = 32768
+    mock_runner.max_seq_len = -1
     mock_runner.adapter_manager = None
     mock_runner.model = MagicMock()
     mock_runner.model.is_multimodal = False
@@ -126,6 +127,7 @@ def test_init_success(
         moe_tp=-1,
         moe_ep=-1,
         role='standard',
+        max_seq_len=-1,
         sampler_config=None,
         distributed_enable=False,
     )

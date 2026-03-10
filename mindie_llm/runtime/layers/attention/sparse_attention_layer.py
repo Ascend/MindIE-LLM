@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: Copyright contributors to the vLLM project
+# SPDX-License-Identifier: Apache-2.0
+# Part of this file implemented based on vllm project.
+#
 # Copyright (c) Huawei Technologies Co., Ltd. 2025-2026. All rights reserved.
 # MindIE is licensed under Mulan PSL v2.
 # You can use this software according to the terms and conditions of the Mulan PSL v2.
@@ -53,8 +57,8 @@ class SFA(AttentionLayerBase):
     def get_attn_backend(self) -> type[AttentionBackend]:
         return self.attn_backend
 
-    def forward(self, hidden_states):
+    def forward(self, hidden_states, cos, sin):
         self_kv_cache = (self.key_cache, self.value_cache, self.index_cache)
         return self.impl.forward(
-            self, hidden_states, self_kv_cache
+            self, hidden_states, self_kv_cache, cos=cos, sin=sin
         )

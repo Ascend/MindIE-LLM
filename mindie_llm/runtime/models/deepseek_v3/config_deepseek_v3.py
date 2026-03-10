@@ -9,12 +9,85 @@
 # See the Mulan PSL v2 for more details.
 
 from typing import Optional, Any
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
-from mindie_llm.runtime.config.huggingface_config import HuggingFaceConfig
-from mindie_llm.runtime.utils.helpers.parameter_validators import IntParameterValidator, Field
+from mindie_llm.runtime.config.huggingface_config import HuggingFaceConfig, BaseRopeScaling
+from mindie_llm.runtime.utils.helpers.parameter_validators import IntParameterValidator, FloatParameterValidator, Field
 from mindie_llm.utils.log.error_code import ErrorCode
 from mindie_llm.utils.log.logging import logger
+
+
+@dataclass
+class DeepSeekV3RopeScaling(BaseRopeScaling):
+    """DeepSeek-V3-specific RoPE scaling configuration.
+    
+    DeepSeek-V3 uses YaRN scaling with DeepSeek-specific parameters like mscale_all_dim.
+    """
+    rope_type: str = field(default='deepseek_yarn')
+    
+    factor: float = field(default=1.0, metadata={
+        'validator': FloatParameterValidator(Field(ge=-65504, le=65504))
+    })
+    
+    original_max_position_embeddings: int | None = field(default=None, metadata={
+        'validator': IntParameterValidator(Field(ge=1, le=2147483647), allow_none=True)
+    })
+    
+    beta_fast: int = field(default=32, metadata={
+        'validator': IntParameterValidator(Field(ge=1, le=2147483647))
+    })
+    beta_slow: int = field(default=1, metadata={
+        'validator': IntParameterValidator(Field(ge=1, le=2147483647))
+    })
+    
+    mscale: float = field(default=1.0, metadata={
+        'validator': FloatParameterValidator(Field(gt=0), allow_none=True)
+    })
+    
+    mscale_all_dim: float | None = field(default=None, metadata={
+        'validator': FloatParameterValidator(Field(gt=0), allow_none=True)
+    })
+    
+    def __post_init__(self):
+        if self.factor > 1.0:
+            if self.original_max_position_embeddings is not None:
+                self.max_position_embeddings = int(self.factor * \
+                    self.original_max_position_embeddings)
+            else:
+                _msg = ("Rope Scaling Failed. The `rope_scaling.factor` > 1.0, "
+                    "but `rope_scaling.original_max_position_embeddings` is None. "
+                    "Please check your `rope_scaling` in model's config.json.")
+                logger.warning(_msg)
+
+    @classmethod
+    def from_dict(cls, config_dict: dict[str, Any], 
+                  rope_theta: float = 10000.0,
+                  max_position_embeddings: int | None = None) -> 'DeepSeekV3RopeScaling':
+        if config_dict is None:
+            config_dict = {}
+        
+        rope_type = config_dict.get('rope_type', config_dict.get('type', 'deepseek_yarn'))
+        factor = config_dict.get('factor', 1.0)
+        original_max = config_dict.get('original_max_position_embeddings', None)
+        beta_fast = config_dict.get('beta_fast', 32)
+        beta_slow = config_dict.get('beta_slow', 1)
+        mscale = config_dict.get('mscale', 1.0)
+        mscale_all_dim = config_dict.get('mscale_all_dim', None)
+        
+        if factor > 1.0 and original_max is not None:
+            max_position_embeddings = int(factor * original_max)
+        
+        return cls(
+            rope_type=rope_type,
+            rope_theta=rope_theta,
+            max_position_embeddings=max_position_embeddings,
+            factor=factor,
+            original_max_position_embeddings=original_max,
+            beta_fast=beta_fast,
+            beta_slow=beta_slow,
+            mscale=mscale,
+            mscale_all_dim=mscale_all_dim
+        )
 
 
 @dataclass
@@ -41,7 +114,7 @@ class DeepseekV3Config(HuggingFaceConfig):
     end_reasoning_token_id: int = 128799
     is_nzcasted: bool = False
 
-    def __init__(self, rope_scaling, **kwargs):
+    def __init__(self, **kwargs):
         # (NOTE): delete kwargs in the future
         super().__init__(**kwargs)
         self.attribute_map = {
@@ -52,8 +125,6 @@ class DeepseekV3Config(HuggingFaceConfig):
             self.ep_level = 1
         if self.model_type in ["deepseek_v3"]:
             self.is_reasoning_model = True
-        # (NOTE): add validation
-        self.rope_scaling_dict = rope_scaling
         # (NOTE): get from config
         self.index_n_heads = 64
         self.index_head_dim = 128
@@ -100,3 +171,22 @@ class DeepseekV3Config(HuggingFaceConfig):
                   f"got topk_group={self.topk_group}, n_group={self.n_group}"
             logger.error(msg, ErrorCode.ATB_MODELS_PARAM_OUT_OF_RANGE)
             raise ValueError(msg)
+    
+    def _create_rope_scaling(self, rope_scaling_dict: dict[str, str] | None,
+                             rope_theta: float,
+                             max_position_embeddings: int | None) -> DeepSeekV3RopeScaling:
+        """Create DeepSeek-V3-specific RoPE scaling configuration.
+        
+        Args:
+            rope_scaling_dict: The rope_scaling dictionary from config.json
+            rope_theta: The model's rope_theta value
+            max_position_embeddings: The model's max_position_embeddings value
+            
+        Returns:
+            Configured DeepSeekV3RopeScaling instance
+        """
+        return DeepSeekV3RopeScaling.from_dict(
+            rope_scaling_dict,
+            rope_theta=rope_theta,
+            max_position_embeddings=max_position_embeddings
+        )

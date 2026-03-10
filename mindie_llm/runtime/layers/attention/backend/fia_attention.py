@@ -60,14 +60,12 @@ class FiaAttentionMetadata(AttentionMetadata):
     # The following attributes are only filled by `from_model_input`.
 
     @staticmethod
-    def from_model_input(model_inputs, cos_table, sin_table, mask, num_speculative_tokens=0):
+    def from_model_input(model_inputs, mask, num_speculative_tokens=0):
         return FiaAttentionMetadata(
             seq_lens=model_inputs.context_length,
             slot_mapping=model_inputs.slots,
             block_tables=model_inputs.block_tables,
             attn_mask=mask,
-            cos_table=cos_table,
-            sin_table=sin_table,
             max_seq_len=model_inputs.max_seq_len,
         )
 
@@ -120,8 +118,6 @@ class FiaAttentionMetadataBuilder:
             slot_mapping=common_attn_metadata.slot_mapping,
             block_tables=common_attn_metadata.block_tables,
             attn_mask=common_attn_metadata.attn_mask,
-            cos_table=common_attn_metadata.cos_table,
-            sin_table=common_attn_metadata.sin_table
         )
         return attn_metadata
 

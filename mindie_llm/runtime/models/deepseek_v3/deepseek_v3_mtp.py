@@ -17,7 +17,7 @@ from mindie_llm.runtime.layers.linear.linear import ReplicatedLinear
 from mindie_llm.runtime.layers.embedding.embedding import VocabParallelEmbedding, ParallelLMHead, maybe_slice_cross_tp
 from mindie_llm.runtime.model_runner.forward_context import get_forward_context
 from mindie_llm.runtime.utils.distributed import get_parallel_info_manager
-from .deepseek_v3 import DeepseekV3Layer, init_rope, bind_cos_sin_table
+from .deepseek_v3 import DeepseekV3Layer
 
 
 class SharedHead(nn.Module):
@@ -136,7 +136,6 @@ class DeepseekV3MtpModel(nn.Module):
                     DeepseekV3MtpLayer(config, prefix, self.layer_idx, quant_config)
             }
         )
-        init_rope(self)
 
     def forward(self, input_ids, positions) -> torch.Tensor:
         """
@@ -156,13 +155,7 @@ class DeepseekV3MtpModel(nn.Module):
         last_hidden_states = maybe_slice_cross_tp(last_hidden_states, self.parallel_info.attn_tp)
 
         hidden_states = mtp_layer.embed_tokens(input_ids)
-        cos_sin = self.rotary_emb(
-            hidden_states, 
-            positions, forward_context.seq_lens, 
-            self.config.max_position_embeddings
-        )
-        bind_cos_sin_table(cos_sin)
-
+        mtp_layer.self_attn.rope_emb.set_cos_sin_indexed_cache(positions)
         hidden_states = mtp_layer.enorm(hidden_states)
         last_hidden_states = mtp_layer.hnorm(last_hidden_states)
         hidden_states = torch.concat([hidden_states, last_hidden_states], dim=-1)
