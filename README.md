@@ -12,6 +12,36 @@
 
 </div>
 
+## 🚀 简介
+
+**MindIE LLM**是昇腾的大语言模型推理加速套件，旨在通过深度优化的模型库和推理优化器，专门提升大模型在昇腾硬件上的推理性能和易用性。MindIE LLM基于昇腾硬件，提供业界通用大模型推理能力，多并发请求的调度，包含Continuous Batching、PagedAttention、FlashDecoding等加速特性，使能用户高性能推理需求。
+
+## 🔍 目录结构
+
+``` 
+ ├── mindie_llm                                     # Python 推理框架主模块 
+ │   ├── connector                                  # 请求接入层 
+ │   ├── text_generator                             # 核心推理引擎 
+ │   ├── modeling                                   # 模型封装抽象  
+ │   ├── runtime                                    # 运行时编译和模型加载
+ │   ├── utils                                      # 工具模块：日志/张量/Profiling/验证等 
+ ├── examples                                       # 示例代码 
+ ├── docs                                           # 项目文档介绍 
+ ├── src                                            # C++ 核心引擎 
+ │   ├── engine                                     # LLM 引擎的主逻辑（调度/执行） 
+ │   ├── scheduler                                  # 调度器（FCFS/PDDS/Layerwise） 
+ │   ├── block_manager                              # KV Cache 块管理（LRU/Prefix Cache/CoW） 
+ │   ├── llm_manager                                # Python/C++ 桥接 API  
+ │   ├── server                                     # 服务端（gRPC/HTTP 接入端点） 
+ │   ├── utils                                      # 基础工具（共享内存/加密/日志/ID 生成等） 
+ │   ├── include                                    # 对外头文件接口 
+ ├── scripts                                        # 构建与部署脚本 
+ ├── tools                                          # 辅助工具 
+ ├── tests                                          # 测试                                             
+ ├── CMakeLists.txt                                 # CMake 构建配置                          
+ ├── README.md    
+                              
+ ```
 ## 📢 版本说明
 
 | MindIE 软件版本&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;| CANN 版本兼容性&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|
@@ -21,7 +51,8 @@
 
 ## ⚡️ 环境部署
 
-MindIE LLM 安装前的相关软硬件环境准备，以及安装步骤，请参见[安装指南](./docs/zh/user_guide/installation_guide.md)。
+- 通过软件包或镜像方式安装MindIE LLM，请参见[安装指南](./docs/zh/user_guide/install/README.md)。
+- 通过拉取最新代码编译安装MindIE LLM，请参见[编译安装指南](./docs/zh/developer_guide/build_guide.md)。
 
 ## ⚡️ 快速入门
 
