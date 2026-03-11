@@ -110,8 +110,8 @@
 |配置项|取值类型|取值范围|配置说明|
 |--|--|--|--|
 |maxSeqLen|uint32_t|上限根据显存和用户需求来决定，最小值需大于0。|必填，默认值：2560。<br>最大序列长度。请根据推理场景选择合适的maxSeqLen。<br>如果maxSeqLen大于模型支持的最大序列长度，可能会影响推理精度。|
-|maxInputTokenLen|uint32_t|[1, 4194304]|必填，默认值：2048。<br>输入token id最大长度。<br>maxInputTokenLen = min(maxInputTokenLen, maxSeqLen -1)<ul><li>当truncation=true时：请求的输入长度inputLen会自动截断，请求的实际输入长度inputLen = min(inputLen, maxInputLen)。</li><li>当truncation=false时：若请求的输入长度inputLen > maxInputTokenLen，会返回Error。</li></ul>|
-|truncation|bool|<ul><li>true</li><li>false</li></ul>|选填，默认值：false。<br>是否进行参数合理化校验拦截。<ul><li>false：校验</li><li>true：不校验</li></ul>maxInputTokenLen = min(maxInputTokenLen, maxSeqLen -1)<ul><li>当truncation=true时：请求的输入长度inputLen会自动截断，请求的实际输入长度inputLen = min(inputLen, maxInputLen)。</li><li>当truncation=false时：若请求的输入长度inputLen > maxInputTokenLen，会返回Error。</li></ul>|
+|maxInputTokenLen|uint32_t|[1, 4194304]|必填，默认值：2048。<br>输入token id最大长度。<br>maxInputTokenLen = min(maxInputTokenLen, maxSeqLen -1)<ul><li>当truncation=-1 or true时：请求的输入长度inputLen会进行右侧截断，当truncation=1时：请求的输入长度inputLen会进行左侧截断（注：目前仅qwen和deepseek模型支持左侧截断，其他模型不支持，其他模型请配置为-1|0|true|false），请求的实际输入长度inputLen = min(inputLen, maxInputLen)，。</li><li>当truncation=0 or false时：若请求的输入长度inputLen > maxInputTokenLen，会返回Error。</li></ul>|
+|truncation|int32_t|<ul><li>-1</li><li>0</li><li>1</li></ul> or|bool|<ul><li>true</li><li>false</li></ul>|选填，默认值：0。<br>输入超长时截断方式。<ul><li>-1 or true：右侧截断</li><li>0 or false：禁止截断 </li><li>1：左侧截断</li></ul>maxInputTokenLen = min(maxInputTokenLen, maxSeqLen -1)<ul><li>当truncation=-1时：请求的输入长度inputLen会进行右侧截断，当truncation=1时：请求的输入长度inputLen会进行左侧截断（注：目前仅qwen和deepseek模型支持左侧截断，其他模型不支持，其他模型请配置为-1|0|true|false），请求的实际输入长度inputLen = min(inputLen, maxInputLen)，。</li><li>当truncation=0时：若请求的输入长度inputLen > maxInputTokenLen，会返回Error。</li></ul>|
 |ModelConfig|map|-|模型相关配置，包括后处理参数。详情请参见[ModelConfig参数说明](#modelconfig参数说明)。|
 
 
