@@ -32,6 +32,7 @@ const std::string MINDIE_ERRORCODE_HEAD = "MIE";
 const std::string MINDIE_SERVER_CODE = "04";
 
 // error level
+const std::string INFO = "I";
 const std::string WARNING = "W";
 const std::string ERROR = "E";
 const std::string CRITICAL = "C";
@@ -138,6 +139,8 @@ const std::string EXIT_SUBPROCESS_WARNING = "1A";
 const std::string CONFIG_ERROR = "1B";
 // 初始化异常
 const std::string INIT_ERROR = "1C";
+// 状态正常
+const std::string SIMULATE_NORMAL = "20";
 
 // err code = ERROR code head + model code + error level + submodel code + features code + ERROR type code
 

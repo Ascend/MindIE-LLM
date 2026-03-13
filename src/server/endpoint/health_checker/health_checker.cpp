@@ -238,9 +238,15 @@ void HealthChecker::HandleHealthStatus()
 {
     // NORMAL、ABNORMAL和BUSY可以互相转换，无需检查状态转移
     ServiceStatus status = CheckSimulateTask();
+    std::string errCode;
     if (status == SERVICE_ABNORMAL) {
-        ErrorItem item(GenerateHealthCheckerErrCode(ERROR, SUBMODLE_FEATURE_SECURE, STATUS_WARNING),
-            SUBMODLE_NAME_HEALTHCHECKER, std::chrono::system_clock::now());
+        errCode = GenerateHealthCheckerErrCode(ERROR, SUBMODLE_FEATURE_SECURE, STATUS_WARNING);
+    } else if (status == SERVICE_NORMAL || status == SERVICE_BUSY) {
+        // normal和busy都当正常，统一上报071120
+        errCode = GenerateHealthCheckerErrCode(INFO, SUBMODLE_FEATURE_SECURE, SIMULATE_NORMAL);
+    }
+    if (!errCode.empty()) {
+        ErrorItem item(errCode, SUBMODLE_NAME_HEALTHCHECKER, std::chrono::system_clock::now());
         if (mErrorList.Size() >= maxErrorListSize) {
             ErrorItem itemToRemove;
             mErrorList.PopFront(itemToRemove);
