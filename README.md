@@ -46,7 +46,7 @@
 
 | MindIE 软件版本&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;| CANN 版本兼容性&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|
 |:----------------------------|:----------------------------|
-| 2.2.RC1 | 8.3.RC2 |
+| 2.3.0 | 9.0.0 |
 
 
 ## ⚡️ 环境部署
@@ -56,7 +56,7 @@
 
 ## ⚡️ 快速入门
 
-快速体验使用MindIE进行大模型推理的全流程，请参见[快速入门](./docs/zh/user_guide/quick_start.md)。
+快速体验使用MindIE进行大模型推理的全流程，请参见[快速入门](./docs/zh/user_guide/quick_start/quick_start.md)。
 
 ## 📝 学习文档
 
