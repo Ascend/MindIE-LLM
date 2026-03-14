@@ -998,7 +998,7 @@ void HttpHandler::GetPrometheusMetrics(const ReqCtxPtr &requestContext)
     }
     std::string prometheusMetricsRes = "";
     PrometheusMetrics::GetInstance()->GetMetricsResult(prometheusMetricsRes);
-    HttpRestResource::ResponseWithBody(requestContext, httplib::StatusCode::OK_200, "application/json",
+    HttpRestResource::ResponseWithBody(requestContext, httplib::StatusCode::OK_200, "text/plain; charset=utf-8",
         prometheusMetricsRes);
 }
 
