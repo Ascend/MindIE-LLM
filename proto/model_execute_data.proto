@@ -18,6 +18,7 @@ enum ExecuteType {
   CLEAR_COMMAND_EXEC = 11;
   RECOVER_COMMAND_EXEC = 12;
   START_COMMAND_EXEC = 13;
+  EXECUTE_ERROR = 14;
 }
 
 enum ForwardType {
@@ -314,6 +315,7 @@ message ExecuteModelResponse {
   optional float model_forward_time = 2;
   optional float model_execute_time = 3;
   optional bool layerwise_is_prefill = 4;
+  optional string err_msg = 5;
 }
 
 // PD disaggregation response: establish/remove linking between P and D instances

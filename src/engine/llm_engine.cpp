@@ -886,10 +886,20 @@ void LlmEngine::ExecuteRecoverCommand(RecoverCommandInfo &commandInfo)
         return;
     }
 
+    std::vector<std::thread> threads;
+    threads.reserve(enginePerDPs_.size());
+
     for (size_t i = 0; i < enginePerDPs_.size(); ++i) {
-        EnginePerDPSPtr enginePerDP = enginePerDPs_.at(i);
-        enginePerDP->modelExecutor->ExecuteRecoverCommand(commandInfo);
-        MINDIE_LLM_LOG_INFO("Execute Recover command: " << commandInfo.command);
+        threads.emplace_back([this, i, &commandInfo]() {
+            EnginePerDPSPtr enginePerDP = enginePerDPs_.at(i);
+            enginePerDP->modelExecutor->ExecuteRecoverCommand(commandInfo);
+            MINDIE_LLM_LOG_INFO("Execute Recover command: " << commandInfo.command);
+        });
+    }
+
+    // 等待所有线程完成
+    for (auto &thread : threads) {
+        thread.join();
     }
 }
 

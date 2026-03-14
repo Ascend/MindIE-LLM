@@ -51,7 +51,7 @@ public:
     static void EncodeOpenAiModel(LoraConfig &loraParam, int64_t time, std::string &jsonStr);
     static void EncodeHealthStatus(const ServiceStatus &status,
         const std::vector<ErrorItem> &errorList, std::string &jsonStr);
-    static void EncodeCmdResult(const Status &status, const mindie_llm::RecoverCommandInfo &info, std::string &jsonStr);
+    static void EncodeCmdResult(const Status &status, mindie_llm::RecoverCommandInfo &info, std::string &jsonStr);
 
     static void HandleGetInfo(const ScheduleConfig &scheduleParam,
         const std::vector<ModelDeployConfig> &modelParam, std::string &infoStr);

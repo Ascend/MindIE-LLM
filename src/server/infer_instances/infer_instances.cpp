@@ -210,12 +210,12 @@ Status InferInstance::ControlInferInstance(mindie_llm::RecoverCommandInfo &info)
         isPaused_.store(false);
     }
     bool allSuccess = true;
-    for (auto res : info.results) {
+    info.results.ForEach([&allSuccess](const mindie_llm::NPUExecutionResult &res) {
         if (res.commandResult != 0) {
             allSuccess = false;
-            break;
         }
-    }
+        },
+        info.results.Size());
     return allSuccess ? Status(Error::Code::OK, "Success") :
         Status(Error::Code::ERROR, "Some NPU execute command failed");
 }

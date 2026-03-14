@@ -9,6 +9,7 @@
  * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
  * See the Mulan PSL v2 for more details.
  */
+#include <cerrno>
 #include <experimental/filesystem>
 #include "log.h"
 #include "msServiceProfiler/msServiceProfiler.h"
@@ -40,7 +41,8 @@ bool SerializeExecuteMessage(ExecuteRequest &request, std::string &buf)
 
 IPCCommunicator::IPCCommunicator(std::string prefixName, uint32_t workerNum)
     : requestSharedMemory_(IPCSharedMemoryType::REQUEST, prefixName + "_request", workerNum),
-      responseSharedMemory_(IPCSharedMemoryType::RESPONSE, prefixName + "_response", workerNum), workerNum_(workerNum)
+      responseSharedMemory_(IPCSharedMemoryType::RESPONSE, prefixName + "_response", workerNum),
+      workerNum_(workerNum)
 {
 }
 
@@ -308,6 +310,22 @@ bool IPCCommunicator::ReceiveResponse(ExecuteResponse &response)
     SignalAllSemaphores(responseSharedMemory_.semProduceVec);
 
     return parseResponseResult;
+}
+
+bool IPCCommunicator::TryReceiveExecuteResponse(ExecuteResponse &response)
+{
+    for (uint32_t i = 0; i < responseSharedMemory_.semConsumeVec.size(); ++i) {
+        if (sem_trywait(responseSharedMemory_.semConsumeVec[i]) == 0) {
+            bool parseResponseResult = ParseResponse(response,
+                responseSharedMemory_.sharedMemory->GetBuf() + i * EXECUTE_RESP_SLOT_SIZE);
+            SemV(*responseSharedMemory_.semProduceVec[i], 1);
+            return parseResponseResult;
+        }
+        if (errno != EAGAIN && errno != EINTR) {
+            MINDIE_LLM_LOG_ERROR("sem_trywait failed at rank " << i << ", errno=" << errno);
+        }
+    }
+    return false;
 }
 
 bool IPCCommunicator::HandleRcvMsg()

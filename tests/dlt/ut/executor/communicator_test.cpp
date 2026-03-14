@@ -124,12 +124,16 @@ TEST_F(CommunicatorTest, LaunchIPCHandleResponseThreads_MasterNode_RegisterAndSt
     MOCKER_CPP(&IPCCommunicator::SetupChannel, bool (*)()).stubs().will(returnValue(true));
     MOCKER_CPP(&IPCCommunicator::RegisterResponseHandler, bool (*)(ResponseHandler)).stubs().will(returnValue(true));
     MOCKER_CPP(&IPCCommunicator::StartHandleResponseThread, bool (*)()).stubs().will(returnValue(true));
+    MOCKER_CPP(&IPCCommunicator::CleanUp, void (*)()).stubs();
+    MOCKER_CPP(&IPCCommunicator::TryReceiveExecuteResponse, bool (*)(ExecuteResponse &)).stubs().will(returnValue(false));
 
     InitCommunicator(true, true);
     ASSERT_TRUE(communicator_->InitIPCCommunicators("prefix", 2));
 
     bool ok = communicator_->LaunchIPCHandleResponseThreads([&](ExecuteResponse &r) {});
     EXPECT_TRUE(ok);
+
+    communicator_->CleanUp();
 }
 
 TEST_F(CommunicatorTest, LaunchIPCHandleResponseThreads_SlaveNode_UsesInternalHandler)
@@ -138,12 +142,16 @@ TEST_F(CommunicatorTest, LaunchIPCHandleResponseThreads_SlaveNode_UsesInternalHa
     MOCKER_CPP(&IPCCommunicator::SetupChannel, bool (*)()).stubs().will(returnValue(true));
     MOCKER_CPP(&IPCCommunicator::RegisterResponseHandler, bool (*)(ResponseHandler)).stubs().will(returnValue(true));
     MOCKER_CPP(&IPCCommunicator::StartHandleResponseThread, bool (*)()).stubs().will(returnValue(true));
+    MOCKER_CPP(&IPCCommunicator::CleanUp, void (*)()).stubs();
+    MOCKER_CPP(&IPCCommunicator::TryReceiveExecuteResponse, bool (*)(ExecuteResponse &)).stubs().will(returnValue(false));
 
     InitCommunicator(true, false);
     ASSERT_TRUE(communicator_->InitIPCCommunicators("prefix", 2));
 
     bool ok = communicator_->LaunchIPCHandleResponseThreads([&](ExecuteResponse &r) { /*should not be called*/ });
     EXPECT_TRUE(ok);
+
+    communicator_->CleanUp();
 }
 
 TEST_F(CommunicatorTest, SendAsyncRequestToLocal_ModelInfer_Succeeds)

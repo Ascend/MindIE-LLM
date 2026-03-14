@@ -54,6 +54,8 @@ public:
 
     bool ReceiveResponse(ExecuteResponse &response);
 
+    bool TryReceiveExecuteResponse(ExecuteResponse &response);
+
     void CleanUp();
 
 private:

@@ -1,3 +1,6 @@
-build_test(load_balancer ut "mindie_load_balancer;mindie_scheduler;mindie_llm_utils;sequence;mindie_engine" "${PROJECT_SOURCE_DIR}/src/load_balance/balance_policy;${PROJECT_SOURCE_DIR}/src/engine;${PROJECT_SOURCE_DIR}/src/load_balance;${PROJECT_SOURCE_DIR}/src/scheduler")
+build_test(load_balancer ut "mindie_load_balancer;mindie_scheduler;mindie_llm_utils;sequence;mindie_engine;mindieservice_endpoint" "${PROJECT_SOURCE_DIR}/src/load_balance/balance_policy;${PROJECT_SOURCE_DIR}/src/engine;${PROJECT_SOURCE_DIR}/src/load_balance;${PROJECT_SOURCE_DIR}/src/scheduler")
 target_link_libraries(MindIE-LLM_load_balancer_ut PRIVATE crash_handler)
 target_include_directories(MindIE-LLM_load_balancer_ut PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/..)
+set_target_properties(MindIE-LLM_load_balancer_ut PROPERTIES 
+  LINK_FLAGS "-Wl,--no-as-needed"
+)

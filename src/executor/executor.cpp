@@ -518,14 +518,13 @@ bool Executor::HandleRecoverCommandResult(RecoverCommandInfo &commandInfo,
         return false;
     }
 
-    commandInfo.results.clear();
     for (size_t i = 0; i < responses.size(); ++i) {
         const auto &reocverCommandResponse = responses[i].recover_command_response();
         mindie_llm::NPUExecutionResult result;
         result.npuDeviceId = reocverCommandResponse.npu_device_id();
         result.commandResult = reocverCommandResponse.command_result();
         result.errorMsg = reocverCommandResponse.error_msg();
-        commandInfo.results.emplace_back(result);
+        commandInfo.results.PushBack(result);
     }
     return true;
 }
@@ -599,7 +598,8 @@ void Executor::HandleKVTransferResponse(ExecuteResponse &executeResponse)
 bool Executor::AsyncResponseHandler(ExecuteResponse &response)
 {
     auto executeType = response.msg_type();
-    if (executeType == MODEL_INFER) { // Handle inference request message.
+    if (executeType == MODEL_INFER || executeType == EXECUTE_ERROR) {
+        // EXECUTE_ERROR: inference error with err_msg, same handling as MODEL_INFER
         HandleExecuteModelResponse(response);
     } else if (executeType == KV_TRANSFER) { // Handle KV cache transfer message.
         HandleKVTransferResponse(response);

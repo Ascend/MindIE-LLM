@@ -48,12 +48,19 @@ from mindie_llm.utils.prof.profiler import span_start, span_end, span_req, span_
 
 from mindie_llm.utils.layerwise.request_metadata import lwd_metadata_manager
 from mindie_llm.utils.layerwise.input_metadata import EdgeCloudInputMetadata, pd_exec_matadata_instance
+from mindie_llm.text_generator.utils.generation_output import GenerationOutput
+from mindie_llm.text_generator.utils.config import ResponseConfig
+from mindie_llm.utils.log.error_code import ErrorCode, ErrorCodeException
 
 NON_KVCACHE_TOKEN_NUM = 1
 SRC_BLOCK_TABLE_KEY = "src_block_tables"
 DST_BLOCK_TABLE_KEY = "dst_block_tables"
 REQ_INDEX = "request_index"
 MAX_SEQUENCE_IDS_FOR_CPP = 120  # 超过此数量使用C++构建响应
+
+ERROR_CODE_TO_FINISH_REASON = {
+    ErrorCode.TEXT_GENERATOR_OUT_OF_MEMORY: ResponseConfig.EXCEPTION_OOM,
+}
 
 
 def _print_component_error_log(e: BaseException):
@@ -436,9 +443,22 @@ class RouterImpl:
             f"forward_type: {execute_request.execute_model_request.forward_type}",
             extra={"handler_ids": HandlerType.TOKEN}
         )
-        self.generator.generate_token(dummy_input_metadata)
-        proto_response = ExecuteResponse(msg_type=execute_request.execute_type)
-        send_model_execute_response(proto_response)
+        err_msg = ""
+        try:
+            self.generator.generate_token(dummy_input_metadata)
+        except ErrorCodeException as e:
+            logger.error(f'{e.error_code.name} fault happened when handling empty batch, '
+                         f'will be reported to executor with error code: {e.error_code.value}.')
+            err_msg = e.error_code.value
+            proto = ExecuteResponseBuilder.build_from_err_msg(err_msg)
+            logger.info(f"Send error response to rank {self.local_rank}, err_msg={err_msg}")
+            send_model_execute_response(proto)
+        except Exception as e:
+            logger.error(f'Unknown exception when handling empty batch, error: {e}')
+            raise e
+
+        proto = ExecuteResponse(msg_type=execute_request.execute_type)
+        send_model_execute_response(proto)
 
     def _mix(self, execute_request: ExecuteRequest):
         is_req_prefill = []
@@ -499,7 +519,41 @@ class RouterImpl:
         span_end(convert_prof)
         if input_metadata_composite.block_copy:
             self.generator.copy_blocks(np.array(input_metadata_composite.block_copy))
-        generate_output = self._handle_requests(input_metadata_composite)
+        
+        err_msg = ""
+        try:
+            generate_output = self._handle_requests(input_metadata_composite)
+        except ErrorCodeException as e:
+            logger.error(f'{e.error_code.name} fault happened when handling normal batch, '
+                         f'will be reported to executor with error code: {e.error_code.value}.')
+            err_msg = e.error_code.value
+            sequence_ids = input_metadata_composite.input_metadata.all_sequence_ids
+            parent_sequence_ids = input_metadata_composite.input_metadata.all_sequence_ids
+            dim = len(sequence_ids)
+            finish_reason = np.zeros((dim), dtype=np.int32) + \
+                ERROR_CODE_TO_FINISH_REASON.get(e.error_code, ResponseConfig.EOS).value
+            generate_output = GenerationOutput(
+                sequence_ids=sequence_ids,
+                parent_sequence_ids=parent_sequence_ids,
+                group_indices=[(i, i + 1) for i in range(dim)],
+                logprobs=np.zeros((dim, 1), dtype=np.float32),
+                top_token_ids=np.zeros((dim, 1, 1), dtype=np.int64),
+                top_logprobs=np.zeros((dim, 1, 1), dtype=np.float32),
+                num_new_tokens=np.ones((dim,), dtype=np.int64),
+                num_top_tokens=np.zeros((dim,), dtype=np.int64),
+                cumulative_logprobs=np.zeros((dim,), dtype=np.float32),
+                token_ids=np.zeros((dim, 1), dtype=np.int64),
+                finish_reason=finish_reason,
+                truncation_indices=np.zeros((dim), dtype=np.int_),
+                current_token_indices=np.zeros((dim), dtype=np.int_)
+            )
+            generate_output.collate()
+            logger.info(f"Send response with error msg to rank {self.local_rank}, err_msg={err_msg}")
+            proto = ExecuteResponseBuilder.build_from_err_msg(err_msg)
+            send_model_execute_response(proto)
+        except Exception as e:
+            logger.error(f'Unknown exception when handling normal batch, error: {e}')
+            raise e
 
         # Only the first rank in each DP group will generate output.
         if generate_output is not None:

@@ -48,13 +48,13 @@ from mindie_llm.text_generator.utils.request import Request
 from mindie_llm.utils.decorators.time_decorator import timer
 from mindie_llm.utils.env import ENV
 from mindie_llm.utils.log import ErrorCode, logger, print_log
+from mindie_llm.utils.log.error_code import ErrorCodeException
 from mindie_llm.utils.status import MindieLlmStatusCode
 from mindie_llm.utils.tensor import npu
 from mindie_llm.text_generator.utils.separate_deployment_engine import (
     SeparateDeploymentWorker, LinkParams, DmiModeNodeRole
 )
 from mindie_llm.utils import file_utils
-
 
 STANDARD_TAG = 'standard'
 NPU_OUT_OF_MEMORY_TAG = 'NPU out of memory'
@@ -505,6 +505,12 @@ class Generator(PDInterface):
             if input_metadata.all_sequence_ids is not None:
                 self.clear_cache(input_metadata.all_sequence_ids)
             raise e
+        except ErrorCodeException as e:
+            if warmup:
+                print_log(self.rank, logger.error, f'Out-of-memory exception occurred during warmup')
+                raise RuntimeError from e
+            else:
+                raise e
         except Exception as e:
             print_log(self.rank, logger.error, f'Unknown exception: {e}')
             if self.is_inference_pause:
@@ -700,6 +706,7 @@ class Generator(PDInterface):
         if command == "CMD_REINIT_NPU":
             try:
                 self.infer_context.reset_all_context()
+                self.plugin_manager.error_code_collected_in_async = None
                 ret_dict = self.generator_backend.execute_recover_command(command)
                 if ret_dict[command_res_key] == 0:
                     acl.rt.set_device(self.npu_device_id)
@@ -731,6 +738,7 @@ class Generator(PDInterface):
             self.is_inference_pause = True
             self.plugin_manager.is_inference_pause = True
             time.sleep(20)
+            
             ret_dict = self.generator_backend.execute_recover_command(command)
 
         elif command == "CMD_CLEAR_TRANSER":

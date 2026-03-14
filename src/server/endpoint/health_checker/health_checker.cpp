@@ -523,6 +523,14 @@ void HealthChecker::EnqueueErrorMessage(const std::string &errCode, const std::s
         mErrorList.PopFront(itemToRemove);
     }
     mErrorList.PushBack(item);
+
+    if (mRecoverableErrCodes.find(errCode) != mRecoverableErrCodes.end()) {
+        ULOG_INFO(SUBMODLE_NAME_HEALTHCHECKER,
+            "HealthChecker: error code " << errCode << " is in the recoverable error code list, " <<
+            "do not update the status to SERVICE_ABNORMAL");
+        return;
+    }
+ 
     ULOG_INFO(SUBMODLE_NAME_HEALTHCHECKER, "HealthChecker: New error added. Error code: "
                                                << errCode << ", createdBy: " << createdBy);
 

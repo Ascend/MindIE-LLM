@@ -492,19 +492,20 @@ void JsonParse::EncodeHealthStatus(const ServiceStatus &status,
     jsonStr = jsonData.dump();
 }
 
-void JsonParse::EncodeCmdResult(const Status &status, const mindie_llm::RecoverCommandInfo &info, std::string &jsonStr)
+void JsonParse::EncodeCmdResult(const Status &status, mindie_llm::RecoverCommandInfo &info, std::string &jsonStr)
 {
     OrderedJson jsonData;
     jsonData["status"] = status.IsOk();
     jsonData["message"] = status.StatusMsg();
     jsonData["reason"] = OrderedJson::array();
-    for (const auto &r : info.results) {
+    info.results.ForEach([&jsonData](const mindie_llm::NPUExecutionResult &r) {
         OrderedJson reasonJson;
         reasonJson["device_id"] = r.npuDeviceId;
         reasonJson["result"] = r.commandResult == 0;
         reasonJson["message"] = r.errorMsg;
         jsonData["reason"].emplace_back(reasonJson);
-    }
+        },
+        info.results.Size());
     jsonStr = jsonData.dump();
 }
 

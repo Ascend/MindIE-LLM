@@ -275,6 +275,82 @@ class TestExecuteResponseBuilder(unittest.TestCase):
         self.assertEqual(response.status, 500)
         self.assertEqual(len(response.pull_kv_response.pull_kv_results), 0)
 
+    def test_build_from_err_msg(self):
+        err_msg = "Test error message"
+        response = ExecuteResponseBuilder.build_from_err_msg(err_msg)
+
+        self.assertEqual(response.msg_type, ExecuteType.EXECUTE_ERROR)
+        self.assertTrue(response.HasField("execute_model_response"))
+        self.assertEqual(response.execute_model_response.err_msg, err_msg)
+
+    def test_build_from_err_msg_empty(self):
+        response = ExecuteResponseBuilder.build_from_err_msg("")
+
+        self.assertEqual(response.msg_type, ExecuteType.EXECUTE_ERROR)
+        self.assertEqual(response.execute_model_response.err_msg, "")
+
+    def test_build_from_err_msg_non_str(self):
+        """err_msg 非字符串时，应使用空字符串"""
+        response = ExecuteResponseBuilder.build_from_err_msg(123)
+        self.assertEqual(response.msg_type, ExecuteType.EXECUTE_ERROR)
+        self.assertEqual(response.execute_model_response.err_msg, "")
+
+        response = ExecuteResponseBuilder.build_from_err_msg(None)
+        self.assertEqual(response.msg_type, ExecuteType.EXECUTE_ERROR)
+        self.assertEqual(response.execute_model_response.err_msg, "")
+
+    def test_build_from_recover_command_result_pause(self):
+        responses_dict = {
+            "npu_device_id": 0,
+            "command_result": 0,
+            "error_msg": "",
+        }
+        response = ExecuteResponseBuilder.build_from_recover_command_result(
+            responses_dict, "CMD_PAUSE_ENGINE"
+        )
+        self.assertEqual(response.msg_type, ExecuteType.PAUSE_COMMAND_EXEC)
+        self.assertEqual(response.status, SUCCESS_STATUS)
+        self.assertEqual(response.recover_command_response.npu_device_id, 0)
+        self.assertEqual(response.recover_command_response.command_result, 0)
+        self.assertEqual(response.recover_command_response.error_msg, "")
+
+    def test_build_from_recover_command_result_clear(self):
+        responses_dict = {
+            "npu_device_id": 1,
+            "command_result": 0,
+            "error_msg": "no error",
+        }
+        response = ExecuteResponseBuilder.build_from_recover_command_result(
+            responses_dict, "CMD_CLEAR_TRANSER"
+        )
+        self.assertEqual(response.msg_type, ExecuteType.CLEAR_COMMAND_EXEC)
+        self.assertEqual(response.recover_command_response.npu_device_id, 1)
+        self.assertEqual(response.recover_command_response.command_result, 0)
+
+    def test_build_from_recover_command_result_reinit(self):
+        responses_dict = {
+            "npu_device_id": 2,
+            "command_result": 0,
+            "error_msg": "",
+        }
+        response = ExecuteResponseBuilder.build_from_recover_command_result(
+            responses_dict, "CMD_REINIT_NPU"
+        )
+        self.assertEqual(response.msg_type, ExecuteType.RECOVER_COMMAND_EXEC)
+        self.assertEqual(response.recover_command_response.npu_device_id, 2)
+
+    def test_build_from_recover_command_result_start(self):
+        responses_dict = {
+            "npu_device_id": 3,
+            "command_result": 0,
+            "error_msg": "",
+        }
+        response = ExecuteResponseBuilder.build_from_recover_command_result(
+            responses_dict, "CMD_START_ENGINE"
+        )
+        self.assertEqual(response.msg_type, ExecuteType.START_COMMAND_EXEC)
+        self.assertEqual(response.recover_command_response.npu_device_id, 3)
+
 
 if __name__ == '__main__':
     unittest.main()

@@ -13,6 +13,9 @@
 #ifndef COMMUNICATOR_H
 #define COMMUNICATOR_H
 
+#include <atomic>
+#include <thread>
+
 #include "grpc_communicator.h"
 #include "ipc_communicator.h"
 
@@ -84,6 +87,11 @@ private:
     // 非线程安全不可重入 pdlink、loraload、loraunload共用
     std::shared_ptr<IPCCommunicator> ipcCommunicatorSharedSync_;
     std::shared_ptr<IPCCommunicator> ipcCommunicatorKVTransfer_;
+    std::shared_ptr<IPCCommunicator> ipcCommunicatorExecuteError_;
+
+    void HandleExecuteErrorResponse(ResponseHandler handler) const;
+    std::atomic<bool> executeErrorRecvActive_{false};
+    std::unique_ptr<std::thread> handleExecuteErrorThread_{nullptr};
 };
 
 } // namespace mindie_llm

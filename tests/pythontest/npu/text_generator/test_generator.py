@@ -513,6 +513,8 @@ class TestGenerator(unittest.TestCase):
         generator.separate_deployment_worker = None
         generator.backend_type = 'atb'
         generator.npu_device_id = 0
+        generator.plugin = MagicMock()
+        generator.plugin_manager = MagicMock()
         generator.infer_context = MagicMock()
         generator.infer_context.reset_all_context = MagicMock()
         generator.generator_backend = MagicMock()
@@ -542,6 +544,8 @@ class TestGenerator(unittest.TestCase):
         generator.separate_deployment_worker = None
         generator.backend_type = 'atb'
         generator.npu_device_id = 0
+        generator.plugin = MagicMock()
+        generator.plugin_manager = MagicMock()
         generator.infer_context = MagicMock()
         generator.infer_context.reset_all_context = MagicMock()
         generator.generator_backend = MagicMock()
@@ -567,6 +571,8 @@ class TestGenerator(unittest.TestCase):
         generator.separate_deployment_worker = None
         generator.backend_type = 'atb'
         generator.npu_device_id = 0
+        generator.plugin = MagicMock()
+        generator.plugin_manager = MagicMock()
         generator.infer_context = MagicMock()
         generator.infer_context.reset_all_context = MagicMock()
         generator.generator_backend = MagicMock()

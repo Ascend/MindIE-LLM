@@ -27,6 +27,7 @@ const size_t TOTAL_SHARED_MEMORY_PER_DP = 2 * SHARED_MEMORY_256MB + 4 * DEFAULT_
 // = 8MB, which aligns with DEFAULT_SHARED_MEMORY_SIZE.
 const size_t MODEL_INIT_RESP_SIZE = 1024 * 512;
 const size_t RECOVER_COMMAND_RESP_SIZE = 1024 * 512;
+const size_t EXECUTE_RESP_SLOT_SIZE = 1024 * 512;
 struct ShmSizeConfig {
     size_t requestShmSize;
     size_t responseShmSize;

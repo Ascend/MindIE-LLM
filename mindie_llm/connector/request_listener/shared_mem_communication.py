@@ -51,6 +51,7 @@ class SharedMemoryChannel:
     # Maximum buffer size for model initialization response (0.5 MB) - must match C++ setting
     MODEL_INIT_RESP_SIZE = 1024 * 512
     RECOVER_COMMAND_RESP_SIZE = 1024 * 512
+    EXECUTE_RESP_SLOT_SIZE = 1024 * 512
 
     def __init__(self, name_prefix: str, local_rank_id: int):
         self.name_prefix = name_prefix
@@ -137,7 +138,8 @@ class SharedMemoryChannel:
 class SharedMemCommunication:
     _instance = None
     # shared_sync_link: shared by pd_link, lora_load and lora_unload, which is not thread-safe and cannot be reentrant.
-    CHANNEL_NAMES = ["execute", "shared_sync_link", "transfer"]
+    CHANNEL_NAMES = ["execute", "shared_sync_link", "transfer", "execute_error"]
+    CHANNELS_WITH_REQUEST_LISTENER = ["execute", "shared_sync_link", "transfer"]
 
     __slots__ = [
         "config",
@@ -212,7 +214,7 @@ class SharedMemCommunication:
 
     def start(self):
         self._is_running = True
-        for channel_name in self.CHANNEL_NAMES:
+        for channel_name in self.CHANNELS_WITH_REQUEST_LISTENER:
             thread = CoreThread(
                 target=self._process_incoming_requests, args=(channel_name,), daemon=True, name=channel_name
             )
@@ -225,10 +227,21 @@ class SharedMemCommunication:
         response: ExecuteResponse,
         is_transfer: bool = False,
         is_command: bool = False,
-        is_recover_command: bool = False,
+        is_recover_command: bool = False
         ):
         shared_sync_link_key = "shared_sync_link"
         response_key = "response"
+
+        # 故障码通过execute_error通道发送
+        has_err_msg = (response.HasField("execute_model_response") and
+                       response.execute_model_response.err_msg != "")
+        if has_err_msg:
+            error_channel = self._channels["execute_error"][response_key]
+            offset = (self.config.local_rank % self.config.npu_num_per_dp) * \
+                SharedMemoryChannel.EXECUTE_RESP_SLOT_SIZE
+            error_channel.send_message(response, buffer_offset=offset)
+            return
+
         if response.HasField("init_results"):
             # For initialization results, each rank writes to its own offset
             execute_channel = self._channels["execute"][response_key]

@@ -53,3 +53,25 @@ class ErrorCode(str, Enum):
 
     def __str__(self):
         return self.value
+
+
+class ErrorCodeException(RuntimeError):
+    """Custom exception carrying ErrorCode for error code reporting."""
+    def __init__(self, error_code: ErrorCode):
+        message = f'{error_code.name} fault happened, error code: {error_code.value}.'
+        super().__init__(message)
+        self.error_code = error_code
+
+
+EXCEPTION_TO_ERROR_CODE = {
+    "MIE05E0000005": ErrorCode.TEXT_GENERATOR_OUT_OF_MEMORY,
+}
+
+
+# convert exception raised from model to ErrorCodeException,
+# and then TextGenerator will continue to raise it to executor
+def convert_exception_to_error_code(exception_str: str):
+    for exception_key, error_code in EXCEPTION_TO_ERROR_CODE.items():
+        if exception_key in exception_str:
+            return error_code
+    return None

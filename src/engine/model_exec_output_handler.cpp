@@ -20,6 +20,7 @@
 #include "live_infer_context.h"
 #include "policy/stage_policy/stage_policy.h"
 #include "policy/stage_policy/edge_cloud_policy.h"
+#include "health_checker.h"
 
 using namespace mindie_llm;
 using namespace model_execute_data;
@@ -77,6 +78,14 @@ void ModelExecOutputHandler::Entry4Executor(ModelBatchResultSPtr &modelBatchResu
     if (modelBatchResult == nullptr) {
         throw std::runtime_error("modelBatchResult is nullptr.");
     }
+
+    if (modelBatchResult->has_err_msg() && modelBatchResult->err_msg() != "") {
+        MINDIE_LLM_LOG_ERROR("Error code from executor: " << modelBatchResult->err_msg());
+        mindie_llm::HealthChecker::GetInstance().EnqueueErrorMessage(
+            modelBatchResult->err_msg(), "LlmEngine");
+        return;
+    }
+
     if (modelBatchResult->outputs_size() == 0) {
         // dummy请求需要减去调度计数
         asyncBatchNum_.fetch_sub(1);

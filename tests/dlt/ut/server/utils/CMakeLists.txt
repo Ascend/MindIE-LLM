@@ -1,1 +1,2 @@
-build_test(server_utils ut "mindieservice_endpoint_static;dl;" "${PROJECT_SOURCE_DIR}/src/server/endpoint;${PROJECT_SOURCE_DIR}/src/server/endpoint/utils;${PROJECT_SOURCE_DIR}/third_party/openssl/include;${PROJECT_SOURCE_DIR}/src/server/include")
+build_test(server_utils ut "mindieservice_endpoint;dl;" "${PROJECT_SOURCE_DIR}/src/server/endpoint;${PROJECT_SOURCE_DIR}/src/server/endpoint/utils;${PROJECT_SOURCE_DIR}/third_party/openssl/include;${PROJECT_SOURCE_DIR}/src/server/include")
+set_target_properties(MindIE-LLM_server_utils_ut PROPERTIES LINK_FLAGS "-Wl,--no-as-needed")

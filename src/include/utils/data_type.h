@@ -17,6 +17,7 @@
 #include <unordered_map>
 #include <string>
 #include <vector>
+#include "utils/concurrent_deque.h"
 
 namespace mindie_llm {
 
@@ -106,7 +107,7 @@ struct NPUExecutionResult {
 
 struct RecoverCommandInfo {
     std::string command;
-    std::vector<NPUExecutionResult> results;
+    ConcurrentDeque<NPUExecutionResult> results;
     explicit RecoverCommandInfo(std::string command) : command(command) {}
 };
 } // namespace mindie_llm

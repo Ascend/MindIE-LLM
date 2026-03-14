@@ -12,6 +12,9 @@
 #include <future>
 #include <algorithm>
 #include <functional>
+#include <chrono>
+#include <thread>
+
 #include "string_utils.h"
 #include "log.h"
 #include "msServiceProfiler/msServiceProfiler.h"
@@ -86,6 +89,14 @@ bool Communicator::InitIPCCommunicators(const std::string &sharedMemPrefix, uint
         InitSingleIPCCommunicator(sharedMemPrefix + "_transfer", localWorldSize, kvTransferShmConfig);
     if (ipcCommunicatorKVTransfer_ == nullptr) {
         MINDIE_LLM_LOG_ERROR("Failed to initialize IPC Communicator for KV Transfer channel.");
+        return false;
+    }
+
+    ShmSizeConfig executeErrorShmConfig{DEFAULT_SHARED_MEMORY_SIZE, DEFAULT_SHARED_MEMORY_SIZE};
+    ipcCommunicatorExecuteError_ =
+        InitSingleIPCCommunicator(sharedMemPrefix + "_execute_error", localWorldSize, executeErrorShmConfig);
+    if (ipcCommunicatorExecuteError_ == nullptr) {
+        MINDIE_LLM_LOG_ERROR("Failed to initialize IPC Communicator for Execute Error channel.");
         return false;
     }
 
@@ -234,12 +245,28 @@ bool Communicator::SendRecoverCommandRequestAndReceive(ExecuteRequest &request, 
         }
     }
 
+    if (grpcCommunicator_ != nullptr) {
+        if (!grpcCommunicator_->SendRequest(request, dpRankIdx_, remoteDPRankIdx_, remoteSlaveIP_)) {
+            MINDIE_LLM_LOG_ERROR("Failed to send a sync recover command request to remote slave node.");
+            return false;
+        }
+    }
+
     // Wait until the responses are received.
     if (ipcCommunicatorSharedSync_ != nullptr) {
         if (!ipcCommunicatorSharedSync_->ReceiveRecoverCommandResponses(responses)) {
             MINDIE_LLM_LOG_ERROR("Failed to receive a sync recover command responses from local executors.");
             return false;
         }
+    }
+
+    if (grpcCommunicator_ != nullptr) {
+        ExecuteResponse grpcResponse;
+        if (!grpcCommunicator_->GetSyncResponse(grpcResponse, dpRankIdx_)) {
+            MINDIE_LLM_LOG_ERROR("Failed to receive a sync recover command response from remote slave node.");
+            return false;
+        }
+        responses.emplace_back(std::move(grpcResponse));
     }
     return true;
 }
@@ -270,6 +297,9 @@ bool Communicator::LaunchIPCHandleResponseThreads(ResponseHandler handler)
         MINDIE_LLM_LOG_ERROR("Failed to register and start handler for Execute channel.");
         return false;
     }
+    executeErrorRecvActive_ = true;
+    handleExecuteErrorThread_ =
+        std::make_unique<std::thread>(&Communicator::HandleExecuteErrorResponse, this, responseHandler);
     if (!RegisterAndStartIPCHandler(ipcCommunicatorKVTransfer_, responseHandler)) {
         MINDIE_LLM_LOG_ERROR("Failed to register and start handler for KV Transfer channel.");
         return false;
@@ -282,6 +312,19 @@ bool Communicator::LaunchIPCHandleResponseThreads(ResponseHandler handler)
         }
     }
     return true;
+}
+
+void Communicator::HandleExecuteErrorResponse(ResponseHandler handler) const
+{
+    pthread_setname_np(pthread_self(), "ExecErrRcv");
+    while (executeErrorRecvActive_) {
+        ExecuteResponse response;
+        if (ipcCommunicatorExecuteError_->TryReceiveExecuteResponse(response)) {
+            handler(response);
+            continue;
+        }
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    }
 }
 
 bool Communicator::RegisterAndStartIPCHandler(std::shared_ptr<IPCCommunicator> ipcCommunicator,
@@ -326,7 +369,12 @@ bool Communicator::SlaveNodeIPCResponseHandler(ExecuteResponse &response)
         return true;
     }
     // Skip sending to remote master if intra-node TP is enabled and response type is not PD_LINK.
-    if (intraNodeTP_ && response.msg_type() != PD_LINK) {
+    if (intraNodeTP_ && response.msg_type() != PD_LINK &&
+        response.msg_type() != RECOVER_COMMAND_EXEC &&
+        response.msg_type() != START_COMMAND_EXEC &&
+        response.msg_type() != PAUSE_COMMAND_EXEC &&
+        response.msg_type() != CLEAR_COMMAND_EXEC &&
+        response.msg_type() != EXECUTE_ERROR) {
         return true; // Intra-node TP does not send responses to remote master nodes.
     }
     return SendAsyncReponseToRemote(response);
@@ -395,7 +443,11 @@ bool Communicator::SendAsyncRequestToLocal(ExecuteRequest &request)
         ipcCommunicator = ipcCommunicatorExecute_.get();
     } else if (request.execute_type() == KV_TRANSFER) {
         ipcCommunicator = ipcCommunicatorKVTransfer_.get();
-    } else if (request.execute_type() == PD_LINK) {
+    } else if (request.execute_type() == PD_LINK ||
+        request.execute_type() == RECOVER_COMMAND_EXEC ||
+        request.execute_type() == START_COMMAND_EXEC ||
+        request.execute_type() == PAUSE_COMMAND_EXEC ||
+        request.execute_type() == CLEAR_COMMAND_EXEC) {
         ipcCommunicator = ipcCommunicatorSharedSync_.get();
     } else {
         MINDIE_LLM_LOG_ERROR("Unsupported execute type for asynchronous request: " << request.execute_type());
@@ -435,9 +487,18 @@ bool Communicator::SendAsyncRequestToRemote(ExecuteRequest &request)
 
 void Communicator::CleanUp()
 {
+    executeErrorRecvActive_ = false;
+    if (handleExecuteErrorThread_ && handleExecuteErrorThread_->joinable()) {
+        handleExecuteErrorThread_->join();
+        handleExecuteErrorThread_.reset();
+    }
     if (ipcCommunicatorExecute_) {
         ipcCommunicatorExecute_->CleanUp();
         ipcCommunicatorExecute_.reset();
+    }
+    if (ipcCommunicatorExecuteError_) {
+        ipcCommunicatorExecuteError_->CleanUp();
+        ipcCommunicatorExecuteError_.reset();
     }
     if (ipcCommunicatorSharedSync_) {
         ipcCommunicatorSharedSync_->CleanUp();

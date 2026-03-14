@@ -36,6 +36,7 @@ from mindie_llm.utils.decorators.time_decorator import timer
 from mindie_llm.utils.env import ENV
 from mindie_llm.utils.log import logger, HandlerType
 from mindie_llm.utils.prof.profiler import span_start, span_end, span_req, span_attr, count_block
+from mindie_llm.utils.log.error_code import ErrorCodeException, convert_exception_to_error_code
 
 if TYPE_CHECKING:
     from mindie_llm.text_generator.utils import (
@@ -92,6 +93,7 @@ class PluginManager:
         self.previous_batch_is_prefill = False
         self.is_inference_pause = False
         self.mem_det_trigger_counter = 0
+        self.error_code_collected_in_async = None
         # 结构化输出管理器 (延迟初始化)
         self._structured_output_manager: Optional[Any] = None
         self._structured_output_enabled = kwargs.get('enable_structured_output', True)
@@ -148,7 +150,7 @@ class PluginManager:
                 model_inputs.context_length[hit_sequence_ids_mask] += 1
                 model_inputs.max_seq_len = max(model_inputs.context_length)
                 model_inputs.forward_context.attn_metadata.max_seq_len = model_inputs.max_seq_len
-
+        
     def clear_cache(
         self,
         sequence_ids: Iterable[int],
@@ -252,6 +254,13 @@ class PluginManager:
             return generation_output
 
         except Exception as e:
+            error_code = convert_exception_to_error_code(str(e))
+            if isinstance(e, RuntimeError) and error_code is not None:
+                message = (
+                    f'{error_code.name} fault happened in generate_token, error code: {error_code.value}.'
+                )
+                logger.error(message)
+                raise ErrorCodeException(error_code) from e
             if self.is_inference_pause:
                 logger.info(f"Mocking response due to inference pause for trace_ids={trace_ids}.")
                 return GenerationOutput.make_empty()
@@ -273,7 +282,7 @@ class PluginManager:
                 model_input, input_metadata, sampling_metadata, cache_ids, hit_mask=hit_mask)
             span_end(prof)
             self.watcher.watch_npu_mem(self.rank, f'In asyn inference mode, after preprocess', 
-                                       trigger_count=self.mem_det_trigger_counter)
+                                        trigger_count=self.mem_det_trigger_counter)
 
             prof = span_start("prepare_model_inputs")
             if not ENV.framework_backend == BackendType.ATB:
@@ -377,6 +386,16 @@ class PluginManager:
             self.watcher.watch_npu_mem(self.rank, f'In asyn inference mode, after postprocess', 
                                        trigger_count=self.mem_det_trigger_counter)
             self.mem_det_trigger_counter_acc()
+
+        # 将forward loop中捕获到的故障码异常向上层抛出
+        if self.error_code_collected_in_async is not None:
+            message = (f'Detect {self.error_code_collected_in_async.name} fault happened in forward loop, '
+                       f'error code: {self.error_code_collected_in_async.value}.')
+            error_code = self.error_code_collected_in_async
+            self.error_code_collected_in_async = None
+            logger.error(message)
+            raise ErrorCodeException(error_code)
+
         return generation_output
 
     @timer.track_time('preprocess')
@@ -643,7 +662,12 @@ class PluginManager:
                 )
             except Exception as e:
                 trace_ids = getattr(model_input_wrapper, 'trace_ids', 'unknown')
-                if self.is_inference_pause:
+
+                error_code = convert_exception_to_error_code(str(e))
+                if isinstance(e, RuntimeError) and error_code is not None:
+                    self.error_code_collected_in_async = error_code
+
+                if self.is_inference_pause or self.error_code_collected_in_async is not None:
                     logger.info(f"Mocking response due to inference pause for trace_ids={trace_ids}.")
                     model_output_wrapper = ModelOutputWrapper(
                         cache_ids=model_input_wrapper.cache_ids,

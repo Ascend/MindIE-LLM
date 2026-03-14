@@ -465,7 +465,11 @@ bool GRPCCommunicator::HandleResponseFromSlave(ExecuteResponse &response, int ta
 
 void GRPCCommunicator::HandleRequestFromMaster(ExecuteRequest &request, int targetDPRank)
 {
-    if (request.execute_type() == MODEL_INFER) {
+    if (request.execute_type() == MODEL_INFER ||
+        request.execute_type() == RECOVER_COMMAND_EXEC ||
+        request.execute_type() == START_COMMAND_EXEC ||
+        request.execute_type() == PAUSE_COMMAND_EXEC ||
+        request.execute_type() == CLEAR_COMMAND_EXEC) {
         // MODEL_INFER request will be handled by all DP ranks in the slave node
         std::vector<RequestHandler> handlers = requestHandlers_.Values();
         for (const auto &handler : handlers) {
@@ -533,9 +537,13 @@ grpc::Status MasterServiceImpl::RegisterAndCommunicate(ServerContext *context, S
         } else if (client_msg.has_execute_response()) {
             int targetDPRank = client_msg.target_dp_rank();
             ExecuteResponse executeResponse = client_msg.execute_response();
-            // If the response type is REMOTE_MODEL_INIT, PD_LINK or LORA_OPERATION, push to blocking queue
+            // If the response type is REMOTE_MODEL_INIT, PD_LINK, LORA_OPERATION, RECOVER_COMMAND_EXEC, push to queue
             if (executeResponse.msg_type() == REMOTE_MODEL_INIT || executeResponse.msg_type() == PD_LINK ||
-                executeResponse.msg_type() == LORA_OPERATION) {
+                executeResponse.msg_type() == LORA_OPERATION ||
+                executeResponse.msg_type() == RECOVER_COMMAND_EXEC ||
+                executeResponse.msg_type() == START_COMMAND_EXEC ||
+                executeResponse.msg_type() == PAUSE_COMMAND_EXEC ||
+                executeResponse.msg_type() == CLEAR_COMMAND_EXEC) {
                 dpRankIdxToSyncResp_.Get(targetDPRank)
                     .value()
                     ->push(std::make_shared<ExecuteResponse>(std::move(executeResponse)));
