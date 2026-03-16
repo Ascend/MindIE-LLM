@@ -38,6 +38,7 @@ import numpy as np
 from mindie_llm.runtime.utils.distributed import get_parallel_info_manager
 from mindie_llm.runtime.layers.linear.linear_op import maybe_all_gather_and_maybe_unpad
 from mindie_llm.runtime.utils.distributed.communication_op import all_gather, gather_tensor, allgather_and_reorder
+from mindie_llm.runtime.utils.weight_prefetcher import weight_prefetcher
 
 from mindie_llm.runtime.model_runner.forward_context_exp import ForwardContext, get_forward_context
 from mindie_llm.runtime.model_runner.input_buffer import input_buffer
@@ -1083,6 +1084,9 @@ class SfaBackendImpl(SelectAttentionImpl):
             forward_context=forward_context,
             attn_metadata=attn_metadata,
             cos=cos, sin=sin)
+        if not forward_context.is_prefill and weight_prefetcher.is_prefetch_enabled():
+            weight_prefetcher.prefetch_weight_preprocess(self.o_proj.weight, hidden_states)
+
         o_proj_input = self.forward_impl(
                 prefill_preprocess_res=prefill_preprocess_res,
                 decode_preprocess_res=decode_preprocess_res,

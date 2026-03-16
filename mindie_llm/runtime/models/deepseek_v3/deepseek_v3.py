@@ -22,6 +22,7 @@ from mindie_llm.runtime.layers.fused_moe.experts_selector import select_experts
 from mindie_llm.runtime.layers.fused_moe.fused_moe import FusedMoE, assign_experts
 from mindie_llm.runtime.model_runner.forward_context import get_forward_context
 from mindie_llm.runtime.utils.distributed import get_parallel_info_manager
+from mindie_llm.runtime.utils.weight_prefetcher import weight_prefetcher
 from mindie_llm.runtime.layers.attention import get_global_attn_dict
 from mindie_llm.runtime.layers.parameter import BaseParameter
 from mindie_llm.runtime.layers.embedding.rotary_embedding import get_rope
@@ -543,7 +544,8 @@ class DeepseekV3Model(nn.Module):
             residual, hidden_states = layer(hidden_states, residual)
 
         hidden_states, _ = self.norm(hidden_states, residual)
-
+        if not forward_context.is_prefill and weight_prefetcher.is_prefetch_enabled():
+            weight_prefetcher.prefetch_weight_postprocess()
         return hidden_states
 
 
@@ -565,6 +567,7 @@ class DeepseekV3ForCausalLM(BaseModelForCausalLM):
         self.quant_config = mindie_llm_config.quant_config
         self.parallel_info = get_parallel_info_manager()
         self.ds_config = mindie_llm_config.llm_config.llm
+        weight_prefetcher.enable_weight_prefetch()  # initialize weight prefetcher
         self.model = DeepseekV3Model(
             config=mindie_llm_config.hf_config,
             prefix="model",
