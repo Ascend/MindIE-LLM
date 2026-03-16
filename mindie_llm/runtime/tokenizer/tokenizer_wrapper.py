@@ -153,7 +153,7 @@ class TokenizerWrapper:
 
             # Case 1: call get_combined_stream_result
             if use_reasoning_parser and use_tool_calls and is_chat_req:
-                return self.get_combined_stream_result(all_token_ids, prev_decode_index, curr_decode_index,
+                return self._get_combined_stream_result(all_token_ids, prev_decode_index, curr_decode_index,
                                                        skip_special_tokens, delta_text, metadata)
                                                        
             # Case 2: call streaming method of the reasoning parser
