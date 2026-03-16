@@ -924,6 +924,9 @@ class ModelRunner:
     def clear_internal_tensors(self):
         self.dummy_operation.clear_internal_tensors()
 
+    def reset_execution_status(self):
+        self.dummy_operation.reset_execution_status()
+        
     def _is_quantization_supported(self):
         """Check if current quantization configuration is supported"""
         return (

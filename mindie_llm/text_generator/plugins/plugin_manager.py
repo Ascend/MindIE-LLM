@@ -254,19 +254,12 @@ class PluginManager:
             return generation_output
 
         except Exception as e:
-            error_code = convert_exception_to_error_code(str(e))
-            if isinstance(e, RuntimeError) and error_code is not None:
-                message = (
-                    f'{error_code.name} fault happened in generate_token, error code: {error_code.value}.'
-                )
-                logger.error(message)
-                raise ErrorCodeException(error_code) from e
             if self.is_inference_pause:
                 logger.info(f"Mocking response due to inference pause for trace_ids={trace_ids}.")
                 return GenerationOutput.make_empty()
             logger.exception(
-                f"Unrecoverable error in generate_token (trace_ids={trace_ids}). "
-                f"Terminating inference thread. Error: {e}"
+                f"Error encountered in generate_token (trace_ids={trace_ids}). "
+                f"trigger recovery or terminate inference thread. Error: {e}"
             )
             raise e
 

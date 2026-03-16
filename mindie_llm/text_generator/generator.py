@@ -48,7 +48,7 @@ from mindie_llm.text_generator.utils.request import Request
 from mindie_llm.utils.decorators.time_decorator import timer
 from mindie_llm.utils.env import ENV
 from mindie_llm.utils.log import ErrorCode, logger, print_log
-from mindie_llm.utils.log.error_code import ErrorCodeException
+from mindie_llm.utils.log.error_code import ErrorCodeException, convert_exception_to_error_code
 from mindie_llm.utils.status import MindieLlmStatusCode
 from mindie_llm.utils.tensor import npu
 from mindie_llm.text_generator.utils.separate_deployment_engine import (
@@ -512,6 +512,13 @@ class Generator(PDInterface):
             else:
                 raise e
         except Exception as e:
+            error_code = convert_exception_to_error_code(str(e))
+            if isinstance(e, RuntimeError) and error_code is not None:
+                message = (
+                    f'{error_code.name} fault happened in generate_token, error code: {error_code.value}.'
+                )
+                logger.error(message)
+                raise ErrorCodeException(error_code) from e
             print_log(self.rank, logger.error, f'Unknown exception: {e}')
             if self.is_inference_pause:
                 return GenerationOutput.make_empty()

@@ -19,7 +19,11 @@ import numpy as np
 from mindie_llm.text_generator.adapter.generator_torch import GeneratorTorch, reorder_array, reorder_tensor
 from mindie_llm.text_generator.adapter.generator_torch import check_model_config
 from mindie_llm.text_generator.utils.model_input import ModelInput
-
+from mindie_llm.text_generator.adapter.generator_torch import (
+    is_uce_error_addr_overlap_tensor_addr,
+    get_tensor_address_range,
+    check_and_recover_uce_in_cache
+)
 
 MOCKED_INIT_METHOD = "mindie_llm.text_generator.adapter.generator_torch.GeneratorTorch.__init__"
 MOCKED_GET_MODEL_WRAPPER = "mindie_llm.text_generator.adapter.generator_backend.get_model_wrapper"
@@ -138,7 +142,8 @@ class TestGeneratorTorch(unittest.TestCase):
         self.cache_pool = MagicMock()
         self.cache_pool.num_npu_blocks = 10
         self.cache_pool.block_size = 128
-        self.cache_pool.npu_cache = None
+        self.cache_pool.npu_cache = [(torch.Tensor([1, 2, 3]), torch.Tensor([1, 2, 3]))]
+        self.cache_pool.kvcache_settings.num_layers = 1
 
         self.model_wrapper = MagicMock()
         self.model_wrapper.model_runner = MagicMock()
@@ -1192,6 +1197,113 @@ class TestGeneratorTorch(unittest.TestCase):
         with self.assertRaises(RuntimeError):
             result = generator._get_obfuscation_func()
 
+    @patch(MOCKED_INIT_METHOD, return_value=None)
+    @patch("torch_npu.npu.check_uce_in_memory")
+    @patch("torch_npu.npu._get_uce_addr")
+    def test_handle_uce_error_no_overlap(self, mock_get_uce_addr, mock_check_uce, _):
+        # Mock the return values
+        mock_check_uce.return_value = 2
+        mock_get_uce_addr.return_value = [{"ptr": 100, "size": 50}]
+
+        generator = GeneratorTorch({})
+        generator.cache_pool = self.cache_pool
+        generator.npu_device_id = 0
+
+        result, error_msg = generator._handle_uce_error()
+        self.assertEqual(result, 1)
+        self.assertEqual(error_msg, "HBM uce address not overlap kvcache address, should trigger reschedule")
+    
+    @patch(MOCKED_INIT_METHOD, return_value=None)
+    @patch("torch_npu.npu.check_uce_in_memory")
+    @patch("torch_npu.npu._get_uce_addr")
+    def test_handle_with_no_uce_error(self, mock_get_uce_addr, mock_check_uce, _):
+        # Mock the return values
+        mock_check_uce.return_value = 0
+        mock_get_uce_addr.return_value = [{"ptr": 100, "size": 50}]
+
+        generator = GeneratorTorch({})
+        generator.cache_pool = self.cache_pool
+        generator.npu_device_id = 0
+
+        result, error_msg = generator._handle_uce_error()
+        self.assertEqual(result, 0)
+        self.assertEqual(error_msg, "")
+    
+    @patch(MOCKED_INIT_METHOD, return_value=None)
+    @patch("torch_npu.npu.check_uce_in_memory")
+    @patch("torch_npu.npu._get_uce_addr")
+    def test_handle_uce_error_empty(self, mock_get_uce_addr, mock_check_uce, _):
+        # Mock the return values
+        mock_check_uce.return_value = 0
+        mock_get_uce_addr.return_value = []
+
+        generator = GeneratorTorch({})
+        generator.cache_pool = self.cache_pool
+        generator.npu_device_id = 0
+
+        result, error_msg = generator._handle_uce_error()
+        self.assertEqual(result, 0)
+        self.assertEqual(error_msg, "")
+    
+    @patch(MOCKED_INIT_METHOD, return_value=None)
+    @patch("torch_npu.npu.check_uce_in_memory")
+    @patch("torch_npu.npu._get_uce_addr")
+    def test_handle_uce_error_overlap(self, mock_get_uce_addr, mock_check_uce, _):
+        # Mock the return values
+        mock_check_uce.return_value = 3
+        addr = self.cache_pool.npu_cache[0][0].data_ptr()
+        mock_get_uce_addr.return_value = [{"ptr": addr, "size": 12}]
+
+        generator = GeneratorTorch({})
+        generator.cache_pool = self.cache_pool
+        generator.npu_device_id = 0
+
+        result, error_msg = generator._handle_uce_error()
+        self.assertEqual(result, 0)
+        self.assertEqual(error_msg, "")
+
+        addr = self.cache_pool.npu_cache[0][1].data_ptr()
+        mock_get_uce_addr.return_value = [{"ptr": addr, "size": 12}]
+        result, error_msg = generator._handle_uce_error()
+        self.assertEqual(result, 0)
+        self.assertEqual(error_msg, "")
+    
+    @patch("torch_npu.npu._recovery.update_npu_tensor_to_safe")
+    def test_is_uce_error_addr_overlap_tensor_addr(self, mock_update):
+        # Test overlapping address ranges
+        self.assertTrue(is_uce_error_addr_overlap_tensor_addr(100, 200, 100, 200))
+        self.assertFalse(is_uce_error_addr_overlap_tensor_addr(50, 180, 100, 200))
+        self.assertFalse(is_uce_error_addr_overlap_tensor_addr(150, 400, 100, 200))
+        self.assertFalse(is_uce_error_addr_overlap_tensor_addr(300, 400, 100, 200))
+
+    @patch("torch.Tensor")
+    def test_get_tensor_address_range(self, mock_tensor):
+        # Mock tensor properties
+        mock_tensor.data_ptr.return_value = 1000
+        mock_tensor.numel.return_value = 10
+        mock_tensor.element_size.return_value = 4
+
+        addr_start, addr_end = get_tensor_address_range(mock_tensor)
+        self.assertEqual(addr_start, 1000)
+        self.assertEqual(addr_end, 1040)
+
+    @patch("torch_npu.npu._recovery.update_npu_tensor_to_safe")
+    @patch("mindie_llm.text_generator.adapter.generator_torch.get_tensor_address_range")
+    def test_check_and_recover_uce_in_cache(self, mock_get_range, mock_update):
+        # Mock tensor address range
+        mock_get_range.return_value = (100, 200)
+
+        # Test recovery
+        cache_tensor = MagicMock()
+        result = check_and_recover_uce_in_cache(150, 180, cache_tensor, 0, "kcache")
+        self.assertTrue(result)
+        mock_update.assert_called_once_with(cache_tensor)
+
+        # Test no recovery
+        mock_update.reset_mock()
+        result = check_and_recover_uce_in_cache(300, 400, cache_tensor, 0, "kcache")
+        self.assertFalse(result)
+        mock_update.assert_not_called()
 
 if __name__ == "__main__":
     unittest.main()
