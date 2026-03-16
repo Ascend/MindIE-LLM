@@ -63,6 +63,17 @@ class PluginManagerLwd(PluginManager):
             num_new_tokens=self.place_holder
         )
 
+        if self.infer_context.spcp_parallel_info.cp_size > 1:
+            from .prefix_cache.prefix_cache_plugin import PrefixCachePlugin
+            self.prefix_cache_plugin = PrefixCachePlugin(
+                self.generator_backend,
+                self.kvcache_settings,
+                self.infer_context,
+                self.output_filter,
+                self.plugin_data_param,
+                **self.kwargs,
+            )
+
     @staticmethod
     def lwd_sampling_output(input_metadata: InputMetadata):
         batch_size = input_metadata.batch_size
@@ -105,6 +116,66 @@ class PluginManagerLwd(PluginManager):
         self.clean_sequence_ids = sequence_ids
         # 多清一个0, 因为后面postprocess可能会用到0的cache来计算
         self.infer_context.clear_finished_context(np.array([0]), np.array([0]))
+
+    def prepare_metadata_for_longseq_chunk_cp(self, input_metadata: InputMetadata) -> InputMetadata:
+        lwd_exe_stage = input_metadata.layerwise_disaggregated_exe_stage
+        cp_size = self.infer_context.spcp_parallel_info.cp_size
+        sp_size = self.infer_context.spcp_parallel_info.sp_size
+        scp_size = self.infer_context.spcp_parallel_info.scp_size
+        block_size = self.generator_backend.block_size
+
+        start_total_idx = lwd_exe_stage.long_seq_start_idx
+        end_total_idx = lwd_exe_stage.long_seq_end_idx
+        if self.role_type == RoleType.EDGE:
+            start_idx = lwd_exe_stage.long_seq_start_idx // cp_size
+            end_idx = lwd_exe_stage.long_seq_end_idx // cp_size
+        else:
+            start_idx = lwd_exe_stage.long_seq_start_idx
+            end_idx = lwd_exe_stage.long_seq_end_idx
+            start_total_idx = lwd_exe_stage.long_seq_start_idx * cp_size
+            end_total_idx = lwd_exe_stage.long_seq_end_idx * cp_size
+
+        if not lwd_exe_stage.is_last_chunk:
+            input_metadata.sp_tokens[:] = end_total_idx // scp_size
+            input_metadata.input_ids = input_metadata.input_ids[:end_total_idx]
+            input_metadata.total_seq_num = end_total_idx
+            input_metadata.batch_seq_len = np.array([end_total_idx], dtype=np.int64)
+            
+            block_table_end_idx = (end_idx // (sp_size * block_size)) + \
+                (end_idx % (sp_size * block_size) != 0)
+            input_metadata.batch_block_tables = input_metadata.batch_block_tables[:, :, :block_table_end_idx]
+
+        if start_total_idx != 0:
+            prefix_blocks = (start_idx + block_size - 1) // block_size
+
+            remote_computed_blocks = np.array([[prefix_blocks // sp_size]], dtype=np.int32)
+            remote_computed_blocks = np.repeat(remote_computed_blocks, scp_size, axis=1)
+            computed_block_order = [[i for i in range(prefix_blocks * cp_size)]]
+            input_metadata.remote_computed_blocks = np.array(remote_computed_blocks, dtype=np.int32)
+
+            input_metadata.batch_computed_block_order = computed_block_order
+
+        return input_metadata
+
+    def model_inputs_update_manager_longseq_chunk_cp(self, model_inputs, input_metadata,
+                                                     sampling_metadata, cache_ids, **kwargs):
+        if not self.is_mix_model:
+            self.plugin_data_param.q_len = None
+            self.plugin_data_param.mask = None
+        q_len = None
+        spec_mask = None
+        input_len_mask = (q_len, spec_mask)
+        for plugin in self.plugin_list:
+            plugin_instance = getattr(self, plugin, None)
+            method = getattr(plugin_instance, 'model_inputs_update', None)
+            model_inputs, input_len_mask = method(
+                model_inputs, input_metadata, sampling_metadata, cache_ids, input_len_mask, **kwargs)
+        model_inputs, input_len_mask = self.prefix_cache_plugin.model_inputs_update(
+            model_inputs, input_metadata, sampling_metadata, cache_ids, input_len_mask, **kwargs)
+        (q_len, spec_mask) = input_len_mask
+        self.plugin_data_param.q_len = q_len if q_len is not None else self.plugin_data_param.q_len
+        self.plugin_data_param.mask = spec_mask if spec_mask is not None else self.plugin_data_param.mask
+        return model_inputs, q_len, spec_mask
 
     @timer.track_time_async('generate_token')
     def generate_token(self, input_metadata: InputMetadata, warmup=False):
@@ -181,13 +252,25 @@ class PluginManagerLwd(PluginManager):
             postprocess_done = threading.Event()
             if input_metadata.layerwise_disaggregated_exe_stage.start_exec_layer == 0:
                 prof = span_start("preprocess")
+                if (input_metadata.layerwise_disaggregated_exe_stage.is_long_seq and
+                    not input_metadata.layerwise_disaggregated_exe_stage.request_dp_empty):
+                    if self.infer_context.spcp_parallel_info.cp_size > 1:
+                        input_metadata = self.prepare_metadata_for_longseq_chunk_cp(input_metadata)
+
                 hit_mask = np.isin(input_metadata.all_sequence_ids, self.last_sequence_ids)
                 cache_ids, model_input, sampling_metadata, trace_ids = self.preprocess(
                     input_metadata, warmup=warmup, hit_mask=hit_mask
                 )
                 self.infer_context.last_sampling_metadata.clear()  # Do not use sampling cache under async inference.
-                model_input, _, _ = self.model_inputs_update_manager(
-                    model_input, input_metadata, sampling_metadata, cache_ids, hit_mask=hit_mask)
+                
+                if (input_metadata.layerwise_disaggregated_exe_stage.is_long_seq and
+                    not input_metadata.layerwise_disaggregated_exe_stage.request_dp_empty):
+                    if self.infer_context.spcp_parallel_info.cp_size > 1:
+                        model_input, _, _ = self.model_inputs_update_manager_longseq_chunk_cp(
+                            model_input, input_metadata, sampling_metadata, cache_ids, hit_mask=hit_mask)
+                else:
+                    model_input, _, _ = self.model_inputs_update_manager(
+                        model_input, input_metadata, sampling_metadata, cache_ids, hit_mask=hit_mask)
                 span_end(prof)
                 prof = span_start("prepare_model_inputs")
                 if not ENV.framework_backend == BackendType.ATB:
@@ -365,13 +448,25 @@ class PluginManagerLwd(PluginManager):
             postprocess_done = threading.Event()
             if input_metadata.layerwise_disaggregated_exe_stage.start_exec_layer == 0:
                 prof = span_start("preprocess")
+                if (input_metadata.layerwise_disaggregated_exe_stage.is_long_seq and
+                    not input_metadata.layerwise_disaggregated_exe_stage.request_dp_empty):
+                    if self.infer_context.spcp_parallel_info.cp_size > 1:
+                        input_metadata = self.prepare_metadata_for_longseq_chunk_cp(input_metadata)
+                
                 hit_mask = np.isin(input_metadata.all_sequence_ids, self.last_sequence_ids)
                 cache_ids, model_input, sampling_metadata, trace_ids = self.preprocess(
                     input_metadata, warmup=warmup, hit_mask=hit_mask
                 )
                 self.infer_context.last_sampling_metadata.clear()  # Do not use sampling cache under async inference.
-                model_input, _, _ = self.model_inputs_update_manager(
-                    model_input, input_metadata, sampling_metadata, cache_ids, hit_mask=hit_mask)
+
+                if (input_metadata.layerwise_disaggregated_exe_stage.is_long_seq and
+                    not input_metadata.layerwise_disaggregated_exe_stage.request_dp_empty):
+                    if self.infer_context.spcp_parallel_info.cp_size > 1:
+                        model_input, _, _ = self.model_inputs_update_manager_longseq_chunk_cp(
+                            model_input, input_metadata, sampling_metadata, cache_ids, hit_mask=hit_mask)
+                else:
+                    model_input, _, _ = self.model_inputs_update_manager(
+                        model_input, input_metadata, sampling_metadata, cache_ids, hit_mask=hit_mask)
                 span_end(prof)
 
                 prof = span_start("prepare_model_inputs")
@@ -535,7 +630,8 @@ class PluginManagerLwd(PluginManager):
             
             if model_input_wrapper.input_metadata.layerwise_disaggregated_exe_stage.is_long_seq:
                 if not model_input_wrapper.input_metadata.layerwise_disaggregated_exe_stage.request_dp_empty:
-                    self.prepare_inputs_for_longseq_chunk(model_input_wrapper)
+                    if self.infer_context.spcp_parallel_info.cp_size == 1:
+                        self.prepare_inputs_for_longseq_chunk(model_input_wrapper)
                 model_output = self.generator_backend.forward_from_model_inputs(
                     model_input_wrapper.model_inputs, **model_input_wrapper.model_kwargs)
                 model_input_wrapper.model_kwargs.update({"q_lens": None})

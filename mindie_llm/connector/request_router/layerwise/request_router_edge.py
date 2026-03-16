@@ -222,11 +222,21 @@ class RequestRouterEdge(RequestRouterLwd):
         if self.prefill_chunk_metadata_queue.qsize() > 0:
             return
 
-        average_prefill_chunk_seq_len = int(curr_dp_seq_len / prefill_chunk_num)
-        mod = curr_dp_seq_len % prefill_chunk_num
-        prefill_chunk_policy: list = ([0] + [average_prefill_chunk_seq_len] * prefill_chunk_num if mod == 0 else [0] + 
-            [average_prefill_chunk_seq_len + 1] * mod + [average_prefill_chunk_seq_len] * (prefill_chunk_num - mod)
-        )
+        if self.cp_size > 1:
+            align_size = self.cp_size * 8 * self.router_impl.block_size     # 云侧8卡
+            average_prefill_chunk_seq_len = int(curr_dp_seq_len / prefill_chunk_num) // align_size * align_size
+            mod = curr_dp_seq_len - prefill_chunk_num * average_prefill_chunk_seq_len
+            prefill_chunk_policy: list = ([0] + [average_prefill_chunk_seq_len] * prefill_chunk_num 
+                if mod == 0 else [0] + [average_prefill_chunk_seq_len] * (prefill_chunk_num - 1) +
+                [average_prefill_chunk_seq_len + mod]
+            )
+        else:
+            average_prefill_chunk_seq_len = int(curr_dp_seq_len / prefill_chunk_num)
+            mod = curr_dp_seq_len % prefill_chunk_num
+            prefill_chunk_policy: list = ([0] + [average_prefill_chunk_seq_len] * prefill_chunk_num 
+                if mod == 0 else [0] + [average_prefill_chunk_seq_len + 1] * mod +
+                [average_prefill_chunk_seq_len] * (prefill_chunk_num - mod)
+            )
         prefill_chunk_policy = list(itertools.accumulate(prefill_chunk_policy))
         logger.info(f"[layerwiseDisaggregated] prefill_chunk_num is {prefill_chunk_num}, curr_dp_seq_len: "
                     f"{curr_dp_seq_len} prefill_chunk_policy: {prefill_chunk_policy} "

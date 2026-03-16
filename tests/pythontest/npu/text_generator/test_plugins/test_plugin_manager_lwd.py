@@ -22,6 +22,7 @@ class TestPluginLwd(unittest.TestCase):
         generator_backend = Mock()
         kvcache_settings = Mock()
         infer_context = Mock()
+        infer_context.spcp_parallel_info = Mock(cp_size=1)
         output_filter = Mock()
         is_mix_model = Mock()
         plugin_list = Mock()
@@ -93,6 +94,7 @@ class TestPluginLwd(unittest.TestCase):
         generator_backend = Mock()
         kvcache_settings = Mock()
         infer_context = Mock()
+        infer_context.spcp_parallel_info = Mock(cp_size=1)
         output_filter = Mock()
         is_mix_model = Mock()
         plugin_list = Mock()
@@ -390,6 +392,232 @@ class TestPluginLwd(unittest.TestCase):
         self.model_inputs.input_ids.scatter_.assert_not_called()
         self.model_inputs.position_ids.scatter_add_.assert_not_called()
         self.model_inputs.input_lengths.scatter_add_.assert_not_called()
+
+    def test_generate_token_async_edge_longseq_cp_sp(self):
+        spcp_parallel_info = Mock()
+        spcp_parallel_info.cp_size = 2
+        spcp_parallel_info.sp_size = 8
+        spcp_parallel_info.scp_size = 16
+        self.plugin_lwd.infer_context.spcp_parallel_info = spcp_parallel_info
+        self.plugin_lwd.role_type = 0
+
+        self.plugin_lwd.preprocess = Mock()
+        mock_model_input = Mock()
+        mock_sampling_metadata = Mock()
+        self.plugin_lwd.preprocess.return_value = [[0, 1], mock_model_input, mock_sampling_metadata, [0]]
+
+        self.plugin_lwd.model_inputs_update_manager_longseq_chunk_cp = Mock()
+        self.plugin_lwd.model_inputs_update_manager_longseq_chunk_cp.return_value = [mock_model_input, None, None]
+
+        self.plugin_lwd.plugin_list = ["atb", "acc"]
+        self.plugin_lwd.is_mix_model = False
+
+        def read_lock_():
+            import threading
+            lock_ = threading.Lock()
+            return lock_
+
+        def prepare_model_inputs_(model_input, q_lens, attn_mask):
+            return [0, 1], {"a": 1}
+
+        def to_tensor_mock(data):
+            tensor_mock = MagicMock()
+            tensor_mock.nonzero.return_value = (np.array([0]),)
+            return tensor_mock
+
+        generator_backend_ = Mock()
+        generator_backend_.get_new_stream = read_lock_
+        generator_backend_.prepare_model_inputs = prepare_model_inputs_
+        generator_backend_.dp = 0
+        generator_backend_.to_tensor = Mock(side_effect=to_tensor_mock)
+        generator_backend_.block_size = 128
+        tmp_val1 = MagicMock()
+        tmp_val1.cpu = MagicMock()
+        tmp_val = MagicMock()
+        tmp_val.logits = [[tmp_val1]]
+        generator_backend_.forward_from_model_inputs = MagicMock(return_value=tmp_val)
+        self.plugin_lwd.generator_backend = generator_backend_
+
+        self.plugin_lwd._prepare_masks_for_filling = Mock()
+        self.plugin_lwd._prepare_masks_for_filling.return_value = {}
+
+        self.plugin_lwd.last_sequence_ids = []
+
+        lwd_metadata = LwdMetadata(
+            start_exec_layer=0,
+            end_exec_layer=1,
+            end_of_generate_token=False,
+            is_prefill=True,
+            is_long_seq=True,
+            long_seq_start_idx=16384,
+            long_seq_end_idx=32768,
+            request_dp_empty=False
+        )
+
+        input_ids_mock = MagicMock()
+        input_ids_mock.shape = [32768]
+
+        tmp_metadata = InputMetadata(
+            batch_size=1,
+            is_prefill=True,
+            batch_request_ids=np.array([0]),
+            batch_sequence_ids=[np.array([0])],
+            batch_max_output_lens=np.array([100, 101]),
+            block_tables=np.array([[0, 1]]),
+            reserved_sequence_ids=[100, 101],
+            all_sequence_ids=[100, 101],
+            layerwise_disaggregated_exe_stage=lwd_metadata
+        )
+
+        tmp_metadata.input_ids = input_ids_mock
+        tmp_metadata.sp_tokens = np.array([0], dtype=np.int64)
+        tmp_metadata.total_seq_num = 32768
+        tmp_metadata.batch_seq_len = np.array([32768], dtype=np.int64)
+        tmp_metadata.batch_block_tables = np.zeros((1, 2, 256), dtype=np.int32)
+
+        output_res = Mock()
+        output_res.input_metadata = Mock()
+        output_res.input_metadata.is_prefill = True
+        output_res.input_metadata.layerwise_disaggregated_exe_stage = Mock()
+        output_res.input_metadata.layerwise_disaggregated_exe_stage.end_of_generate_token = True
+        output_res.input_metadata.layerwise_disaggregated_exe_stage.end_exec_layer = 0
+        output_res.input_metadata.all_sequence_ids = [100, 101]
+        output_res.input_metadata.is_dummy_batch = False
+        output_res.cache_ids = [0, 1]
+        output_res.model_output = Mock()
+        output_res.model_output.hidden_states = None
+        output_res.model_output.logits = Mock()
+        output_res.sampling_metadata = mock_sampling_metadata
+        output_res.sampling_output = Mock()
+        output_res.launch_done = None
+        self.plugin_lwd.output_queue.put(output_res)
+
+        generation_output_mock = MagicMock()
+        generation_output_mock.sequence_ids = [100, 101]
+        generation_output_mock.finish_reason = [0, 0]
+        self.plugin_lwd.postprocess = Mock()
+        self.plugin_lwd.postprocess.return_value = generation_output_mock
+
+        self.plugin_lwd.put_prefix_kvcache_to_mempool = Mock()
+        self.plugin_lwd.should_skip_return_tokens = Mock()
+        self.plugin_lwd.should_skip_return_tokens.return_value = False
+        self.plugin_lwd.clean_sequence_ids = None
+        self.plugin_lwd.max_generated_tokens = 100
+
+        self.plugin_lwd.generate_token_async_edge(tmp_metadata)
+
+    def test_generate_token_async_cloud_longseq_cp_sp(self):
+        spcp_parallel_info = Mock()
+        spcp_parallel_info.cp_size = 2
+        spcp_parallel_info.sp_size = 8
+        spcp_parallel_info.scp_size = 16
+        self.plugin_lwd.infer_context.spcp_parallel_info = spcp_parallel_info
+        self.plugin_lwd.role_type = 1
+
+        self.plugin_lwd.preprocess = Mock()
+        mock_model_input = Mock()
+        mock_sampling_metadata = Mock()
+        self.plugin_lwd.preprocess.return_value = [[0, 1], mock_model_input, mock_sampling_metadata, [0]]
+
+        self.plugin_lwd.model_inputs_update_manager_longseq_chunk_cp = Mock()
+        self.plugin_lwd.model_inputs_update_manager_longseq_chunk_cp.return_value = [mock_model_input, None, None]
+
+        self.plugin_lwd.plugin_list = ["atb", "acc"]
+        self.plugin_lwd.is_mix_model = False
+
+        def read_lock_():
+            import threading
+            lock_ = threading.Lock()
+            return lock_
+
+        def prepare_model_inputs_(model_input, q_lens, attn_mask):
+            return [0, 1], {"a": 1}
+
+        def to_tensor_mock(data):
+            tensor_mock = MagicMock()
+            tensor_mock.nonzero.return_value = (np.array([0]),)
+            return tensor_mock
+
+        generator_backend_ = Mock()
+        generator_backend_.get_new_stream = read_lock_
+        generator_backend_.prepare_model_inputs = prepare_model_inputs_
+        generator_backend_.dp = 0
+        generator_backend_.to_tensor = Mock(side_effect=to_tensor_mock)
+        generator_backend_.block_size = 128
+        tmp_val1 = MagicMock()
+        tmp_val1.cpu = MagicMock()
+        tmp_val = MagicMock()
+        tmp_val.logits = [[tmp_val1]]
+        generator_backend_.forward_from_model_inputs = MagicMock(return_value=tmp_val)
+        self.plugin_lwd.generator_backend = generator_backend_
+
+        self.plugin_lwd._prepare_masks_for_filling = Mock()
+        self.plugin_lwd._prepare_masks_for_filling.return_value = {}
+
+        self.plugin_lwd.last_sequence_ids = []
+
+        lwd_metadata = LwdMetadata(
+            start_exec_layer=0,
+            end_exec_layer=1,
+            end_of_generate_token=False,
+            is_prefill=True,
+            is_long_seq=True,
+            long_seq_start_idx=2048,
+            long_seq_end_idx=4096,
+            request_dp_empty=False
+        )
+
+        input_ids_mock = MagicMock()
+        input_ids_mock.shape = [32768]
+
+        tmp_metadata = InputMetadata(
+            batch_size=1,
+            is_prefill=True,
+            batch_request_ids=np.array([0]),
+            batch_sequence_ids=[np.array([0])],
+            batch_max_output_lens=np.array([100, 101]),
+            block_tables=np.array([[0, 1]]),
+            reserved_sequence_ids=[100, 101],
+            all_sequence_ids=[100, 101],
+            layerwise_disaggregated_exe_stage=lwd_metadata
+        )
+
+        tmp_metadata.input_ids = input_ids_mock
+        tmp_metadata.sp_tokens = np.array([0], dtype=np.int64)
+        tmp_metadata.total_seq_num = 32768
+        tmp_metadata.batch_seq_len = np.array([32768], dtype=np.int64)
+        tmp_metadata.batch_block_tables = np.zeros((1, 2, 256), dtype=np.int32)
+
+        output_res = Mock()
+        output_res.input_metadata = Mock()
+        output_res.input_metadata.is_prefill = True
+        output_res.input_metadata.layerwise_disaggregated_exe_stage = Mock()
+        output_res.input_metadata.layerwise_disaggregated_exe_stage.end_of_generate_token = True
+        output_res.input_metadata.layerwise_disaggregated_exe_stage.end_exec_layer = 0
+        output_res.input_metadata.all_sequence_ids = [100, 101]
+        output_res.input_metadata.is_dummy_batch = False
+        output_res.cache_ids = [0, 1]
+        output_res.model_output = Mock()
+        output_res.model_output.hidden_states = None
+        output_res.model_output.logits = Mock()
+        output_res.sampling_metadata = mock_sampling_metadata
+        output_res.sampling_output = Mock()
+        output_res.launch_done = None
+        self.plugin_lwd.output_queue.put(output_res)
+
+        generation_output_mock = MagicMock()
+        generation_output_mock.sequence_ids = [100, 101]
+        generation_output_mock.finish_reason = [0, 0]
+        self.plugin_lwd.postprocess = Mock()
+        self.plugin_lwd.postprocess.return_value = generation_output_mock
+
+        self.plugin_lwd.put_prefix_kvcache_to_mempool = Mock()
+        self.plugin_lwd.should_skip_return_tokens = Mock()
+        self.plugin_lwd.should_skip_return_tokens.return_value = False
+        self.plugin_lwd.clean_sequence_ids = None
+        self.plugin_lwd.max_generated_tokens = 100
+
+        self.plugin_lwd.generate_token_async_cloud(tmp_metadata)
 
 if __name__ == "__main__":
     unittest.main()

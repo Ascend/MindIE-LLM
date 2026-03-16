@@ -124,6 +124,7 @@ class RequestRouterLwd(RequestRouter):
         if edge_cloud_comm.communication_config_verify(config):
             initialize_result = self.initialize_impl(config)
             self.cp_size = config.cp_size
+            self.sp_size = config.sp_size
             edge_cloud_comm.initialize(config, initialize_result, self.router_impl.generator)
             proto = ExecuteResponseBuilder.build_from_init_result(initialize_result)
             send_model_execute_response(proto)

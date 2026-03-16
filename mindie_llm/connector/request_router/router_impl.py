@@ -509,8 +509,13 @@ class RouterImpl:
                 # for subsequent P-last, D-last, and non-first-block cloud-side P tasks.
                 if EdgeCloudInputMetadata.need_storage_input_metadata(layerwise_disaggregated_exe_stage):
                     pd_exec_matadata = pd_exec_matadata_instance
-                    pd_exec_matadata.set_input_metadata(input_metadata_composite,
-                                                layerwise_disaggregated_exe_stage.is_prefill)
+                    exe_stage = layerwise_disaggregated_exe_stage
+                    if exe_stage.is_prefill and exe_stage.is_long_seq:
+                        pd_exec_matadata.set_input_metadata(copy.deepcopy(input_metadata_composite),
+                                                    layerwise_disaggregated_exe_stage.is_prefill)
+                    else:
+                        pd_exec_matadata.set_input_metadata(input_metadata_composite,
+                                                    layerwise_disaggregated_exe_stage.is_prefill)
         span_end(convert_prof)
         if input_metadata_composite.block_copy:
             self.generator.copy_blocks(np.array(input_metadata_composite.block_copy))
