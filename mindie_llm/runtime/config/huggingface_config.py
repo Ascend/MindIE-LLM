@@ -141,6 +141,7 @@ class HuggingFaceConfig(PretrainedConfig):
                 rope_theta=rope_theta,
                 max_position_embeddings=max_position_embeddings
             )
+        self.max_position_embeddings = self.rope_scaling.max_position_embeddings
 
     @classmethod
     def from_dict(cls, config_dict: dict[str, Any]) -> 'HuggingFaceConfig':

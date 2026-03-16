@@ -41,10 +41,6 @@ class Qwen2RopeScaling(BaseRopeScaling):
         'validator': IntParameterValidator(Field(ge=1, le=2147483647), allow_none=True)
     })
     
-    partial_rotary_factor: float = field(default=1.0, metadata={
-        'validator': FloatParameterValidator(Field(gt=0), allow_none=True)
-    })
-    
     def __post_init__(self):
         if self.factor > 1.0:
             if self.original_max_position_embeddings is not None:
@@ -66,7 +62,6 @@ class Qwen2RopeScaling(BaseRopeScaling):
         rope_type = config_dict.get('rope_type', config_dict.get('type', 'default'))
         factor = config_dict.get('factor', 1.0)
         original_max = config_dict.get('original_max_position_embeddings', None)
-        partial_rotary_factor = config_dict.get('partial_rotary_factor', 1.0)
         
         if factor > 1.0 and original_max is not None:
             max_position_embeddings = int(factor * original_max)
@@ -77,7 +72,6 @@ class Qwen2RopeScaling(BaseRopeScaling):
             max_position_embeddings=max_position_embeddings,
             factor=factor,
             original_max_position_embeddings=original_max,
-            partial_rotary_factor=partial_rotary_factor
         )
 
 
