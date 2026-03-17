@@ -21,6 +21,7 @@
 #include "policy/stage_policy/stage_policy.h"
 #include "policy/stage_policy/edge_cloud_policy.h"
 #include "health_checker.h"
+#include "policy/dynamic_batch_recorder.h"
 
 using namespace mindie_llm;
 using namespace model_execute_data;
@@ -153,8 +154,12 @@ void ModelExecOutputHandler::Entry4Executor(ModelBatchResultSPtr &modelBatchResu
     // 更新batch统计信息（结束时间）
     if (schedulerConfig_->stageSelectPolicy == static_cast<uint32_t>(StagePolicyType::LATENCY_FIRST) ||
         schedulerConfig_->dynamicBatchSizeEnable) {
-        // 以下函数可能存在并发问题，需确保UpdateBatchStats()线程安全
-        latencypredictor_->UpdateBatchStats();
+        // Use DynamicBatchRecorder to get predictor for this DP rank
+        auto &recorder = DynamicBatchRecorder::GetInstance(localDPRank_);
+        auto predictor = recorder.GetLatencyPredictor();
+        if (predictor != nullptr) {
+            predictor->UpdateBatchStats();
+        }
     }
 
     asyncBatchNum_.fetch_sub(1);

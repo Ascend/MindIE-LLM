@@ -25,6 +25,7 @@
 #include "policy/stage_policy/stage_policy.h"
 #include "policy/stage_policy/time_division_policy.h"
 #include "policy/dynamic_batch_size.h"
+#include "policy/dynamic_batch_recorder.h"
 #include "layerwise_mixin/layerwise_mixin.h"
 
 namespace mindie_llm {

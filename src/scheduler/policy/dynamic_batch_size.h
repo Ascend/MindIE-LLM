@@ -20,6 +20,7 @@
 #include "sequence_group.h"
 #include "scheduling_budget.h"
 #include "latency_predictor/latency_predictor.h"
+#include "dynamic_batch_recorder.h"
 
 namespace mindie_llm {
 
@@ -29,6 +30,7 @@ public:
     void AddDataPoint(uint64_t batchSize);
     uint64_t GetRecentAvgBatchSize(uint64_t forwardNum);
     ~DecodeBatchSizeTracker() = default;
+
 private:
     uint64_t windowSize_;
     std::deque<uint64_t> queue_;
@@ -37,11 +39,11 @@ private:
 class DynamicBatchSize {
 public:
     explicit DynamicBatchSize(const SchedulerConfigSPtr schedulerConfig, std::shared_ptr<LatencyPredictor> predictor,
-    std::shared_ptr<BlockSpaceManager> blockManager);
+    std::shared_ptr<BlockSpaceManager> blockManager, size_t localDPRank);
 
     void ApplyDynamicBatchSize(Role role, SchedulerOutputs& schedulerOut, size_t waitingSize,
     size_t runningSize, size_t swappedSize);
-    
+
     void RecordPredictorMetrics(const SchedulerOutputs& schedulerOut, const SchedulingBudget& budget);
 
     virtual ~DynamicBatchSize() = default;
@@ -50,6 +52,7 @@ private:
     SchedulerConfigSPtr schedulerConfig_;
     std::shared_ptr<LatencyPredictor> predictor_;
     BlockSpaceManagerSPtr blockManager_; // kv cache manager
+    size_t localDPRank_{0};
 
     // dynamic batch size
     uint32_t stage_ = 0;
@@ -61,7 +64,7 @@ private:
     uint64_t batchSizeUpperBound_ = 0;
     uint64_t batchSizeLowerBound_ = 0;
     uint64_t batchTrackerWindowSize_ = 0;
-    std::unique_ptr<DecodeBatchSizeTracker> decodeBatchSizeQueue_;
+    std::shared_ptr<DecodeBatchSizeTracker> decodeBatchSizeQueue_;
 
     void AdjustBatchSize(size_t previousStage, size_t previousDecodeBatchSize,
         size_t waitingSize, size_t runningSize, size_t swappedSize);
@@ -71,6 +74,8 @@ private:
     void SetMinimalBatchSize(uint64_t currentDecodeRequestNum, double avgDecodeLatency);
 
     uint32_t GetScheduledOutBlockNum(SchedulerOutputs schedulerOut);
+
+    void ApplyUpdatedBatchSize(uint64_t newDecodeMaxBatchSize, uint64_t newPrefillMaxBatchSize);
 };
 } // namespace mindie_llm
 

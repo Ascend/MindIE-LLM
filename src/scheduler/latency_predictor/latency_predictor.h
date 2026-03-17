@@ -36,6 +36,7 @@ struct BatchStats {
     uint32_t kvCacheBlockNum = 0;
     float batchSpendTimeFloat = 0;
     TimePoint batchStartTime = std::chrono::high_resolution_clock::now();
+    int batchId = 0;  // batchId when SaveBatchStats was called
 };
 
 using BatchStatsPtr = std::shared_ptr<BatchStats>;
