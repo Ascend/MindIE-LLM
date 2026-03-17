@@ -751,6 +751,8 @@ class PluginManager:
             hit_sequence_ids_mask = np.isin(current_dp_sequence_ids, self.last_sequence_ids)
             if input_metadata.batch_is_prefill is not None:
                 hit_sequence_ids_mask[input_metadata.batch_is_prefill] = False
+            elif input_metadata.is_prefill:
+                hit_sequence_ids_mask[:] = False
             if hit_sequence_ids_mask.any():
                 hit_sequence_ids = current_dp_sequence_ids[hit_sequence_ids_mask]
                 if self.is_mix_model:

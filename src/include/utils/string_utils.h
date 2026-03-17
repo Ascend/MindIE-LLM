@@ -39,6 +39,7 @@ std::unordered_map<std::string, std::string> ParseKeyValueString(
     char pairDelimiter, char kvDelimiter
 );
 std::unordered_map<std::string, std::string> ParseArgs(const std::string& str);
+void SplitTokensToVec(const std::string& text, char delimiter, std::vector<long>& tokens);
 
 template<typename T>
 Result Str2Int(const std::string& str, const std::string& tag, T& outValue)

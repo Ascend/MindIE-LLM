@@ -47,6 +47,8 @@ struct Request {
     std::optional<float> temperature;
     std::optional<int32_t> topK;
     std::optional<float> topP;
+    std::optional<bool> enableThinking;
+    std::optional<uint32_t> thinkingBudget;
     std::optional<float> typicalP;
     std::optional<bool> doSample;
     std::optional<uint64_t> seed;
@@ -87,6 +89,7 @@ struct Request {
     std::optional<InstanceId> pInstanceId; // pull kv will use management port (pInstanceId)
     std::vector<std::vector<int64_t>> srcBlockTable; // block table from prefill
     std::vector<uint64_t> dpInstanceIds; // dp instance ids from prefill [maybe unused]
+    bool isThinking = false;
     // For Link/Unlink
     // {dpInstanceId: [host_ip1, host_ip2, ...]}
     std::unordered_map<InstanceId, std::vector<std::string>> dpInstance2HostIps;

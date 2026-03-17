@@ -95,6 +95,7 @@ class BaseConfig():
         # not optional
         self.model_weight_path = self.parse('model_id', required=True)
 
+        self.trust_remote_code = self.parse('trust_remote_code', default_value=False)
         self.local_rank = self.parse("local_rank", required=True, to_int=True)
         self.rank = self.parse('rank', required=True, to_int=True)
         self.global_rank = self.parse('globalRankIds')

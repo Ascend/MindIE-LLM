@@ -60,6 +60,11 @@ public:
     uint32_t GetNpuBlockNum() const override { return 1; }
     uint32_t GetLwdCloudNpuBlockNum() const override { return 1; }
     uint32_t GetMaxPositionEmbeddings() const override { return 4096; }
+    ThinkingConfig GetThinkingConfig() const override
+    {
+        ThinkingConfig conf;
+        return conf;
+    }
     model_execute_data::PDLinkResponse GetPDLinkResponse() const override
     {
         return model_execute_data::PDLinkResponse();

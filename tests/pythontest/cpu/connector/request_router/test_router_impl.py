@@ -755,6 +755,7 @@ class TestRouterImpl(unittest.TestCase):
             mock_config.model_config = {"model_weight_path": "/test"}
             mock_config.local_rank = 0
             mock_config.npu_device_id = 0
+            mock_config.model_weight_path = None
             mock_generator = mock_generator_cls.return_value
             mock_generator.is_mix_model = False
             mock_generator.max_position_embeddings = 2048

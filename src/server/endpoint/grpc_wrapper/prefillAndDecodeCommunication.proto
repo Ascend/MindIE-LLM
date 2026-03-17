@@ -83,6 +83,8 @@ message SamplingParams {
     Logprobs logprobs = 17;
     TopLogprobs topLogprobs = 18;
     EnableThinking enableThinking = 19;
+    ThinkingBudget thinkingBudget = 20;
+    IsThinking isThinking = 21;
 }
 message Temperature {
     optional float value = 1;
@@ -158,6 +160,14 @@ message TopLogprobs {
 }
 
 message EnableThinking {
+    optional bool value = 1;
+}
+
+message ThinkingBudget {
+    optional uint32 value = 1;
+}
+
+message IsThinking {
     optional bool value = 1;
 }
 

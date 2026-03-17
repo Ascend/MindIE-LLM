@@ -62,11 +62,13 @@ void ModelExecOutputHandler::AsyncPublishPrefilledKvCache(ModelBatchResultSPtr &
             // only item 0 needs to be set since PD disaggregation does not support Parallel Sampling by far
             response->responseContents.resize(1);
             response->responseContents[0].srcBlockTable = seqGroup->pBlockTable;
+            response->responseContents[0].isThinking = seqGroup->isThinking_;
             response->responseContents[0].singleLLMPrefillReqHandlerId = localDPRank_;
             MINDIE_LLM_LOG_INFO_REQUEST("[LlmEngine|Request-Publish Complete] DP RankId: "
                                 << dpRankId_ << ". Request Prefill Complete, requestId: "
                                 << seqGroup->metrics_.inferReqId_ << ", seqId: " << firstSample.seq_id()
                                 << ", pInstanceId:" << seqGroup->pInstanceId << ", localDPRank_:" << localDPRank_);
+            seqGroup->isThinking_ = false;
             // 返回推理结果给上层的回调函数
             forwardRespToManagerCall_(response);
         }
@@ -121,7 +123,7 @@ void ModelExecOutputHandler::Entry4Executor(ModelBatchResultSPtr &modelBatchResu
         if (output.samples_size() > 1) {
             HandleParallelSampling(output, liveInferContext);
         } else if (output.samples_size() == 1) {
-            HandleGreedySampling(output.samples(0));
+            HandleGreedySampling(output.samples(0), response);
         }
 
         // ChunkedPrefill特性下，除了最后一个prefill块，前几个块做forward后的输出token要丢弃
@@ -218,9 +220,52 @@ void ModelExecOutputHandler::ProcessSequenceStatus(SequenceId seqId, int64_t fin
     }
 }
 
-void ModelExecOutputHandler::HandleGreedySampling(const model_execute_data::SequenceOutput &sample)
+void ModelExecOutputHandler::UpdateThinkingStatus(SequenceGroupSPtr &seqGrp, int64_t outputToken)
+{
+    if (schedulerConfig_->earlyStoppingIds.size() == 0) {
+        return;
+    }
+    if (outputToken == schedulerConfig_->startThinkingId) {
+        seqGrp->isThinking_ = true;
+    }
+    if (seqGrp->isThinking_) {
+        seqGrp->thinkingTokens++;
+    }
+    if (outputToken == schedulerConfig_->stopThinkingId) {
+        seqGrp->isThinking_ = false;
+    } else if (seqGrp->isThinking_ && seqGrp->thinkingTokens >= seqGrp->thinkingBudget_) {
+        seqGrp->exceededThinkingbudget_ = true;
+    }
+}
+
+void ModelExecOutputHandler::UpdateResponse(SequenceGroupSPtr &seqGrp, ResponseSPtr &response)
+{
+    if (response == nullptr || response->responseContents.size() == 0) {
+        return;
+    }
+    size_t &speculativeTokenNum = response->responseContents[0].speculativeTokenNum;
+    std::vector<TokenId> &outTokenIds = response->responseContents[0].outTokenIds;
+    std::vector<float> &outLogProbs = response->responseContents[0].outLogProbs;
+    std::vector<TokenId> &topTokenIds = response->responseContents[0].topLogProbTokenIds;
+    std::vector<float> &topLogProbs =  response->responseContents[0].topLogProbs;
+
+    std::vector<TokenId> &stopIds = schedulerConfig_->earlyStoppingIds;
+    outTokenIds.insert(outTokenIds.end(), stopIds.begin(), stopIds.end());
+    speculativeTokenNum += stopIds.size();
+    outLogProbs.insert(outLogProbs.end(), stopIds.size(), 0);
+    if (seqGrp->topLogProbs_ > 0) {
+        std::for_each(stopIds.begin(), stopIds.end(), [&](TokenId token) {
+            topTokenIds.insert(topTokenIds.end(), seqGrp->topLogProbs_, token);
+        });
+        topLogProbs.insert(topLogProbs.end(), seqGrp->topLogProbs_ * stopIds.size(), 0);
+    }
+}
+
+void ModelExecOutputHandler::HandleGreedySampling(const model_execute_data::SequenceOutput &sample,
+                                                  ResponseSPtr &response)
 {
     auto spanGreedySampling = PROF(INFO, Domain("Engine").SpanStart("HandleGreedySampling"));
+    SequenceGroupSPtr seqGrp = LiveInferContext::GetInstance(localDPRank_)->GetSeqGroup(sample.seq_id());
     int64_t tokenIdx = 0;
     for (int64_t output_token : sample.output_token()) {
         if (schedulerConfig_->speculationGamma > 0 && tokenIdx >= sample.num_speculative_tokens()) {
@@ -232,10 +277,16 @@ void ModelExecOutputHandler::HandleGreedySampling(const model_execute_data::Sequ
         // <seqid, tokenid> 入队用于更新占位符
         if (output_token != PLACEHOLDER_TOKEN) {
             seqIdToOutputTokenQueue_.PushBack(std::pair<SequenceId, TokenId>{sample.seq_id(), output_token});
+            if (seqGrp != nullptr && seqGrp->enableThinking_ && seqGrp->thinkingBudget_ > 0) {
+                UpdateThinkingStatus(seqGrp, output_token);
+            }
         } else if (schedulerConfig_->layerwiseDisaggregated) {
             MINDIE_LLM_LOG_INFO("[layerwiseDisaggregated|handler] "<<"seq id is "
                 << sample.seq_id() << ", output_token is -1");
         }
+    }
+    if (seqGrp != nullptr && seqGrp->exceededThinkingbudget_) {
+        UpdateResponse(seqGrp, response);
     }
     ProcessSequenceStatus(sample.seq_id(), sample.finish_reason());
 
@@ -381,7 +432,8 @@ void ModelExecOutputHandler::AddOutputsToResponse(ResponseSPtr response,
             .topLogProbs = std::vector<float>(sample.top_logprobs().begin(), sample.top_logprobs().end()),
             .srcBlockTable = {},
             .singleLLMPrefillReqHandlerId = 0,
-            .pdErrorCode = 0
+            .pdErrorCode = 0,
+            .isThinking = false
         });
     }
 }

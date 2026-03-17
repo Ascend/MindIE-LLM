@@ -52,7 +52,7 @@ static ResponseSPtr MakeBasicResponse()
     content.truncationIndex = 0;
     content.speculativeTokenNum = 2;
     content.outTokenIds = {101, 102, -1}; // -1 should be filtered out
-    content.outLogProbs = {-0.42f};
+    content.outLogProbs = {-0.42f, -0.43f};
     content.cumLogProb = 1.25;
     content.topLogProbTokenIds = {201, 202, 203, 204}; // size = speculativeTokenNum * topLogprobs (=2*2)
     content.topLogProbs = {0.10f, 0.20f, 0.30f, 0.40f};
@@ -83,7 +83,7 @@ TEST_F(SingleLLMReqHandlerBaseTest, ParseTokens_Success_WithLogprobsAndToplogpro
 {
     TestLLMReqHandler handler(ctx);
     handler.SetInferParamForTest(std::make_shared<InferParam>());
-    handler.SetRequestForTest(MakeRequest(/*with_logprobs*/ true, /*top_logprobs*/ 4));
+    handler.SetRequestForTest(MakeRequest(/*with_logprobs*/ true, /*top_logprobs*/ 2));
 
     ResponseSPtr resp = MakeBasicResponse();
     std::vector<BestNTokens> out;
@@ -101,7 +101,7 @@ TEST_F(SingleLLMReqHandlerBaseTest, ParseTokens_Success_WithLogprobsAndToplogpro
 
     // Cum logprob and single-token logprob
     EXPECT_DOUBLE_EQ(out[0].cumLogprobs, 1.25);
-    EXPECT_FLOAT_EQ(out[0].logprob, -0.42f);
+    EXPECT_FLOAT_EQ(out[0].logprob[0], -0.42f);
 
     // Toplogprobs flattened list (2 speculative tokens * 2 toplogprobs)
     EXPECT_EQ(out[0].logprobsTokens.size(), 4u);

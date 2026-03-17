@@ -46,6 +46,7 @@ bool SingleReqVllmOpenAiInferInterface::SetupInferParams(RequestSPtr tmpReq, std
           AssignTopK(reqJsonBody_, tmpReq, msg, false, true) &&
           AssignTopP(reqJsonBody_, tmpReq, msg) &&
           AssignSeed(reqJsonBody_, tmpReq, msg) &&
+          AssignThinkingConfig(reqJsonBody_, tmpReq, msg) &&
           AssignRepetitionPenalty(reqJsonBody_, tmpReq, msg, MAX_OPENAI_REPETITION_PENALTY) &&
           AssignFrequencyPenalty(reqJsonBody_, tmpReq, msg) &&
           AssignPresencePenalty(reqJsonBody_, tmpReq, msg) &&
@@ -1277,6 +1278,7 @@ std::string SingleReqVllmOpenAiInferInterface::BuildVllmOpenAIReComputeBody(cons
         newReqJsonObj["top_k"] = request_->topK.value();
     }
     BuildStopWords(newReqJsonObj);
+    BuildThinkingConfig(newReqJsonObj);
     if (request_->skipSpecialTokens.has_value()) {
         newReqJsonObj["skip_special_tokens"] = request_->skipSpecialTokens.value();
     }
@@ -1302,6 +1304,16 @@ void SingleReqVllmOpenAiInferInterface::BuildStopWords(nlohmann::ordered_json& n
     }
     if (request_->includeStopStrInOutput.has_value()) {
         newReqJsonObj["include_stop_str_in_output"] = request_->includeStopStrInOutput.value();
+    }
+}
+
+void SingleReqVllmOpenAiInferInterface::BuildThinkingConfig(nlohmann::ordered_json& newReqJsonObj)
+{
+    if (request_->enableThinking.has_value()) {
+        newReqJsonObj["chat_template_kwargs"]["enable_thinking"] = request_->enableThinking.value();
+    }
+    if (request_->thinkingBudget.has_value()) {
+        newReqJsonObj["chat_template_kwargs"]["thinking_budget"] = request_->thinkingBudget.value();
     }
 }
 

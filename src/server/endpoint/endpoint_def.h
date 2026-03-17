@@ -52,7 +52,7 @@ struct BestNTokens {
     InferStatusType finishReason = InferStatusType::ITERATION_CONTINUE;
     std::vector<int64_t> tokens{};
     double cumLogprobs = 0.0;
-    float logprob = 0.0;
+    std::vector<float> logprob{};
     std::vector<int64_t> logprobsTokens{};
     std::vector<float> logprobs{};
     int64_t truncationIndex = 0;

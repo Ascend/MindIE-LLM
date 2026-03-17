@@ -425,6 +425,9 @@ struct SchedulerConfig {
     bool activateAsyncInference;
     bool distributedEnable{false};
 
+    std::vector<long> earlyStoppingIds;
+    long startThinkingId;
+    long stopThinkingId;
     // model config
     std::vector<std::set<size_t>> npuDeviceIds;
     /* 当前和maxModelLen/maxNumBatchedTokens 保持一致 */

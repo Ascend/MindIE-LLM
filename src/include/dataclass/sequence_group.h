@@ -148,6 +148,14 @@ struct SequenceGroup {
     // 边云动态切块新增, 单位ms，给TG侧传请求到达时间间隔用于切图
     int32_t requestGap_{0};
     std::chrono::time_point<std::chrono::high_resolution_clock> recomputeArriveTime_;
+
+    uint32_t topLogProbs_{0};
+    bool enableThinking_{false};
+    uint32_t thinkingBudget_{0};
+
+    bool exceededThinkingbudget_{false};
+    bool isThinking_ = false;
+    size_t thinkingTokens = 0;
 };
 
 using SequenceGroupSPtr = std::shared_ptr<SequenceGroup>;

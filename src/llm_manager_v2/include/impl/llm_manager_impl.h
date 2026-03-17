@@ -118,6 +118,8 @@ private:
 
     BlockNum GetMinBlockNumFromExecutors();
 
+    ThinkingConfig GetThinkingConfigFromExecutors();
+
     GetRequestsCallbackV2 getRequests_ = nullptr;
 
     SendResponsesCallbackV2 handleResponse_ = nullptr;
