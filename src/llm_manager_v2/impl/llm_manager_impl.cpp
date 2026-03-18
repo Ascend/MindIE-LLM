@@ -1127,16 +1127,8 @@ static void InitLayerwiseDisaggregated(SchedulerConfig &schedulerConfig)
     }
 }
 
-static void InitThinkingConfig(SchedulerConfig &schedulerConfig, ThinkingConfig &thinkingConfig)
-{
-    schedulerConfig.earlyStoppingIds = thinkingConfig.earlyStoppingIds;
-    schedulerConfig.startThinkingId = thinkingConfig.startThinkingId;
-    schedulerConfig.stopThinkingId = thinkingConfig.stopThinkingId;
-}
-
 static void LLMInitSchedulerConfig(SchedulerConfig &schedulerConfig, BlockNum blockNum,
-                                   const EngineConfig &engineConfig,
-                                   const std::map<std::string, std::string> &ipInfo, ThinkingConfig &thinkingConfig)
+                                   const EngineConfig &engineConfig, const std::map<std::string, std::string> &ipInfo)
 {
     InitDeviceAndInstanceConfig(schedulerConfig, engineConfig, ipInfo);
     InitPolicyConfig(schedulerConfig, engineConfig);
@@ -1149,7 +1141,6 @@ static void LLMInitSchedulerConfig(SchedulerConfig &schedulerConfig, BlockNum bl
     InitBufferResponseConfig(schedulerConfig, engineConfig);
     InitLayerwiseDisaggregated(schedulerConfig);
     InitKvPoolConfig(schedulerConfig, engineConfig);
-    InitThinkingConfig(schedulerConfig, thinkingConfig);
     // Fill multi-kv-cache descriptors from executor (populated via RemoteModelInitResults.kv_cache_descs).
     // Backward compatible: if empty, scheduler will create a single block manager using cacheBlockSize.
     {
@@ -1236,15 +1227,6 @@ BlockNum LlmManagerImpl::GetMinBlockNumFromExecutors()
     return blockNum;
 }
 
-ThinkingConfig LlmManagerImpl::GetThinkingConfigFromExecutors()
-{
-    ThinkingConfig thinkingConfig;
-    if (iExecutorSPtrs_.size() != 0 && iExecutorSPtrs_.front() != nullptr) {
-        thinkingConfig = iExecutorSPtrs_.front()->GetThinkingConfig();
-    }
-    return thinkingConfig;
-}
-
 Status LlmManagerImpl::LaunchLlmEngine(Role pdRole)
 {
     if (iExecutorSPtrs_.size() == 0) {
@@ -1259,9 +1241,8 @@ Status LlmManagerImpl::LaunchLlmEngine(Role pdRole)
     }
 
     BlockNum blockNum = GetMinBlockNumFromExecutors();
-    ThinkingConfig thinkingConfig = GetThinkingConfigFromExecutors();
     SchedulerConfig schedulerConfig;
-    LLMInitSchedulerConfig(schedulerConfig, blockNum, engineConfig_, ipInfo_, thinkingConfig);
+    LLMInitSchedulerConfig(schedulerConfig, blockNum, engineConfig_, ipInfo_);
     if (schedulerConfig.layerwiseDisaggregated && schedulerConfig.cpSize * schedulerConfig.spSize > 1) {
         schedulerConfig.lwdCloudNpuBlockNum = iExecutorSPtrs_.front()->GetLwdCloudNpuBlockNum();
     }

@@ -255,9 +255,7 @@ void SingleReqInferInterfaceBase::ConvertTokenToMap(const std::vector<BestNToken
         for (const auto &logprobsIds : tokens.logprobsTokens) {
             this->logprobsTokensMap[tokens.seqId].emplace_back(logprobsIds);
         }
-        for (const auto &logprob : tokens.logprob) {
-            this->pickedLogprobMap[tokens.seqId].emplace_back(logprob);
-        }
+        this->pickedLogprobMap[tokens.seqId].emplace_back(tokens.logprob);
         this->eosMap[tokens.seqId] = tokens.finishReason;
         this->probesMap[tokens.seqId] = tokens.cumLogprobs;
         this->truncationIdMap[tokens.seqId] = tokens.truncationIndex;

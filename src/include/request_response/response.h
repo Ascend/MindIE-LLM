@@ -59,7 +59,6 @@ struct ResponseContent {
     std::vector<std::vector<int64_t>> srcBlockTable{};        // block table of prefill instance
     InstanceId singleLLMPrefillReqHandlerId = 0; // instance id of prefill instance
     int64_t pdErrorCode = 0;
-    bool isThinking = false;
 };
 
 // metrics data for server.endpoint.endpoint_def.Metrics

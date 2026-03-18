@@ -130,12 +130,6 @@ struct KVCacheOverview {
     }
 };
 
-struct ThinkingConfig {
-    long startThinkingId;
-    long stopThinkingId;
-    std::vector<long> earlyStoppingIds;
-};
-
 /**
  * executor is an agent sending model initialization, execution, kv transfer messages to backend model (each NPU has a
  * SPMD process to handle model forward calculation)
@@ -178,8 +172,6 @@ public:
     virtual uint32_t GetLwdCloudNpuBlockNum() const = 0;
 
     virtual uint32_t GetMaxPositionEmbeddings() const = 0;
-
-    virtual ThinkingConfig GetThinkingConfig() const = 0;
 
     virtual model_execute_data::PDLinkResponse GetPDLinkResponse() const = 0;
 
