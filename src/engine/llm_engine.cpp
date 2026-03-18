@@ -25,7 +25,6 @@
 #include "post_scheduler.h"
 #include "policy/stage_policy/stage_policy.h"
 #include "policy/stage_policy/edge_cloud_policy.h"
-#include "policy/dynamic_batch_recorder.h"
 
 using namespace std;
 using namespace std::chrono;
@@ -73,10 +72,6 @@ LlmEngine::LlmEngine(SchedulerConfig schedulerConfig, std::vector<IExecutorSPtr>
         // 配置 SetStagePolicy， 在flex场景中， modelExecOutputHandler在请求完成时记录时间戳
         enginePerDP->modelExecOutputHandler->SetStagePolicy(enginePerDP->scheduler->GetStagePolicy());
         enginePerDP->transferOutputHandler = std::make_unique<TransferOutputHandler>(cb, i);
-
-        // Register LatencyPredictor to DynamicBatchRecorder for multi-DP aggregation
-        auto &recorder = DynamicBatchRecorder::GetInstance(i);
-        recorder.SetLatencyPredictor(enginePerDP->latencypredictor);
     }
 
     // 分布式executors.size()只有1，
@@ -549,7 +544,7 @@ void LlmEngine::SchedulerThreadEntry(size_t localDPRank)
             if (schedulerConfig_->stageSelectPolicy == static_cast<uint32_t>(StagePolicyType::LATENCY_FIRST) ||
                 schedulerConfig_->dynamicBatchSizeEnable) {
                 auto batchExecuteStartTime = std::chrono::high_resolution_clock::now();
-                SetupLatencyPredictor(batchExecuteStartTime, dpRankId_);
+                enginePerDP->latencypredictor->SetBatchExecuteStartTime(batchExecuteStartTime);
             }
 
             DistDecodeAcquireDummyQuota(false, enginePerDP);
@@ -905,17 +900,6 @@ void LlmEngine::ExecuteRecoverCommand(RecoverCommandInfo &commandInfo)
     // 等待所有线程完成
     for (auto &thread : threads) {
         thread.join();
-    }
-}
-
-void LlmEngine::SetupLatencyPredictor(
-    const std::chrono::high_resolution_clock::time_point& batchExecuteStartTime,
-    int dpRankId)
-{
-    auto& recorder = DynamicBatchRecorder::GetInstance(static_cast<size_t>(dpRankId));
-    auto predictor = recorder.GetLatencyPredictor();
-    if (predictor != nullptr) {
-        predictor->SetBatchExecuteStartTime(batchExecuteStartTime);
     }
 }
 
