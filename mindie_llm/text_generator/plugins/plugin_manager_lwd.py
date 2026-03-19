@@ -14,17 +14,20 @@ import time
 from enum import IntEnum
 import numpy as np
 
-from .plugin_manager import PluginManager
-from ..utils.generation_output import GenerationOutput
-from ..utils.input_metadata import InputMetadata
-from ..utils.model_input import ModelInputWrapper
-from ..utils.model_output import ModelOutputWrapper
-from ..utils.sampling_output import SamplingOutput
-from ...modeling.backend_type import BackendType
-from ...utils.decorators.time_decorator import timer
-from ...utils.env import ENV
-from ...utils.prof.profiler import span_start, span_end, span_req, span_attr, count_block
-from ...utils.log.logging import logger
+from mindie_llm.text_generator.plugins.plugin_manager import PluginManager
+from mindie_llm.text_generator.utils import (
+    GenerationOutput,
+    InputMetadata,
+    ModelInputWrapper,
+    ModelOutputWrapper,
+    SamplingOutput,
+    NpuMemoryWatcher
+)
+from mindie_llm.modeling.backend_type import BackendType
+from mindie_llm.utils.decorators.time_decorator import timer
+from mindie_llm.utils.env import ENV
+from mindie_llm.utils.log import logger
+from mindie_llm.utils.prof.profiler import span_start, span_end, span_req, span_attr, count_block
 
 VERIFY = 'verify'
 
@@ -36,8 +39,7 @@ class RoleType(IntEnum):
 
 class PluginManagerLwd(PluginManager):
     def __init__(self, generator_backend, kvcache_settings, infer_context, output_filter, is_mix_model,
-                 plugin_list, model_role, **kwargs):
-        watcher = kwargs.get('watcher', "")
+                 plugin_list, model_role, watcher: NpuMemoryWatcher, **kwargs):
         super().__init__(generator_backend, kvcache_settings, infer_context, output_filter, is_mix_model,
                          plugin_list, model_role, watcher, **kwargs)
 
@@ -69,7 +71,6 @@ class PluginManagerLwd(PluginManager):
                 self.generator_backend,
                 self.kvcache_settings,
                 self.infer_context,
-                self.output_filter,
                 self.plugin_data_param,
                 **self.kwargs,
             )
@@ -95,6 +96,8 @@ class PluginManagerLwd(PluginManager):
 
     @staticmethod
     def should_skip_return_tokens(input_metadata):
+        if not input_metadata.layerwise_disaggregated_exe_stage:
+            return False
         is_p_first = (
             input_metadata.is_prefill 
             and input_metadata.layerwise_disaggregated_exe_stage.start_exec_layer == 0
@@ -150,10 +153,7 @@ class PluginManagerLwd(PluginManager):
 
             remote_computed_blocks = np.array([[prefix_blocks // sp_size]], dtype=np.int32)
             remote_computed_blocks = np.repeat(remote_computed_blocks, scp_size, axis=1)
-            computed_block_order = [[i for i in range(prefix_blocks * cp_size)]]
             input_metadata.remote_computed_blocks = np.array(remote_computed_blocks, dtype=np.int32)
-
-            input_metadata.batch_computed_block_order = computed_block_order
 
         return input_metadata
 
@@ -190,15 +190,17 @@ class PluginManagerLwd(PluginManager):
         self.plugin_data_param.mask = mask if mask is not None else self.plugin_data_param.mask
         model_inputs.layerwise_disaggregated_exe_stage = input_metadata.layerwise_disaggregated_exe_stage
         span_end(prof)
+        self.watcher.watch_npu_mem(self.rank, f'After preprocess', 
+                                       trigger_count=self.mem_det_trigger_counter)
 
         prof = span_start("forward", True)
         span_req(prof, trace_ids)
         span_attr(prof, "blocks", count_block(input_metadata.block_tables))
         if hasattr(self.model_wrapper, "mapping"):
             span_attr(prof, "dp_rank", str(self.model_wrapper.mapping.attn_dp.rank))
-
-        self.prefill_total_seq_len = input_metadata.layerwise_disaggregated_exe_stage.prefill_total_seq_len \
-            if input_metadata.is_prefill else self.prefill_total_seq_len
+        if input_metadata.layerwise_disaggregated_exe_stage:
+            self.prefill_total_seq_len = input_metadata.layerwise_disaggregated_exe_stage.prefill_total_seq_len \
+                if input_metadata.is_prefill else self.prefill_total_seq_len
         cloud_cut_instance = self.model_wrapper.model_runner.time_counter
         if ENV.framework_backend == BackendType.ATB:
             self.model_wrapper.model_runner.clear_internal_tensors()
@@ -225,6 +227,7 @@ class PluginManagerLwd(PluginManager):
         else:
             logits = result
         span_end(prof, True)
+        self.watcher.watch_npu_mem(self.rank, f'After forward', trigger_count=self.mem_det_trigger_counter)
 
         prof = span_start("sample")
         if self.role_type == RoleType.EDGE:
@@ -235,6 +238,7 @@ class PluginManagerLwd(PluginManager):
             
         if ENV.framework_backend == BackendType.ATB:
             self.model_wrapper.model_runner.clear_internal_tensors()
+        self.watcher.watch_npu_mem(self.rank, f'After sample', trigger_count=self.mem_det_trigger_counter)
 
         prof = span_start("postprocess")
         self.put_prefix_kvcache_to_mempool(input_metadata, cache_ids)
@@ -243,14 +247,15 @@ class PluginManagerLwd(PluginManager):
         generation_output.trace_ids = trace_ids
         generation_output.simulator_ids = input_metadata.simulator_ids
         span_end(prof)
-
+        self.watcher.watch_npu_mem(self.rank, f'After postprocess', trigger_count=self.mem_det_trigger_counter)
+        self.mem_det_trigger_counter_acc()
         return generation_output
 
     def generate_token_async_edge(self, input_metadata: InputMetadata, warmup=False) -> GenerationOutput:
         with self.generator_backend.get_new_stream():
             cache_ids = None
             postprocess_done = threading.Event()
-            if input_metadata.layerwise_disaggregated_exe_stage.start_exec_layer == 0:
+            if warmup or input_metadata.layerwise_disaggregated_exe_stage.start_exec_layer == 0:
                 prof = span_start("preprocess")
                 if (input_metadata.layerwise_disaggregated_exe_stage.is_long_seq and
                     not input_metadata.layerwise_disaggregated_exe_stage.request_dp_empty):
@@ -272,6 +277,8 @@ class PluginManagerLwd(PluginManager):
                     model_input, _, _ = self.model_inputs_update_manager(
                         model_input, input_metadata, sampling_metadata, cache_ids, hit_mask=hit_mask)
                 span_end(prof)
+                self.watcher.watch_npu_mem(self.rank, f'In asyn inference mode, after preprocess', 
+                                        trigger_count=self.mem_det_trigger_counter)
                 prof = span_start("prepare_model_inputs")
                 if not ENV.framework_backend == BackendType.ATB:
                     raise RuntimeError('The current backend type does not support async inference.')
@@ -306,11 +313,11 @@ class PluginManagerLwd(PluginManager):
                 model_input_wrapper = ModelInputWrapper(
                 cache_ids, input_metadata, model_input, model_kwargs, sampling_metadata,
                 trace_ids, current_dp_sequence_ids, postprocess_done, warmup)
-
-                if input_metadata.is_prefill:
-                    self.cached_p_model_input_wrapper_queue.put(model_input_wrapper)
-                else:
-                    self.cached_d_model_input_wrapper = model_input_wrapper
+                if not warmup:
+                    if input_metadata.is_prefill:
+                        self.cached_p_model_input_wrapper_queue.put(model_input_wrapper)
+                    else:
+                        self.cached_d_model_input_wrapper = model_input_wrapper
                 span_end(prof)
             else:
                 prof = span_start("preprocess_and_prepare_model_inputs")
@@ -326,17 +333,15 @@ class PluginManagerLwd(PluginManager):
                 model_input_wrapper.input_metadata = input_metadata
                 span_end(prof)
             logger.info(f"[layerwiseDisaggregated] get_from_output_queue before is_prefill {input_metadata.is_prefill} "
-                f"input_metadata.all_sequence_ids {input_metadata.all_sequence_ids} start_exec_layer: "
-                f"{input_metadata.layerwise_disaggregated_exe_stage.start_exec_layer}")
+                f"input_metadata.all_sequence_ids {input_metadata.all_sequence_ids}")
             prof = span_start('get_from_output_queue')
             model_output_wrapper = self.output_queue.get(timeout=900)
             span_end(prof)
-            logger.info(f"[layerwiseDisaggregated] get_from_output_queue after is_prefill {input_metadata.is_prefill} "
-                f" start_exec_layer: {input_metadata.layerwise_disaggregated_exe_stage.start_exec_layer}")
+            logger.info(f"[layerwiseDisaggregated] get_from_output_queue after is_prefill {input_metadata.is_prefill}")
 
             # Only D-begin tasks require fill_in; fill according to the filling_masks.
-            if not input_metadata.is_prefill and \
-               input_metadata.layerwise_disaggregated_exe_stage.start_exec_layer == 0:
+            if warmup or (not input_metadata.is_prefill and \
+               input_metadata.layerwise_disaggregated_exe_stage.start_exec_layer == 0):
                 prof = span_start("fill_in_model_result")
                 self._fill_in_model_result(input_metadata, model_input_wrapper,
                                             model_output_wrapper, filling_masks, cache_ids
@@ -353,8 +358,10 @@ class PluginManagerLwd(PluginManager):
                 model_output_wrapper.launch_done.wait()
             span_end(prof)
 
-            if model_output_wrapper.input_metadata and \
-                model_output_wrapper.input_metadata.layerwise_disaggregated_exe_stage.end_of_generate_token:
+            if warmup or (model_output_wrapper.input_metadata and \
+                model_output_wrapper.input_metadata.layerwise_disaggregated_exe_stage.end_of_generate_token):
+                self.watcher.watch_npu_mem(self.rank, f'In asyn inference mode, before postprocess',
+                                       trigger_count=self.mem_det_trigger_counter)
                 prof = span_start("postprocess")
                 if model_output_wrapper.cache_ids is not None and \
                    not model_output_wrapper.input_metadata.is_dummy_batch:
@@ -395,6 +402,8 @@ class PluginManagerLwd(PluginManager):
                         f"all_sequence_ids {model_output_wrapper.input_metadata.all_sequence_ids}"
                     )
                 span_end(prof)
+                self.watcher.watch_npu_mem(self.rank, f'In asyn inference mode, after postprocess', 
+                                       trigger_count=self.mem_det_trigger_counter)
             postprocess_done.set()
 
             # If it is a P-first or D-last, do not return tokens.
@@ -435,18 +444,19 @@ class PluginManagerLwd(PluginManager):
                 generation_output = GenerationOutput.make_empty()
             generation_output.fill_dummy(input_metadata, self.max_generated_tokens)
             logger.info(f"[layerwiseDisaggregated] curr request is_prefill {input_metadata.is_prefill} "
-                        f"input_metadata.all_sequence_ids {input_metadata.all_sequence_ids} start_exec_layer: "
-                        f"{input_metadata.layerwise_disaggregated_exe_stage.start_exec_layer}"
-                        )
+                        f"input_metadata.all_sequence_ids {input_metadata.all_sequence_ids}")
             self.last_sequence_ids = input_metadata.all_sequence_ids
             span_end(prof)
+            self.watcher.watch_npu_mem(self.rank, f'In asyn inference mode, after generation_output', 
+                                       trigger_count=self.mem_det_trigger_counter)
+            self.mem_det_trigger_counter_acc()
         return generation_output
 
     def generate_token_async_cloud(self, input_metadata: InputMetadata, warmup=False) -> GenerationOutput:
         with self.generator_backend.get_new_stream():
             cache_ids = None
             postprocess_done = threading.Event()
-            if input_metadata.layerwise_disaggregated_exe_stage.start_exec_layer == 0:
+            if warmup or input_metadata.layerwise_disaggregated_exe_stage.start_exec_layer == 0:
                 prof = span_start("preprocess")
                 if (input_metadata.layerwise_disaggregated_exe_stage.is_long_seq and
                     not input_metadata.layerwise_disaggregated_exe_stage.request_dp_empty):
@@ -517,17 +527,17 @@ class PluginManagerLwd(PluginManager):
                 model_input_wrapper.input_metadata = input_metadata
                 span_end(prof)
             logger.info(f"[layerwiseDisaggregated] get_from_output_queue before is_prefill {input_metadata.is_prefill} "
-                f"input_metadata.all_sequence_ids {input_metadata.all_sequence_ids} start_exec_layer: "
-                f"{input_metadata.layerwise_disaggregated_exe_stage.start_exec_layer}")
+                f"input_metadata.all_sequence_ids {input_metadata.all_sequence_ids}")
             prof = span_start('get_from_output_queue')
             model_output_wrapper = self.output_queue.get(timeout=900)
             span_end(prof)
-            logger.info(f"[layerwiseDisaggregated] get_from_output_queue after is_prefill {input_metadata.is_prefill} "
-                f" start_exec_layer: {input_metadata.layerwise_disaggregated_exe_stage.start_exec_layer}")
+            logger.info(f"[layerwiseDisaggregated] get_from_output_queue after is_prefill {input_metadata.is_prefill}")
 
-            if not input_metadata.is_prefill and \
-               model_output_wrapper.input_metadata and \
-                model_output_wrapper.input_metadata.layerwise_disaggregated_exe_stage.end_of_generate_token:
+            is_decode_end_of_generate_token = not input_metadata.is_prefill and \
+                model_output_wrapper.input_metadata and \
+                model_output_wrapper.input_metadata.layerwise_disaggregated_exe_stage.end_of_generate_token
+
+            if warmup or is_decode_end_of_generate_token:
                 prof = span_start("fill_in_model_result")
                 self._fill_in_model_result(input_metadata, model_input_wrapper, model_output_wrapper,
                                             filling_masks, cache_ids
@@ -545,12 +555,14 @@ class PluginManagerLwd(PluginManager):
                 model_output_wrapper.launch_done.wait()
             span_end(prof)
 
-            if model_output_wrapper.input_metadata and \
-               not model_output_wrapper.input_metadata.layerwise_disaggregated_exe_stage.end_of_generate_token:
+            if not warmup and (model_output_wrapper.input_metadata and \
+               not model_output_wrapper.input_metadata.layerwise_disaggregated_exe_stage.end_of_generate_token):
                 self.last_sequence_ids = input_metadata.all_sequence_ids
                 postprocess_done.set()
                 return None
-
+            
+            self.watcher.watch_npu_mem(self.rank, f'In asyn inference mode, before postprocess',
+                                       trigger_count=self.mem_det_trigger_counter)
             prof = span_start("postprocess")
             if model_output_wrapper.cache_ids is not None and not model_output_wrapper.input_metadata.is_dummy_batch:
                 if model_output_wrapper.model_output.hidden_states is None:
@@ -573,6 +585,9 @@ class PluginManagerLwd(PluginManager):
             generation_output.fill_dummy(input_metadata, self.max_generated_tokens)
             self.last_sequence_ids = input_metadata.all_sequence_ids
             span_end(prof)
+            self.watcher.watch_npu_mem(self.rank, f'In asyn inference mode, after postprocess', 
+                                       trigger_count=self.mem_det_trigger_counter)
+            self.mem_det_trigger_counter_acc()
         return generation_output
 
     def prepare_inputs_for_longseq_chunk(self, model_input_wrapper: ModelInputWrapper):
@@ -602,9 +617,9 @@ class PluginManagerLwd(PluginManager):
 
     def generate_token_async(self, input_metadata: InputMetadata, warmup=False) -> GenerationOutput:
         if self.role_type == RoleType.CLOUD:
-            return self.generate_token_async_cloud(input_metadata)
+            return self.generate_token_async_cloud(input_metadata, warmup)
 
-        return self.generate_token_async_edge(input_metadata)
+        return self.generate_token_async_edge(input_metadata, warmup)
 
     def forward_loop(self):
         self.generator_backend.set_device()
@@ -613,10 +628,11 @@ class PluginManagerLwd(PluginManager):
             prof = span_start("get_from_input_queue")
             model_input_wrapper = self.input_queue.get()
             span_end(prof)
-
-            self.prefill_total_seq_len = \
-                model_input_wrapper.input_metadata.layerwise_disaggregated_exe_stage.prefill_total_seq_len \
-                    if model_input_wrapper.input_metadata.is_prefill else self.prefill_total_seq_len
+            layerwise_disaggregated_exe_stage = model_input_wrapper.input_metadata.layerwise_disaggregated_exe_stage
+            if layerwise_disaggregated_exe_stage:
+                self.prefill_total_seq_len = \
+                    layerwise_disaggregated_exe_stage.prefill_total_seq_len \
+                        if model_input_wrapper.input_metadata.is_prefill else self.prefill_total_seq_len
             cloud_cut_instance = self.model_wrapper.model_runner.time_counter
             prof = span_start("forward", True)
             span_req(prof, model_input_wrapper.trace_ids)
@@ -628,8 +644,9 @@ class PluginManagerLwd(PluginManager):
                                 }
             model_input_wrapper.model_kwargs.update(exe_stage_kwargs)
             
-            if model_input_wrapper.input_metadata.layerwise_disaggregated_exe_stage.is_long_seq:
-                if not model_input_wrapper.input_metadata.layerwise_disaggregated_exe_stage.request_dp_empty:
+            if layerwise_disaggregated_exe_stage and layerwise_disaggregated_exe_stage.is_long_seq:
+                if not layerwise_disaggregated_exe_stage.request_dp_empty:
+
                     if self.infer_context.spcp_parallel_info.cp_size == 1:
                         self.prepare_inputs_for_longseq_chunk(model_input_wrapper)
                 model_output = self.generator_backend.forward_from_model_inputs(
@@ -644,7 +661,7 @@ class PluginManagerLwd(PluginManager):
                 launch_done.set()
             span_end(prof, True)
 
-            if model_input_wrapper.input_metadata.layerwise_disaggregated_exe_stage.end_of_generate_token:
+            if not layerwise_disaggregated_exe_stage or layerwise_disaggregated_exe_stage.end_of_generate_token:
                 prof = span_start("sample")
                 if self.role_type == RoleType.CLOUD:
                     sampling_output = self.lwd_sampling_output(model_input_wrapper.input_metadata)

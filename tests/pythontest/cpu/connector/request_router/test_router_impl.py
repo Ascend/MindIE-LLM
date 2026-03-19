@@ -884,7 +884,7 @@ class TestRouterImpl(unittest.TestCase):
 
     def test_seq_ctrl_layerwise_cleanup(self):
         self.router.layerwise_disaggregated = True
-        self.router.generator.plugin = Mock()
+        self.router.generator.plugin_manager = Mock()
         mock_request = Mock(spec=ExecuteRequest)
         mock_cleanup_req = Mock(spec=TGCleanupRequest)
         mock_cleanup_req.seq_ids = [1, 2]
@@ -893,7 +893,7 @@ class TestRouterImpl(unittest.TestCase):
 
         self.router.seq_ctrl(mock_request)
 
-        self.mock_generator.plugin.set_clean_sequence_ids.assert_called_once_with([1, 2])
+        self.mock_generator.plugin_manager.set_clean_sequence_ids.assert_called_once_with([1, 2])
 
     @patch('mindie_llm.connector.request_router.router_impl.convert_execute_model_request_to_input_metadata_composite')
     @patch.object(RouterImpl, '_handle_requests')

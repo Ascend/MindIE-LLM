@@ -355,7 +355,7 @@ class RequestRouterLwd(RequestRouter):
         return len(execute_request.execute_model_request.seq_group_metadata_list)
 
     def calc_curr_dp_seq_len(self, execute_request: ExecuteRequest):
-        curr_dp_rank = self.router_impl.generator.plugin.model_wrapper.mapping.attn_dp.rank
+        curr_dp_rank = self.router_impl.generator.plugin_manager.model_wrapper.mapping.attn_dp.rank
         all_batch_dp_rank_ids = []
         for seq_group_metadata in execute_request.execute_model_request.seq_group_metadata_list:
             all_batch_dp_rank_ids.append(seq_group_metadata.dp_rank_id)
@@ -370,7 +370,7 @@ class RequestRouterLwd(RequestRouter):
             return self.sum_nested(seq_lens)
 
     def calc_curr_dp_batch_size(self, execute_request: ExecuteRequest):
-        curr_dp_rank = self.router_impl.generator.plugin.model_wrapper.mapping.attn_dp.rank
+        curr_dp_rank = self.router_impl.generator.plugin_manager.model_wrapper.mapping.attn_dp.rank
         all_batch_dp_rank_ids = []
         for seq_group_metadata in execute_request.execute_model_request.seq_group_metadata_list:
             all_batch_dp_rank_ids.append(seq_group_metadata.dp_rank_id)

@@ -27,8 +27,9 @@ class TestPluginLwd(unittest.TestCase):
         is_mix_model = Mock()
         plugin_list = Mock()
         model_role = Mock()
+        self.mock_watcher = Mock()
         self.plugin_lwd = PluginManagerLwd(generator_backend, kvcache_settings, infer_context, output_filter, is_mix_model,
-            plugin_list, model_role)
+            plugin_list, model_role, watcher=self.mock_watcher)
         self.plugin_lwd.return_queue = queue.Queue()
         self.plugin_lwd.async_inference = True
         self.plugin_lwd.forward_loop = Mock()
@@ -99,8 +100,9 @@ class TestPluginLwd(unittest.TestCase):
         is_mix_model = Mock()
         plugin_list = Mock()
         model_role = Mock()
+        self.mock_watcher = Mock()
         self.plugin_lwd = PluginManagerLwd(generator_backend, kvcache_settings, infer_context, output_filter, is_mix_model,
-            plugin_list, model_role)
+            plugin_list, model_role, watcher=self.mock_watcher)
         infer_context.clear_cache = Mock()
         self.plugin_lwd.set_clean_sequence_ids([100, 101])
 

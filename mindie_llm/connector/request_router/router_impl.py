@@ -270,7 +270,7 @@ class RouterImpl:
         )
         self.generator.clear_cache(seq_id)
         if self.layerwise_disaggregated and execute_request.execute_type == ExecuteType.TEXT_GENERATOR_CLEANUP:
-            self.generator.plugin.set_clean_sequence_ids(execute_request.text_generator_cleanup_request.seq_ids)
+            self.generator.plugin_manager.set_clean_sequence_ids(execute_request.text_generator_cleanup_request.seq_ids)
 
     def transfer_data(self, execute_request: ExecuteRequest):
         input_metadata_composite: InputMetadataComposite = convert_pull_kv_request_to_input_metadata_composite(
