@@ -34,7 +34,7 @@ const size_t PYTHON_VERSION_LEN = 4;
 
 std::vector<std::string> g_checkEngineNameVec;
 static std::vector<ParamSpec> g_modelParentParamsConstraint = {
-    {"maxSeqLen", "uint32_t", true}, {"maxInputTokenLen", "uint32_t", true}, {"truncation", "bool", false},
+    {"maxSeqLen", "uint32_t", true}, {"maxInputTokenLen", "uint32_t", true},
     {"maxLoras", "uint32_t", false}, {"maxLoraRank", "uint32_t", false}};
 
 static std::vector<ParamSpec> g_modelParamsConstraint = {
@@ -187,7 +187,7 @@ static bool InitLoraConfig(std::string modelName, std::string modelWeightPath, s
 }
 
 void ModelDeployConfigManager::InitModelConfigImpl(const Json &modelJsonData, uint32_t speculationGamma,
-                                                   const uint32_t maxSeqLength, bool truncation)
+                                                   const uint32_t maxSeqLength, int32_t truncation)
 {
     std::vector<std::string> modelConfigList = {"modelInstanceType", "modelName",      "modelWeightPath",
                                                 "worldSize",         "cpuMemSize",     "npuMemSize",
@@ -350,7 +350,7 @@ void ModelDeployConfigManager::InitLoraConfigImpl(const Json &modelJsonData)
 }
 
 void ModelDeployConfigManager::InitModelConfig(const Json &modelJsonData, uint32_t speculationGamma,
-                                               const uint32_t maxSeqLength, const bool truncation)
+                                               const uint32_t maxSeqLength, const int32_t truncation)
 {
     ModelDeployConfigManager::InitModelConfigImpl(modelJsonData, speculationGamma, maxSeqLength, truncation);
 
@@ -398,8 +398,7 @@ bool ModelDeployConfigManager::InitFromJson()
         }
     }
     modelDeployConfig_.maxSeqLen = backendJsonData["ModelDeployConfig"]["maxSeqLen"];
-    modelDeployConfig_.truncation =
-        ParamChecker::GetBoolParamValue(backendJsonData["ModelDeployConfig"], "truncation", false);
+    modelDeployConfig_.truncation = ParamChecker::GetTruncationParamDefaultValue(backendJsonData, "truncation", 0);
 
     // 校验并读取maxLoras和maxLoraRank,负数则取0(负数为异常值，一般不会为负)
     const auto& modelDeployConfig = backendJsonData["ModelDeployConfig"];

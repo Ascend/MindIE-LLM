@@ -128,7 +128,7 @@ Scheduler::Scheduler(const std::shared_ptr<SchedulerConfig> &schedulerConfig,
     }
 
     stagePolicy_ = PolicyFactory::CreateStagePolicy(schedulerConfig, predictor, blockManager_, pdRole);
-    dynamicBatchSize_ = std::make_shared<DynamicBatchSize>(schedulerConfig, predictor, blockManager_);
+    dynamicBatchSize_ = std::make_shared<DynamicBatchSize>(schedulerConfig, predictor, blockManager_, localDPRank_);
 
     MINDIE_LLM_LOG_INFO("Scheduler init success!");
 }

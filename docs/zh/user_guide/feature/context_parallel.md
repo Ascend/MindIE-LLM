@@ -48,7 +48,7 @@ Context Parallel（CP，上下文并行）主要针对Self-attention模块在seq
     {
         "maxSeqLen" : 2560,
         "maxInputTokenLen" : 2048,
-        "truncation" : false,
+        "truncation" : 0,
         "ModelConfig" : [
             {
                 "modelInstanceType" : "Standard",

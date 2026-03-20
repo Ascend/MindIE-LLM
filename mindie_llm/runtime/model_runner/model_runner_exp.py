@@ -202,9 +202,7 @@ class ModelRunnerExp:
         # load model
         if self._max_seq_len > self._mindie_llm_config.hf_config.rope_scaling.max_position_embeddings:
             _msg = (f"`max_seq_len` cannot be larger than `max_position_embeddings` "
-                "or `max_position_embeddings`*`scaling_factor` when scaling. "
-                f"max_seq_len={self._max_seq_len} but max_position_embeddings"
-                f"={self._mindie_llm_config.hf_config.rope_scaling.max_position_embeddings}")
+                    f"or `original_max_position_embeddings`*`scaling_factor` when scaling.")
             logger.error(_msg)
             raise ValueError(_msg)
         with set_default_torch_dtype(self.config.torch_dtype):

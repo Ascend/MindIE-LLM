@@ -48,7 +48,7 @@ from mindie_llm.text_generator.utils.request import Request
 from mindie_llm.utils.decorators.time_decorator import timer
 from mindie_llm.utils.env import ENV
 from mindie_llm.utils.log import ErrorCode, logger, print_log
-from mindie_llm.utils.log.error_code import ErrorCodeException
+from mindie_llm.utils.log.error_code import ErrorCodeException, convert_exception_to_error_code
 from mindie_llm.utils.status import MindieLlmStatusCode
 from mindie_llm.utils.tensor import npu
 from mindie_llm.text_generator.utils.separate_deployment_engine import (
@@ -61,6 +61,7 @@ NPU_OUT_OF_MEMORY_TAG = 'NPU out of memory'
 EOS_TOKEN_ID = 'eos_token_id'
 KV_HALF_BYTE = 4
 MEM_POOL_WORKER_ROLE = "worker"
+LWD_MAX_CHUNK_SIZE = 32 * 1024
 
 
 @dataclass
@@ -368,6 +369,12 @@ class Generator(PDInterface):
                     f'One block during warmup needs npu memory(GiB): {block_mem_size_gb}')
             kvcache_settings = self._update_kvcache_settings(block_mem_size_gb)
             self._init_plugin_manager(kvcache_settings, plugin_list, plugin_config)
+            if self.layerwise_disaggregated and not self.lwd_multi_nodes_enable:
+                # Because distributed inference will split the chunks, limit the max prefill tokens to 32k
+                max_prefill_tokens = min(max_prefill_tokens, LWD_MAX_CHUNK_SIZE)
+                max_seq_len = min(max_seq_len, LWD_MAX_CHUNK_SIZE)
+                max_input_len = min(max_input_len, LWD_MAX_CHUNK_SIZE)
+                
             warmup_param = WarmupParams(max_prefill_tokens, max_seq_len, max_input_len, max_iter_times)
             npu_mem = self.warm_up(warmup_param)
 
@@ -512,6 +519,13 @@ class Generator(PDInterface):
             else:
                 raise e
         except Exception as e:
+            error_code = convert_exception_to_error_code(str(e))
+            if isinstance(e, RuntimeError) and error_code is not None:
+                message = (
+                    f'{error_code.name} fault happened in generate_token, error code: {error_code.value}.'
+                )
+                logger.error(message)
+                raise ErrorCodeException(error_code) from e
             print_log(self.rank, logger.error, f'Unknown exception: {e}')
             if self.is_inference_pause:
                 return GenerationOutput.make_empty()
@@ -1174,11 +1188,14 @@ class Generator(PDInterface):
         else:
             max_batch_size_per_dp = self.max_batch_size
 
+        max_prefill_tokens = self.max_prefill_tokens
+        if self.layerwise_disaggregated and not self.lwd_multi_nodes_enable:
+            max_prefill_tokens = min(max_prefill_tokens, LWD_MAX_CHUNK_SIZE)
         # Max prefill tokens has been aligned in llm_manager for context parallel.
         aligned_prefill_tokens = (
-            math.ceil(self.max_prefill_tokens / 2)
+            math.ceil(max_prefill_tokens / 2)
             if do_dap_warmup
-            else self.max_prefill_tokens
+            else max_prefill_tokens
         )
 
         result: list[int] = []

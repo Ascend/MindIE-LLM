@@ -71,7 +71,7 @@ SplitFuse特性的目的是将长prompt request分解成更小的块，并在多
             {
                 "maxSeqLen" : 65536,
                 "maxInputTokenLen" : 65536,
-                "truncation" : false,
+                "truncation" : 0,
                 "ModelConfig" : [
                     {
                         "modelInstanceType": "Standard",

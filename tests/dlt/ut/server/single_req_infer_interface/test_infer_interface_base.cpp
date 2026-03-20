@@ -398,7 +398,7 @@ TEST_F(InferInterfaceBaseTest, testConvertTokenToMap)
     tempTokens[0].parentSeqId = 200;
     tempTokens[0].tokens = {4, 5, 6};
     tempTokens[0].cumLogprobs = 0.5;
-    tempTokens[0].logprob = 0.8;
+    tempTokens[0].logprob = {0.8};
     inferInterface->respTokenMap[0] = {0};
     inferInterface->respTokenMap[100] = {1, 2, 3};
     inferInterface->respTokenMap[200] = {10, 20, 30};

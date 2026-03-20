@@ -97,6 +97,7 @@ public:
         std::vector<atb::Tensor> &outTensors, const std::string &param);
 
     int64_t UpdateWeightsPtr(void *newWeightsPtr, int64_t oldWeightIds);
+    void ResetExecutionStatus();
 
 protected:
     virtual int64_t BuildGraph() = 0;

@@ -52,7 +52,7 @@ TP（Tensor Parallel，张量并行）是一种模型并行的策略，它通过
     {
        "maxSeqLen" : 2560,
        "maxInputTokenLen" : 2048,
-       "truncation" : false,
+       "truncation" : 0,
        "ModelConfig" : [
          {
              "modelInstanceType" : "Standard",

@@ -12,6 +12,7 @@ import json
 from typing import Dict, List, Literal, Union, Optional, Tuple, Iterator
 from pydantic import BaseModel, model_validator
 from ..base.input_builder import InputBuilder
+from ...models import TruncationSide
 
 
 AUTO = 'auto'
@@ -332,6 +333,16 @@ class Qwen2InputBuilder(InputBuilder):
         if not self.tokenizer.chat_template:
             raise RuntimeError("The model does not appear to be a chat model because it is not configured with a "
                                "`chat_template`.")
+        truncation_method = kwargs.get(self.chat_template_kwargs, {}).get(self.truncation, TruncationSide.RIGHT)
+        max_length = kwargs.get(self.chat_template_kwargs, {}).get("max_length", None)
+        if truncation_method == TruncationSide.RIGHT:
+            kwargs[self.truncation] = True
+            kwargs["tokenize"] = True
+            kwargs["max_length"] = max_length
+        if truncation_method == TruncationSide.LEFT:
+            kwargs[self.truncation] = False
+            kwargs["tokenize"] = True
+        kwargs.pop(self.chat_template_kwargs)
         if self.is_qwen1_5_or_2:  # enter qwen1.5/qwen2 router
             roles = [conv.get('role') for conv in conversation]
             if tools_msg is None and 'tool' not in roles:
@@ -361,14 +372,22 @@ class Qwen2InputBuilder(InputBuilder):
                 )
                 messages = self.simulate_response_completion_with_chat(messages)
                 input_ids = self.tokenizer.apply_chat_template(messages, **kwargs)
+            if truncation_method == TruncationSide.LEFT and len(input_ids) > max_length:
+                input_ids = input_ids[-max_length:]
             return input_ids
         else:  # enter qwen2.5 router
             if tools_msg:
                 tools_list = tools_msg.get("tools", None)
                 # tools call need transformers>=4.43.1
-                return self.tokenizer.apply_chat_template(conversation, tools=tools_list, **kwargs)
-            return self.tokenizer.apply_chat_template(conversation, **kwargs)
-        
+                input_ids = self.tokenizer.apply_chat_template(conversation, tools=tools_list, **kwargs)
+                if(truncation_method == TruncationSide.LEFT and len(input_ids) > max_length):
+                    input_ids = input_ids[-max_length:]
+                return input_ids
+            input_ids = self.tokenizer.apply_chat_template(conversation, **kwargs)
+            if(truncation_method == TruncationSide.LEFT and len(input_ids) > max_length):
+                input_ids = input_ids[-max_length:]
+            return input_ids
+
 
 class QwenFnCallPrompt(object):
 

@@ -216,6 +216,24 @@ uint32_t ParamChecker::GetIntegerParamDefaultValue(nlohmann::json jsonData, cons
     return targetParam;
 }
 
+int32_t ParamChecker::GetTruncationParamDefaultValue(nlohmann::json jsonData, const std::string &configName,
+                                                     uint32_t defaultVal)
+{
+    int32_t targetParam = defaultVal;
+    if (jsonData["ModelDeployConfig"][configName].is_boolean() && jsonData["ModelDeployConfig"][configName]) {
+        targetParam = -1;
+    } else if (jsonData["ModelDeployConfig"][configName].is_boolean() && !jsonData["ModelDeployConfig"][configName]) {
+        targetParam = 0;
+    } else if (jsonData["ModelDeployConfig"][configName].is_number_integer()) {
+        targetParam = jsonData["ModelDeployConfig"][configName].get<int32_t>();
+    } else {
+        std::cout << "The value of truncation " << jsonData["ModelDeployConfig"][configName]
+                  << " is invalid, use default value." << std::endl;
+        targetParam = 0;
+    }
+    return targetParam;
+}
+
 std::string ParamChecker::GetStringParamValue(nlohmann::json jsonData, const std::string &configName,
                                               std::string defaultVal)
 {

@@ -83,6 +83,9 @@ namespace SimpleLLMInference {
             static const std::string kMockCfgJson = R"({
                 "BackendConfig": {
                     "ModelDeployConfig": {
+                        "maxSeqLen" : 2560,
+                        "maxInputTokenLen" : 2048,
+                        "truncation" : 0,
                         "ModelConfig": [
                             {
                                 "models": [
@@ -339,7 +342,7 @@ class IbisTokenizer:
     def __init__(self, path: str, bakend_type: str, trust_remote_code: bool, models_dict_str: str):
         print('init')
 
-    def encode(self, prompt):
+    def encode(self, prompt, chat_template_kwargs: dict=None):
         print('encode')
         return [0, 1]
 
@@ -365,7 +368,7 @@ class IbisTokenizer:
 class IbisTokenizerNoDownload:
     def __init__(self, path: str, bakend_type: str, trust_remote_code: bool, models_dict_str: str):
         pass
-    def encode(self, prompt): return [0]
+    def encode(self, prompt, chat_template_kwargs: dict = None): return [0]
     def decode(self, ids, kwargs: dict=None): return "ok"
 
 class IbisTokenizerDeleteRaise(IbisTokenizer):
@@ -389,7 +392,7 @@ import numpy as np
 class IbisTokenizer:
     def __init__(self, path: str, bakend_type: str, trust_remote_code: bool, models_dict_str: str):
         pass
-    def encode(self, prompt): return [0, 1]
+    def encode(self, prompt, chat_template_kwargs: dict = None): return [0, 1]
     def encode_chat(self, prompt, kwargs: dict=None): return [0, 1]
     def decode(self, input_tokens, kwargs: dict=None): return "decode_result"
     def decode_one(self, input_tokens, kwargs: dict=None): return "decode_one_result"

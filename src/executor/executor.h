@@ -81,6 +81,8 @@ public:
 
     PDLinkResponse GetPDLinkResponse() const override;
 
+    ThinkingConfig GetThinkingConfig() const override;
+
     bool ExecutLoraRequest(LoraOperationRequest &loraOperationRequest) override;
     void ExecuteRecoverCommand(RecoverCommandInfo &commandInfo) override;
 
@@ -101,7 +103,8 @@ private:
     bool MasterHandleSlaveInitResponse(ExecuteResponse &response) const;
     void RegisterExecuteModelResponseHandler(ExecuteModelResponseHandler handler);
     void RegisterPullKVResponseHandler(PullKVResponseHandler handler);
-    bool HandleInitResult(std::vector<ExecuteResponse> &responses) const;
+    bool HandleInitResult(std::vector<ExecuteResponse> &responses);
+    bool HandleThinkingConfig(std::vector<ExecuteResponse> &responses);
     void HandleExecuteModelResponse(ExecuteResponse &modelExecuteResponse);
     bool HandleRecoverCommandResult(RecoverCommandInfo &commandInfo, std::vector<ExecuteResponse> &responses) const;
     bool AggregatePDLinkResponses(const std::vector<ExecuteResponse> &responseVec,
@@ -131,6 +134,7 @@ private:
     PDLinkResponse pdLinkResponse_;
     std::vector<std::thread> pipeThreads_;
     LoraOperationResponse loraOperationResponse_;
+    ThinkingConfig thinkingConfig_;
 };
 } // namespace mindie_llm
 #endif

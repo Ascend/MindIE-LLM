@@ -470,7 +470,9 @@ void SingleLLMPrefillReqHandler::BuildDecodeParameters(ResponseSPtr response, De
     }
     params.mutable_textinput()->set_value(inferParam_->textInput);
     PROF(prof.Attr("textinput", inferParam_->textInput));
-
+    if (response != nullptr && response->responseContents.size() > 0) {
+        params.mutable_samplingparams()->mutable_isthinking()->set_value(response->responseContents[0].isThinking);
+    }
     BuildSamplingParametersFirst(params);
     BuildSamplingParametersNext(params);
     BuildInferParameters(params);
@@ -544,6 +546,9 @@ void SingleLLMPrefillReqHandler::BuildSamplingParametersNext(DecodeParameters& p
     }
     if (inferParam_->enableThinking.has_value()) {
         params.mutable_samplingparams()->mutable_enablethinking()->set_value(inferParam_->enableThinking.value());
+    }
+    if (request_->thinkingBudget.has_value()) {
+        params.mutable_samplingparams()->mutable_thinkingbudget()->set_value(request_->thinkingBudget.value());
     }
 }
 

@@ -192,7 +192,7 @@ class PluginManager:
             self.mem_det_trigger_counter = 0
 
     @timer.track_time_async('generate_token')
-    def generate_token(self, input_metadata: InputMetadata, warmup=False) -> GenerationOutput:
+    def generate_token(self, input_metadata: InputMetadata, warmup=False):
         try:
             prof = span_start("preprocess")
             cache_ids, model_inputs, sampling_metadata, trace_ids = self.preprocess(input_metadata, warmup=warmup)
@@ -254,19 +254,12 @@ class PluginManager:
             return generation_output
 
         except Exception as e:
-            error_code = convert_exception_to_error_code(str(e))
-            if isinstance(e, RuntimeError) and error_code is not None:
-                message = (
-                    f'{error_code.name} fault happened in generate_token, error code: {error_code.value}.'
-                )
-                logger.error(message)
-                raise ErrorCodeException(error_code) from e
             if self.is_inference_pause:
                 logger.info(f"Mocking response due to inference pause for trace_ids={trace_ids}.")
                 return GenerationOutput.make_empty()
             logger.exception(
-                f"Unrecoverable error in generate_token (trace_ids={trace_ids}). "
-                f"Terminating inference thread. Error: {e}"
+                f"Error encountered in generate_token (trace_ids={trace_ids}). "
+                f"trigger recovery or terminate inference thread. Error: {e}"
             )
             raise e
 
@@ -758,6 +751,8 @@ class PluginManager:
             hit_sequence_ids_mask = np.isin(current_dp_sequence_ids, self.last_sequence_ids)
             if input_metadata.batch_is_prefill is not None:
                 hit_sequence_ids_mask[input_metadata.batch_is_prefill] = False
+            elif input_metadata.is_prefill:
+                hit_sequence_ids_mask[:] = False
             if hit_sequence_ids_mask.any():
                 hit_sequence_ids = current_dp_sequence_ids[hit_sequence_ids_mask]
                 if self.is_mix_model:

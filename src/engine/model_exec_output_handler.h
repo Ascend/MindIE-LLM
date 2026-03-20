@@ -79,7 +79,7 @@ private:
     void HandleParallelSampling(const model_execute_data::CompletionSequenceGroupOutput &output,
                                 LiveInferContextSPtr &liveInferContext);
 
-    void HandleGreedySampling(const model_execute_data::SequenceOutput &sample);
+    void HandleGreedySampling(const model_execute_data::SequenceOutput &sample, ResponseSPtr &response);
 
     SequenceGroupSPtr FindRootSequenceGroup(const model_execute_data::CompletionSequenceGroupOutput &output,
                                             LiveInferContextSPtr &liveInferContext) const;
@@ -92,6 +92,10 @@ private:
     void SetResponseFlags(const model_execute_data::CompletionSequenceGroupOutput &output, ResponseSPtr response) const;
 
     void ProcessSequenceStatus(SequenceId seqId, int64_t finishReason);
+
+    void UpdateThinkingStatus(SequenceGroupSPtr &seqGrp, int64_t token);
+
+    void UpdateResponse(SequenceGroupSPtr &seqGrp, ResponseSPtr &response);
 
     std::shared_ptr<StagePolicy> stagePolicy_{nullptr};
 

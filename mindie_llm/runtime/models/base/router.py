@@ -429,6 +429,7 @@ class BaseRouter:
                 message = "The 'models' field does not conform to JSON format. Please check."
                 logger.warning(f'{message}, exception info: {e}')
                 self.load_config.models_dict = None
+        llm_config.update(self.load_config.models_dict, allow_new_keys=True, current_path='models')
         llm_config.merge_models_config(self._model_type)
 
         llm_config_validators = self.get_llm_config_validators()

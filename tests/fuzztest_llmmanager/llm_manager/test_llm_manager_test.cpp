@@ -169,7 +169,7 @@ void ConstructFuzzConfig(uint32_t &fuzzIndex, std::string &configPath)
     ModelDeployConfigData["maxSeqLen"] = *(int *)DT_SetGetNumberRange(&g_Element[fuzzIndex++], 1, 1, MAX_MAXSEQLEN);
     ModelDeployConfigData["maxInputTokenLen"] =
         *(int *)DT_SetGetNumberRange(&g_Element[fuzzIndex++], 1, 1, MAX_INPUTTOKENLEN);
-    ModelDeployConfigData["truncation"] = false;
+    ModelDeployConfigData["truncation"] = 0;
     Json modelJsonData;
     modelJsonData["modelInstanceType"] = "StandardMock";
     modelJsonData["modelName"] = "llama_65b";

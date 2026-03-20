@@ -20,7 +20,7 @@ void LatencyPredictor::UpdateBatchStats()
     int preBatchId = batchId_.load();
     std::optional<BatchStatsPtr> batchStatsOpt = batchStatsMap_.Get(preBatchId);
     if (!batchStatsOpt.has_value()) {
-        throw std::runtime_error("previous batch not found");
+        return;
     }
     BatchStatsPtr batchStatsPtr = batchStatsOpt.value();
     auto now = std::chrono::high_resolution_clock::now();
@@ -95,7 +95,7 @@ void LatencyPredictor::SetBatchExecuteStartTime(TimePoint batchStartTime)
 {
     std::optional<BatchStatsPtr> batchStatsOpt = batchStatsMap_.Get(batchId_.load());
     if (!batchStatsOpt.has_value()) {
-        throw std::runtime_error("previous batch not found");
+        return;
     }
     BatchStatsPtr batchStatsPtr = batchStatsOpt.value();
     batchStatsPtr->batchStartTime = batchStartTime;

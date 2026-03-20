@@ -97,7 +97,7 @@ torchrun --nnodes=2 --nproc_per_node 8 --node_rank=1 --master_addr="主节点IP"
     {
        "maxSeqLen" : 2560,
        "maxInputTokenLen" : 2048,
-       "truncation" : false,
+       "truncation" : 0,
        "ModelConfig" : [
          {
              "modelInstanceType" : "Standard",

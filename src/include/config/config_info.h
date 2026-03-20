@@ -290,7 +290,7 @@ struct ModelDeployConfig {
     int32_t maxSequenceLength = -1;
     std::string eosTokenId = "";
     int32_t padTokenId = -1;
-    bool truncation = false;
+    int32_t truncation = 0;
     bool loadTokenizer = true;
     bool useLora = false;
     uint32_t numThreads = 8;
@@ -425,6 +425,9 @@ struct SchedulerConfig {
     bool activateAsyncInference;
     bool distributedEnable{false};
 
+    std::vector<long> earlyStoppingIds;
+    long startThinkingId;
+    long stopThinkingId;
     // model config
     std::vector<std::set<size_t>> npuDeviceIds;
     /* 当前和maxModelLen/maxNumBatchedTokens 保持一致 */

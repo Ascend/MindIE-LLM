@@ -42,7 +42,7 @@ protected:
         schedulerConfig_->stageSelectPolicy = 2;
         schedulerConfig_->maxPrefillTokens = 1000;
 
-        dynamicBatchSize_ = std::make_unique<DynamicBatchSize>(schedulerConfig_, predictor_, blockManager_);
+        dynamicBatchSize_ = std::make_unique<DynamicBatchSize>(schedulerConfig_, predictor_, blockManager_, 0);
 
         ScheduledSequenceGroupSPtr newElement = std::make_shared<ScheduledSequenceGroup>();
         auto seq = std::make_shared<Sequence>(0, 1);
@@ -66,7 +66,7 @@ TEST_F(DynamicBatchSizeTest, ApplyDynamicBatchSize)
     size_t runningSize = 1;
     size_t swappedSize = 1;
     EXPECT_EQ(dynamicBatchSize_->batchSizeUpperBound_, schedulerConfig_->maxBatchSize);
-    EXPECT_EQ(dynamicBatchSize_->batchSizeLowerBound_, 5);
+    EXPECT_EQ(dynamicBatchSize_->batchSizeLowerBound_, 3);
     schedulerOut_.forwardMode_ = ForwardMode::DECODE;
     dynamicBatchSize_->batchTrackerWindowSize_ = 1;
 
@@ -76,9 +76,9 @@ TEST_F(DynamicBatchSizeTest, ApplyDynamicBatchSize)
 
     dynamicBatchSize_->ApplyDynamicBatchSize(Role::PnD, schedulerOut_, waitingSize, runningSize, swappedSize);
     EXPECT_EQ(dynamicBatchSize_->stage_, 0); // 进入了BinarySearchBatchSize
-    EXPECT_EQ(schedulerConfig_->maxBatchSize, 52);
-    EXPECT_EQ(schedulerConfig_->maxPrefillBatchSize, 50);
-    EXPECT_EQ(dynamicBatchSize_->batchSizeLower_, 5);
+    EXPECT_EQ(schedulerConfig_->maxBatchSize, 98);
+    EXPECT_EQ(schedulerConfig_->maxPrefillBatchSize, 96);
+    EXPECT_EQ(dynamicBatchSize_->batchSizeLower_, 3);
     EXPECT_EQ(dynamicBatchSize_->batchSizeUpper_, 100);
 }
 

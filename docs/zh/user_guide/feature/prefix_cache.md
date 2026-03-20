@@ -72,7 +72,7 @@ Prefix Cache通过哈希表保留session结束后的KV Cache，新的session请�
     {
        "maxSeqLen" : 2560,
        "maxInputTokenLen" : 2048,
-       "truncation" : false,
+       "truncation" : 0,
        "ModelConfig" : [
          {
              "plugin_params": "{\"plugin_type\":\"prefix_cache\"}",

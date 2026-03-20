@@ -99,7 +99,7 @@ TEST_F(ModelDeployConfigManagerTest, TestCheckParamWithWrongParam)
                 {"ModelDeployConfig", {
                     {"maxSeqLen", 0},
                     {"maxInputTokenLen", 4194305},
-                    {"truncation", true},
+                    {"truncation", -1},
                     {"ModelConfig", OrderedJson::array({
                         {
                             {"modelInstanceType", "StandardMock"},

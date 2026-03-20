@@ -9,6 +9,7 @@
 # See the Mulan PSL v2 for more details.
 
 
+from enum import Enum
 import json
 
 from ..models import get_router_ins
@@ -19,6 +20,12 @@ from ...utils.log.logging import logger
 REASON_CONTENT_KEY = "reasoning_content"
 CONTENT_KEY = "content"
 METADATA_KEY = "metadata"
+
+
+class TruncationSide(int, Enum):
+    DISABLE = 0
+    LEFT = 1
+    RIGHT = -1
 
 
 class TokenizerWrapper:
@@ -63,6 +70,12 @@ class TokenizerWrapper:
         if is_chatting:
             token_ids = self.input_builder.make_context(0, inputs, **kwargs)
         else:
+            truncation_method = kwargs.pop("truncation", TruncationSide.RIGHT)
+            kwargs["truncation"] = True
+            if truncation_method == TruncationSide.RIGHT:
+                self.tokenizer.truncation_side = "right"
+            else:
+                self.tokenizer.truncation_side = "left"
             token_ids = self.tokenizer(inputs, **kwargs)["input_ids"][0].tolist()
         return token_ids
 
@@ -140,7 +153,7 @@ class TokenizerWrapper:
 
             # Case 1: call get_combined_stream_result
             if use_reasoning_parser and use_tool_calls and is_chat_req:
-                return self.get_combined_stream_result(all_token_ids, prev_decode_index, curr_decode_index,
+                return self._get_combined_stream_result(all_token_ids, prev_decode_index, curr_decode_index,
                                                        skip_special_tokens, delta_text, metadata)
                                                        
             # Case 2: call streaming method of the reasoning parser

@@ -134,4 +134,18 @@ std::unordered_map<std::string, std::string>ParseArgs(const std::string& str)
     }
     return result;
 }
+
+void SplitTokensToVec(const std::string& text, char delimiter, std::vector<long>& tokens)
+{
+    std::stringstream ss(text);
+    std::string token;
+    try {
+        while (std::getline(ss, token, delimiter)) {
+            tokens.push_back(std::stol(token));
+        }
+    } catch (const std::exception &e) {
+        throw std::invalid_argument("Invalid Token Id: " + token);
+    }
+}
+
 } // namespace mindie_llm

@@ -53,7 +53,7 @@ MTP与以下特性可支持在部分场景叠加
     {
        "maxSeqLen" : 2560,
        "maxInputTokenLen" : 2048,
-       "truncation" : false,
+       "truncation" : 0,
        "ModelConfig" : [
          {
              "plugin_params": "{\"plugin_type\":\"mtp\",\"num_speculative_tokens\": 1}",

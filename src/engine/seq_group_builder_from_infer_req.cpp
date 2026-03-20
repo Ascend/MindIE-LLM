@@ -127,9 +127,14 @@ void SeqGroupBuilderFromInferReq::InitSeqGrpFromInferRequest(RequestSPtr request
     seqGroup->pInstanceId = request->pInstanceId.has_value() ? request->pInstanceId.value() : 0;
     seqGroup->dpInstanceId_ = request->dpInstanceIds.empty() ? 0 : request->dpInstanceIds[0];
     seqGroup->pBlockTable = request->srcBlockTable;
+    seqGroup->isThinking_ = request->isThinking;
     seqGroup->skipSpecialTokens_ = request->skipSpecialTokens;
     seqGroup->ignoreEos_ = request->ignoreEos;
     seqGroup->loraId_ = request->loraId;
+    seqGroup->enableThinking_ = request->enableThinking.has_value() ? request->enableThinking.value() : false;
+    seqGroup->thinkingBudget_ = request->thinkingBudget.has_value() ? request->thinkingBudget.value() : 0;
+    seqGroup->topLogProbs_ = request->topLogprobs.has_value() ? request->topLogprobs.value() : 0;
+    request->isThinking = false;
     // lora需要将lora_id的hash 告诉block manager
     std::hash<std::string> hasher;
     if (seqGroup->loraId_.has_value()) {

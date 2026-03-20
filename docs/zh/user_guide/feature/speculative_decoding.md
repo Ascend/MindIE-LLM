@@ -91,7 +91,7 @@
     {
         "maxSeqLen" : 2560,
         "maxInputTokenLen" : 2048,
-        "truncation" : false,
+        "truncation" : 0,
         "speculationGamma": 16,
         "ModelConfig" : [
             {
@@ -116,7 +116,7 @@
     {
         "maxSeqLen" : 2560,
         "maxInputTokenLen" : 2048,
-        "truncation" : false,
+        "truncation" : 0,
         "speculationGamma": 30,
         "ModelConfig" : [
             {

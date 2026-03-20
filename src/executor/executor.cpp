@@ -458,8 +458,35 @@ bool Executor::ExecutorInstanceFinalize()
     return true;
 }
 
-bool Executor::HandleInitResult(std::vector<ExecuteResponse> &responses) const
+bool Executor::HandleThinkingConfig(std::vector<ExecuteResponse> &responses)
 {
+    if (responses.size() == 0) {
+        return true;
+    }
+    const auto &initResults = responses[0].init_results().init_result_map();
+    if (initResults.count("earlyStoppingIds") == 0 || initResults.count("startThinkingId") == 0 ||
+            initResults.count("stopThinkingId") == 0) {
+        return true;
+    }
+    try {
+        thinkingConfig_.startThinkingId = std::stol(initResults.at("startThinkingId"));
+        thinkingConfig_.stopThinkingId = std::stol(initResults.at("stopThinkingId"));
+        SplitTokensToVec(initResults.at("earlyStoppingIds"), ',', thinkingConfig_.earlyStoppingIds);
+    } catch (const std::exception &e) {
+        MINDIE_LLM_LOG_ERROR("Invalid init result format for startThinkingId: "
+                                << initResults.at("startThinkingId") << ", stopThinkingId: "
+                                << initResults.at("stopThinkingId") << ", earlyStoppingIds: "
+                                << initResults.at("earlyStoppingIds"));
+        return false;
+    }
+    return true;
+}
+
+bool Executor::HandleInitResult(std::vector<ExecuteResponse> &responses)
+{
+    if (!HandleThinkingConfig(responses)) {
+        return false;
+    }
     for (size_t i = 0; i < responses.size(); ++i) {
         const auto &initResults = responses[i].init_results().init_result_map();
         if (modelLaunchConfig_.layerwiseDisaggregated) {
@@ -653,6 +680,11 @@ uint32_t Executor::GetLwdCloudNpuBlockNum() const
         return 0;
     }
     return IExecutor::kvCacheOverview_.lwdCloudNpuBlockNum;
+}
+
+ThinkingConfig Executor::GetThinkingConfig() const
+{
+    return thinkingConfig_;
 }
 
 uint32_t Executor::GetMaxPositionEmbeddings() const

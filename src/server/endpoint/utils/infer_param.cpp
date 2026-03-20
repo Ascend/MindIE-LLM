@@ -499,6 +499,46 @@ bool AssignMaxTokens(const OrderedJson &jsonObj, InferParamSPtr param, std::stri
     return true;
 }
 
+bool AssignThinkingConfig(const OrderedJson &jsonObj, RequestSPtr tmpReq, std::string &error)
+{
+    const std::string chatKwargsKey = "chat_template_kwargs";
+    const std::string enableThinkingKey = "enable_thinking";
+    const std::string thinkingBudgetKey = "thinking_budget";
+    if (!jsonObj.contains(chatKwargsKey) || jsonObj[chatKwargsKey].is_null()) {
+        return true;
+    }
+
+    const auto &kwargs = jsonObj[chatKwargsKey];
+    if (!kwargs.is_object()) {
+        error = chatKwargsKey + "must be a JSON object";
+        return false;
+    }
+    auto checkFirst = JsonParse::CheckOptionalItemType(kwargs, enableThinkingKey, OrderedJson::value_t::boolean, error);
+    if (!checkFirst.isCorrectType) {
+        return false;
+    }
+    if (checkFirst.isPresent) {
+        tmpReq->enableThinking = kwargs[enableThinkingKey];
+    }
+    auto checkNext = JsonParse::CheckOptionalItemType(kwargs, thinkingBudgetKey,
+                                                      OrderedJson::value_t::number_integer, error);
+    if (!checkNext.isCorrectType) {
+        return false;
+    }
+    if (checkNext.isPresent) {
+        int64_t value = kwargs[thinkingBudgetKey];
+        if (value <= 0 || value > MAX_INT32_VALUE) {
+            error = "Parameter thinking_budget must be in [1," + std::to_string(MAX_INT32_VALUE) + "], got " +
+                    kwargs[thinkingBudgetKey].dump();
+            return false;
+        }
+        if (checkFirst.isPresent && kwargs[enableThinkingKey]) {
+            tmpReq->thinkingBudget = value;
+        }
+    }
+    return true;
+}
+
 bool AssignTopK(const OrderedJson &jsonObj, RequestSPtr tmpReq, std::string &error, bool allowLowerBound,
                 bool allowNegativeOne) noexcept
 {

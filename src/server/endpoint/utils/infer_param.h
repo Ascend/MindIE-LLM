@@ -161,6 +161,7 @@ bool AssignIncludeStopStrInOutput(const OrderedJson &jsonObj, RequestSPtr tmpReq
 bool AssignTemperature(const OrderedJson &jsonObj, RequestSPtr tmpReq, std::string &error, bool allowLowerBound = false,
                        double maxValue = MAX_TEMPERATURE) noexcept;
 bool AssignMaxTokens(const OrderedJson &jsonObj, InferParamSPtr param, std::string &error);
+bool AssignThinkingConfig(const OrderedJson &jsonObj, RequestSPtr tmpReq, std::string &error);
 bool AssignTopK(const OrderedJson &jsonObj, RequestSPtr tmpReq, std::string &error, bool allowLowerBound = false,
                 bool allowNegativeOne = false) noexcept;
 bool AssignTopP(const OrderedJson &jsonObj, RequestSPtr tmpReq, std::string &error,

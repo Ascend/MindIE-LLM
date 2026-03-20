@@ -208,12 +208,12 @@ public:
     void SetMaxPositionEmbeddings(uint32_t maxPositionEmbeddings);
     
     void InitModelConfigImpl(const Json &modelJsonData, uint32_t speculationGamma,
-        const uint32_t maxSeqLength, bool truncation);
+        const uint32_t maxSeqLength, int32_t truncation);
     
     void InitLoraConfigImpl(const Json &modelJsonData); // lora 初始化
 
     void InitModelConfig(const Json &modelJsonData, uint32_t speculationGamma, const uint32_t maxSeqLength,
-        const bool truncation);
+        const int32_t truncation);
 
     friend class ParamChecker;
 

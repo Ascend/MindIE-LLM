@@ -162,6 +162,11 @@ private:
     // 是否分布式多DP，且进程资源初始化ok
     bool isDistributedPNodeProcessCCReady_{false};
 
+    // 设置LatencyPredictor
+    void SetupLatencyPredictor(
+        const std::chrono::high_resolution_clock::time_point& batchExecuteStartTime,
+        int dpRankId);
+
     // 调度暂停标志位
     std::atomic<bool> isPauseScheduling_{false};
 

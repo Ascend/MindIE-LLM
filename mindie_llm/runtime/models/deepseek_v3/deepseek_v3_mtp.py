@@ -17,6 +17,7 @@ from mindie_llm.runtime.layers.linear.linear import ReplicatedLinear
 from mindie_llm.runtime.layers.embedding.embedding import VocabParallelEmbedding, ParallelLMHead, maybe_slice_cross_tp
 from mindie_llm.runtime.model_runner.forward_context import get_forward_context
 from mindie_llm.runtime.utils.distributed import get_parallel_info_manager
+from mindie_llm.runtime.utils.weight_prefetcher import weight_prefetcher
 from .deepseek_v3 import DeepseekV3Layer
 
 
@@ -164,6 +165,8 @@ class DeepseekV3MtpModel(nn.Module):
         residual = None
         residual, hidden_states = mtp_layer(hidden_states, residual)
         hidden_states, _ = mtp_layer.shared_head(hidden_states, residual)
+        if not forward_context.is_prefill and weight_prefetcher.is_prefetch_enabled():
+            weight_prefetcher.prefetch_weight_postprocess()
         return hidden_states
 
 
@@ -184,6 +187,7 @@ class DeepseekV3MTP(BaseModelForCausalLM):
         super().__init__(mindie_llm_config)
         self.config = mindie_llm_config.hf_config
         self.quant_config = mindie_llm_config.quant_config
+        weight_prefetcher.enable_weight_prefetch()  # initialize weight prefetcher
         self.model = DeepseekV3MtpModel(
             config=mindie_llm_config.hf_config,
             prefix="model",

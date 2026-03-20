@@ -37,7 +37,7 @@ MoE类模型支持Expert Parallel（EP，专家并行），通过将专家分别
 {
    "maxSeqLen" : 2560,
    "maxInputTokenLen" : 2048,
-   "truncation" : false,
+   "truncation" : 0,
    "ModelConfig" : [
      {
          "modelInstanceType" : "Standard",
@@ -70,7 +70,7 @@ MoE类模型支持Expert Parallel（EP，专家并行），通过将专家分别
 {
    "maxSeqLen" : 66000,
    "maxInputTokenLen" : 65000,
-   "truncation" : false,
+   "truncation" : 0,
    "ModelConfig" : [
      {
          "modelInstanceType" : "Standard",

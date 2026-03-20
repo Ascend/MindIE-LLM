@@ -8,6 +8,7 @@
 # MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
 # See the Mulan PSL v2 for more details.
 from ..base.input_builder import InputBuilder
+from ...models import TruncationSide
 
 
 class Deepseekv2InputBuilder(InputBuilder):
@@ -30,14 +31,32 @@ class Deepseekv2InputBuilder(InputBuilder):
             if single_conversation.get("content", None) is None:
                 single_conversation["content"] = ""
 
-        request_enable_thinking = kwargs.get("chat_template_kwargs", {}).get("enable_thinking", None)
+        request_enable_thinking = kwargs.get(self.chat_template_kwargs, {}).get("enable_thinking", None)
         if request_enable_thinking is not None:
             enable_thinking = request_enable_thinking
         else:
             enable_thinking = self.config_thinking
         if enable_thinking is not None:
             kwargs.update({"thinking": enable_thinking})
+        
+        truncation_method = kwargs.get(self.chat_template_kwargs, {}).get(self.truncation, TruncationSide.RIGHT)
+        max_length = kwargs.get(self.chat_template_kwargs, {}).get("max_length", None)
+
+        if truncation_method == TruncationSide.RIGHT:
+            kwargs[self.truncation] = True
+            kwargs["tokenize"] = True
+            kwargs["max_length"] = max_length
+        if truncation_method == TruncationSide.LEFT:
+            kwargs[self.truncation] = False
+            kwargs["tokenize"] = True
+        kwargs.pop(self.chat_template_kwargs)
 
         if tools_msg:
-            return self.tokenizer.apply_chat_template(conversation, tools=tools_msg.get("tools", None), **kwargs)
-        return self.tokenizer.apply_chat_template(conversation, **kwargs)
+            input_ids = self.tokenizer.apply_chat_template(conversation, tools=tools_msg.get("tools", None), **kwargs)
+            if truncation_method == TruncationSide.LEFT and len(input_ids) > max_length:
+                input_ids = input_ids[-max_length:]
+            return input_ids
+        input_ids = self.tokenizer.apply_chat_template(conversation, **kwargs)
+        if truncation_method == TruncationSide.LEFT and len(input_ids) > max_length:
+            input_ids = input_ids[-max_length:]
+        return input_ids

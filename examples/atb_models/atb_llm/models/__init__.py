@@ -31,6 +31,12 @@ class InferenceMode(int, Enum):
     PREFIXCACHE = 3
 
 
+class TruncationSide(int, Enum):
+    DISABLE = 0
+    LEFT = 1
+    RIGHT = -1
+
+
 def get_model(model_name_or_path: str,
               is_flash_causal_lm: bool = True,
               load_tokenizer: bool = True,

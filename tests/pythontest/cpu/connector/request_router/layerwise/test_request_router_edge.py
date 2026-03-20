@@ -495,11 +495,11 @@ class TestRequestRouterEdge(unittest.TestCase):
     @patch("mindie_llm.connector.common.input_metadata_builder.parse_all_dp_batches_seq_lens")
     def test_calc_curr_dp_seq_len(self, mock_parse):
         self.router.router_impl.generator = Mock()
-        self.router.router_impl.generator.plugin = Mock()
-        self.router.router_impl.generator.plugin.model_wrapper = Mock()
-        self.router.router_impl.generator.plugin.model_wrapper.mapping = Mock()
-        self.router.router_impl.generator.plugin.model_wrapper.mapping.attn_dp = Mock()
-        self.router.router_impl.generator.plugin.model_wrapper.mapping.attn_dp.rank = 0
+        self.router.router_impl.generator.plugin_manager = Mock()
+        self.router.router_impl.generator.plugin_manager.model_wrapper = Mock()
+        self.router.router_impl.generator.plugin_manager.model_wrapper.mapping = Mock()
+        self.router.router_impl.generator.plugin_manager.model_wrapper.mapping.attn_dp = Mock()
+        self.router.router_impl.generator.plugin_manager.model_wrapper.mapping.attn_dp.rank = 0
         
         mock_parse.return_value = [[10, 20], [30, 40]]
         execute_request = Mock()

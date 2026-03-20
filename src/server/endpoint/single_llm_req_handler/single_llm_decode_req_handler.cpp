@@ -153,6 +153,13 @@ void SingleLLMDecodeReqHandler::GetContextSamplingParamsNext(InferParamSPtr inpu
     }
     if (samplingParams.enablethinking().has_value()) {
         inputParam->enableThinking = samplingParams.enablethinking().value();
+        request->enableThinking = samplingParams.enablethinking().value();
+    }
+    if (samplingParams.thinkingbudget().has_value()) {
+        request->thinkingBudget = samplingParams.thinkingbudget().value();
+    }
+    if (samplingParams.isthinking().has_value()) {
+        request->isThinking = samplingParams.isthinking().value();
     }
 }
 

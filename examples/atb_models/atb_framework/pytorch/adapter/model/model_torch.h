@@ -42,6 +42,7 @@ public:
     int64_t UpdateWeightsPtr(std::vector<torch::Tensor> atWeightTensors, const std::vector<int64_t> &oldWeightIds);
     c10::intrusive_ptr<ModelTorch> clone() const { return c10::make_intrusive<ModelTorch>(modelName_);}
     void ClearInternalTensors() const;
+    void ResetExecutionStatus() const;
 
 private:
     void AtTensor2Tensor(std::vector<torch::Tensor> &atTensors, std::vector<atb::Tensor> &opsTensors) const;

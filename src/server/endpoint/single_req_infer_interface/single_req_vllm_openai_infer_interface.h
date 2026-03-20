@@ -57,6 +57,7 @@ protected:
     bool SetReturnSeqCount(RequestSPtr req, std::string &errMsg);
     std::string BuildVllmOpenAIReComputeBody(const std::vector<BestNTokens> &tokens);
     void BuildStopWords(nlohmann::ordered_json& newReqJsonObj);
+    void BuildThinkingConfig(nlohmann::ordered_json& newReqJsonObj);
     bool ParseToolCall(nlohmann::ordered_json &body, std::string &msg);
     bool ValidMessagesArray(OrderedJson &body, OrderedJson &messges, std::string &msg) const;
     void FilterToolChoice(OrderedJson &filterTools);

@@ -103,6 +103,11 @@ public:
     {
         return true;
     }
+    ThinkingConfig GetThinkingConfig() const override
+    {
+        ThinkingConfig conf;
+        return conf;
+    }
     bool AsyncExecuteModel(ExecuteModelRequestPtr &modelExecRequest,
                            std::function<void(ModelBatchResultSPtr)> callback = nullptr) override
     {

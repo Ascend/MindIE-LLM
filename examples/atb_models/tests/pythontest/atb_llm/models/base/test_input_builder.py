@@ -237,25 +237,51 @@ class TestInputBuilder(unittest.TestCase):
         """Test _apply_chat_template when tokenizer lacks apply_chat_template."""
         tokenizer = FakeTokenizer()
         builder = InputBuilder(tokenizer)
-        
         conversation = [{"role": "user", "content": "Hello"}]
         
         with self.assertRaises(RuntimeError) as cm:
             builder._apply_chat_template(conversation)
         
         self.assertIn("transformers version is detected to be <4.34", str(cm.exception))
-    
         """Test _apply_chat_template when tokenizer has no chat_template."""
         tokenizer = FakeTokenizerWithChatTemplate()
         tokenizer.chat_template = ""
         builder = InputBuilder(tokenizer)
         
-        conversation = [{"role": "user", "content": "Hello"}]
-        
         with self.assertRaises(RuntimeError) as cm:
             builder._apply_chat_template(conversation)
         
         self.assertIn("it is not configured with a `chat_template`", str(cm.exception))
+
+        kwargs = {"truncation": 0}
+        with self.assertRaises(RuntimeError) as cm:
+            builder._apply_chat_template(conversation,** kwargs)
+        
+        self.assertIn("it is not configured with a `chat_template`", str(cm.exception))
+
+        """Test _apply_chat_template with TruncationSide.RIGHT (default)"""
+        tokenizer = FakeTokenizerWithChatTemplate(chat_template="<test_template>")
+        builder = InputBuilder(tokenizer)
+        conversation = [{"role": "user", "content": "test right truncation"}]
+        kwargs = {"add_generation_prompt": False}
+        
+        input_ids = builder._apply_chat_template(conversation, **kwargs)
+        
+        expected_ids = tokenizer.encode("<test_template>test right truncation")
+        self.assertEqual(input_ids, expected_ids)
+
+        """Test _apply_chat_template with TruncationSide.LEFT + exceed max_length"""
+        long_content = "a" * 10
+        conversation = [{"role": "user", "content": long_content}]
+        max_length = 5
+        kwargs = {
+            "truncation": 1,
+            "max_length": max_length,
+            "add_generation_prompt": False
+        }
+        
+        input_ids = builder._apply_chat_template(conversation, **kwargs)
+        tokenizer.encode("<test_template>" + long_content)
     
 
 if __name__ == '__main__':

@@ -114,11 +114,21 @@ class RequestRouterCloud(RequestRouterLwd):
         )
     
     def prepare_prefill_chunk_policy(self, prefill_seq_len, prefill_chunk_num):
-        average_prefill_chunk_seq_len = int(prefill_seq_len / prefill_chunk_num)
-        mod = prefill_seq_len % prefill_chunk_num
-        self.prefill_chunk_policy = ([average_prefill_chunk_seq_len] * prefill_chunk_num if mod == 0 else 
-            [average_prefill_chunk_seq_len + 1] * mod + [average_prefill_chunk_seq_len] * (prefill_chunk_num - mod)
-        )
+        if self.cp_size > 1:
+            align_size = 8 * self.router_impl.block_size        # 云侧8卡
+            average_prefill_chunk_seq_len = int(prefill_seq_len / prefill_chunk_num) // align_size * align_size
+            mod = prefill_seq_len - prefill_chunk_num * average_prefill_chunk_seq_len
+            self.prefill_chunk_policy = ([average_prefill_chunk_seq_len] * prefill_chunk_num 
+                if mod == 0 else [average_prefill_chunk_seq_len] * (prefill_chunk_num - 1) +
+                [average_prefill_chunk_seq_len + mod]
+            )
+        else:
+            average_prefill_chunk_seq_len = int(prefill_seq_len / prefill_chunk_num)
+            mod = prefill_seq_len % prefill_chunk_num
+            self.prefill_chunk_policy = ([average_prefill_chunk_seq_len] * prefill_chunk_num
+                if mod == 0 else [average_prefill_chunk_seq_len + 1] * mod +
+                [average_prefill_chunk_seq_len] * (prefill_chunk_num - mod)
+            )
 
     def get_prefill_gap_time_list(self, prefill_request):
         gap_time_list = []

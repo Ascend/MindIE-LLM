@@ -118,6 +118,28 @@ def check_model_config(model_config):
         raise ValueError(message)
 
 
+def is_uce_error_addr_overlap_tensor_addr(uce_addr_start, uce_addr_end, tensor_addr_start, tensor_addr_end):
+    return (uce_addr_start >= tensor_addr_start) and (uce_addr_end <= tensor_addr_end)
+
+
+def get_tensor_address_range(input_tensor):
+    addr_start = input_tensor.data_ptr()
+    addr_end = addr_start + input_tensor.numel() * input_tensor.element_size()
+    return addr_start, addr_end
+
+
+def check_and_recover_uce_in_cache(uce_addr_start, uce_addr_end, cache_tensor, layer_idx, cache_type):
+    cache_addr_start, cache_addr_end = get_tensor_address_range(cache_tensor)
+    if is_uce_error_addr_overlap_tensor_addr(uce_addr_start, uce_addr_end, cache_addr_start, cache_addr_end):
+        torch_npu.npu._recovery.update_npu_tensor_to_safe(cache_tensor)
+        logger.info(f"HBM UCE address in {cache_type} of layer {layer_idx}, update {cache_type} to safe")
+        return True
+    else:
+        logger.info(
+            f"HBM UCE address not in {cache_type} address ({cache_addr_start}, {cache_addr_end}) of layer {layer_idx}"
+        )
+        return False
+
 STABLE_SORT_TYPE = "stable"
 
 
@@ -265,8 +287,10 @@ class GeneratorTorch(GeneratorBackend):
         try:
             if (command == "CMD_PAUSE_ENGINE"):
                 command_result = torch_npu.npu.stop_device(self.npu_device_id)
+                command_result, error_msg = self._handle_uce_error()
             elif (command == "CMD_REINIT_NPU"):
                 torch_npu.npu.restart_device(self.npu_device_id)
+                self.model_wrapper.model_runner.reset_execution_status()
                 command_result = 0
         except Exception as e:
             error_msg = f"Execute recover command {command} failed, exception msg: {e}"
@@ -1090,3 +1114,36 @@ class GeneratorTorch(GeneratorBackend):
                         f"and use it properly. Exception msg: {e}"
             logger.error(error_msg, ErrorCode.TEXT_GENERATOR_INTERNAL_ERROR)
             raise RuntimeError(error_msg) from e
+    
+    def _handle_uce_error(self):
+        command_result = 0
+        error_msg = ""
+        res = torch.npu.check_uce_in_memory(self.npu_device_id)
+        if res == 2 or res == 3:
+            logger.info(f"Encountered HBM UCE error, check_uce_in_memory result: {res}")
+            if not self._check_and_recover_uce_in_kvcache():
+                logger.warning(f"HBM UCE address not in any kvcache, should trigger reschedule")
+                command_result = 1
+                error_msg = "HBM uce address not overlap kvcache address, should trigger reschedule"
+        return command_result, error_msg
+
+    def _check_and_recover_uce_in_kvcache(self):
+        uce_addr_list = torch_npu.npu._get_uce_addr()
+        logger.info(f"UCE address list: {uce_addr_list}")
+        if len(uce_addr_list) == 0:
+            return False
+        for addr_entry in uce_addr_list:
+            uce_addr = addr_entry["ptr"]
+            addr_size = addr_entry["size"]
+            uce_addr_start = uce_addr
+            uce_addr_end = uce_addr_start + addr_size
+            
+            for n in range(self.cache_pool.kvcache_settings.num_layers):
+                k_cache = self.cache_pool.npu_cache[n][0]
+                if check_and_recover_uce_in_cache(uce_addr_start, uce_addr_end, k_cache, n, "kcache"):
+                    return True
+                
+                v_cache = self.cache_pool.npu_cache[n][1]
+                if check_and_recover_uce_in_cache(uce_addr_start, uce_addr_end, v_cache, n, "vcache"):
+                    return True
+        return False

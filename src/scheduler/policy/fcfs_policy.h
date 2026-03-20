@@ -98,6 +98,8 @@ protected:
     void ScheduleRunningSeqGroup(const SequenceGroupSPtr &seqGroup, size_t numUncachedNewTokens,
                                  bool enableChunking, RunningOutputs &runningOutput, SchedulingBudget &budget);
 
+    void UpdateStatusForRecompute(const SequenceGroupSPtr &seqGroup);
+
 protected:
     int numCumulativePreemption_{};
 

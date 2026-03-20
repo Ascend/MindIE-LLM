@@ -10,10 +10,17 @@
 
 from copy import deepcopy
 from typing import Dict, Iterable, List, Any, Optional, Union
+from enum import Enum
 
 import numpy as np
 
 from mindie_llm.utils.log.logging import logger, print_log
+
+
+class TruncationSide(int, Enum):
+    DISABLE = 0
+    LEFT = 1
+    RIGHT = -1
 
 
 class InputBuilder:
@@ -42,6 +49,7 @@ class InputBuilder:
         self.user_role_name = user_role_name
         self.tool_calls_name = "tools_call"
         self.role_key = "role"
+        self.truncation = "truncation"
         if chat_template:
             self.tokenizer.chat_template = chat_template
             logger.debug("Set new chat template")
@@ -208,7 +216,21 @@ class InputBuilder:
         if not self.tokenizer.chat_template:
             raise RuntimeError("The model does not appear to be a chat model because it is not configured with a "
                                "`chat_template`.")
+        truncation_method = kwargs.pop(self.truncation, TruncationSide.RIGHT)
+        """
+        When truncation_method is set to -1, the truncation is performed on the right.
+        When truncation_method is set to 1, the truncation is performed on the left.
+        """
+        if truncation_method == TruncationSide.RIGHT:
+            kwargs[self.truncation] = True
+            kwargs["tokenize"] = True
+        if truncation_method == TruncationSide.LEFT:
+            kwargs[self.truncation] = False
+            kwargs["tokenize"] = True
+            max_length = kwargs.pop("max_length", None)
         input_ids = self.tokenizer.apply_chat_template(conversation, **kwargs)
+        if(truncation_method == TruncationSide.LEFT and len(input_ids) > max_length):
+            input_ids = input_ids[-max_length:]
         return input_ids
 
     def _make_multi_turns_context(

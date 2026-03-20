@@ -771,4 +771,10 @@ std::string Model::GetModelTopoInfo()
     }
     return modelJson.dump();
 }
+
+void Model::ResetExecutionStatus()
+{
+    g_executeStatus = atb::NO_ERROR;
+    g_preExecuteStatus = atb::NO_ERROR;
+}
 } // namespace atb_speed

@@ -9,6 +9,7 @@
 # See the Mulan PSL v2 for more details.
 import os
 import json
+from enum import Enum
 from typing import Dict
 import numpy as np
 
@@ -19,6 +20,12 @@ from ..utils.log.logging import logger
 REASON_CONTENT_KEY = "reasoning_content"
 CONTENT_KEY = "content"
 METADATA_KEY = "metadata"
+
+
+class TruncationSide(int, Enum):
+    Disable = 0
+    LEFT = 1
+    RIGHT = -1
 
 
 class TokenizerWrapper:
@@ -82,6 +89,12 @@ class TokenizerWrapper:
         if is_chatting:
             token_ids = self.input_builder.make_context(0, inputs, **kwargs)
         else:
+            truncation_method = kwargs.pop("truncation", TruncationSide.RIGHT)
+            kwargs["truncation"] = True
+            if truncation_method == TruncationSide.RIGHT:
+                self.tokenizer.truncation_side = "right"
+            else:
+                self.tokenizer.truncation_side = "left"
             token_ids = self.tokenizer(inputs, **kwargs)["input_ids"][0].tolist()
         if self.enable_data_obfuscation:
             if len(token_ids) > 0 and isinstance(token_ids[0], list):

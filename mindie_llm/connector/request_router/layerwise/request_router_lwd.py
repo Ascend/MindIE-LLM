@@ -124,6 +124,7 @@ class RequestRouterLwd(RequestRouter):
         if edge_cloud_comm.communication_config_verify(config):
             initialize_result = self.initialize_impl(config)
             self.cp_size = config.cp_size
+            self.sp_size = config.sp_size
             edge_cloud_comm.initialize(config, initialize_result, self.router_impl.generator)
             proto = ExecuteResponseBuilder.build_from_init_result(initialize_result)
             send_model_execute_response(proto)
@@ -354,7 +355,7 @@ class RequestRouterLwd(RequestRouter):
         return len(execute_request.execute_model_request.seq_group_metadata_list)
 
     def calc_curr_dp_seq_len(self, execute_request: ExecuteRequest):
-        curr_dp_rank = self.router_impl.generator.plugin.model_wrapper.mapping.attn_dp.rank
+        curr_dp_rank = self.router_impl.generator.plugin_manager.model_wrapper.mapping.attn_dp.rank
         all_batch_dp_rank_ids = []
         for seq_group_metadata in execute_request.execute_model_request.seq_group_metadata_list:
             all_batch_dp_rank_ids.append(seq_group_metadata.dp_rank_id)
@@ -369,7 +370,7 @@ class RequestRouterLwd(RequestRouter):
             return self.sum_nested(seq_lens)
 
     def calc_curr_dp_batch_size(self, execute_request: ExecuteRequest):
-        curr_dp_rank = self.router_impl.generator.plugin.model_wrapper.mapping.attn_dp.rank
+        curr_dp_rank = self.router_impl.generator.plugin_manager.model_wrapper.mapping.attn_dp.rank
         all_batch_dp_rank_ids = []
         for seq_group_metadata in execute_request.execute_model_request.seq_group_metadata_list:
             all_batch_dp_rank_ids.append(seq_group_metadata.dp_rank_id)

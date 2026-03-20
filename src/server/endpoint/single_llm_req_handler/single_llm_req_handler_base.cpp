@@ -147,7 +147,7 @@ bool SingleLLMReqHandlerBase::ParseOutLogprobFromResponse(const ResponseSPtr &re
                                                           std::vector<BestNTokens> &postToken) const
 {
     for (size_t i = 0; i < response->responseContents.size(); i++) {
-        postToken.at(i).logprob = response->responseContents[i].outLogProbs.at(0);
+        postToken.at(i).logprob = response->responseContents[i].outLogProbs;
     }
     return true;
 }
@@ -160,19 +160,23 @@ bool SingleLLMReqHandlerBase::ParseTopLogProbsFromResponse(const ResponseSPtr &r
         const ResponseContent &content = response->responseContents[i];
 
         // Sanity check for consistent vector sizes
-        if (content.topLogProbTokenIds.size() != topLogprobs) {
-            std::stringstream ss;
-            ss << "content.topLogProbTokenIds.size()=" << content.topLogProbTokenIds.size()
-               << " does not match topLogprobs = "
-               << topLogprobs;
-            throw std::logic_error(ss.str());
+        if (content.topLogProbTokenIds.size() != topLogprobs * content.speculativeTokenNum) {
+            std::string err = std::string("content.topLogProbTokenIds.size() = ") +
+                              std::to_string(content.topLogProbTokenIds.size()) +
+                              std::string(" does not match topLogprobs * content.speculativeTokenNum = ") +
+                              std::to_string(topLogprobs * content.speculativeTokenNum);
+            ULOG_ERROR(SUBMODLE_NAME_ENDPOINT, GenerateEndpointErrCode(ERROR, SUBMODLE_FEATURE_SINGLE_INFERENCE,
+                    ABNORMAL_TRANSMISSION_ERROR), err);
+            return false;
         }
-        if (content.topLogProbs.size() != topLogprobs) {
-            std::stringstream ss;
-            ss << "content.topLogProbs.size()=" << content.topLogProbs.size()
-               << " does not match topLogprobs = "
-               << topLogprobs;
-            throw std::logic_error(ss.str());
+        if (content.topLogProbs.size() != topLogprobs * content.speculativeTokenNum) {
+            std::string err = std::string("content.topLogProbs.size() = ") +
+                              std::to_string(content.topLogProbs.size()) +
+                              std::string(" does not match topLogprobs * content.speculativeTokenNum = ") +
+                              std::to_string(topLogprobs * content.speculativeTokenNum);
+            ULOG_ERROR(SUBMODLE_NAME_ENDPOINT, GenerateEndpointErrCode(ERROR, SUBMODLE_FEATURE_SINGLE_INFERENCE,
+                    ABNORMAL_TRANSMISSION_ERROR), err);
+            return false;
         }
 
         postToken[i].logprobsTokens = content.topLogProbTokenIds;
@@ -373,6 +377,8 @@ void SingleLLMReqHandlerBase::DumpInferParam(const RequestSPtr request)
     setParam("temperature", request->temperature);
     setParam("top_k", request->topK);
     setParam("top_p", request->topP);
+    setParam("enable_thinking", request->enableThinking);
+    setParam("thinking_budget", request->thinkingBudget);
     setParam("typical_p", request->typicalP);
     setParam("do_sample", request->doSample);
     setParam("seed", request->seed);

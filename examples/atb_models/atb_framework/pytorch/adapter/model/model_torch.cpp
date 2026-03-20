@@ -322,6 +322,7 @@ void ModelTorch::ClearInternalTensors() const
     model_->ClearInternalTensors();
 }
 
+void ModelTorch::ResetExecutionStatus() const { model_->ResetExecutionStatus(); }
 
 TORCH_LIBRARY(ModelTorch, m)
 {
@@ -335,7 +336,8 @@ TORCH_LIBRARY(ModelTorch, m)
         .def("execute", &ModelTorch::Execute)
         .def("execute_out", &ModelTorch::ExecuteOut)
         .def("update_weights_ptr", &ModelTorch::UpdateWeightsPtr)
-        .def("clear_internal_tensors", &ModelTorch::ClearInternalTensors);
+        .def("clear_internal_tensors", &ModelTorch::ClearInternalTensors)
+        .def("reset_execution_status", &ModelTorch::ResetExecutionStatus);
 
     m.class_<Context>("Context")
         .def_static("enable_cache_workspace", &Context::EnableCacheWorkspace)
