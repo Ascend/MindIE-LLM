@@ -424,7 +424,7 @@ class StructuredOutputManager:
         """
         grammar = self._request_grammars.get(request_id)
         if grammar is None:
-            logger.warning(
+            logger.debug(
                 f"[StructuredOutput] "
                 f"should_advance(request_id={request_id}) → False (grammar is None). "
                 f"Current grammars in manager: {list(self._request_grammars.keys())}"
