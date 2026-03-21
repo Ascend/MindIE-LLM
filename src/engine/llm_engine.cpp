@@ -131,10 +131,6 @@ bool LlmEngine::AddRequest(RequestSPtr request)
         EnginePerDPSPtr &engine = enginePerDPs_.at(rankId);
         engine->scheduler->AddSeqGroup(seqGroup);
         engine->addedRequestNum++;
-        MINDIE_LLM_LOG_INFO_REQUEST("[LlmEngine|Request-Enter Waiting] DP RankId: "
-                            << (dpRankId_ > 0 ? dpRankId_ : rankId) << ", Add request(requestId: " << request->requestId
-                            << ", seqId: " << seqGroup->firstSeq->seqId_ << ") successfully."
-                            << " Total added request num is:" << engine->addedRequestNum);
     }
     return true;
 }
@@ -195,9 +191,6 @@ void LlmEngine::ReleaseKvCache(std::unordered_set<RequestId> &requestIds)
 
         SequenceId seqId = seqGroup->firstSeq->seqId_;
         enginePerDPs_[localDPRank]->scheduler->NotifyMeKvPulledSeqIds(seqId);
-        MINDIE_LLM_LOG_INFO_REQUEST("[LlmEngine] DP RankId: " << (dpRankId_ > 0 ? dpRankId_ : localDPRank)
-                                                      << ". Send Release KV response(requestId: " << reqId
-                                                      << ") successfully.");
     }
 }
 

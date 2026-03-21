@@ -122,17 +122,12 @@ void HttpServerInitCallback(HttpsServerHelper &server)
 {
     server.set_pre_routing_handler([&server](const httplib::Request &req, httplib::Response &res) {
         std::string requestUser = req.remote_addr + ":" + std::to_string(req.remote_port);
-        std::string requestResource = "Request mindie server, method=" + req.method + ", uri is " + req.path;
         std::string requestId = GenerateHTTPRequestUUID();
         res.set_header("RequestUUID", requestId);
 
         // 可观测插桩
         auto startTime = GetCurrentTimeInNanoseconds();
         res.set_header("startTime", std::to_string(startTime));
-
-        ULOG_AUDIT(requestUser, MINDIE_SERVER, requestResource, "success");
-        ULOG_INFO(SUBMODLE_NAME_ENDPOINT, "Receive request from " << req.remote_addr << ":" << req.remote_port
-            << " ,method=" << req.method << ", uri is " << req.path);
         return httplib::Server::HandlerResponse::Unhandled;
     });
     server.set_post_routing_handler([&server](const httplib::Request &req, httplib::Response &res) {
@@ -145,11 +140,7 @@ void HttpServerInitCallback(HttpsServerHelper &server)
             server.RemoveMonitorRequest(reqId);
         }
         std::string requestUser = req.local_addr + ":" + std::to_string(req.local_port);
-        std::string requestResource = "Response mindie server, method=" + req.method + ", uri is " + req.path;
         std::string statusCode = "status code: " + std::to_string(res.status);
-        ULOG_AUDIT(requestUser, MINDIE_SERVER, requestResource, statusCode);
-        ULOG_INFO(SUBMODLE_NAME_ENDPOINT, "Http receive response from " << req.local_addr << ":" << req.local_port <<
-            ", status code is " << res.status << ", body len " << res.body.length());
         std::string path = req.path;
         std::string value = "/stopService";
         if (path == value && res.status == httplib::StatusCode::OK_200) {

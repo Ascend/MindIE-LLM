@@ -182,7 +182,6 @@ int Log::Initialize(LoggerType loggerType)
         }
         innerLogger_->set_level(static_cast<spdlog::level::level_enum>(logConfig_->logLevel_));
         innerLogger_->set_pattern("%Y-%m-%d %H:%M:%S.%f %t %v");
-        innerLogger_->info(GetLoggerFormat(loggerType));
         innerLogger_->set_pattern(GetLogPattern(loggerType));
         innerLogger_->flush_on(spdlog::level::err);
     } catch (const spdlog::spdlog_ex &e) {
@@ -211,13 +210,6 @@ std::string Log::GetLogPattern(LoggerType loggerType)
         }
     }
     return pattern;
-}
-
-std::string Log::GetLoggerFormat(LoggerType loggerType)
-{
-    return spdlog::fmt_lib::format("LLM log default format: [yyyy-mm-dd hh:mm:ss.uuuuuu][processid] [threadid] [{}] "
-                                   "[loglevel] [file:line] [status code] msg",
-                                   LogUtils::GetModuleName(loggerType));
 }
 
 void Log::Flush()

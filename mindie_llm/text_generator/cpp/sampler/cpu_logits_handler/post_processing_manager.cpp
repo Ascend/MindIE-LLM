@@ -264,7 +264,6 @@ void PostProcessingManager::SetBatchConfigs(py::array_t<int> requestIds, py::arr
     py::array_t<bool> sample, py::array_t<int> numLogprobs, py::array_t<unsigned long long> seed,
     std::string sampleMethod)
 {
-    MINDIE_LLM_LOG_INFO("sampling method is " << sampleMethod);
     auto size = requestIds.size();
     if ((size != topK.size()) || (size != topP.size()) || (size != sample.size()) || (size != seed.size())) {
         throw std::invalid_argument("The size of params requestIds, topK, topP, sample and seed not equal.");

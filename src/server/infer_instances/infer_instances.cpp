@@ -653,7 +653,6 @@ Status InferInstance::HandleLora(
     std::vector<LoraParamSPtr>& loraInfo
 )
 {
-    ULOG_INFO(SUBMODLE_NAME_INFERINSTANCE, "Start HandleLora");
     if (llmManagers_[0] == nullptr) {
         ULOG_ERROR(SUBMODLE_NAME_INFERINSTANCE, "[MIE05E040001]", "llmManager is nullptr");
         return Status(Error::Code::ERROR, "llmManager is nullptr");

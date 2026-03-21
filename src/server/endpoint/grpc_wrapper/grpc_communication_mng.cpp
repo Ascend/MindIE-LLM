@@ -498,9 +498,6 @@ namespace mindie_llm {
                     CHECK_ERROR), (errMsg = "Decode node addr is invalid"));
                 return false;
             }
-
-            ULOG_INFO(SUBMODLE_NAME_ENDPOINT, "[GrpcCommunicationMng] Begin to send decode request requestId: "
-                                                  << reqId << " to D node " << decodeNodeAddr);
             std::shared_ptr<DecodeRequestSender> currSender;
             {
                 std::lock_guard <std::mutex> lock(this->decodeReqSenderMutex_);
@@ -576,9 +573,6 @@ namespace mindie_llm {
                     ABNORMAL_TRANSMISSION_ERROR), "Failed to send kv release");
                 return false;
             }
-            ULOG_INFO(SUBMODLE_NAME_ENDPOINT,
-                      "[GrpcCommunicationMng::SendKvReleaseMsg] Finish sending kv release request requestId: "
-                          << requestId.reqid() << " to node " << prefillNodeAddr);
             return true;
         }
 

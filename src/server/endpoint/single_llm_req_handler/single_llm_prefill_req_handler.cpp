@@ -171,7 +171,6 @@ bool SingleLLMPrefillReqHandler::GenerateFirstToken(ResponseSPtr response, bool 
         constructOneResponseCallBack_ = nullptr;
         return false;
     }
-    ULOG_INFO(SUBMODLE_NAME_ENDPOINT, "[P Node] Finish decode first token. requestId: " << reqId_);
     constructOneResponseCallBack_ = nullptr;
     return true;
 }
@@ -270,9 +269,6 @@ void SingleLLMPrefillReqHandler::SetBackManagerCallBack(RequestSPtr request)
             /* note: send to D and coordinator.
             */
             auto isReqStopped = self->stopReqSet_.find(self->reqId_) != self->stopReqSet_.end() ? true : false;
-            ULOG_INFO(SUBMODLE_NAME_ENDPOINT, "P requestId: " << self->reqId_
-                                                              << " is ready for kv-cache publish, stop flag is "
-                                                              << isReqStopped);
             PROF(INFO, Domain("Communication").Resource(self->reqId_.c_str()).Event("sendReqToD"));
             self->constructOneResponseCallBack_ = nullptr;
             DecodeParameters decodeParams;

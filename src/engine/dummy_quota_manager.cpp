@@ -147,14 +147,7 @@ void DummyQuotaManager::WakeupAllGather_(bool &iAmDummy, bool &allDummy, int &ma
 
 void DummyQuotaManager::AcrossProcSyncThreadEntry_()
 {
-    int cnt = 0;
     while (!threadNeedStop_.load()) {
-        if (cnt % 1000 == 0) {
-            MINDIE_LLM_LOG_INFO_REQUEST("DummyQuotaManager across process synchronization thread is live. dprank:"
-                                << rank_ << "; quotaLeft_:" << quotaLeft_.load()
-                                << "; dummyBatchQueue_ size:" << dummyBatchQueue_.size());
-        }
-        cnt++;
         // when dummyBatchQueue_ has item, or will have item, we must do dummy sync
         // when quota is 0, and a real request comes in, AcquireQuota will not push request into dummyBatchQueue_
         // only after wakeup finished, real request will be pushed into dummyBatchQueue_

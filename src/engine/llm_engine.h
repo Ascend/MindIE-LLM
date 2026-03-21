@@ -182,10 +182,6 @@ private:
         if (diffTime > std::chrono::seconds(HEARTBEAT_INTERVAL_SECONDS)) {
             heartbeatBegin = std::chrono::high_resolution_clock::now();
             auto passed_seconds = std::chrono::duration_cast<std::chrono::seconds>(diffTime).count();
-            MINDIE_LLM_LOG_INFO_REQUEST("Since last schedule, pass " << passed_seconds
-                << " seconds, AsyncBatchNum=" << enginePerDP->modelExecOutputHandler->GetAsyncBatchNum()
-                << ", freeNpuBlockNum=" << enginePerDP->scheduler->CollectSchedulerMetric().blockInfo.freeNpuBlockNum_
-                << ", freeCpuBlockNum=" << enginePerDP->scheduler->CollectSchedulerMetric().blockInfo.freeCpuBlockNum_);
         }
     }
     // 边云新增

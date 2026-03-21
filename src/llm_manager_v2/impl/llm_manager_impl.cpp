@@ -57,17 +57,11 @@ void HandleResponse(ResponseSPtr response)
     // EOS or PUBLISH_KV_COMPLETE时，删除callback
     if (response->isEos || response->transferStatusFlag == TransferStatusType::PUBLISH_KV_COMPLETE) {
         InferInstance::GetCallbackMap().Erase(response->reqId);
-        MINDIE_LLM_LOG_INFO_REQUEST("[LlmManagerImpl] Remove SendResponsesCallback requestId: " + response->reqId +
-                            " when encountering EOS or PUBLISH_KV_COMPLETE.");
     }
 
     if (serverResponseCallback.has_value()) {
         serverResponseCallback.value()(response);
-    } else if (!InferInstance::IsPaused()) {
-        MINDIE_LLM_LOG_INFO_REQUEST("[LlmManagerImpl] SendResponsesCallback of requestId: " + response->reqId +
-                            " is not exist.");
     }
-    
     PROF(spanHandleResponse.SpanEnd());
 }
 
@@ -1437,7 +1431,6 @@ Status LlmManagerImpl::Init(uint32_t modelInstanceId, std::set<size_t> npuDevice
 
 Status LlmManagerImpl::ProcessRequests(RequestSPtr request)
 {
-    MINDIE_LLM_LOG_WARN_REQUEST("Get a new inferRequest from server, requestId: " << request->requestId);
     return ForwardRequest(request);
 }
 
@@ -1454,7 +1447,6 @@ Status LlmManagerImpl::ProcessRequests()
             MINDIE_LLM_LOG_ERROR("Error: Request is null!");
             continue;
         }
-        MINDIE_LLM_LOG_INFO("Get a new inferRequest from server, requestId: " << req->requestId);
 
         Status ret = ForwardRequest(req);
         if (!ret.IsOk()) {
@@ -1477,8 +1469,6 @@ Status LlmManagerImpl::ForwardRequest(RequestSPtr request)
     if (!llmEnginePtr_->AddRequest(request)) {
         return Status(Error::Code::ERROR, "Engine has been stopped. Cannot add request.");
     }
-
-    MINDIE_LLM_LOG_INFO_REQUEST("Insert a new inferRequest, requestId: " << request->requestId);
     return Status(Error::Code::OK, "Success");
 }
 
@@ -1590,8 +1580,6 @@ void LlmManagerImpl::ControlRequest(const RequestIdNew &requestId, OperationV2 o
 {
     RequestId reqId = requestId;
     std::unordered_set<RequestId> reqIds = {reqId};
-    MINDIE_LLM_LOG_INFO_REQUEST("Get a new ControlRequest from server, requestId: " << reqId << ", with operation:"
-                                                                            << static_cast<int>(operation));
     if (operation == OperationV2::STOP) {
         llmEnginePtr_->AbortRequests(reqIds);
     } else if (operation == OperationV2::RELEASE_KV) {
@@ -1606,8 +1594,6 @@ void LlmManagerImpl::ControlRequest()
     auto stopReqPairs = controlCallback_();
     for (auto reqPair : stopReqPairs) {
         RequestId reqId = reqPair.first;
-        MINDIE_LLM_LOG_INFO("Get a new ControlRequest from server, requestId: "
-                    << reqId << ", with operation:" << static_cast<int>(reqPair.second));
         std::unordered_set<RequestId> reqIds = {reqId};
         if (reqPair.second == OperationV2::STOP) {
             llmEnginePtr_->AbortRequests(reqIds);

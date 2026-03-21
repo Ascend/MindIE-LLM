@@ -54,9 +54,6 @@ void TransferOutputHandler::Entry4Executor(PullKVResponseSPtr pullKvResponse)
             response->isEos = true;
             response->inferStatusFlag = InferStatusType::PULL_KV_ERROR;
         }
-        MINDIE_LLM_LOG_INFO_REQUEST("[LlmEngine|Request-Pull KV Complete] requestId: " << inferRequestId << ", seqId: "
-                                                                                       << seqGroup->firstSeq->seqId_
-                                                                                       << ", errorCode:" << errorCode);
         forwardRespToManagerCall_(response);
     }
 }

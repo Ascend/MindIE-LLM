@@ -381,8 +381,6 @@ std::unordered_set<SequenceId> Scheduler::ReleaseKvPulledBlocks()
             // abort流程也会触发release kv，如果abort和release kv 并发，可能会存在这个场景。增加日志打印
             MINDIE_LLM_LOG_WARN("Try to release kv, but kv has released before. seqid:" << seqId);
         }
-        MINDIE_LLM_LOG_INFO_REQUEST("[LlmEngine|Request-Release KV] DP RankId: "
-                            << dpRankId_ << ". KV blocks of seqId: " << seqId << " are released.");
         blockManager_->Free(seqId);
         transferringMap_.Erase(seqId);
         LiveInferContext::GetInstance(localDPRank_)->Remove(seqId);

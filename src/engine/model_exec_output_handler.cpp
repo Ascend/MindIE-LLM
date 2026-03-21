@@ -64,10 +64,6 @@ void ModelExecOutputHandler::AsyncPublishPrefilledKvCache(ModelBatchResultSPtr &
             response->responseContents[0].srcBlockTable = seqGroup->pBlockTable;
             response->responseContents[0].isThinking = seqGroup->isThinking_;
             response->responseContents[0].singleLLMPrefillReqHandlerId = localDPRank_;
-            MINDIE_LLM_LOG_INFO_REQUEST("[LlmEngine|Request-Publish Complete] DP RankId: "
-                                << dpRankId_ << ". Request Prefill Complete, requestId: "
-                                << seqGroup->metrics_.inferReqId_ << ", seqId: " << firstSample.seq_id()
-                                << ", pInstanceId:" << seqGroup->pInstanceId << ", localDPRank_:" << localDPRank_);
             seqGroup->isThinking_ = false;
             // 返回推理结果给上层的回调函数
             forwardRespToManagerCall_(response);

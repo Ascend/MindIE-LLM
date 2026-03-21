@@ -103,8 +103,6 @@ namespace mindie_llm {
                 // 执行请求处理逻辑
                 this->kvReleaseHandler_(reqId);
             }).detach();
-
-            ULOG_INFO(SUBMODLE_NAME_ENDPOINT, "Get kv release request, requestId: " << reqId);
             return grpc::Status::OK;
         }
 

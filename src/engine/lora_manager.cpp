@@ -250,8 +250,6 @@ bool LoraManager::ValidateLoraId(const std::optional<std::string> &loraId)
             return true;
         }
     }
-    MINDIE_LLM_LOG_INFO_REQUEST(
-        "[LoraManager::ValidateLoraId] LoraId is not available, will use baseModel to inference.");
     return false;
 }
 

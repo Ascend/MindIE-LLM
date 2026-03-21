@@ -52,8 +52,6 @@ namespace mindie_llm {
         bool DecodeRequestSender::SendDecodeRequestMsg(const prefillAndDecodeCommunication::DecodeParameters &message,
             const std::string& reqId, std::string& errMsg)
         {
-            ULOG_INFO(SUBMODLE_NAME_ENDPOINT, "P sending decode request to D node " << receiverAddr_
-                << ", requestId: " << reqId);
             {
                 std::unique_lock <std::mutex> lock(lock_);
                 // 每次发送时配置为 "Wait-for-Ready"
@@ -85,8 +83,6 @@ namespace mindie_llm {
             }
 
             static uint64_t sendCnt = 0;
-            ULOG_INFO(SUBMODLE_NAME_ENDPOINT,
-                "P send request to D success, requestId: " << reqId << ", send " << ++sendCnt);
             return true;
         }
 
@@ -97,8 +93,6 @@ namespace mindie_llm {
 
         bool KvReleaseSender::SendKvReleaseMsg(const prefillAndDecodeCommunication::RequestId &message)
         {
-            ULOG_INFO(SUBMODLE_NAME_ENDPOINT, "D sending kv release to P node " << receiverAddr_
-                << ", requestId: " << message.reqid());
             std::unique_lock<std::mutex> lock(lock_);
             grpc::ClientContext context;
             // 设置超时为10秒
@@ -120,8 +114,6 @@ namespace mindie_llm {
                 return false;
             }
             static uint64_t sendCnt = 0;
-            ULOG_INFO(SUBMODLE_NAME_ENDPOINT, "D send kv release to P " << receiverAddr_ <<
-                " success. requestId: " << message.reqid() << ", send "<< ++sendCnt);
             return true;
         }
 
