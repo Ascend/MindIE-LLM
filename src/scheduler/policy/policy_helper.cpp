@@ -106,7 +106,11 @@ size_t PolicyHelper::GetPromptLimit(SequenceGroupSPtr seqGroup, SchedulingBudget
 {
     validateSequenceGroup(seqGroup, "GetPromptLimit");
     seqGroup = seqGroup;
-    return std::min(schedulerConfig_->maxSeqLen, budget.maxNumBatchedTokens_);
+    if (schedulerConfig_->enableChunkedPrefill) {
+        return schedulerConfig_->maxSeqLen;
+    } else {
+        return std::min(schedulerConfig_->maxSeqLen, budget.maxNumBatchedTokens_);
+    }
 }
 
 void PolicyHelper::AllocateAndSetRunning(SequenceGroupSPtr seqGroup) const
