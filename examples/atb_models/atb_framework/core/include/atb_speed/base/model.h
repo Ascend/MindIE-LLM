@@ -108,6 +108,8 @@ protected:
 protected:
     bool IsTensorDescEqual(const atb::TensorDesc &tensorDesc, const atb::Tensor &atbTensor) const;
     void ExecuteNodeView(int nodeId);
+    void CheckPreviousStepError();
+    void CheckSetupError(atb::Status st, int nodeId, const std::string &opName);
     atb::Status ExecuteNode(int nodeId);
     void ThreadProcessTask();
     atb::Status ExecutePlanSync(int nodeId, bool doExecuteNormal = true);

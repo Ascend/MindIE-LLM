@@ -51,6 +51,7 @@ class ErrorCode(str, Enum):
     ATB_MODELS_EXECUTION_FAILURE = "MIE05E000002"
     ATB_MODELS_PARAM_INVALID = "MIE05E000003"
     ATB_MODELS_INTERNAL_ERROR = "MIE05E000004"
+    ATB_MODELS_OUT_OF_MEMORY = "MIE05E000005"
 
     def __str__(self):
         return self.value

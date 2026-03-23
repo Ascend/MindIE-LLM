@@ -647,7 +647,19 @@ class PluginManager:
                 trace_ids = getattr(model_input_wrapper, 'trace_ids', 'unknown')
 
                 error_code = convert_exception_to_error_code(str(e))
-                if isinstance(e, RuntimeError) and error_code is not None:
+
+                # Handle PyTorch OOM(Only supports Torch 2.6+ native exception)
+                # If torch version is 2.1 or lower, please check exception message directly.
+                if hasattr(torch, "OutOfMemoryError") and isinstance(e, torch.OutOfMemoryError):
+                    error_msg = (
+                            "Device out of memory (OOM) reported by PyTorch, but it can possibly triggered by HCCL. "
+                            "Enable logs: export ASCEND_SLOG_PRINT_TO_STDOUT=1, "
+                            "export ASCEND_GLOBAL_LOG_LEVEL=3 to check if there's HCCL error messages"
+                        )
+                    logger.error(error_msg)
+                    error_code = ErrorCode.TEXT_GENERATOR_OUT_OF_MEMORY
+
+                if error_code is not None:
                     self.error_code_collected_in_async = error_code
 
                 if self.is_inference_pause or self.error_code_collected_in_async is not None:

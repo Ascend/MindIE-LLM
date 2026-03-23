@@ -168,7 +168,7 @@ Model::Model(const std::string &modelName, const std::string &param) : modelName
 {
     currentDevId_ = 0;
     int ret = aclrtGetDevice(&currentDevId_);
-    if (ret != 0) {
+    if (ret != atb::NO_ERROR) {
         ATB_SPEED_LOG_ERROR("aclrtGetDevice failed, error: " << ret);
     }
 
@@ -184,8 +184,8 @@ int64_t Model::Init(GetWorkspaceFunc getWorkSpaceFunc, CreateTensorFromTensorDes
     // ATB_OPERATION_EXECUTE_ASYNC: whether to enable operator execute pipeline
     // 0 - disable, 1 - enable level-2 pipeline (default), 2 - enable level-3 pipeline
     const char *envStr = std::getenv("ATB_OPERATION_EXECUTE_ASYNC");
-    isUsePlanExecuteAsync_ = (envStr != nullptr && (std::string(envStr) == "2" || std::string(envStr) == "1"));
-    isUsePlanPreExecuteAsync_ = (envStr != nullptr && std::string(envStr) == "2");
+    isUsePlanExecuteAsync_ = (envStr && (std::string(envStr) == "2" || std::string(envStr) == "1"));
+    isUsePlanPreExecuteAsync_ = (envStr && std::string(envStr) == "2");
     if (isUsePlanExecuteAsync_ && !runTaskFunc) {
         std::thread thread = std::thread(std::bind(&Model::ThreadProcessTask, this));
         taskProcessThread_ = std::move(thread);
@@ -216,7 +216,7 @@ int64_t Model::Init(GetWorkspaceFunc getWorkSpaceFunc, CreateTensorFromTensorDes
 atb::Status Model::SkipEvent(bool isSkipEvent)
 {
     atb::Status rt = atb::NO_ERROR;
-    if (isSkipEvent != isSkipEvent_) {
+    if (isSkipEvent_ != isSkipEvent) {
         isSkipEvent_ = isSkipEvent;
         atb::common::EventParam eventOpParam;
         eventOpParam.operatorType = atb::common::EventParam::OperatorType::UNDEFINED;
@@ -304,7 +304,7 @@ atb::Status Model::Execute(atb::Context *context, std::vector<atb::Tensor> &inTe
         BuildNodeVariantPack(nodeId);
         BindParamHostTensor(nodeId);
         atb::Status st = ExecuteNode(nodeId);
-        if (st != 0) {
+        if (st != atb::NO_ERROR) {
             return st;
         }
     }
@@ -350,7 +350,7 @@ void Model::BuildNodeOutTensorImpl(
     outTensorDescs.reserve(node.operation->GetOutputNum());
     outTensorDescs.resize(node.operation->GetOutputNum());
     atb::Status st = node.operation->InferShape(inTensorDescs, outTensorDescs);
-    if (st != 0) {
+    if (st != atb::NO_ERROR) {
         ATB_SPEED_LOG_ERROR(modelName_ << " nodes[" << nodeId << "] "
             << " infer shape fail, error code: " << st);
     }
@@ -360,7 +360,7 @@ void Model::BuildNodeOutTensorImpl(
     }
 
     for (size_t i = 0; i < node.outTensors.size(); ++i) {
-        CHECK_THROW(node.outTensors.at(i) == nullptr,
+        CHECK_THROW(!node.outTensors.at(i),
             modelName_ << " nodes[" << nodeId << "] "
                        << "outTensor " << i << "is NULL");
         node.variantPack.outTensors.at(i) = *node.outTensors.at(i);
@@ -386,7 +386,7 @@ void Model::BuildNodeVariantPack(int nodeId)
     inTensorDescs.reserve(node.variantPack.inTensors.size());
     inTensorDescs.resize(node.variantPack.inTensors.size());
     for (size_t i = 0; i < node.inTensors.size(); ++i) {
-        CHECK_THROW(node.inTensors.at(i) == nullptr,
+        CHECK_THROW(!node.inTensors.at(i),
             modelName_ << " nodes[" << nodeId << "] "
                        << "inTensor " << i << "is NULL");
         node.variantPack.inTensors.at(i) = *node.inTensors.at(i);
@@ -405,43 +405,70 @@ void Model::BuildNodeVariantPack(int nodeId)
     }
 }
 
-atb::Status Model::ExecuteNode(int nodeId)
+void Model::CheckPreviousStepError()
 {
-    ExecuteNodeView(nodeId);
-    auto &node = graph_.nodes.at(nodeId);
+    // The OOM status might be captured by the TaskQueue in PTA.
+    // Consequently, when an HCCL OOM occurs, this code block might not be executed.
     if (g_preExecuteStatus == atb::ERROR_OUT_OF_DEVICE_MEMORY || g_executeStatus == atb::ERROR_OUT_OF_DEVICE_MEMORY) {
-        throw std::runtime_error("Npu out of memory, OOM");
-    }
-    if (g_preExecuteStatus != atb::NO_ERROR || g_executeStatus != atb::NO_ERROR) {
         std::stringstream ss;
-        ss << "Execute fail, enable log: export ASCEND_GLOBAL_LOG_LEVEL=3, export ASCEND_SLOG_PRINT_TO_STDOUT=1 to find "
-              "the first error. For more details, see the MindIE official document."
+        std::string stepName = (g_preExecuteStatus == atb::ERROR_OUT_OF_DEVICE_MEMORY) ? "PreExecute" : "Execute";
+        ss << "Device out of memory during a previous asynchronous step (" << stepName << "). "
+           << "Error code: "
+           << mindie_llm::ERROR_CODE_MAPPING.at("ATB_MODELS_OUT_OF_MEMORY")
+           << ". Enable log: export ASCEND_GLOBAL_LOG_LEVEL=3, export ASCEND_SLOG_PRINT_TO_STDOUT=1 to find "
+           << "the first error. For more details, see the MindIE official document."
+           << std::endl;
+        ATB_SPEED_LOG_ERROR(ss.str());
+        throw std::runtime_error(ss.str());
+    } else if (g_preExecuteStatus != atb::NO_ERROR || g_executeStatus != atb::NO_ERROR) {
+        std::stringstream ss;
+        ss << "Execute fail, enable log: export ASCEND_GLOBAL_LOG_LEVEL=3, "
+              "export ASCEND_SLOG_PRINT_TO_STDOUT=1 to find the first error. "
+              "For more details, see the MindIE official document."
            << std::endl;
         ATB_SPEED_LOG_ERROR(ss.str(), ATB_MODELS_EXECUTION_FAILURE);
         throw std::runtime_error(ss.str());
     }
-    atb::Status st = node.operation->Setup(node.variantPack, node.workspaceSize, context_);
+}
+
+void Model::CheckSetupError(atb::Status st, int nodeId, const std::string &opName)
+{
+    // When an OOM error occurs during Setup, it indicates an LCCL memory allocation failure.
     if (st == atb::ERROR_OUT_OF_DEVICE_MEMORY) {
-        throw std::runtime_error("Npu out of memory, OOM");
+        std::stringstream ss;
+        ss << "Device out of memory during Setup for operation " << opName
+           << " at node index " << nodeId << ". "
+           << "Error code: "
+           << mindie_llm::ERROR_CODE_MAPPING.at("ATB_MODELS_OUT_OF_MEMORY")
+           << ". Enable log: export ASCEND_GLOBAL_LOG_LEVEL=3, export ASCEND_SLOG_PRINT_TO_STDOUT=1 to find "
+           << "the first error. For more details, see the MindIE official document."
+           << std::endl;
+        ATB_SPEED_LOG_ERROR(ss.str());
+        throw std::runtime_error(ss.str());
     }
     if (st != atb::NO_ERROR) {
         std::stringstream ss;
-        ss << "Setup fail, enable log: export ASCEND_GLOBAL_LOG_LEVEL=3, export ASCEND_SLOG_PRINT_TO_STDOUT=1 to find the first "
-              "error. For more details, see the MindIE official document."
+        ss << "Setup fail, enable log: export ASCEND_GLOBAL_LOG_LEVEL=3, "
+              "export ASCEND_SLOG_PRINT_TO_STDOUT=1 to find the first error. "
+              "For more details, see the MindIE official document."
            << std::endl;
         throw std::runtime_error(ss.str());
     }
-    if (st != 0) {
-        ATB_SPEED_LOG_ERROR(modelName_ << " setup node[" << nodeId << "] fail, not call execute");
-        return st;
-    }
+}
+
+atb::Status Model::ExecuteNode(int nodeId)
+{
+    ExecuteNodeView(nodeId);
+    auto &node = graph_.nodes.at(nodeId);
+    CheckPreviousStepError();
+
+    atb::Status st = node.operation->Setup(node.variantPack, node.workspaceSize, context_);
+    CheckSetupError(st, nodeId, node.operation->GetName());
 
     ATB_SPEED_LOG_DEBUG(modelName_ << " get node[" << nodeId << "] workspace size:" << node.workspaceSize);
-
     if (node.workspaceSize > 0) {
         node.workspace = getWorkSpaceFunc_(node.workspaceSize, node.streamId);
     }
-
     if (isUsePlanExecuteAsync_) {
         ExecutePlanAsync(nodeId);
     } else {
@@ -454,7 +481,7 @@ void Model::ThreadProcessTask()
 {
     ATB_SPEED_LOG_DEBUG(modelName_ << " thread process operations start");
     int ret = aclrtSetDevice(currentDevId_);
-    if (ret != 0) {
+    if (ret != atb::NO_ERROR) {
         ATB_SPEED_LOG_ERROR("AsdRtDeviceSetCurrent fail, error:" << ret);
     }
 
@@ -465,7 +492,7 @@ void Model::ThreadProcessTask()
             ATB_SPEED_LOG_DEBUG(modelName_ << "placeholder task for sync communicate operation");
         } else {
             atb::Status st = ExecutePlanSync(nodeId, !isUsePlanPreExecuteAsync_);
-            if (st != 0) {
+            if (st != atb::NO_ERROR) {
                 allTaskFinish_ = true;
                 processTaskCount = 0;
                 return;
@@ -489,7 +516,7 @@ void Model::PushPreTask(int nodeId)
             return;
         }
         // 推送任务给下一级流水
-        if (runTaskFunc_ != nullptr) {
+        if (runTaskFunc_) {
             runTaskFunc_(modelName_ + graph_.nodes[nodeId].operation->GetName(), [this, nodeId]() {
                 int st = ExecutePlanSync(nodeId, false);
                 return st;
@@ -498,7 +525,7 @@ void Model::PushPreTask(int nodeId)
             PushTask(nodeId);
         }
 
-        if (size_t(nodeId + 1) == graph_.nodes.size() && runTaskFunc_ != nullptr) {
+        if (size_t(nodeId + 1) == graph_.nodes.size() && runTaskFunc_) {
             // 所有任务已经触发，标记结束
             allTaskFinish_ = true;
         }
@@ -529,26 +556,31 @@ atb::Status Model::ExecutePlanSync(int nodeId, bool doExecuteNormal)
 {
     auto &node = graph_.nodes.at(nodeId);
     auto oldType = context_->GetExecuteType();
-    if (!doExecuteNormal) {
-        atb::VariantPack &variantPack = node.variantPack;
 
-        ATB_SPEED_LOG_DEBUG(modelName_ << "execute node[" << nodeId << "] start");
-        context_->SetExecuteType(atb::EXECUTE_LAUNCH);
-        atb::Status st = node.operation->Execute(variantPack, (uint8_t*)(node.workspace), node.workspaceSize, context_);
-        context_->SetExecuteType(oldType);
-        if (st != 0) {
-            ATB_SPEED_LOG_ERROR("Execute node[" << nodeId << "] fail, error code: " << st);
-            g_executeStatus = st;
-        }
-        return st;
-    }
+    atb::ExecuteType targetExecuteType = doExecuteNormal ? atb::EXECUTE_NORMAL : atb::EXECUTE_LAUNCH;
+    std::string executeStage = doExecuteNormal ? "normal" : "launch";
+
     atb::VariantPack &variantPack = node.variantPack;
 
     ATB_SPEED_LOG_DEBUG(modelName_ << "execute node[" << nodeId << "] start");
-    context_->SetExecuteType(atb::EXECUTE_NORMAL);
+    context_->SetExecuteType(targetExecuteType);
     atb::Status st = node.operation->Execute(variantPack, (uint8_t*)(node.workspace), node.workspaceSize, context_);
     context_->SetExecuteType(oldType);
-    if (st != 0) {
+
+    // This code block is executed in a sub-thread.
+    // Do not throw exceptions here; instead, propagate errors by setting the global status.
+    if (st == atb::ERROR_OUT_OF_DEVICE_MEMORY) {
+        std::stringstream ss;
+        ss << "Device out of memory during Execute (" << executeStage << ") for operation " << node.operation->GetName()
+           << " at node index " << nodeId << ". "
+           << "Error code: "
+           << mindie_llm::ERROR_CODE_MAPPING.at("ATB_MODELS_OUT_OF_MEMORY")
+           << ". Enable log: export ASCEND_GLOBAL_LOG_LEVEL=3, export ASCEND_SLOG_PRINT_TO_STDOUT=1 to find "
+           << "the first error. For more details, see the MindIE official document."
+           << std::endl;
+        ATB_SPEED_LOG_ERROR(ss.str());
+        g_executeStatus = st;
+    } else if (st != atb::NO_ERROR) {
         ATB_SPEED_LOG_ERROR("Execute node[" << nodeId << "] fail, error code: " << st);
         g_executeStatus = st;
     }
@@ -564,7 +596,21 @@ atb::Status Model::PreExecutePlanSync(int nodeId)
     ATB_SPEED_LOG_DEBUG(modelName_ << "pre execute node[" << nodeId << "] start");
     atb::Status st = node.operation->Execute(variantPack, (uint8_t*)(node.workspace), node.workspaceSize, context_);
     context_->SetExecuteType(oldType);
-    if (st != 0) {
+
+    // This code block is executed in a sub-thread.
+    // Do not throw exceptions here; instead, propagate errors by setting the global status.
+    if (st == atb::ERROR_OUT_OF_DEVICE_MEMORY) {
+        std::stringstream ss;
+        ss << "Device out of memory during Execute (prelaunch) for operation " << node.operation->GetName()
+           << " at node index " << nodeId << ". "
+           << "Error code: "
+           << mindie_llm::ERROR_CODE_MAPPING.at("ATB_MODELS_OUT_OF_MEMORY")
+           << ". Enable log: export ASCEND_GLOBAL_LOG_LEVEL=3, export ASCEND_SLOG_PRINT_TO_STDOUT=1 to find "
+           << "the first error. For more details, see the MindIE official document."
+           << std::endl;
+        ATB_SPEED_LOG_ERROR(ss.str());
+        g_preExecuteStatus = st;
+    } else if (st != atb::NO_ERROR) {
         ATB_SPEED_LOG_ERROR("pre execute node[" << nodeId << "] fail, error code: " << st);
         g_preExecuteStatus = st;
     }
@@ -598,7 +644,7 @@ void Model::WaitAsyncPlanExecuteFinish()
         return;
     }
 
-    if (!isUsePlanPreExecuteAsync_ && runTaskFunc_ != nullptr) {
+    if (!isUsePlanPreExecuteAsync_ && runTaskFunc_) {
         return;
     }
 
@@ -613,7 +659,7 @@ void Model::ExecuteNodeView(int nodeId)
     auto &node = graph_.nodes.at(nodeId);
     if (node.inTensorReshapeFuncs.size() > 0) {
         for (size_t i = 0; i < node.inTensorReshapeFuncs.size(); i++) {
-            if (node.inTensorReshapeFuncs.at(i) != nullptr) {
+            if (node.inTensorReshapeFuncs.at(i)) {
                 node.inTensorReshapeFuncs.at(i)(node.inTensors.at(i)->desc.shape,
                                                 node.variantPack.inTensors.at(i).desc.shape);
             }
