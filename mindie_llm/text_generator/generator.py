@@ -965,7 +965,7 @@ class Generator(PDInterface):
 
     def _warmup_prefill(self, warmup_params: WarmupParams):
         self._auto_warmup_prefill(warmup_params)
-        if self.enable_prefix_cache:
+        if self.enable_prefix_cache and self.backend_type != "torch":
             self._auto_warmup_prefill(warmup_params, do_prefix_cache_warmup=True)
         if self.backend_type == "torch":
             self._auto_warmup_prefill(warmup_params)
@@ -982,7 +982,7 @@ class Generator(PDInterface):
             dap=self.enable_dap
         ):
             self._auto_warmup(warmup_params)
-        if self.enable_prefix_cache:
+        if self.enable_prefix_cache and self.backend_type != "torch":
             self._auto_warmup(warmup_params, do_prefix_cache_warmup=True)
 
     def _warmup_specified(self, warmup_params: WarmupParams):
