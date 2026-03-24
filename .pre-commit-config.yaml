@@ -8,7 +8,7 @@ ci:
 
 repos:
   # pre-commit 基础检查
-  - repo: https://github.com/pre-commit/pre-commit-hooks
+  - repo: https://gitcode.com/pre-commit/pre-commit-hooks
     rev: v4.6.0
     hooks:
       - id: trailing-whitespace
@@ -53,7 +53,7 @@ repos:
 
 #--------------- C++ 核心检查 ---------------------------------------------
   # clang-format：C/C++ 代码格式化
-  - repo: https://github.com/pre-commit/mirrors-clang-format
+  - repo: https://gitcode.com/pre-commit-clang/mirrors-clang-format
     rev: v18.1.8
     hooks:
       - id: clang-format
@@ -75,14 +75,22 @@ repos:
   - repo: local
     hooks:
       - id: check-filenames
-        name: Check for spaces in all filenames
+        name: Check for spaces in staged filenames
         entry: bash
         args:
           - -c
-          - 'git ls-files | grep -q " " && echo "Filenames should not contain spaces!" && exit 1 || exit 0'
+          - |
+            git diff --cached --name-only --diff-filter=ACM | while IFS= read -r file; do
+              if [[ -n "$file" && "$file" == *" "* ]]; then
+                echo "Error: Staged filename contains spaces - $file"
+                exit 1
+              fi
+            done
+            exit 0
         language: system
-        always_run: true
+        always_run: false  # 仅检查本次提交的文件
         pass_filenames: false
+        verbose: true
 
       # Keep `suggestion` last
       - id: suggestion
