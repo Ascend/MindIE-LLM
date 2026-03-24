@@ -208,14 +208,17 @@ class SfaMetadata(AttentionMetadata):
     @staticmethod
     def from_model_input(model_inputs, mask, num_speculative_tokens=0):
         if model_inputs.is_prefill:
-            actual_seq_lengths_kv = torch.tensor(model_inputs.context_length, dtype=torch.int32)
+            q_lens = getattr(model_inputs, "q_lens", None)
+            actual_seq_lengths_query = torch.tensor(model_inputs.context_length, dtype=torch.int32) \
+                if q_lens is None else torch.tensor(q_lens, dtype=torch.int32)
         else:
-            actual_seq_lengths_kv = (
+            actual_seq_lengths_query = (
                 torch.tensor(model_inputs.q_lens, dtype=torch.int32)
                 if num_speculative_tokens > 0
                 else torch.tensor([1] * model_inputs.block_tables.shape[0], dtype=torch.int32)
             )
-        actual_seq_lengths_query = torch.cumsum(actual_seq_lengths_kv, dim=0, dtype=torch.int32)
+        actual_seq_lengths_query = torch.cumsum(actual_seq_lengths_query, dim=0, dtype=torch.int32)
+        actual_seq_lengths_kv = torch.tensor(model_inputs.context_length, dtype=torch.int32)
         
         cp_size = get_parallel_info_manager().attn_cp.group_size
         cp_input_dict = None
@@ -269,7 +272,7 @@ class SfaMetadata(AttentionMetadata):
 
     def copy(self, num_actual_tokens, num_tokens):
         # NOTE: only D2D operation is allowed, should be refactored later
-        max_len = self.seq_lens.max()
+        max_len = self.seq_lens_list.max()
         max_seq_pages = (max_len + 128 - 1) // 128
         num_reqs = num_actual_tokens // (self.num_speculative_tokens + 1)
 
@@ -281,29 +284,25 @@ class SfaMetadata(AttentionMetadata):
                                                                     num_actual_tokens=self.num_speculative_tokens + 1)
         reqs_padding_length = actual_len - self.actual_seq_lengths_kv.shape[0]
         
-        seq_lens_pad = torch.tensor([0] * reqs_padding_length, dtype=torch.int32, device="npu")
-        self.seq_lens = torch.cat([self.seq_lens, seq_lens_pad])
         input_buffer_seq_lens = input_buffer.get("seq_lens")
-        input_buffer_seq_lens[:actual_len].copy_(self.seq_lens[:actual_len])
+        input_buffer_seq_lens.fill_(0)
+        input_buffer_seq_lens[:self.seq_lens.shape[0]].copy_(self.seq_lens)
         self.seq_lens = input_buffer_seq_lens[:actual_len]
 
         if actual_len > num_actual_tokens:
             self.seq_lens_list = self.seq_lens_list.tolist() + [0] * (actual_len - num_actual_tokens)
 
-        actual_seq_lengths_kv_pad = torch.tensor(
-            [self.num_speculative_tokens + 1] * reqs_padding_length, dtype=torch.int32, device="npu")
-
-        self.actual_seq_lengths_kv = torch.cat([self.actual_seq_lengths_kv, actual_seq_lengths_kv_pad])
+        input_buffer_actual_seq_lengths_kv = input_buffer.get("actual_seq_lengths_kv")
+        input_buffer_actual_seq_lengths_kv.fill_(self.num_speculative_tokens + 1)
+        input_buffer_actual_seq_lengths_kv[:self.actual_seq_lengths_kv.shape[-1]].copy_(
+            self.actual_seq_lengths_kv[:self.actual_seq_lengths_kv.shape[-1]])
+        self.actual_seq_lengths_kv = input_buffer_actual_seq_lengths_kv[:actual_len]
         if last_req_tokens > 0:
             self.actual_seq_lengths_kv[-1] = last_req_tokens
-        self.actual_seq_lengths_query = torch.cumsum(self.actual_seq_lengths_kv, dim=0, dtype=torch.int32)
-
-        input_buffer_actual_seq_lengths_kv = input_buffer.get("actual_seq_lengths_kv")
-        input_buffer_actual_seq_lengths_kv[:actual_len].copy_(self.actual_seq_lengths_kv[:actual_len])
-        self.actual_seq_lengths_kv = input_buffer_actual_seq_lengths_kv[:actual_len]
 
         input_buffer_actual_seq_lengths_query = input_buffer.get("actual_seq_lengths_query")
-        input_buffer_actual_seq_lengths_query[:actual_len].copy_(self.actual_seq_lengths_query[:actual_len])
+        input_buffer_actual_seq_lengths_query[:self.actual_seq_lengths_query.shape[-1]].copy_(
+            self.actual_seq_lengths_query[:self.actual_seq_lengths_query.shape[-1]])
         self.actual_seq_lengths_query = input_buffer_actual_seq_lengths_query[:actual_len]
 
         input_buffer_block_tables = input_buffer.get("block_tables")
@@ -661,9 +660,7 @@ class SfaBackendImpl(SelectAttentionImpl):
                                          k.view(-1, k.shape[-1]))
 
         weights = self.indexer.weights_proj(hidden_state)
-        actual_seq_lengths_key = attn_metadata.actual_seq_lengths_kv \
-            if forward_context.is_prefill else attn_metadata.seq_lens
-        
+        actual_seq_lengths_key = attn_metadata.actual_seq_lengths_kv
         if forward_context.is_prefill and self.cp_size > 1:
             q = gather_tensor(q, cp_input_dict["cp_load_balance_idx"])
             weights = gather_tensor(weights, cp_input_dict["cp_load_balance_idx"])

@@ -84,6 +84,9 @@ class ModelRunnerExp:
     This class handles model loading, initialization, and forward passes
     for experimental features.
     """
+
+    # Let main and draft model runner share the same warmup status.
+    _is_warmup_completed = False
     
     def __init__(
         self,
@@ -172,6 +175,7 @@ class ModelRunnerExp:
         self.lora_adapter = None
         self.model = None
         self.num_speculative_tokens = kwargs.get('num_speculative_tokens', 0)
+        self.attn_mask = None
 
         self._mindie_llm_config = MindIELLMConfig(
             self._model_name_or_path,
@@ -183,14 +187,13 @@ class ModelRunnerExp:
         # NOTE: default mask and rotary_emb will be refactored later.
         self._mask = torch.triu(torch.ones(2048, 2048), diagonal=1).to(torch.int8).npu()
 
-        self._is_warmup_completed = False
 
         self._kv_cache_info = KVCacheInfo()
 
-        role = kwargs.get('role', 'standard')
+        self.role = kwargs.get('role', 'standard')
         # False: eager mode, True: AclGraph mode; 
         # prefill node in pd disaggregated mode do not need acl graph currently.
-        self._is_aclgraph_enabled = (role != 'prefill')
+        self._is_aclgraph_enabled = (self.role != 'prefill')
 
         self.is_draft_model = kwargs.get("is_draft_model", False)
 
@@ -231,6 +234,8 @@ class ModelRunnerExp:
             self.k_head_size = self.head_size
             self.v_head_size = self.head_size
 
+        self.attn_mask = getattr(self.model, "attn_mask", None)
+
         logger.info(f'model:\n {self.model}')
 
         if self._is_aclgraph_enabled:
@@ -254,7 +259,8 @@ class ModelRunnerExp:
         input_ids: torch.Tensor,
         position_ids: torch.Tensor,
         forward_context: 'ForwardContext',
-        mtp_step: int = 0
+        mtp_step: int = 0,
+        **kwargs
     ) -> torch.Tensor | tuple[torch.Tensor, torch.Tensor]:
         """Perform forward pass through the model.
         
@@ -270,7 +276,12 @@ class ModelRunnerExp:
         """
         if self._kv_cache_info.check_diff(kv_caches):
             self._bind_kv_cache(kv_caches)
-            if not self.is_draft_model and not self._is_warmup_completed:
+            # Either draft model warmup in decoder phase
+            if self.role == "decoder" and self.is_draft_model and not self._is_warmup_completed:
+                self._init_buffer()
+                self._is_warmup_completed = True
+            # Or main model warmup
+            elif not self.is_draft_model and not self._is_warmup_completed:
                 self._init_buffer()
                 self._is_warmup_completed = True
 
@@ -315,11 +326,13 @@ class ModelRunnerExp:
         """
         forward_context = create_forward_context(
             model_inputs, self._mask, self.num_speculative_tokens)
-        
         padding_tokens = forward_context.num_actual_tokens
         if forward_context.dp_metadata is not None:
             padding_tokens = forward_context.dp_metadata.max_tokens_across_dp_cpu
-        num_tokens = self.model.get_padded_graph_size(padding_tokens)
+        if self._is_aclgraph_enabled:
+            num_tokens = self.model.get_padded_graph_size(padding_tokens)
+        else:
+            num_tokens = forward_context.num_actual_tokens
         forward_context.batch_descriptor = BatchDescriptor(num_tokens,
             forward_context.batch_descriptor.is_flash_comm_enabled)
         forward_context.attn_metadata.num_tokens = num_tokens

@@ -491,9 +491,6 @@ class MtpWorkerExp(BaseWorkerProxy):
         forward_context.attn_metadata.block_tables = sub_model_inputs.block_tables
         forward_context.mtp_metadata.last_hidden_states = hidden_states_mtp_input
         forward_context.lm_head_indices = lm_head_indices
-        forward_context.attn_metadata.actual_seq_lengths_kv = q_lens
-        forward_context.attn_metadata.actual_seq_lengths_query = \
-            torch.cumsum(forward_context.attn_metadata.actual_seq_lengths_kv, dim=0, dtype=torch.int32)
         padding_tokens = num_actual_tokens = input_ids_mtp.shape[0]
         # draft forward
         for mtp_idx in range(self.num_speculative_tokens):
@@ -503,13 +500,12 @@ class MtpWorkerExp(BaseWorkerProxy):
                 # First draft model's forward needs to pad the inputs.
                 forward_context.attn_metadata.slot_mapping = slot_mapping
                 logits_mtp, hidden_states_mtp = self.draft_model_runner.forward(
-                    npu_cache, input_ids_mtp, positions_mtp, forward_context, mtp_step=mtp_idx)
+                    npu_cache, input_ids_mtp, positions_mtp, forward_context, mtp_step=mtp_idx, **draft_kwargs)
             else:
                 # If an input is not changed, we can skip padding.
-                num_tokens = self.draft_model_runner.model.get_padded_graph_size(padding_tokens)
                 if forward_context.dp_metadata is not None:
-                    forward_context.dp_metadata.num_tokens_across_dp_cpu = \
-                        torch.tensor([num_tokens for _ in forward_context.dp_metadata.num_tokens_across_dp_cpu])
+                    padding_tokens = forward_context.dp_metadata.num_tokens_across_dp_cpu.max().item()
+                    num_tokens = self.draft_model_runner.model.get_padded_graph_size(padding_tokens)
 
                 input_buffer_slot_mapping = input_buffer.get("slot_mapping")
                 input_buffer_slot_mapping[:num_actual_tokens].copy_(slot_mapping[:num_actual_tokens])
@@ -527,7 +523,7 @@ class MtpWorkerExp(BaseWorkerProxy):
                 positions_mtp_ = input_buffer.get("position_ids")[:num_tokens]
                 
                 logits_mtp, hidden_states_mtp = self.draft_model_runner.forward(
-                    npu_cache, input_ids_mtp_, positions_mtp_, forward_context, mtp_step=mtp_idx)
+                    npu_cache, input_ids_mtp_, positions_mtp_, forward_context, mtp_step=mtp_idx, **draft_kwargs)
 
             all_logits_mtp.append(logits_mtp)
 

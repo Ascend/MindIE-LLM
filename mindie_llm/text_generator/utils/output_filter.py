@@ -101,7 +101,9 @@ class OutputFilter:
                 np.ndarray: 调整后的 num_new_tokens。
             """
             available_tokens = max_seq_len - cached_lens
+            available_tokens = np.maximum(available_tokens, 0)
             adjusted_num_new_tokens = np.minimum(num_new_tokens, available_tokens)
+            adjusted_num_new_tokens = np.maximum(adjusted_num_new_tokens, 0)
             return adjusted_num_new_tokens
         output_len_count = self.tg_infer_context.get_output_len_count(cache_ids)
         cached_seq_lens = self.tg_infer_context.get_seq_lens(cache_ids)

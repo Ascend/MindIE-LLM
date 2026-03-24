@@ -16,6 +16,8 @@ import gc
 from dataclasses import dataclass
 import contextlib
 import acl
+import torch
+import torch_npu
 
 from mindie_llm.utils.log.logging import logger, print_log
 from mindie_llm.utils.tensor import npu
@@ -208,7 +210,9 @@ class NpuMemoryWatcher:
 
     def watch_npu_mem(self, rank_id, tag, is_multimodal=False, max_input_len=2048, trigger_count=-1):
         if self.warmup:
-            npu.synchronize()
+            # Ensure that the warmup is completed before checking the memory,
+            # otherwise the memory statistics of npu-smi may be incomplete.
+            torch.npu.current_stream().synchronize()
             free_mem, total_mem, _ = acl.rt.get_mem_info(1)
             peak_mem = total_mem - free_mem
 

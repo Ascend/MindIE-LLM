@@ -19,6 +19,7 @@ from typing import Iterable, Optional, Any, TYPE_CHECKING
 
 import numpy as np
 import torch
+import torch.nn.functional as F
 
 from mindie_llm.text_generator.utils import (
     GenerationOutput,
@@ -47,8 +48,8 @@ if TYPE_CHECKING:
     from mindie_llm.text_generator.utils.separate_deployment_engine import DmiModeNodeRole
     from mindie_llm.text_generator.adapter.generator_backend import GeneratorBackend
 
-LAUNCH_DONE_TIMEOUT = 1
-MEM_DETECT_INTERVAL = 1000
+LAUNCH_DONE_TIMEOUT = 20 * 60     # unit: second
+MEM_DETECT_INTERVAL = 1000        # unit: second
 
 
 class PluginManager:
@@ -317,6 +318,9 @@ class PluginManager:
                 model_input_wrapper.model_inputs.input_ids.record_stream(self.execution_stream)
                 model_input_wrapper.model_inputs.position_ids.record_stream(self.execution_stream)
                 model_input_wrapper.model_inputs.forward_context.record_stream(self.execution_stream)
+                if model_input_wrapper.model_inputs.forward_context.sub_forward_context is not None:
+                    model_input_wrapper.model_inputs.forward_context.sub_forward_context.record_stream(
+                        self.execution_stream)
 
             prof = span_start("synchronize_processing_stream")
             self.generator_backend.synchronize()
@@ -328,12 +332,13 @@ class PluginManager:
 
             if not input_metadata.is_prefill and (ENV.model_runner_exp or not self.previous_batch_is_prefill):
                 prof = span_start("wait_to_postprocess")
-                if model_output_wrapper.launch_done is not None and \
-                not model_output_wrapper.launch_done.wait(timeout=LAUNCH_DONE_TIMEOUT):
+                if model_output_wrapper.launch_done is not None:
                     if not self.is_inference_pause:
-                        logger.warning("Timeout waitting for launch_done signal.")
-                    else:
-                        is_mock = True
+                        if not model_output_wrapper.launch_done.wait(timeout=LAUNCH_DONE_TIMEOUT):
+                            logger.warning("Timeout waiting for launch_done signal.")
+                    else:  # branch for quick recovery
+                        if not model_output_wrapper.launch_done.wait(timeout=1):
+                            is_mock = True
                 span_end(prof)
             self.previous_batch_is_prefill = input_metadata.is_prefill
 
@@ -720,6 +725,13 @@ class PluginManager:
                 model_inputs.context_length[hit_sequence_ids_mask] += 1
                 model_inputs.max_seq_len = max(model_inputs.context_length)
                 model_inputs.forward_context.attn_metadata.max_seq_len = model_inputs.max_seq_len
+                actual_seq_lengths_query = torch.ones_like(model_inputs.input_lengths, dtype=torch.int32)
+                actual_seq_lengths_query = F.pad(
+                    torch.cumsum(actual_seq_lengths_query, dim=0, dtype=torch.int32), (0, 0), value=0)
+                seq_lens_q = actual_seq_lengths_query[1:] - actual_seq_lengths_query[:-1]
+                model_inputs.forward_context.attn_metadata.actual_seq_lengths_query = actual_seq_lengths_query
+                model_inputs.forward_context.attn_metadata.actual_seq_lengths_kv = model_inputs.input_lengths
+                model_inputs.forward_context.attn_metadata.seq_lens = model_inputs.input_lengths
 
     def _init_structured_output_manager(self) -> None:
         if not self._structured_output_enabled:

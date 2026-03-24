@@ -11,6 +11,7 @@
 from typing import Dict, List
 import torch
 from mindie_llm.runtime.utils.singleton import Singleton
+from mindie_llm.utils.log.logging import logger
 
 
 class InputBuffer(Singleton):
@@ -52,8 +53,11 @@ class InputBuffer(Singleton):
         Raises:
             KeyError: If the key is already registered.
         """
+        # When enable MTP, both main and draft models share the same input buffer.
+        # Therefore, we need to skip the registration if the key already exists.
         if key in self._buffers:
-            raise KeyError(f"Buffer '{key}' already registered")
+            logger.warning(f"Buffer '{key}' already registered, skip to update it.")
+            return
 
         self._buffers[key] = tensor
 

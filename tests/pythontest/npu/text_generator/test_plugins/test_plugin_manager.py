@@ -1345,6 +1345,9 @@ class TestPluginManagerFillInModelResultExp(unittest.TestCase):
         }
 
         model_input_wrapper.model_inputs = Mock()
+        model_input_wrapper.model_inputs.input_ids = torch.zeros(3, dtype=torch.long)
+        model_input_wrapper.model_inputs.position_ids = torch.zeros(3, dtype=torch.long)
+        model_input_wrapper.model_inputs.input_lengths = torch.tensor([1, 1, 1])
         model_input_wrapper.model_inputs.context_length = np.array([1, 2, 3], dtype=np.int32)
         model_input_wrapper.model_inputs.max_seq_len = 3
         model_input_wrapper.model_inputs.forward_context = Mock()

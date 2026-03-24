@@ -209,7 +209,21 @@ class TestBaseRouter(unittest.TestCase):
         expected_config = BaseConfig.from_dict(FAKE_CONFIG_DICT)
         expected_config.max_position_embeddings = 12345
         self.assertEqual(base_router.config, expected_config)
-    
+
+    @patch('atb_llm.utils.file_utils.standardize_path', return_value="")
+    @patch('atb_llm.utils.file_utils.check_path_permission', return_value=None)
+    @patch('transformers.configuration_utils.PretrainedConfig.get_config_dict', return_value={})
+    @patch("os.path.exists", return_value=False)
+    @patch("atb_llm.models.base.router.BaseRouter.get_config_cls")
+    def test_config_with_quantization_config(self, mock_get_config_cls, _1, _2, _3, _4):
+        mock_get_config_cls.return_value = BaseConfig
+        config_dict_with_quant = copy.deepcopy(FAKE_CONFIG_DICT)
+        config_dict_with_quant["quantization_config"] = {"test_key": "test_value"}
+        base_router = BaseRouter(FAKE_MODEL_NAME_OR_PATH, config_dict_with_quant, max_position_embeddings=12345)
+        expected_config = BaseConfig.from_dict(config_dict_with_quant)
+        expected_config.max_position_embeddings = 12345
+        self.assertEqual(base_router.config, expected_config)
+
     @patch('atb_llm.utils.file_utils.standardize_path', return_value="")
     @patch('atb_llm.utils.file_utils.check_path_permission', return_value=None)
     @patch("transformers.AutoTokenizer.from_pretrained", return_value=FakeTokenizer())

@@ -209,6 +209,9 @@ class PrefixCachePlugin(Plugin):
     def plugin_verify(self, sampling_output, cache_ids, result):
         pass
 
+    def plugin_verify_exp(self, sampling_output, cache_ids, result):
+        pass
+
     def plugin_cache_update(self, cache_ids, sampling_output, la_cache_input, is_prefill=False):
         pass
 

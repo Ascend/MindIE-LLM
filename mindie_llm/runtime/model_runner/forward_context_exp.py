@@ -210,7 +210,10 @@ def create_forward_context(
     if model_inputs.prefill_head_indices is not None:
         lm_head_indices = model_inputs.prefill_head_indices
     else:
-        lm_head_indices = range(model_inputs.input_ids.shape[0])
+        lm_head_indices = torch.arange(
+            model_inputs.input_ids.shape[0],
+            device=model_inputs.input_ids.device
+        )
 
     return ForwardContext(
         is_prefill=model_inputs.is_prefill,

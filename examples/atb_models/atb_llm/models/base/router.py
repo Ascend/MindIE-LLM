@@ -223,7 +223,8 @@ class BaseRouter:
                 # convert the new version `w8a8_mix` to the old version `w8a8_pdmix`.
                 if self.config_dict[quantize] == "w8a8_mix":
                     self.config_dict[quantize] = "w8a8_pdmix"
-                self.config_dict.setdefault("quantization_config", {}).update(quant_descs)
+                if "quantization_config" in self.config_dict:
+                    self.config_dict["quantization_config"] = quant_descs
 
             self._config = self.get_config()
             if not hasattr(self._config, quantize):

@@ -419,6 +419,8 @@ class Generator(PDInterface):
                 device_id=self.model_wrapper.device.index,
                 kv_caches=self.generator_backend.cache_pool.npu_cache
             )
+        # Ensure that the auxiliary stream waits main stream(device operation) finish
+        torch.npu.current_stream().synchronize()
 
     def __del__(self):
         if self.separate_deployment_worker is not None:
@@ -965,9 +967,13 @@ class Generator(PDInterface):
         self._auto_warmup_prefill(warmup_params)
         if self.enable_prefix_cache:
             self._auto_warmup_prefill(warmup_params, do_prefix_cache_warmup=True)
+        if self.backend_type == "torch":
+            self._auto_warmup_prefill(warmup_params)
 
     def _warmup_decode(self, warmup_params: WarmupParams):
         self._auto_warmup_decode(warmup_params)
+        if self.backend_type == "torch":
+            self._auto_warmup_decode(warmup_params)
 
     def _warmup_standard(self, warmup_params: WarmupParams):
         if self.enable_dap:
@@ -994,7 +1000,11 @@ class Generator(PDInterface):
             self.num_speculative_tokens,
         )
         if self.separate_deployment_worker is not None:
-            # K npu_cache model_id = 0, V npu_cache model_id = 1, K int8 npu_cache model_id = 2
+            # model_id mapping for npu_cache:
+            #   0 -> K cache (Key cache)
+            #   1 -> V cache (Value cache)
+            #   2 -> K int8 cache (Quantized Key cache)
+            #   3 -> Index cache
             if kvcache_settings.k_head_size != kvcache_settings.v_head_size:
                 num_quant_layers = 0
                 if kvcache_settings.kvcache_quant_layers:
@@ -1018,6 +1028,14 @@ class Generator(PDInterface):
                 if kvcache_settings.v_head_size > 0:
                     self.separate_deployment_worker.build(
                         model_id=1,
+                        num_tensors=kvcache_settings.num_layers,
+                        num_blocks=kvcache_settings.num_npu_blocks,
+                        blockshape=kvcache_settings.v_block_shape,
+                        dtype=kvcache_settings.dtype_str,
+                    )
+                if kvcache_settings.index_head_dim is not None:
+                    self.separate_deployment_worker.build(
+                        model_id=3,
                         num_tensors=kvcache_settings.num_layers,
                         num_blocks=kvcache_settings.num_npu_blocks,
                         blockshape=kvcache_settings.v_block_shape,
@@ -1115,7 +1133,7 @@ class Generator(PDInterface):
         )
         
         remaining_reqs, _ = self._filter_end_reqs(requests, decode_output)
-        if remaining_reqs:
+        if remaining_reqs and self.backend_type != "torch":
             raise RuntimeError(
                 f"Decode warmup did not finish all requests: {len(remaining_reqs)} remaining."
             )

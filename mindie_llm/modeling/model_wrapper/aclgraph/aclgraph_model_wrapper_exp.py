@@ -234,7 +234,8 @@ class AclGraphModelWrapperExp(ModelWrapper):
                 npu_cache,
                 input_ids,
                 position_ids,
-                forward_context
+                forward_context,
+                **kwargs
             )
         except Exception as e:
             logger.error(f"Error in `forward_tensor`: {e}")

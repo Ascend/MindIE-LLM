@@ -144,7 +144,8 @@ class All2AllStrategy(MoECommStrategyBase):
         if device_type == DeviceType.ASCEND_910B:
             # 910B: prefer W4A8_DYNAMIC; allow fallback if Attn DP enabled
             if quant_type != QuantType.W4A8_DYNAMIC:
-                return parallel_mgr.get(ParallelType.ATTN_DP).is_enabled()
+                return parallel_mgr.get(ParallelType.ATTN_DP).is_enabled() or \
+                       parallel_mgr.get(ParallelType.ATTN_CP).is_enabled()
         
         # Compatibility rule: MoE TP + All2All requires special handling
         if parallel_mgr.get(ParallelType.MOE_TP).is_enabled():
@@ -176,6 +177,7 @@ class AllGatherStrategy(MoECommStrategyBase):
 
 # Strategy priority order: first applicable strategy is selected
 MOE_COMM_STRATEGIES = [
+    FusedMC2Strategy,      # P0: Optimal (910C Fused)
     MC2Strategy,           # P1: High perf (large cluster/decode)
     All2AllStrategy,       # P2: Specific quant/prefill
     AllGatherStrategy,     # P3: Universal fallback

@@ -394,9 +394,11 @@ class MtpPlugin(Plugin):
 
             # Get masks.
             hit_indices_per_token = filling_masks.get('hit_indices_per_token_tensor')
-            hit_local_indices_per_token_tensor = filling_masks.get('hit_local_indices_per_token_tensor')
+            hit_mask_per_token = filling_masks.get('hit_mask_per_token_tensor')
             hit_arange_tensor = filling_masks.get('hit_arange_tensor')
             hit_mask_local_tensor = filling_masks.get('hit_mask_local_tensor')
+            hit_mask_tensor = filling_masks.get('hit_mask_tensor')
+            hit_local_indices_per_token_tensor = filling_masks.get('hit_local_indices_per_token_tensor')
 
             # assignation
             hit_token_ids_flatten = hit_token_ids.flatten()
@@ -415,6 +417,7 @@ class MtpPlugin(Plugin):
             )
             scatter_index = hit_local_indices_per_token_tensor.unsqueeze(-1).expand(-1, hidden_dim)
             hidden_states.scatter_(0, scatter_index, hit_hidden_states)
+            model_kwargs['hidden_states'] = hidden_states
 
             if lm_head_local_dp is not None and not input_metadata.is_dummy_batch:
                 hit_dp_speculative_length = filling_masks.get('hit_dp_speculative_length')
@@ -427,7 +430,7 @@ class MtpPlugin(Plugin):
             model_inputs.position_ids.scatter_add_(0, hit_local_indices_per_token_tensor, hit_num_tokens_per_token)
             model_inputs.context_length[hit_mask] += hit_num_tokens_numpy
             model_inputs.max_seq_len = max(model_inputs.context_length)
-            model_inputs.input_lengths.scatter_add_(0, hit_mask_local_tensor, hit_num_tokens_per_token.to(torch.int32))
+            model_inputs.input_lengths.scatter_add_(0, hit_mask_local_tensor, hit_num_tokens_tensor.to(torch.int32))
             model_inputs.forward_context.attn_metadata.max_seq_len = model_inputs.max_seq_len
             if self.infer_context.spcp_parallel_info.scp_size == 1:
                 offset_start_indices = \
@@ -436,6 +439,7 @@ class MtpPlugin(Plugin):
                 block_offsets = backend.repeat_interleave(offset_start_indices, speculative_length) + hit_increments
                 candidate_slots = filling_masks.get('candidate_slots')
                 hit_block_indices = filling_masks.get('hit_block_indices')
+                hit_local_indices_per_token_tensor = filling_masks.get('hit_local_indices_per_token_tensor')
                 model_inputs.forward_context.attn_metadata.slot_mapping.scatter_(
                     0,
                     hit_local_indices_per_token_tensor,
@@ -461,6 +465,18 @@ class MtpPlugin(Plugin):
                         )
                         * self.infer_context.spcp_parallel_info.sp_size
                     ][self.infer_context.spcp_parallel_info.sp_rank]
+
+            actual_seq_lengths_query = torch.ones_like(model_inputs.input_lengths, dtype=torch.int32)
+            actual_seq_lengths_query = torch.cumsum(actual_seq_lengths_query, dim=0, dtype=torch.int32)
+            model_inputs.forward_context.attn_metadata.actual_seq_lengths_query = \
+                actual_seq_lengths_query * speculative_length
+            model_inputs.forward_context.attn_metadata.actual_seq_lengths_kv = model_inputs.input_lengths
+            if not model_output_wrapper.input_metadata.is_prefill:
+                model_inputs.forward_context.sub_forward_context.attn_metadata.actual_seq_lengths_kv = \
+                    model_inputs.input_lengths
+                model_inputs.forward_context.sub_forward_context.attn_metadata.actual_seq_lengths_query = \
+                    model_inputs.forward_context.attn_metadata.actual_seq_lengths_query
+            model_inputs.forward_context.attn_metadata.seq_lens = model_inputs.input_lengths
 
             hit_mask_per_token_mod_tensor = filling_masks.get('hit_mask_per_token_mod_tensor')
             model_inputs.input_ids.scatter_(
