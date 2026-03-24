@@ -14,7 +14,7 @@
 # See the Mulan PSL v2 for more details.
 import json
 import re
-from typing import Dict, Pattern
+from typing import Dict, Pattern, Any
 from ..base.tool_calls_processor import ToolCallsProcessorWithXml, \
 DeltaFunctionCall, DeltaToolCall, ToolCallsProcessorManager
 
@@ -25,9 +25,9 @@ CONTENT = "content"
 TOOL_CALLS = "tool_calls"
 NAME = "name"
 ARGUMENTS = "arguments"
+STRING_TYPE = "string"
 
 
-# NOTE waiting to change property name
 class ToolCallsProcessorDeepseekv3Base(ToolCallsProcessorWithXml):
     @property
     def tool_calls_start_token(self) -> str:
@@ -78,7 +78,7 @@ class ToolCallsProcessorDeepseekv3Base(ToolCallsProcessorWithXml):
         raise NotImplementedError("Subclasses must implement the 'stream_tool_call_name_regex' property.")
 
     @staticmethod
-    def get_tool_calls_json(matches):
+    def _get_tool_calls_json(matches):
         tool_calls = []
         try:
             for match in matches:
@@ -194,6 +194,18 @@ class ToolsCallProcessorDeepseekv3(ToolCallsProcessorDeepseekv3Base):
 
 @ToolCallsProcessorManager.register_module(["deepseek_v32", "deepseekv32"])
 class ToolCallsProcessorDeepseekv32(ToolCallsProcessorDeepseekv3Base):
+    """
+    Parser for DeepSeek V3/3.2 XML-formatted tool calls.
+    
+    Features:
+    - Snapshot-Diffing for seamless token-level streaming.
+    - Schema-aware type coercion for nested/complex JSON parameters.
+    - Hard cut-off mechanism to mitigate post-tool-call hallucinations.
+    
+    Note: DSML refers to the proprietary XML-like syntax (e.g., `<｜DSML｜function_calls>`) 
+    used natively by DeepSeek V3/3.2 models for tool calling outputs.
+    """
+
     def __init__(self, tokenizer):
         super().__init__(tokenizer)
         self.tool_call_complete_regex = re.compile(
@@ -203,30 +215,11 @@ class ToolCallsProcessorDeepseekv32(ToolCallsProcessorDeepseekv3Base):
             r'<｜DSML｜invoke\s+name="([^"]+)"\s*>(.*?)</｜DSML｜invoke>', re.DOTALL
         )
         self.parameter_complete_regex = re.compile(
-            r'<｜DSML｜parameter\s+name="([^"]+)"\s+string="(?:true|false)"\s*>(.*?)</｜DSML｜parameter>',
-            re.DOTALL,
+            r'<｜DSML｜parameter[^>]*?name="([^"]+)"[^>]*>(.*?)</｜DSML｜parameter>', re.DOTALL
         )
 
-    @property
-    def tool_call_regex(self) -> Pattern:
-        return re.compile(
-                r"(?P<type>)<｜tool▁call▁begin｜>(?P<function_name>.*?)<｜tool▁sep｜>"
-                r"\s*(?:```json)?\s*(?P<function_arguments>.*?)\s*(?:```)?\s*<｜tool▁call▁end｜>"
-            )
-
-    @property
-    def stream_tool_call_portion_regex(self) -> Pattern:
-        return re.compile(
-                r"(?P<type>)(?P<function_name>.*)<｜tool▁sep｜>\s*(?:```json)?\s*(?P<function_arguments>.*[^\n`])"
-            )
-
-    @property
-    def stream_tool_call_name_regex(self) -> Pattern:
-        return re.compile(
-                r"(?P<type>)(?P<function_name>.*)<｜tool▁sep｜>"
-            )
-    
-    def parse_tool_calls_v32(self, text):
+    def parse_tool_calls_v32(self, text: str) -> list[Dict[str, Any]]:
+        """Non-streaming parameter extraction."""
         tool_call_match = self.tool_call_complete_regex.search(text)
         if not tool_call_match:
             return []
@@ -249,13 +242,15 @@ class ToolCallsProcessorDeepseekv32(ToolCallsProcessorDeepseekv3Base):
         
         return tool_calls
 
-    def decode(self, content) -> Dict:
+    def decode(self, content: str) -> Dict[str, Any]:
+        """Non-streaming decode entry."""
         lines = content.strip()
         matches = self.parse_tool_calls_v32(lines)
     
-        tool_calls = self.get_tool_calls_json(matches) if matches else None
+        tool_calls = self._get_tool_calls_json(matches) if matches else None
         if not tool_calls:
             return {CONTENT: lines}
+            
         call_res = []
         for item in tool_calls:
             tool_call = {
@@ -271,3 +266,181 @@ class ToolCallsProcessorDeepseekv32(ToolCallsProcessorDeepseekv3Base):
             call_res.append(res)
         spilt_token = self.decode_spilt_token
         return {CONTENT: content.split(spilt_token)[0], TOOL_CALLS: call_res}
+
+    def decode_stream(self, all_token_ids: list[int], 
+                      prev_decode_index: int, 
+                      curr_decode_index: int,
+                      skip_special_tokens: bool, 
+                      delta_text: str) -> dict[str, Any]:
+        """
+        Stream decoding entry. 
+        Intercepts XML tags and calculates tool call deltas.
+        """
+        try:
+            full_text = self.tokenizer.decode(all_token_ids, skip_special_tokens=skip_special_tokens)
+            start_tag = "<｜DSML｜function_calls>"
+            end_tag = "</｜DSML｜function_calls>"
+
+            # Phase 1: Prefix interception (Drop partial start tags)
+            if start_tag not in full_text:
+                for i in range(1, len(start_tag)):
+                    if full_text.endswith(start_tag[:i]):
+                        return INIT_RETURN_NONE
+                return {CONTENT: delta_text}
+
+            tool_call_portion = full_text.split(start_tag)[-1]
+
+            # Phase 2: Suffix interception (Hard Cut-off / Anti-Hallucination)
+            # Permanently mutes the stream once the end tag appears to prevent 
+            # the model from generating fake responses or reasoning post-call.
+            if end_tag in tool_call_portion:
+                return INIT_RETURN_NONE
+
+            return self._parse_dsml_stream_xml(tool_call_portion, delta_text)
+
+        except Exception:
+            return {CONTENT: ""}
+
+    def _get_param_type_from_schema(self, tool_name: str, param_name: str) -> str:
+        """
+        Extracts parameter type from injected self.tools schema.
+        Defaults to 'string' if schema is unavailable or undefined.
+        """
+        if not getattr(self, "tools", None):
+            return STRING_TYPE
+            
+        for tool in self.tools:
+            # Handle both dict and object schema formats
+            func = tool.get("function", {}) if isinstance(tool, dict) else getattr(tool, "function", None)
+            if not func:
+                continue
+                
+            t_name = func.get("name") if isinstance(func, dict) else getattr(func, "name", "")
+            if t_name == tool_name:
+                params = func.get("parameters", {}) if isinstance(func, dict) else getattr(func, "parameters", {})
+                props = params.get("properties", {}) if isinstance(params, dict) else getattr(params, "properties", {})
+                
+                # Safely extract parameter definition
+                if isinstance(props, dict):
+                    param_info = props.get(param_name, {})
+                else:
+                    param_info = getattr(props, "get", lambda x, y: {})(param_name, {})
+                    
+                if isinstance(param_info, dict):
+                    return param_info.get("type", STRING_TYPE)
+                return STRING_TYPE
+                
+        return STRING_TYPE
+
+    def _parse_dsml_stream_xml(self, xml_text: str, delta_text: str) -> dict[str, Any]:
+        """State machine for XML stream."""
+        invokes = xml_text.split("<｜DSML｜invoke")
+        if len(invokes) < 2:
+            return INIT_RETURN_NONE 
+
+        current_invoke_xml = "<｜DSML｜invoke" + invokes[-1]
+        tool_index = len(invokes) - 2  
+
+        if getattr(self, "current_tool_id", -1) != tool_index:
+            self.current_tool_id = tool_index
+            self.current_tool_name_sent = False
+            self.current_tool_arguments_sent = False
+
+        if not self.current_tool_name_sent:
+            name_match = re.search(r'name="([^"]+)"', current_invoke_xml)
+            if not name_match:
+                return INIT_RETURN_NONE
+            self.current_tool_name_sent = True
+            return {TOOL_CALLS: [
+                DeltaToolCall(
+                    index=self.current_tool_id,
+                    type="function",
+                    id=self._random_tool_calls_id(),
+                    function=DeltaFunctionCall(name=name_match.group(1))
+                ).model_dump(exclude_none=True)
+            ]}
+
+        if delta_text and current_invoke_xml.endswith(delta_text):
+            prev_xml = current_invoke_xml[:-len(delta_text)]
+        else:
+            prev_xml = current_invoke_xml[:max(0, len(current_invoke_xml) - len(delta_text))]
+
+        prev_json = self._convert_xml_to_json_string(prev_xml)
+        curr_json = self._convert_xml_to_json_string(current_invoke_xml)
+
+        delta_args = curr_json[len(prev_json):]
+
+        if delta_args:
+            if not self.current_tool_arguments_sent:
+                delta_args = "{" + delta_args
+                
+            self.current_tool_arguments_sent = True
+            return {TOOL_CALLS: [
+                DeltaToolCall(
+                    index=self.current_tool_id,
+                    function=DeltaFunctionCall(arguments=delta_args)
+                ).model_dump(exclude_none=True)
+            ]}
+
+        return INIT_RETURN_NONE
+
+    def _convert_xml_to_json_string(self, xml_text: str) -> str:
+        """
+        Converts incomplete XML snapshots into valid JSON string fragments 
+        utilizing injected schema for type precision.
+        """
+        if "<｜DSML｜invoke" not in xml_text:
+            return ""
+
+        tool_name_match = re.search(r'<｜DSML｜invoke\s+name="([^"]+)"', xml_text)
+        tool_name = tool_name_match.group(1) if tool_name_match else ""
+
+        stream_param_pattern = re.compile(
+            r'<｜DSML｜parameter[^>]*?name="([^"]+)"[^>]*>(.*?)(?:</｜DSML｜parameter>|$)',
+            re.DOTALL
+        )
+        matches = list(stream_param_pattern.finditer(xml_text))
+
+        json_parts = []
+        for match in matches:
+            p_name = match.group(1)
+            p_value = match.group(2)
+            
+            tag_str = match.group(0).split('>')[0]
+            close_tag = "</｜DSML｜parameter>"
+            is_closed = match.group(0).endswith(close_tag)
+
+            if not is_closed:
+                for i in range(1, len(close_tag)):
+                    if p_value.endswith(close_tag[:i]):
+                        p_value = p_value[:-i]
+                        break
+
+            schema_type = self._get_param_type_from_schema(tool_name, p_name)
+            is_string_type = schema_type in [STRING_TYPE, "str"]
+
+            if not getattr(self, "tools", None):
+                if 'string="false"' in tag_str:
+                    is_string_type = False
+                elif 'string="true"' in tag_str:
+                    is_string_type = True
+
+            if is_string_type:
+                escaped_val = p_value.replace('"', '\\"').replace('\n', '\\n')
+                part = f'"{p_name}": "{escaped_val}'
+                if is_closed:
+                    part += '"'
+            else:
+                clean_val = p_value.strip()
+                if not clean_val:
+                    part = f'"{p_name}": '
+                else:
+                    part = f'"{p_name}": {clean_val}'
+                
+            json_parts.append(part)
+
+        json_str = "{" + ", ".join(json_parts)
+        if "</｜DSML｜invoke>" in xml_text:
+            json_str += "}"
+            
+        return json_str
