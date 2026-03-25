@@ -31,7 +31,13 @@ class FlashCommModifier:
 
     def modify_inputs(self, inputs: List[torch.Tensor], is_prefill: bool, runtime_param) -> None:
         input_ids = inputs[0]
-        active_flag = self.enable_flash_comm and self.pass_flash_comm_threshold(input_ids.shape[0], self.hidden_size)
+        # Check if FlashComm should be activated: requires feature enabled, prefill stage, 
+        # and communication volume exceeding the threshold
+        active_flag = all([
+            self.enable_flash_comm,
+            is_prefill,
+            self.pass_flash_comm_threshold(input_ids.shape[0], self.hidden_size)
+        ])
         if not active_flag:
             self.active = False
             return
