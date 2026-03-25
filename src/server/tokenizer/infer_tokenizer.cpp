@@ -31,7 +31,10 @@ using json = nlohmann::json;
 namespace mindie_llm {
 std::string g_tokenizerSharedMemName = "/llm_tokenizer_shared_memory_";
 static constexpr uint32_t MEM_PAGE_SIZE = 4096U;
-static constexpr time_t WAIT_TIME = 60;
+
+static constexpr time_t INIT_WAIT_TIME = 120;   // 启动等待时长
+static constexpr time_t DECODE_WAIT_TIME = 60;  // Decode等待时长
+static constexpr time_t WAIT_TIME = 60;         // Encode等待时长
 static constexpr time_t MIN_WAIT_TIME = 5;
 static constexpr time_t MAX_WAIT_TIME = 300;
 
@@ -452,16 +455,16 @@ bool TokenizerProcessPool::InitProcesses()
 
         struct timespec ts;
         clock_gettime(CLOCK_REALTIME, &ts);
-        ts.tv_sec += 60U;
+        ts.tv_sec += INIT_WAIT_TIME;
         int ret = sem_timedwait(&header->sems.subInitialized, &ts);
         if (ret == -1 || errno == ETIMEDOUT || header->magic == MAGIC_HEAD_FAILED) {
             ULOG_ERROR(SUBMODLE_NAME_TOKENIZER, GenerateTokenizerErrCode(ERROR, SUBMODLE_FEATURE_TOKENIZER,
-                INIT_ERROR), "Timeout, Failed to init tokenizer process: step=" <<
-                static_cast<uint32_t>(header->sems.step));
+                INIT_ERROR), "Timeout, Failed to init tokenizer process after " << static_cast<uint32_t>(ts.tv_sec) <<
+                " seconds, step=" << static_cast<uint32_t>(header->sems.step));
             return false;
         }
-        ULOG_INFO(SUBMODLE_NAME_TOKENIZER, "Success to init tokenizer process: step=" <<
-            static_cast<uint32_t>(header->sems.step));
+        ULOG_INFO(SUBMODLE_NAME_TOKENIZER, "Success to init tokenizer process after " <<
+            static_cast<uint32_t>(ts.tv_sec) << " seconds, step=" << static_cast<uint32_t>(header->sems.step));
     }
 
     ULOG_INFO(SUBMODLE_NAME_TOKENIZER, "Finished to init tokenizer sub process size " << availablePid.size());
@@ -924,7 +927,7 @@ Status TokenizerProcessPool::DoDecode(std::vector<int64_t> &tokenIds, std::strin
     // wait sub process done
     struct timespec ts;
     clock_gettime(CLOCK_REALTIME, &ts);
-    ts.tv_sec += 120U; // wait for 120s
+    ts.tv_sec += DECODE_WAIT_TIME;
     int ret = sem_timedwait(&header->sems.produce, &ts);
     if (ret == -1) {
         ULOG_ERROR(SUBMODLE_NAME_TOKENIZER, GenerateTokenizerErrCode(ERROR, SUBMODLE_FEATURE_TOKENIZER,
