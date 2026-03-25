@@ -42,6 +42,7 @@ from atb_llm.utils.weights import ProcessGroupType
 from atb_llm.utils.log import print_log
 from atb_llm.utils import file_utils
 from atb_llm.utils.eplb_expert_data_collect import EplbExpertDataCollect
+from mindie_llm.text_generator.plugins.plugin_manager import MemPoolType
 from ...models import InferenceMode
 
 try:
@@ -79,6 +80,12 @@ KVCACHE_QUANT_LAYERS = "kvcacheQuantLayers"
 MOE_PACK_QUANT_TYPE = "moePackQuantType"
 ALLTOALL_LONG_SEQLEN_THRESHOLD = 65536
 MAX_ALLTOALL_BUFF_SCALE = 3
+WARMUP_IS_END = "warmup_is_end"
+
+
+# 直接引用model_runner中的同名实现会导致循环调用和拉起卡死, 故本文件中直接引用这里
+def generate_mem_pool_event_key(only_save_kv: bool) -> str:
+    return "only_save_kv" if only_save_kv else "both_save_kv"
 
 
 class MaskType(int, Enum):
@@ -599,14 +606,22 @@ class FlashDeepseekv2ForCausalLM(FlashForCausalLM):
 
     def init_ascend_operations(self, config: DeepseekV2Config):
         if not self.layerwise_disaggregated:
-            self.acl_encoder_operation = torch.classes.ModelTorch.ModelTorch(CPP_DEEPSEEKV2_MODEL_CLASS_NAME)
+            if self.mempool_type == MemPoolType.ASYNC_WRITE:
+                self.acl_encoder_operation_prefixcache_mempool = \
+                    torch.classes.ModelTorch.ModelTorch(CPP_DEEPSEEKV2_MODEL_CLASS_NAME)
+            else:
+                self.acl_encoder_operation = torch.classes.ModelTorch.ModelTorch(CPP_DEEPSEEKV2_MODEL_CLASS_NAME)
             logger.info(f"when init_ascend_operations, self.prefix_cache_enable is : {self.prefix_cache_enable}")
             if self.prefix_cache_enable:
                 self.acl_encoder_operation_prefixcache = \
                     torch.classes.ModelTorch.ModelTorch(CPP_DEEPSEEKV2_MODEL_CLASS_NAME)
             if self.num_speculative_tokens:
-                self.acl_encoder_operation_mtp = torch.classes.ModelTorch.ModelTorch(
-                    CPP_DEEPSEEKV2_MTP_MODEL_CLASS_NAME)
+                if self.mempool_type == MemPoolType.ASYNC_WRITE:
+                    self.acl_encoder_operation_prefixcache_mempool_mtp = \
+                        torch.classes.ModelTorch.ModelTorch(CPP_DEEPSEEKV2_MTP_MODEL_CLASS_NAME)
+                else:
+                    self.acl_encoder_operation_mtp = torch.classes.ModelTorch.ModelTorch(
+                        CPP_DEEPSEEKV2_MTP_MODEL_CLASS_NAME)
                 if self.prefix_cache_enable:
                     self.acl_encoder_operation_prefixcache_mtp = \
                         torch.classes.ModelTorch.ModelTorch(CPP_DEEPSEEKV2_MTP_MODEL_CLASS_NAME)
@@ -1095,9 +1110,15 @@ class FlashDeepseekv2ForCausalLM(FlashForCausalLM):
                         "enableLcocTp": self.enable_lcoc_tp,
                         "enableFusedMLA": self.enable_fused_mla,
                         }
+        encoder_param_mempool = {**encoder_param,
+                                 "memPoolType": int(self.mempool_type),
+                                 "pipeKey": generate_mem_pool_event_key(only_save_kv=True),
+                                 }
         encoder_param_prefixcache = {**encoder_param,
-                         "enablePrefixCache": self.prefix_cache_enable,                         
-                         }
+                                     "enablePrefixCache": self.prefix_cache_enable,
+                                     "memPoolType": int(self.mempool_type),
+                                     "pipeKey": generate_mem_pool_event_key(only_save_kv=False),
+                                     }
         decoder_param = {**coder_param, "isPrefill": False, "supportLcoc": False,
                         "expertParallelDegree": self.ep_level \
                             if self.ep_level != ExpertParallelDegree.MIX_EP \
@@ -1120,6 +1141,9 @@ class FlashDeepseekv2ForCausalLM(FlashForCausalLM):
                         self.acl_encoder_operation.set_format_to_nz(weight_id)
                         if self.enable_atlas_gmm_fused:
                             self.acl_encoder_operation.set_format_to_nz(weight_id + 6)
+            if self.mempool_type == MemPoolType.ASYNC_WRITE:
+                self.acl_encoder_operation_prefixcache_mempool.set_param(json.dumps({**encoder_param_mempool}))
+                self.acl_encoder_operation_prefixcache_mempool.set_weight(self.ascend_weight)
             if self.prefix_cache_enable:
                 self.acl_encoder_operation_prefixcache.set_param(json.dumps({**encoder_param_prefixcache}))
                 self.acl_encoder_operation_prefixcache.set_weight(self.ascend_weight)
@@ -1257,9 +1281,21 @@ class FlashDeepseekv2ForCausalLM(FlashForCausalLM):
                         self.acl_decoder_operation_mtp.set_format_to_nz(weight_id)
                         if self.enable_atlas_gmm_fused:
                             self.acl_decoder_operation_mtp.set_format_to_nz(weight_id + 6)
-                    
+            if self.mempool_type == MemPoolType.ASYNC_WRITE:
+                encoder_param_mempool_mtp = {
+                    **encoder_param_mtp,
+                    "memPoolType": int(self.mempool_type),
+                    "pipeKey": generate_mem_pool_event_key(only_save_kv=True)
+                }
+                self.acl_encoder_operation_prefixcache_mempool_mtp.set_param(json.dumps({**encoder_param_mempool_mtp}))
+                self.acl_encoder_operation_prefixcache_mempool_mtp.set_weight(self.ascend_weight_mtp)
             if self.prefix_cache_enable:
-                encoder_param_mtp = {**encoder_param_mtp, "enablePrefixCache": self.prefix_cache_enable}
+                encoder_param_mtp = {
+                    **encoder_param_mtp,
+                    "enablePrefixCache": self.prefix_cache_enable,
+                    "memPoolType": int(self.mempool_type),
+                    "pipeKey": generate_mem_pool_event_key(only_save_kv=False)
+                }
                 self.acl_encoder_operation_prefixcache_mtp.set_param(json.dumps({**encoder_param_mtp}))
                 self.acl_encoder_operation_prefixcache_mtp.set_weight(self.ascend_weight_mtp)
 
@@ -1663,7 +1699,7 @@ class FlashDeepseekv2ForCausalLM(FlashForCausalLM):
         perf_time_start = 0
         if ENV.benchmark_enable:
             import time
-            torch.npu.synchronize()
+            torch.npu.current_stream().synchronize()
             perf_time_start = time.time()
         self.expert_array = self.placeholder
 
@@ -1958,6 +1994,9 @@ class FlashDeepseekv2ForCausalLM(FlashForCausalLM):
         if not self.num_speculative_tokens:
             if is_prefill and self.prefix_cache_enable and self.has_prefixcache:
                 if not self.layerwise_disaggregated:
+                    # skip event for warmup
+                    warmup_is_end = kwargs.get(WARMUP_IS_END, True)
+                    self.acl_encoder_operation_prefixcache.skip_event(not warmup_is_end)
                     acl_model_out = self.acl_encoder_operation_prefixcache.execute(acl_inputs, acl_param)
                 else:
                     if split_part == LwdLayerStatus.EDGE_START_LAYER:
@@ -1967,7 +2006,11 @@ class FlashDeepseekv2ForCausalLM(FlashForCausalLM):
                     else:
                         acl_model_out = self.acl_tail_encoder_operation_prefixcache.execute(acl_inputs, acl_param)
                     self.has_prefixcache = False
-                
+            elif is_prefill and self.mempool_type == MemPoolType.ASYNC_WRITE and not self.layerwise_disaggregated:
+                # skip event for warmup
+                warmup_is_end = kwargs.get(WARMUP_IS_END, True)
+                self.acl_encoder_operation_prefixcache_mempool.skip_event(not warmup_is_end)
+                acl_model_out = self.acl_encoder_operation_prefixcache_mempool.execute(acl_inputs, acl_param)
             elif is_prefill:
                 if self.layerwise_disaggregated:
                     if split_part == LwdLayerStatus.EDGE_START_LAYER:
@@ -2000,12 +2043,24 @@ class FlashDeepseekv2ForCausalLM(FlashForCausalLM):
         if is_mtp:
             encoder_operation = self.acl_encoder_operation_mtp
             decoder_operation = self.acl_decoder_operation_mtp
+            if self.mempool_type == MemPoolType.ASYNC_WRITE:
+                warmup_is_end = kwargs.get(WARMUP_IS_END, True)
+                self.acl_encoder_operation_prefixcache_mempool_mtp.skip_event(not warmup_is_end)
+                encoder_operation = self.acl_encoder_operation_prefixcache_mempool_mtp
             if self.has_prefixcache:
+                warmup_is_end = kwargs.get(WARMUP_IS_END, True)
+                self.acl_encoder_operation_prefixcache_mtp.skip_event(not warmup_is_end)
                 encoder_operation = self.acl_encoder_operation_prefixcache_mtp
         else:
             encoder_operation = self.acl_encoder_operation
             decoder_operation = self.acl_decoder_operation
+            if self.mempool_type == MemPoolType.ASYNC_WRITE:
+                warmup_is_end = kwargs.get(WARMUP_IS_END, True)
+                self.acl_encoder_operation_prefixcache_mempool.skip_event(not warmup_is_end)
+                encoder_operation = self.acl_encoder_operation_prefixcache_mempool
             if self.has_prefixcache:
+                warmup_is_end = kwargs.get(WARMUP_IS_END, True)
+                self.acl_encoder_operation_prefixcache.skip_event(not warmup_is_end)
                 encoder_operation = self.acl_encoder_operation_prefixcache
 
         if is_prefill:
@@ -2171,7 +2226,7 @@ class FlashDeepseekv2ForCausalLM(FlashForCausalLM):
         llm_hidden_states = (hidden_states[0][lm_head_indices[0]], hidden_states[1][lm_head_indices[1]])
 
         # logits 是一个tuple，里面是两个logits，logits是一个两维NPU tensor [ntokens, vocabSize]
-        torch.npu.synchronize()
+        torch.npu.current_stream().synchronize()
         logits_mtp, hidden_states_mtp = logits, hidden_states
         for mtp_idx in range(self.num_speculative_tokens):
             self.acl_dap_operation_mtp.set_kv_cache(self.mtp_k_caches[mtp_idx: mtp_idx + 1],
@@ -2474,7 +2529,8 @@ class FlashDeepseekv2ForCausalLM(FlashForCausalLM):
             span_end(prof, True)
 
             prof = span_start("operatorExecute", True)
-            logits = self.execute_ascend_operator(acl_inputs, acl_param, is_prefill)
+            logits = self.execute_ascend_operator(acl_inputs, acl_param, is_prefill,
+                                                  warmup_is_end=kwargs.get(WARMUP_IS_END, True))
             if not is_prefill and self.mapping.has_attn_cp():
                 # During the CP decode stage, each CP domain receives the same token as input,
                 # resulting in the same output token. As a result, duplicates exist in the aggregated next_token.
@@ -2522,13 +2578,18 @@ class FlashDeepseekv2ForCausalLM(FlashForCausalLM):
                 input_ids, position_ids, is_prefill, kv_cache,
                 block_tables, slots, input_lengths, max_seq_len,
                 lm_head_indices, **kwargs)
-            logits, hidden_states = self.execute_ascend_operator(acl_inputs, acl_param, is_prefill)
+            logits, hidden_states = self.execute_ascend_operator(acl_inputs, acl_param, is_prefill,
+                                                                 warmup_is_end=kwargs.get(WARMUP_IS_END, True))
             llm_logits, llm_hidden_states = logits, hidden_states[lm_head_indices]
             q_lens = kwargs.get(Q_LENS, None)
             logits_mtp, hidden_states_mtp = logits, hidden_states
             acl_inputs_mtp, acl_param_mtp = acl_inputs, acl_param
-            self.acl_encoder_operation_mtp.set_kv_cache(self.mtp_k_caches[0: 1],
-                                                        self.mtp_v_caches[0: 1])
+            if self.acl_encoder_operation_mtp is not None:
+                self.acl_encoder_operation_mtp.set_kv_cache(self.mtp_k_caches[0: 1],
+                                                            self.mtp_v_caches[0: 1])
+            if self.mempool_type == MemPoolType.ASYNC_WRITE:
+                self.acl_encoder_operation_prefixcache_mempool_mtp.set_kv_cache(self.mtp_k_caches[0: 1],
+                                                                                self.mtp_v_caches[0: 1])
             if self.prefix_cache_enable:
                 self.acl_encoder_operation_prefixcache_mtp.set_kv_cache(self.mtp_k_caches[0: 1], 
                                                                         self.mtp_v_caches[0: 1])
@@ -2543,11 +2604,12 @@ class FlashDeepseekv2ForCausalLM(FlashForCausalLM):
                 acl_inputs_mtp, acl_param_mtp = \
                     self.update_mtp_inputs(logits_mtp, hidden_states_mtp, input_lengths,
                                            acl_inputs_mtp, acl_param_mtp, 0, kwargs)
-            torch.npu.synchronize()
+            torch.npu.current_stream().synchronize()
             
             acl_inputs_mtp = self.add_local_tp_mtp_inputs(acl_inputs_mtp)
             logits_mtp, hidden_states_mtp = \
-                self.execute_ascend_operator(acl_inputs_mtp, acl_param_mtp, is_prefill, is_mtp=True)
+                self.execute_ascend_operator(acl_inputs_mtp, acl_param_mtp, is_prefill, is_mtp=True,
+                                             warmup_is_end=kwargs.get(WARMUP_IS_END, True))
 
             if self.distributed_enable:
                 llm_logits = self.select_logits(llm_logits, **kwargs)
@@ -2903,6 +2965,9 @@ class FlashDeepseekv2ForCausalLM(FlashForCausalLM):
                     if self.acl_dap_operation is not None:
                         self.acl_dap_operation.set_kv_cache(k_caches[:-1],
                                                             v_caches[:-1])
+                    if self.mempool_type == MemPoolType.ASYNC_WRITE:
+                        self.acl_encoder_operation_prefixcache_mempool.set_kv_cache(k_caches[:-1],
+                                                                                    v_caches[:-1])
                     if self.prefix_cache_enable:
                         self.acl_encoder_operation_prefixcache.set_kv_cache(k_caches[:-1], 
                                                                             v_caches[:-1])
@@ -2911,6 +2976,8 @@ class FlashDeepseekv2ForCausalLM(FlashForCausalLM):
                 else:
                     if self.acl_encoder_operation is not None:
                         self.acl_encoder_operation.set_kv_cache(k_caches, v_caches)
+                    if self.mempool_type == MemPoolType.ASYNC_WRITE:
+                        self.acl_encoder_operation_prefixcache_mempool.set_kv_cache(k_caches, v_caches)
                     if self.acl_decoder_operation is not None:
                         self.acl_decoder_operation.set_kv_cache(k_caches, v_caches)
                     if self.acl_dap_operation is not None:

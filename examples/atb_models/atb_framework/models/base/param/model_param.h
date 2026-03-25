@@ -24,6 +24,12 @@ const int LWD_EDGE_LAST = 2;
 namespace atb_speed {
 namespace base {
 
+enum MemPoolType {
+    DISABLED = 0,
+    SYNC_WRITE = 1,
+    ASYNC_WRITE = 2
+};
+
 /// Parse string to `nlohmann::json`
 /// \param param parameters in JSON string format passed from the Python side
 /// \return parameters in `nlohmann::json` format
@@ -83,6 +89,9 @@ public:
     bool reuseEmbedTable = false;
     bool outputEmbedTable = false;
 
+    MemPoolType memPoolType = MemPoolType::DISABLED;
+    // When `mempool_type` is ASYNC_WRITE, a event pipeKey is set for async layer-wise prefix cache transfer.
+    std::string memPoolEventPipeKey = "default";
     std::string backend = "hccl";
     std::string tpDomain = "";
     std::string rankTableFile = "";

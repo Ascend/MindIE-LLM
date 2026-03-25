@@ -27,6 +27,7 @@
 #include "pytorch/adapter/workspace/workspace.h"
 #include "atb_speed/utils/model_factory.h"
 #include "pytorch/adapter/context/context.h"
+#include "pytorch/adapter/event/event.h"
 
 namespace atb_speed {
 static std::mutex g_taskQueueLock;
@@ -343,5 +344,9 @@ TORCH_LIBRARY(ModelTorch, m)
         .def_static("enable_cache_workspace", &Context::EnableCacheWorkspace)
         .def_static("disable_cache_workspace", &Context::DisableCacheWorkspace)
         .def_static("resume_hccl_comm", &Context::ResumeHcclComm);
+
+    m.class_<Event>("Event")
+        .def_static("record", &Event::Record)
+        .def_static("wait", &Event::Wait);
 }
 }

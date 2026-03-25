@@ -25,6 +25,7 @@ import atb_llm.nn.distributed as dist
 from atb_llm.nn.network_manager import get_default_net
 from atb_llm.nn.tensor import Tensor
 from atb_llm.nn.functional import gather, split
+from mindie_llm.text_generator.plugins.plugin_manager import MemPoolType
 
 from ..models import get_model
 from ..models.base.config import LoraModelConfig
@@ -80,13 +81,18 @@ class TruncationSide(int, Enum):
     RIGHT = -1
 
 
+# 专用于mempool异步分层传输特性的event pipe_key
+def generate_mem_pool_event_key(only_save_kv: bool) -> str:
+    return "only_save_kv" if only_save_kv else "both_save_kv"
+
+
 def exception_handler(cls):
     """
     Class decorator for ModelRunner that applies various handlers to methods.
     Currently applies:
     1. _torch_oom_handler: Catches and logs PyTorch OOM errors.
     """
-    
+
     def _torch_oom_handler(func):
         """Handler specifically for PyTorch OOM errors."""
         @wraps(func)
@@ -107,11 +113,11 @@ def exception_handler(cls):
                     raise RuntimeError(f"{error_msg}. Error_code: {error_code}") from e
                 raise
         return wrapper
-    
+
     def _apply_handlers(func):
         """Apply the chain of handlers to a function."""
         return _torch_oom_handler(func)
-    
+
     def _is_target_method(name):
         """Filter methods that need handling."""
         if name == "generate_position_ids":
@@ -225,6 +231,7 @@ class ModelRunner:
             except Exception:
                 print_log(rank, logger.info, "deserialized unknow error")
 
+        self.mempool_type = kwargs.get('mempool_type', MemPoolType.DISABLED)
         load_atb_speed()
 
         if ENV.bind_cpu:
@@ -370,6 +377,10 @@ class ModelRunner:
     def resume_hccl_comm(cls):
         torch.classes.ModelTorch.Context.resume_hccl_comm()
 
+    @classmethod
+    def wait_event(cls, pipe_key: str):
+        torch.classes.ModelTorch.Event.wait(pipe_key)
+
     def load_weights(self, **kwargs):
         """Load weights from file."""
         enable_v3 = False
@@ -418,9 +429,11 @@ class ModelRunner:
                     with self.device:
                         self.init_model(self.config, weights,
                                         quant_config=mindie_llm_config_v2.quant_config,
-                                        prealloc_weight_mem_on_npu=True)
+                                        prealloc_weight_mem_on_npu=True,
+                                        mempool_type=self.mempool_type)
             else:
-                self.init_model(self.config if not enable_v3 else mindie_llm_config, weights)
+                self.init_model(self.config if not enable_v3 else mindie_llm_config, weights,
+                                mempool_type=self.mempool_type)
                 
         except TypeError as e:
             logger.warning(

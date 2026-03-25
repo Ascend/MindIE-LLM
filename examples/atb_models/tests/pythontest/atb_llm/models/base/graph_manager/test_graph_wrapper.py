@@ -22,6 +22,8 @@ from atb_llm.models.base.graph_manager.single_lora_graph_wrapper import SingleLo
 from atb_llm.models.base.graph_manager.multi_lora_graph_wrapper import MultiLoraGraphWrapper
 from atb_llm.models.base.graph_manager.speculate_graph_wrapper import SpeculateGraphWrapper
 from atb_llm.models.base.graph_manager.splitfuse_graph_wrapper import SplitFuseGraphWrapper
+from atb_llm.models.base.graph_manager.mem_pool_graph_wrapper import MemPoolGraphWrapper
+from mindie_llm.text_generator.plugins.plugin_manager import MemPoolType
 from tests.pythontest.atb_llm.models.base.graph_manager.test_graph_manager import MockATBGraphWrapper
 
 
@@ -122,3 +124,10 @@ class TestATBGraphWrapper(unittest.TestCase):
         
         mock_context.inference_mode = None
         self.assertFalse(graph_wrapper.activate(mock_context, json.dumps({"qLen": 17}), is_prefill=True))
+
+    def test_mem_pool(self):
+        graph_wrapper = MemPoolGraphWrapper()
+        mock_context = MagicMock()
+        self.assertTrue(graph_wrapper.activate(mock_context, {}, mempool_type=MemPoolType.ASYNC_WRITE))
+        self.assertFalse(graph_wrapper.activate(mock_context, {}, mempool_type=MemPoolType.DISABLED))
+        self.assertFalse(graph_wrapper.activate(mock_context, {}, mempool_type=MemPoolType.SYNC_WRITE))

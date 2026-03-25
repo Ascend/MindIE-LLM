@@ -37,6 +37,7 @@ enum class WorkFlowType : uint32_t {
 struct KvPoolConfig {
     std::string backend;
     std::string configPath;
+    bool asyncWrite;
 };
 
 struct ServerConfig {

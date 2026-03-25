@@ -14,13 +14,14 @@ import torch
 import numpy as np
 
 from atb_llm.models import InferenceMode
-from atb_llm.runner.model_runner import ModelRunner
+from atb_llm.runner.model_runner import ModelRunner, generate_mem_pool_event_key
 from atb_llm.utils.env import ENV
 from atb_llm.utils.eplb_expert_data_collect import EplbExpertDataCollect
 from atb_llm.utils.moe_utils import EPLBType, save_eplb_data
 from ..model_info import ModelInfo
 from ..wrapper import ModelWrapper
 from ....utils.log.logging import logger
+from ....text_generator.plugins.plugin_manager import MemPoolType
 
 ASCEND_310B = 240
 
@@ -83,7 +84,8 @@ class ATBModelWrapper(ModelWrapper):
             tls_crl_path=kwargs.get("interNodeTlsCrlPath", ""),
             tls_crl_files=kwargs.get("interNodeTlsCrlFiles", ""),
             batch_p_num=2 if kwargs.get('lwdNextPHeadPrior', False) else 1,
-            lwd_comm_args=kwargs.get('lwd_comm_args', None)
+            lwd_comm_args=kwargs.get('lwd_comm_args', None),
+            mempool_type=kwargs.get('mempool_type', MemPoolType.DISABLED)
         )
         self.config = self.model_runner.config
         self.config_dict = self.model_runner.config_dict
@@ -439,3 +441,6 @@ class ATBModelWrapper(ModelWrapper):
 
     def resume_hccl_comm(self):
         self.model_runner.resume_hccl_comm()
+
+    def generate_mem_pool_event_key(self, only_save_kv: bool) -> str:
+        return generate_mem_pool_event_key(only_save_kv)

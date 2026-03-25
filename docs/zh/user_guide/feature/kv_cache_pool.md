@@ -21,7 +21,7 @@
 
 |配置项|取值类型|取值范围|配置说明|
 |--|--|--|--|
-|kvPoolConfig|std::string|{"backend"："*kv_pool_backend_name*", <br>"configPath":"*/path/to/your/config/file*"}|backend为指定的KV Cache池化后端。<ul><li>设置为“”，表示关闭KV Cache池化。</li><li>设置为对应池化后端的名称，表示开启KV Cache池化。</li></ul><br>configPath为传入池化后端所需的配置文件路径。|
+|kvPoolConfig| std::string, bool | {"backend"："*kv_pool_backend_name*", <br>"configPath":"*/path/to/your/config/file*", <br>"asyncWrite":false} | backend为指定的KV Cache池化后端。<ul><li>设置为“”，表示关闭KV Cache池化。</li><li>设置为对应池化后端的名称，表示开启KV Cache池化。</li></ul><br>configPath为传入池化后端所需的配置文件路径。<br><br>asyncWrite为KV Cache池化异步写的开关。<ul><li>不设置或设置为false，表示关闭KV Cache的异步写，即使用同步写。</li><li>设置为true表示打开KV Cache的异步写。</li></ul> |
 
 
 ## 执行推理
@@ -92,7 +92,7 @@
             },
     ```
 
-3. 拉起池化后端对应的中心化服务Master Service，具体安装和拉起命令，请参考[KV Cache池化使用指导](../../../../mindie_llm/text_generator/mempool/README.md)。
+3. 拉起池化后端对应的中心化服务Master Service，具体安装和拉起命令，请参考[KV Cache池化使用指导](mempool.md)。
 4. 启动服务。
 
     ```bash

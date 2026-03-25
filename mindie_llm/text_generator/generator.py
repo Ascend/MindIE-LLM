@@ -254,6 +254,8 @@ class Generator(PDInterface):
         self.world_size = parse_config(model_config, 'world_size', required=True, parse_type=ParseType.TO_INT)
         self.local_rank = parse_config(model_config, 'local_rank', required=True, parse_type=ParseType.TO_INT)
         self.npu_device_id = parse_config(model_config, 'npu_device_id', required=True, parse_type=ParseType.TO_INT)
+        kv_pool_async_write = parse_config(model_config, 'kv_pool_async_write', required=False,
+                                        parse_type=ParseType.TO_BOOL, default_value=False)
 
         async_inference_key = 'async_inference'
         model_config[async_inference_key] = ENV.async_inference
@@ -262,6 +264,9 @@ class Generator(PDInterface):
             logger.info('Async inference is activated.')
             validator.check_async_inference_and_plugin_type(True, plugin_config.get("plugin_type"))
         model_config['splitfuse_enabled'] = self.is_mix_model
+
+        if kv_pool_async_write and "splitfuse" in model_config.get("plugin_params", ""):
+            raise ValueError("Async mempool does not support plugin_type: splitfuse!")
 
         self.layerwise_disaggregated = parse_config(model_config, 'layerwiseDisaggregated', required=False,
             parse_type=ParseType.TO_BOOL, default_value=False)
@@ -375,7 +380,8 @@ class Generator(PDInterface):
         
         # NOTE: Warmup async inference will lead to lower mtp acceptance rate with unknown reason,
         # so we disable async inference here.
-        with self._temporarily_disable(async_inference=self.async_inference):
+        with self._temporarily_disable(async_inference=self.async_inference, 
+                                       mem_pool=self.generator_backend.kv_pool_backend):
             block_mem_size_gb = gb(calc_block_mem(self.model_info, self.block_size, self.num_speculative_tokens))
             print_log(self.rank, logger.info,
                     f'One block during warmup needs npu memory(GiB): {block_mem_size_gb}')
@@ -814,20 +820,25 @@ class Generator(PDInterface):
         return ret_dict
 
     @contextmanager
-    def _temporarily_disable(self, dap: bool = False, async_inference: bool = False):
+    def _temporarily_disable(self, dap: bool = False, async_inference: bool = False, mem_pool: str = ""):
         origin_enable_dap = self.generator_backend.enable_dap
         origin_async_inference = self.async_inference
+        origin_mem_pool = self.generator_backend.kv_pool_backend
         try:
             if dap:
                 self.generator_backend.enable_dap = False
             if async_inference and not self.backend_type == "torch":
                 self.async_inference = False
+            if len(mem_pool) != 0:
+                self.generator_backend.kv_pool_backend = ""
             yield
         finally:
             if dap:
                 self.generator_backend.enable_dap = origin_enable_dap
             if async_inference:
                 self.async_inference = origin_async_inference
+            if len(mem_pool) != 0:
+                self.generator_backend.kv_pool_backend = origin_mem_pool
 
     def _init_plugin_manager(
         self,

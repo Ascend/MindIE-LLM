@@ -18,6 +18,7 @@
 
 #include "models/base/model/decoder_model.h"
 #include "models/base/layer/decoder_layer.h"
+#include "models/base/param/model_param.h"
 #include "operations/aclnn/ops/split_with_size_operation.h"
 #include "operations/fusion/infer_shape_functions.h"
 
@@ -725,6 +726,7 @@ atb::Status DecoderModel::AddLayer()
 
         uint32_t nodeCount = graph_.nodes.size();
         this->AddSingleLayer(trueLayerId);
+        RecordEventBeforePrefixCacheSave();
         for (uint32_t index = nodeCount; index < graph_.nodes.size(); index++) {
             if (GetSingleton<common::DapManager>().GetRole() == common::DapRole::SUCCESSOR) {
                 CHECK_OPERATION_STATUS_RETURN(SetNodeStreamId(graph_.nodes.at(index), 1));
@@ -736,6 +738,22 @@ atb::Status DecoderModel::AddLayer()
         if (param.enableDap) {
             GetSingleton<common::DapManager>().SetRole(common::DapRole::PRECEDER);
         }
+    }
+    return atb::NO_ERROR;
+}
+
+atb::Status DecoderModel::RecordEventBeforePrefixCacheSave()
+{
+    if (param.memPoolType == atb_speed::base::MemPoolType::ASYNC_WRITE && param.isPrefill) {
+        atb::Operation *op = nullptr;
+        atb_speed::Model::Node recordSaveNode;
+        CHECK_OPERATION_STATUS_RETURN(atb_speed::EventManager::GetInstance().RecordEvent(
+            op, atb_speed::EventAction::PUSH, param.memPoolEventPipeKey));
+        recordSaveNode.inTensors = {};
+        recordSaveNode.outTensors = {};
+        recordSaveNode.operation.reset(op);
+        graph_.nodes.push_back(recordSaveNode);
+        ATB_SPEED_LOG_DEBUG("[Events] [PUSH] [RECORD] will be pushed to the graph later");
     }
     return atb::NO_ERROR;
 }

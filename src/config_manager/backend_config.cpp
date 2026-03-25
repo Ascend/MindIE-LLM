@@ -43,6 +43,7 @@ void BackendConfigManager::InitKvPoolConfigFromJson(Json &backendConfigData)
 {
     std::string backend{};
     std::string configPath{};
+    bool asyncWrite = false;
     if (backendConfigData.contains("kvPoolConfig")) {
         Json& kvPoolConfig = backendConfigData["kvPoolConfig"];
         if (kvPoolConfig.contains("backend")) {
@@ -51,9 +52,13 @@ void BackendConfigManager::InitKvPoolConfigFromJson(Json &backendConfigData)
         if (kvPoolConfig.contains("configPath")) {
             configPath = kvPoolConfig["configPath"];
         }
+        if (kvPoolConfig.contains("asyncWrite")) {
+            asyncWrite = kvPoolConfig["asyncWrite"];
+        }
     }
     backendConfig_.kvPoolConfig.backend = backend;
     backendConfig_.kvPoolConfig.configPath = configPath;
+    backendConfig_.kvPoolConfig.asyncWrite = asyncWrite;
 }
 
 bool BackendConfigManager::InitTlsConfigFromJson(Json &backendConfigData)

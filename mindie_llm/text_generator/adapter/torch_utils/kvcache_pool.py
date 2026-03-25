@@ -87,6 +87,11 @@ class KVCachePool:
 
     def allocate_npu_kvcache(self):
         self.npu_cache.clear()
+        self.npu_blocks_addrs.clear()
+        self.k_blocks_addrs.clear()
+        self.v_blocks_addrs.clear()
+        self.k_blocks_quant_addrs.clear()
+        self.index_blocks_addrs.clear()
         if self.kvcache_settings.num_npu_blocks < 0:
             message = (
                 "Num_npu_blocks must be non-negative.\n"

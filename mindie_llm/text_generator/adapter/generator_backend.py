@@ -21,6 +21,7 @@ from ...modeling.model_wrapper import get_model_wrapper
 from ...utils.decorators.time_decorator import timer
 from ...utils.tensor import op
 from ...utils.validation import parse_config, ParseType, MODEL_CONFIG_KEY_TYPE
+from ...text_generator.plugins.plugin_manager import MemPoolType
 
 MAX_WORLD_SIZE = 1048576
 MAX_KEY_LENGTH = 256
@@ -42,7 +43,7 @@ class GeneratorBackend:
         backend_type = parse_config(model_config, 'backend_type', required=True)
         num_threads = parse_config(model_config, 'num_threads', parse_type=ParseType.TO_INT, default_value=8)
         self.npu_device_id = parse_config(model_config, 'npu_device_id', required=True, parse_type=ParseType.TO_INT)
-        local_rank = parse_config(model_config, 'local_rank', required=True, parse_type=ParseType.TO_INT)
+        self.local_rank = parse_config(model_config, 'local_rank', required=True, parse_type=ParseType.TO_INT)
         self.rank = parse_config(model_config, 'rank', required=True, parse_type=ParseType.TO_INT)
         self.world_size = parse_config(model_config, 'world_size', required=True, parse_type=ParseType.TO_INT)
         self.trust_remote_code = parse_config(model_config, 'trust_remote_code', required=True,
@@ -61,6 +62,8 @@ class GeneratorBackend:
                                         parse_type=ParseType.TO_STR, default_value='')
         self.kv_pool_config_path = parse_config(model_config, 'kv_pool_config_path', required=False, 
                                         parse_type=ParseType.TO_STR, default_value='')
+        self.kv_pool_async_write = parse_config(model_config, 'kv_pool_async_write', required=False,
+                                        parse_type=ParseType.TO_BOOL, default_value=False)
 
         if self.world_size < 1 or self.world_size > MAX_WORLD_SIZE:
             raise ValueError("World size should be in the range of 1 to 1048576.")
@@ -79,7 +82,7 @@ class GeneratorBackend:
             model_config, 'num_lccl_comm_shards', parse_type=ParseType.TO_INT, default_value=1)
         lccl_comm_shard_id = parse_config(
             model_config, 'lccl_comm_shard_id', parse_type=ParseType.TO_INT, default_value=0)
-        if local_rank < 0 or local_rank >= self.world_size:
+        if self.local_rank < 0 or self.local_rank >= self.world_size:
             raise ValueError("Local rank should be in the range of 0 to world_size - 1.")
         max_loras = parse_config(model_config, 'max_loras', required=False, parse_type=ParseType.TO_INT, default_value=0)
         max_lora_rank = parse_config(model_config, 'max_lora_rank', required=False, parse_type=ParseType.TO_INT, default_value=0)
@@ -99,7 +102,7 @@ class GeneratorBackend:
         model_config["rank"] = self.rank
         model_config["world_size"] = self.world_size
         model_config['npu_device_id'] = self.npu_device_id
-        model_config['local_rank'] = local_rank
+        model_config['local_rank'] = self.local_rank
         model_config['dp'] = dp
         model_config['tp'] = tp
         model_config['attn_inner_sp'] = attn_inner_sp
@@ -116,6 +119,11 @@ class GeneratorBackend:
         model_config['max_lora_rank'] = max_lora_rank
         model_config['sampler_config'] = sampler_config
         model_config['lwdNextPHeadPrior'] = lwd_next_p_head_prior
+        if bool(self.kv_pool_config_path) and bool(self.kv_pool_backend):
+            model_config['mempool_type'] = \
+                MemPoolType.ASYNC_WRITE if self.kv_pool_async_write else MemPoolType.SYNC_WRITE
+        else:
+            model_config['mempool_type'] = MemPoolType.DISABLED
 
         self.backend_type = backend_type
         self.model_wrapper = get_model_wrapper(model_config, backend_type)

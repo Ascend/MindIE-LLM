@@ -74,6 +74,13 @@ EventManager::~EventManager()
         }
     }
     ATB_SPEED_LOG_DEBUG("EventManager destroyed.");
+    for (auto& eventsTuple : eventsForExternal_) {
+        auto& eventsForExtel = std::get<1>(eventsTuple.second);
+        for (auto& eventE : eventsForExtel) {
+            DestroyEvent(eventE);
+        }
+    }
+    ATB_SPEED_LOG_DEBUG("EventManager destroyed.");
 }
 
 void EventManager::SetWaitOperationTimeout(uint32_t timeout)
@@ -219,4 +226,76 @@ atb::Status EventManager::WaitEvent(atb::Operation*& op, EventAction eventAction
     return EventInternal(eventAction, EventType::WAIT, op, pipeKey);
 }
 
+EventManagerStatus EventManager::CheckPipeKey(const std::string &pipeKey)
+{
+    if (eventsForExternal_.find(pipeKey) == eventsForExternal_.end()) {
+        if (eventQueues_.find(pipeKey) == eventQueues_.end()) {
+            ATB_SPEED_LOG_DEBUG("Event for external error: no such pipekey" << pipeKey);
+            return EM_INVALID_ACTION;
+        }
+        std::vector<aclrtEvent> queue;
+        while (!eventQueues_[pipeKey].empty()) {
+            queue.push_back(eventQueues_[pipeKey].front());
+            eventQueues_[pipeKey].pop();
+        }
+        aclrtStream subStream;
+        aclError ret = aclrtCreateStream(&subStream);
+        if (ret != ACL_ERROR_NONE) {
+            ATB_SPEED_LOG_ERROR("Failed to create aclrtStream: " << ret);
+            return EM_INVALID_ACTION;
+        }
+        ret = aclrtSetStreamFailureMode(subStream, ACL_STOP_ON_FAILURE);
+        if (ret != 0) {
+            ATB_SPEED_LOG_ERROR("Failed to aclrtSetStreamFailureMode: " << ret);
+            return EM_INVALID_ACTION;
+        }
+        eventsForExternal_[pipeKey] = std::make_tuple(0, queue, subStream);
+    }
+    return EM_SUCCESS;
+}
+
+EventManagerStatus EventManager::RecordEvent(const std::string &pipeKey)
+{
+    auto rt = CheckPipeKey(pipeKey);
+    if (rt != EM_SUCCESS) {
+        return rt;
+    }
+    auto& currentEventIdx = std::get<0>(eventsForExternal_[pipeKey]);
+    auto& eventsForExtel = std::get<1>(eventsForExternal_[pipeKey]);
+    auto& stream = std::get<2>(eventsForExternal_[pipeKey]);
+    aclError ret = aclrtRecordEvent(eventsForExtel[currentEventIdx], stream);
+    currentEventIdx = (currentEventIdx + 1) % eventsForExtel.size();
+    if (ret != ACL_SUCCESS) {
+        ATB_SPEED_LOG_ERROR("aclrtRecordEvent fail, ret: " << ret);
+        return EM_INVALID_ACTION;
+    }
+    return EM_SUCCESS;
+}
+
+EventManagerStatus EventManager::WaitEvent(const std::string &pipeKey)
+{
+    auto rt = CheckPipeKey(pipeKey);
+    if (rt != EM_SUCCESS) {
+        return rt;
+    }
+    auto& currentEventIdx = std::get<0>(eventsForExternal_[pipeKey]);
+    auto& eventsForExtel = std::get<1>(eventsForExternal_[pipeKey]);
+    auto& stream = std::get<2>(eventsForExternal_[pipeKey]);
+    aclError ret = aclrtStreamWaitEvent(stream, eventsForExtel[currentEventIdx]);
+    if (ret != ACL_SUCCESS) {
+        ATB_SPEED_LOG_ERROR("aclrtWaitEvent fail, ret: " << ret);
+        return EM_INVALID_ACTION;
+    }
+    ret = aclrtResetEvent(eventsForExtel[currentEventIdx], stream);
+    if (ret != ACL_SUCCESS) {
+        ATB_SPEED_LOG_ERROR("aclrtResetEvent fail, ret: " << ret);
+        return EM_INVALID_ACTION;
+    }
+    if (aclrtSynchronizeStream(stream) != 0) {
+        ATB_SPEED_LOG_ERROR("EventManager::WaitEvent: aclrtSynchronizeStream fail");
+        return EM_INVALID_ACTION;
+    }
+    currentEventIdx = (currentEventIdx + 1) % eventsForExtel.size();
+    return EM_SUCCESS;
+}
 }  // namespace atb_speed

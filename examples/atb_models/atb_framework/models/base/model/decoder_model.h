@@ -261,6 +261,8 @@ private:
     std::map<uint32_t, uint32_t> CopyMapWithSuffix(std::map<std::string, uint32_t>& tensorMap) const;
     std::map<atb::Tensor *, atb::Tensor *> precederToSuccessorTensorMap = {};
     void ReplaceDapTensors(std::vector<atb::Tensor *>& tensors);
+    atb::Status WaitEventAfterPrefixCacheLoad();
+    atb::Status RecordEventBeforePrefixCacheSave();
 };
 
 }  // namespace base

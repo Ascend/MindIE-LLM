@@ -243,6 +243,11 @@ class GeneratorTorch(GeneratorBackend):
         return logits
 
     def update_cache_policy(self, kvcache_settings, sepd_worker=None):
+        if hasattr(self, 'cache_pool') and self.cache_pool is not None:
+            del self.cache_pool
+            torch.npu.empty_cache()
+            gc.collect()
+
         self.cache_pool = KVCachePool(kvcache_settings, self.device, enable_kv_pool=self.enable_kv_pool)
         self.cache_pool.allocate_cpu_kvcache()
         self.cache_pool.allocate_npu_kvcache()

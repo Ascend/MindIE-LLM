@@ -16,6 +16,7 @@ from atb_llm.models.base.graph_manager.single_lora_graph_wrapper import SingleLo
 from atb_llm.models.base.graph_manager.multi_lora_graph_wrapper import MultiLoraGraphWrapper
 from atb_llm.models.base.graph_manager.speculate_graph_wrapper import SpeculateGraphWrapper
 from atb_llm.models.base.graph_manager.splitfuse_graph_wrapper import SplitFuseGraphWrapper
+from atb_llm.models.base.graph_manager.mem_pool_graph_wrapper import MemPoolGraphWrapper
 from atb_llm.models.base.graph_manager.layerwise_decode_graph_wrapper import get_layerwise_decode_graph
 from atb_llm.models.base.graph_manager.layerwise_prefill_graph_wrapper import get_layerwise_prefill_graph
 from atb_llm.models.base.graph_manager.layerwise_combined_graph_wrapper import LayerwiseCombinedATBGraphWrapper

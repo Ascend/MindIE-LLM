@@ -19,6 +19,7 @@ from transformers.configuration_utils import PretrainedConfig
 
 from atb_llm.utils.eplb_expert_data_collect import EplbExpertDataCollect
 from atb_llm.utils.moe_utils import EPLBType
+from mindie_llm.text_generator.plugins.plugin_manager import MemPoolType
 from .model_utils import BaseModel
 from ...models import InferenceMode
 from ...utils.env import ENV
@@ -93,7 +94,7 @@ class FlashForCausalLM(BaseModel):
             self.layerwise = LayerWiseAttr(edge_start_layer_count, edge_end_layer_count, split_type)
          
         self.inference_mode = kwargs.get("inference_mode")
-
+        self.mempool_type: MemPoolType = kwargs.get('mempool_type', MemPoolType.DISABLED)
         self.num_attention_heads = config.num_attention_heads
         if hasattr(config, 'num_key_value_heads'):
             self.num_key_value_heads = config.num_key_value_heads
@@ -620,3 +621,9 @@ class FlashForCausalLM(BaseModel):
         logits = self.execute_dap_ascend_operator(
             all_inputs, json.dumps(acl_param_dict), is_prefill[0])
         return logits
+
+    def wait_model_event(self, event_pipe_key: str):
+        torch.classes.ModelTorch.Event.wait(event_pipe_key)
+
+    def record_model_event(self, event_pipe_key: str):
+        torch.classes.ModelTorch.Event.record(event_pipe_key)

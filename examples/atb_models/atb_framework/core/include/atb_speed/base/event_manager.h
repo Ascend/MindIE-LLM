@@ -13,7 +13,6 @@
 #ifndef ATB_SPEED_EVENT_MANAGER_H
 #define ATB_SPEED_EVENT_MANAGER_H
 
-#include <acl/acl.h>
 #include <atb/context.h>
 #include <atb/operation.h>
 #include <atb/atb_infer.h>
@@ -96,6 +95,22 @@ public:
      */
     atb::Status WaitEvent(atb::Operation*& op, EventAction eventAction, const std::string &pipeKey = "default");
 
+    /**
+     * @brief 在多流场景下，用于图外部与图内部的流间同步，取pipe中的current event record一次，current event指向下一个event，循环event队列。
+     在同一张图里RecordEvent和WaitEvent只能使用同一个pipekey，否则会有时序问题。
+     * @param pipeKey 事件管道的标识符（默认为 "default"）
+     * @return 返回操作的状态码（atb::Status）
+     */
+    EventManagerStatus RecordEvent(const std::string &pipeKey = "default");
+
+    /**
+     * @brief 在多流场景下，用于图外部与图内部的流间同步，取pipe中的current event wait一次然后sync一次，current event指向下一个event，循环event队列。
+     在同一张图里RecordEvent和WaitEvent只能使用同一个pipekey，否则会有时序问题。
+     * @param pipeKey 事件管道的标识符（默认为 "default"）
+     * @return 返回操作的状态码（atb::Status）
+     */
+    EventManagerStatus WaitEvent(const std::string &pipeKey = "default");
+
 private:
     // 构造和析构函数设为 private，确保单例模式
     // 设置 ACL 的操作等待超时时间，默认 180 秒
@@ -145,6 +160,8 @@ private:
                               EventType eventType,
                               atb::Operation*& op,
                               const std::string &pipeKey);
+    
+    EventManagerStatus CheckPipeKey(const std::string &pipeKey);
 
 private:
     // 条件变量，用于在事件队列为空时阻塞等待，并在有新事件入队时通知等待线程
@@ -152,6 +169,8 @@ private:
     // 事件队列：仅用于对外提供 push/pop 接口
     std::map<std::string, std::queue<aclrtEvent>> eventQueues_;
     std::map<std::string, std::queue<std::pair<atb::Operation*, atb::common::EventParam>>> opsWithoutEvent_;
+    // 用于图外部与图内部的流间同步
+    std::map<std::string, std::tuple<int, std::vector<aclrtEvent>, aclrtStream>> eventsForExternal_;
     // 保护 eventQueue_ 的互斥锁
     std::mutex queueMutex_;
     // 记录当前队列中 event 的数量

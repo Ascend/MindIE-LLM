@@ -7,10 +7,13 @@
 # EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
 # MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
 # See the Mulan PSL v2 for more details.
+import threading
+import queue
 import numpy as np
 
 from .prefix_cache_preprocess import PrefixCachePreprocess
 from ..plugin import Plugin
+from ..plugin_manager import MemPoolType
 from ....modeling.backend_type import BackendType
 from ....utils.env import ENV
 from ....utils.log.logging import logger, print_log
@@ -63,6 +66,7 @@ class PrefixCachePlugin(Plugin):
         self.tp_size = 1
         self.tp_rank = 0
         self.rank = generator_backend.rank
+        self.device_id = self.generator_backend.npu_device_id
         if hasattr(self.model_wrapper, "mapping"):
             if self.model_wrapper.mapping.attn_tp.group_size > 1:
                 self.tp_size = self.model_wrapper.mapping.attn_tp.group_size
@@ -86,25 +90,37 @@ class PrefixCachePlugin(Plugin):
             self.is_300i = self.model_wrapper.model_runner.soc_info.is_300i()
 
         ## for kvcache pool
+        self.mempool_type = MemPoolType.DISABLED
+        self.num_put_layers = self.kvcache_settings.num_layers
         if len(self.generator_backend.kv_pool_backend) != 0 and len(self.generator_backend.kv_pool_config_path) != 0:
+            self.mempool_type = \
+                MemPoolType.ASYNC_WRITE if self.generator_backend.kv_pool_async_write else MemPoolType.SYNC_WRITE
             from mindie_llm.text_generator.mempool import MemPool
             self.m_store = MemPool.create_pool(
                 backend=self.generator_backend.kv_pool_backend,
                 config_path=self.generator_backend.kv_pool_config_path,
                 role=MEM_POOL_ROLE_KEY,
-                device_id=self.model_wrapper.device.index,
+                device_id=self.device_id,
                 kv_caches=self.generator_backend.cache_pool.npu_cache
             )
-            self.enable_mem_pool = self.m_store is not None
-            if self.enable_mem_pool:
-                logger.info("Init mem pool successfully!!!")
-        else:
-            self.enable_mem_pool = False
+            if self.m_store is None:
+                self.mempool_type = MemPoolType.DISABLED
+        if self.mempool_type != MemPoolType.DISABLED:
+            logger.info("Init mem pool successfully.")
+        if self.mempool_type == MemPoolType.ASYNC_WRITE:
+            self.put_input_queue = queue.Queue()
+            self.put_task_queue = queue.Queue()
+            self.put_prefix_kvcache_thread = threading.Thread(target=self._put_prefix_kvcache_thread, daemon=True)
+            self.put_prefix_kvcache_thread.start()
+            self.save_event = threading.Event()
+            self.save_event.set()  # True
+            self.save_timeout = 10  # 落盘等待时限,10s
+            logger.info("Create prefix cache async save threads successfully.")
 
         self.is_300i = False
         if self.generator_backend.backend_type == BackendType.ATB:
             self.is_300i = self.model_wrapper.model_runner.soc_info.is_300i()
-        logger.info("Prefix Cache Plugin initialized successfully!!!")
+        logger.info("Create prefix cache plugin successfully.")
 
     @staticmethod
     def enable_local_prefixcache(input_metadata):
@@ -237,7 +253,7 @@ class PrefixCachePlugin(Plugin):
         return prefix_keys
 
     def get_prefix_kvcache_from_mempool(self, input_metadata):
-        if not self.enable_mem_pool:
+        if self.mempool_type == MemPoolType.DISABLED:
             return
         computed_blocks = input_metadata.computed_blocks
         remote_computed_blocks = input_metadata.remote_computed_blocks
@@ -252,8 +268,8 @@ class PrefixCachePlugin(Plugin):
             remote_computed_blocks = np.sum(remote_computed_blocks, axis=1)     # shape: [batch_size]
 
         batch_input_ids_offset = 0  # 每个请求的input ids开始索引
-        prefix_keys = []        # shape： [all_requests_kyes_num] 
-        kvcache_tensors = []    # shape： [all_requests_kyes_num, layers_num, 2] 
+        prefix_keys = []        # shape： [all_requests_kyes_num]
+        kvcache_tensors = []    # shape： [all_requests_kyes_num, layers_num, 2]
         for i in range(input_metadata.batch_size):
             if input_metadata.batch_dp_rank_ids[i] != self.generator_backend.mapping.attn_dp.rank:
                 batch_input_ids_offset += input_metadata.batch_seq_len[i]
@@ -283,7 +299,7 @@ class PrefixCachePlugin(Plugin):
                 else:
                     req_blocks_id = input_metadata.batch_block_tables[i, req_computed_blocks_id]
                 one_block_kvcache_tensors = []
-                for layer_id in range(self.kvcache_settings.num_layers):
+                for layer_id in range(self.num_put_layers):
                     k_cache = self.generator_backend.cache_pool.npu_cache[layer_id][0][req_blocks_id]
                     v_cache = self.generator_backend.cache_pool.npu_cache[layer_id][1][req_blocks_id]
 
@@ -298,8 +314,28 @@ class PrefixCachePlugin(Plugin):
             # 调用mempool get api接口，刷新有前缀复用block的kvcache
             self.m_store.get(prefix_keys, kvcache_tensors)
 
+    def async_put_prefix_kvcache_to_mempool(self, input_metadata, cache_ids):
+        if self.mempool_type == MemPoolType.DISABLED or not input_metadata.is_prefill:
+            return
+        self.put_input_queue.put((input_metadata, cache_ids))
+
+    def put_prefix_kvcache_put_task_queue(self, input_metadata, cache_ids):
+        only_save_kv = False
+        remote_computed_blocks = input_metadata.remote_computed_blocks
+        if remote_computed_blocks is None:
+            only_save_kv = True
+        elif self.scp_size == 1:
+            attn_dp_rank = self.generator_backend.mapping.attn_dp.rank
+            cur_dp_remote_blocks_hits = 0
+            for batch_dp_rank_id, num_computed_blocks in zip(input_metadata.batch_dp_rank_ids, remote_computed_blocks):
+                if attn_dp_rank == batch_dp_rank_id:
+                    cur_dp_remote_blocks_hits += num_computed_blocks
+            only_save_kv = cur_dp_remote_blocks_hits == 0
+        for layer_id in range(self.num_put_layers):
+            self.put_task_queue.put((layer_id == 0, layer_id == (self.num_put_layers - 1), only_save_kv))
+
     def put_prefix_kvcache_to_mempool(self, input_metadata, cache_ids):
-        if not self.enable_mem_pool or not input_metadata.is_prefill or \
+        if self.mempool_type == MemPoolType.DISABLED or not input_metadata.is_prefill or \
             sum(input_metadata.batch_dp_rank_ids == self.generator_backend.mapping.attn_dp.rank) <= 0:
             return
         batch_input_ids = self.infer_context.get_all_input_ids(cache_ids)
@@ -338,7 +374,7 @@ class PrefixCachePlugin(Plugin):
                                                             request_input_ids_offset + input_metadata.max_block_size]
                 prefix_hash_value = self.hash_block(prefix_hash_value, block_token_ids)
                 request_input_ids_offset += input_metadata.max_block_size
-                if scp_rank != self.scp_rank: 
+                if scp_rank != self.scp_rank:
                     scp_rank = (scp_rank + 1) % self.scp_size
                     continue
                 prefix_keys.append(self.get_prefix_keys(prefix_hash_value))
@@ -348,7 +384,7 @@ class PrefixCachePlugin(Plugin):
                 else:
                     req_blocks_id = input_metadata.batch_block_tables[i, req_uncomputed_blocks_id]
                 one_block_kvcache_tensors = []
-                for layer_id in range(self.kvcache_settings.num_layers):
+                for layer_id in range(self.num_put_layers):
                     k_cache = self.generator_backend.cache_pool.npu_cache[layer_id][0][req_blocks_id]
                     v_cache = self.generator_backend.cache_pool.npu_cache[layer_id][1][req_blocks_id]
                     one_block_kvcache_tensors.append([k_cache, v_cache])
@@ -360,6 +396,25 @@ class PrefixCachePlugin(Plugin):
         if len(prefix_keys) > 0:
             # 调用mempool put api接口，将新计算的kvcache传到mempool
             self.m_store.put(prefix_keys, kvcache_tensors)
+
+    def _put_prefix_kvcache_thread(self):
+        import torch
+        torch.npu.set_device(f"npu:{self.device_id}")
+        stream = torch.npu.Stream()
+        torch.npu.set_stream(stream)
+        logger.info("Create _put_prefix_kvcache_thread")
+        while True:
+            input_metadata, cache_ids = self.put_input_queue.get()
+            self.put_prefix_kvcache_put_task_queue(input_metadata, cache_ids)
+            while not self.put_task_queue.empty():
+                is_first, is_last, only_save_kv = self.put_task_queue.get()
+                if is_first:
+                    self.save_event.clear()  # False
+                pipe_key = self.model_wrapper.generate_mem_pool_event_key(only_save_kv)
+                self.model_wrapper.model_runner.wait_event(pipe_key)
+                if is_last:
+                    self.put_prefix_kvcache_to_mempool(input_metadata, cache_ids)
+                    self.save_event.set()  # True
 
 
 class AttentionMask:

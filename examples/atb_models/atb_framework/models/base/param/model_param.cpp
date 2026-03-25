@@ -86,6 +86,12 @@ void ModelParam::ParseParam(const nlohmann::json &paramJson)
     if (paramJson.contains("enableFlashComm")) {
         this->enableFlashComm = paramJson["enableFlashComm"].get<bool>();
     }
+    if (paramJson.contains("memPoolType")) {
+        this->memPoolType = FetchJsonParam<MemPoolType>(paramJson, "memPoolType");
+    }
+    if (paramJson.contains("pipeKey")) {
+        this->memPoolEventPipeKey = FetchJsonParam<std::string>(paramJson, "pipeKey");
+    }
     ParseNormParam(paramJson);
     ParseAttentionParam(paramJson);
     ParseMlpParam(paramJson);

@@ -8,11 +8,16 @@ KV Cache池化特性依赖于Prefix Cache特性。此外，通过在MindIE的con
 ```
 "kvPoolConfig" : {"backend":"", "configPath":""}
 ```
+或者
+```
+"kvPoolConfig" : {"backend":"", "configPath":"", "asyncWrite": true}
+```
 配置说明：
 - `backend`：指定使用的池化后端。
 - `configPath`：池化后端所需要的配置文件路径。
+- `asyncWrite`：是否开启池化异步写，值为true或false。若不设该字段，则默认为false，即同步写。
 
-在开启Prefix Cache特性的前提下，当配置了上述两个字段后，则开启KV Cache池化特性。不同的池化后端需要自行安装。
+在开启Prefix Cache特性的前提下，当配置了上述字段后，则开启KV Cache池化特性。不同的池化后端需要自行安装。
 
 ## 已支持的池化后端
 #### Mooncake
@@ -89,6 +94,15 @@ export ASCEND_BUFFER_POOL=4:8
 配置说明可参考Mooncake官方Ascend Direct Transport Important Notes。
 
 </details>
+
+## 限制与约束
+
+异步写特性当前仅支持Qwen稠密模型（非MOE）和DeepSeek模型（V3/V3.1/R1）。当异步写特性开启时，支持与以下特性叠加组合，叠加其他特性或模型可能导致不可预期的报错：
+- Qwen稠密：异步调度、Prefix Cache、Function Call、思考解析、Yarn
+- DeepSeek V3/V3.1/R1：异步推理、Prefix Cache、Context Parallel、Sequence Parallel
+
+已确定不支持与以下特性叠加：
+- SplitFuse、Micro Batch、Multi-Lora
 
 ## 声明
 

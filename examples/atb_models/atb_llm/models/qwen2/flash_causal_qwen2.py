@@ -18,12 +18,13 @@ import torch_npu
 from atb_llm.utils.data.layer_adapter import ParallelLMHead
 from atb_llm.utils.data.quant_method_adapter import LinearMethodSupportAtbGraph
 from mindie_llm.runtime.layers.custom_layer import CustomLayer
+from mindie_llm.text_generator.plugins.plugin_manager import MemPoolType
 from .modeling_qwen2 import FlashQwenModel
 from .modeling_qwen2_refactor import Qwen2Model
 from ..base.flash_causal_lm import FlashForCausalLM, DistributedType, LwdLayerStatus
 from ..base.graph_manager import ATBGraphManager, DapGraphWrapper, SpeculateGraphWrapper, \
     SplitFuseGraphWrapper, SingleLoraGraphWrapper, MultiLoraGraphWrapper, FlashCommGraphWrapper, \
-    get_layerwise_decode_graph, get_layerwise_prefill_graph
+    MemPoolGraphWrapper, get_layerwise_decode_graph, get_layerwise_prefill_graph
 from ..base.graph_manager.layerwise_combined_graph_wrapper import LayerwiseCombinedATBGraphWrapper
 from ..base.inputs_modifier.flash_comm_modifier import FlashCommModifier
 from ..base.inputs_modifier.long_seq_modifier import LongSeqModifier
@@ -182,7 +183,7 @@ class FlashQwen2ForCausalLM(FlashForCausalLM):
         # 若开启,则冒烟测试卡50ms数据需重新调整(layer多一个输出,内存占用变大)
         self.enable_intra_layer_add_norm = False
         self.enable_inter_layer_add_norm = False
-        self.enable_swiglu_quant = not self.soc_info.need_nz
+        self.enable_swiglu_quant = not (self.soc_info.need_nz or self.mempool_type == MemPoolType.ASYNC_WRITE)
         # Multi engines management
         if self.layerwise_disaggregated:
             prefill_graph = get_layerwise_prefill_graph(self.config, self.layerwise)
@@ -227,7 +228,9 @@ class FlashQwen2ForCausalLM(FlashForCausalLM):
             if self.config.use_qk_norm:
                 weight_wrapper.register_model_norm(layer.attn.q_norm)  # q_norm
                 weight_wrapper.register_model_norm(layer.attn.k_norm)  # k_norm
-            if self.enable_intra_layer_add_norm or self.enable_inter_layer_add_norm:
+            # not support mempool asyncWrite + add_norm
+            if self.mempool_type != MemPoolType.ASYNC_WRITE and \
+                (self.enable_intra_layer_add_norm or self.enable_inter_layer_add_norm):
                 weight_wrapper.register_layer_addrmsnormquant(layer, attn_wrapper, mlp_wrapper, self.quantize)
             if self.soc_info.need_nz and self.adapter_manager is None:
                 del layer.attn
@@ -373,7 +376,9 @@ class FlashQwen2ForCausalLM(FlashForCausalLM):
             if self.config.use_qk_norm:
                 weight_wrapper.register_model_norm(layer.attn.q_norm)  # q_norm
                 weight_wrapper.register_model_norm(layer.attn.k_norm)  # k_norm
-            if self.enable_intra_layer_add_norm or self.enable_inter_layer_add_norm:
+            # not support mempool asyncWrite + add_norm
+            if self.mempool_type != MemPoolType.ASYNC_WRITE and \
+                (self.enable_intra_layer_add_norm or self.enable_inter_layer_add_norm):
                 weight_wrapper.register_layer_addrmsnormquant(layer, attn_wrapper, mlp_wrapper, self.quantize)
             if self.soc_info.need_nz and self.adapter_manager is None:
                 del layer.attn
@@ -485,8 +490,10 @@ class FlashQwen2ForCausalLM(FlashForCausalLM):
             LINEAR_HAS_BIAS: linear_has_bias * self.config.num_hidden_layers 
                                     if not self.layerwise_disaggregated else None,
             "matmulBackend": OpBackend.ACLNN if self.aclnn_matmul_backend else OpBackend.ATB,
-            "enableIntraLayerAddNorm": self.enable_intra_layer_add_norm,
-            "enableInterLayerAddNorm": self.enable_inter_layer_add_norm,
+            "enableIntraLayerAddNorm": self.enable_intra_layer_add_norm and \
+                                        self.mempool_type != MemPoolType.ASYNC_WRITE,
+            "enableInterLayerAddNorm": self.enable_inter_layer_add_norm and \
+                                        self.mempool_type != MemPoolType.ASYNC_WRITE,
             "enableGreedySearchOpt": self.enable_greedy_search_opt,
             "enableOmniAttention": self.omni_attention_enable,
             "enableQScale": (self.config.transformers_version == "4.43.1" or
@@ -520,6 +527,16 @@ class FlashQwen2ForCausalLM(FlashForCausalLM):
         }
 
         if not self.layerwise_disaggregated:
+            #Mooncake池化与lora、dap、flashcomm不适配
+            if self.adapter_manager is not None and self.mempool_type == MemPoolType.ASYNC_WRITE:
+                raise ValueError("Feature composition not supported: If lora is activated, "
+                                 "mempool_type must be DISABLED or SYNC_WRITE.")
+            if self.enable_dap and self.mempool_type == MemPoolType.ASYNC_WRITE:
+                raise ValueError("Feature composition not supported: If dap is activated, "
+                                 "mempool_type must be DISABLED or SYNC_WRITE.")
+            if self.mempool_type == MemPoolType.ASYNC_WRITE:
+                self.flash_comm_modifier.enable_flash_comm = False
+
             if self.adapter_manager is not None:
                 self.graph_manager.register_graph(MultiLoraGraphWrapper())
                 self.graph_manager.register_graph(SingleLoraGraphWrapper())
@@ -535,6 +552,10 @@ class FlashQwen2ForCausalLM(FlashForCausalLM):
 
             if self.flash_comm_modifier.enable_flash_comm:
                 self.graph_manager.register_graph(FlashCommGraphWrapper())
+
+            #Mooncake池化
+            if self.mempool_type == MemPoolType.ASYNC_WRITE and self.warmup_is_end:
+                self.graph_manager.register_graph(MemPoolGraphWrapper())
 
             specified_params = {"decode": decoder_param}
             specified_weight = {"decode": self.decode_weight}
@@ -735,8 +756,8 @@ class FlashQwen2ForCausalLM(FlashForCausalLM):
                                 is_prefill, **kwargs):
         exe_stage = kwargs.get("layerwise_disaggregated_exe_stage", None)
         acl_model_out = self.graph_manager.select_and_execute(
-            self, acl_inputs, acl_param, is_prefill=is_prefill, layerwise_disaggregated_exe_stage=exe_stage
-        )     
+            self, acl_inputs, acl_param, is_prefill=is_prefill, layerwise_disaggregated_exe_stage=exe_stage,
+            mempool_type=self.mempool_type)
         try:
             acl_model_out = self.layerwise_modifier.process_out(acl_model_out, is_prefill=is_prefill, **kwargs)
             acl_hidden_state = acl_model_out[0]
@@ -855,6 +876,7 @@ class FlashQwen2ForCausalLM(FlashForCausalLM):
         Returns:
             torch.Tensor: Output logits.
         """
+        self.warmup_is_end = kwargs.get("warmup_is_end", True)
         if not self.weight_initialized:
             self.get_adapter_ids(**kwargs)
             from mindie_llm.runtime.utils.torch_utils import set_default_torch_dtype

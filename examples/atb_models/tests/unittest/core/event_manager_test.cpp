@@ -334,4 +334,43 @@ TEST(EventManager, RecordEventInvalidActionTest)
     EXPECT_EQ(op, nullptr);
 }
 
+// 测试CheckPipeKey函数
+TEST(EventManager, CheckPipeKeyTest)
+{
+    EventManager& manager = EventManager::GetInstance();
+    const std::string pipeKey = "test_pipe_1";
+    aclrtStream subStream;
+    std::vector<aclrtEvent> queue;
+    manager.eventsForExternal_[pipeKey] = std::make_tuple(0, queue, subStream);
+    EXPECT_EQ(manager.CheckPipeKey(pipeKey), EM_SUCCESS);
+    aclrtEvent event = nullptr;
+    manager.CreateAndPushEvent(event, pipeKey);
+    EXPECT_EQ(manager.CheckPipeKey(pipeKey), EM_SUCCESS);
+    EXPECT_TRUE(manager.eventsForExternal_.count(pipeKey) > 0);
+    
+    // 验证数据结构是否正确初始化
+    auto& tuple = manager.eventsForExternal_[pipeKey];
+    const std::string pipeKey2 = "test_pipe_2";
+    EXPECT_EQ(manager.CheckPipeKey(pipeKey2), EM_INVALID_ACTION);
+}
+
+// 测试RecordEvent函数
+TEST(EventManager, RecordEventTest) {
+    EventManager& manager = EventManager::GetInstance();
+    const std::string pipeKey = "record_normal";
+    aclrtEvent event = nullptr;
+    manager.CreateAndPushEvent(event, pipeKey);
+    EXPECT_EQ(manager.RecordEvent(pipeKey), EM_SUCCESS);
+}
+
+// 测试RecordEvent函数
+TEST(EventManager, WaitEventTest) {
+    EventManager& manager = EventManager::GetInstance();
+    const std::string pipeKey = "wait_normal";
+    aclrtEvent event = nullptr;
+    manager.CreateAndPushEvent(event, pipeKey);
+    EXPECT_EQ(manager.RecordEvent(pipeKey), EM_SUCCESS);
+    EXPECT_EQ(manager.WaitEvent(pipeKey), EM_SUCCESS);
+}
+
 } // namespace atb_speed
