@@ -162,6 +162,7 @@ struct EngineConfig {
     bool supportSelectBatch{};
     bool supportEarlyFinish = true;
     uint32_t maxQueueDelayMicroseconds{};
+    uint32_t maxBeamWidth = 128U;
     // policy
     uint32_t policyType = 0U;
     uint32_t maxIterTimes;
@@ -358,6 +359,7 @@ struct ScheduleConfig {
     uint32_t maxPreemptCount{};
     bool supportSelectBatch{};
     uint32_t maxQueueDelayMicroseconds{};
+    uint32_t maxBeamWidth = 128U;
     // policy
     uint32_t policyType = 0U;
     uint32_t maxIterTimes = 0U;

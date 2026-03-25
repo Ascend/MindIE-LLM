@@ -78,6 +78,8 @@ private:
     void LoadDynamicBatchConfig(Json &scheduleJsonData);
 
     void CheckSLOParam(bool &checkRes);
+
+    bool CheckBeamSearchParam(bool &checkRes);
 };
 
 class LogConfigManager : public BaseConfig {

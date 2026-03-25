@@ -14,6 +14,7 @@
 #include "common_util.h"
 #include "env_util.h"
 #include "log.h"
+#include "math_utils.h"
 
 using Json = nlohmann::json;
 using namespace nlohmann::literals;
@@ -49,6 +50,7 @@ static std::vector<ParamSpec> g_scheduleParamsConstraint = {{"templateName", "st
                                                             {"bufferResponseEnabled", "bool", false},
                                                             {"distributedEnable", "bool", false},
                                                             {"maxFirstTokenWaitTime", "uint32_t", false},
+                                                            {"maxBeamWidth", "uint32_t", false},
                                                             {"layerwiseDisaggregated", "object", false}};
 
 static std::vector<ParamSpec> g_scheduleLwdParamsConstraint = {{"nextPHeadPrior", "bool", false}};
@@ -86,6 +88,11 @@ bool ScheduleConfigManager::LoadBasicScheduleConfig(Json &scheduleJsonData)
     scheduleConfig_.supportSelectBatch = scheduleJsonData["supportSelectBatch"];
     if (scheduleJsonData.contains("maxFirstTokenWaitTime")) {
         scheduleConfig_.maxFirstTokenWaitTime = scheduleJsonData["maxFirstTokenWaitTime"];
+    }
+    if (scheduleJsonData.contains("maxBeamWidth")) {
+        scheduleConfig_.maxBeamWidth = scheduleJsonData["maxBeamWidth"];
+    } else {
+        scheduleConfig_.maxBeamWidth = std::min(scheduleConfig_.maxBeamWidth, scheduleConfig_.maxBatchSize);
     }
     return true;
 }
@@ -246,6 +253,18 @@ void ScheduleConfigManager::CheckSLOParam(bool &checkRes)
     }
 }
 
+bool ScheduleConfigManager::CheckBeamSearchParam(bool &checkRes)
+{
+    checkRes = checkRes && ParamChecker::CheckMaxMinValue<uint32_t>(scheduleConfig_.maxBeamWidth, 8192U,
+                                                                    1U, "scheduleParam.maxBeamWidth");
+    if (scheduleConfig_.maxBeamWidth > scheduleConfig_.maxBatchSize) {
+        MINDIE_LLM_LOG_ERROR("The maxBeamWidth cannot be set greater than maxBatchSize"
+                             << ", please set 'maxBeamWidth' to be not greater than 'maxBatchSize' in config.json.");
+        checkRes = checkRes && false;
+    }
+    return checkRes;
+}
+
 bool ScheduleConfigManager::CheckParam()
 {
     // 对所有参数进行校验，即使中途失败仍继续执行
@@ -293,6 +312,7 @@ bool ScheduleConfigManager::CheckParam()
         checkRes = checkRes && false;
     }
     CheckSLOParam(checkRes);
+    checkRes = checkRes && CheckBeamSearchParam(checkRes);
     return checkRes;
 }
 
