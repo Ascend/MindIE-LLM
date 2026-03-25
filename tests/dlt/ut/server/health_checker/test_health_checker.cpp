@@ -155,15 +155,15 @@ TEST_F(HealthCheckerTest, CheckErrorListEmpty)
 {
     HealthChecker &checker = HealthChecker::GetInstance();
 
-    checker.mErrorList.Clear();
+    ServiceStatus status;
+    std::vector<ErrorItem> errorList;
+    checker.GetStatusAndErrorList(status, errorList);
     EXPECT_TRUE(checker.CheckErrorListEmpty());
 
     checker.EnqueueErrorMessage("ERROR_001", "Module1");
     EXPECT_FALSE(checker.CheckErrorListEmpty());
 
     // Clear error list
-    std::vector<ErrorItem> errorList;
-    ServiceStatus status;
     checker.GetStatusAndErrorList(status, errorList);
     EXPECT_TRUE(checker.CheckErrorListEmpty());
 }
