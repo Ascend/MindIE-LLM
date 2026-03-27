@@ -18,8 +18,8 @@
 
 namespace mindie_llm {
 const size_t LLM_SHARED_MEMORY_MAX_NAME_LEN = 255;
-// Default size of single shared memory buffer is 8MB, which is sufficient for most use cases.
-const size_t DEFAULT_SHARED_MEMORY_SIZE = 1024 * 1024 * 8;
+// Default size of single shared memory buffer is 32MB, which is sufficient for most use cases.
+const size_t DEFAULT_SHARED_MEMORY_SIZE = 1024 * 1024 * 32;
  // For prefixcache in long sequence generation, one batch's shared memory may exceed 8MB.
 const size_t SHARED_MEMORY_256MB = 1024 * 1024 * 256;
 const size_t TOTAL_SHARED_MEMORY_PER_DP = 2 * SHARED_MEMORY_256MB + 4 * DEFAULT_SHARED_MEMORY_SIZE;

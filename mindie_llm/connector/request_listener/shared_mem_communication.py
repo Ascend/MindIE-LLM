@@ -46,8 +46,8 @@ def check_owner_and_permission(path: str, current_uid: int) -> None:
 
 
 class SharedMemoryChannel:
-    # Default size of shared memory buffer (8 MB) - must match C++ implementation
-    DEFAULT_SHARED_MEMORY_SIZE = 1024 * 1024 * 8
+    # Default size of shared memory buffer (32 MB) - must match C++ implementation
+    DEFAULT_SHARED_MEMORY_SIZE = 1024 * 1024 * 32
     # Maximum buffer size for model initialization response (0.5 MB) - must match C++ setting
     MODEL_INIT_RESP_SIZE = 1024 * 512
     RECOVER_COMMAND_RESP_SIZE = 1024 * 512
