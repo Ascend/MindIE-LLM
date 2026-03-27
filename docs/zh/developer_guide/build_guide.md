@@ -34,7 +34,7 @@ MindIE镜像获取请参见[镜像安装方式](../user_guide/install/source/ima
 3. 编译第三方依赖。
 
     ```bash
-    bash build/build.sh -d 3rd -b 3rd
+    bash build.sh 3rd
     ```
 
 4. 设置环境变量。
@@ -50,16 +50,16 @@ MindIE镜像获取请参见[镜像安装方式](../user_guide/install/source/ima
     ```bash
     export MINDIE_LLM_VERSION_OVERRIDE=3.0.0
     ```
-5. 编译生成MindIE—LLM的 `.whl` 包。
-   
+5. 编译生成 MindIE-LLM 的 `.whl` 包。
+    在源码根目录下执行：
+
     ```bash
-    cd mindie_LLM/python
     pip wheel . --no-build-isolation -v
     ```
 
     * 编译完成后，会在当前目录生成 `mindie_LLM-<version>-*.whl` 文件。
     * 编译时，`setup.py` 会自动调用 `build.sh` 编译C++代码，并拷贝第三方依赖到包内。
-    * 编译后，生成临时目录 `build`、存放二进制的目录 `output` 和debug符号表`llm_debug_symbols` 目录。
+    * 编译后，生成临时目录 `build`、存放二进制的目录 `output` 和 debug 符号表 `llm_debug_symbols` 目录。
 
 6. 安装MindIE-LLM。
    
@@ -70,16 +70,16 @@ MindIE镜像获取请参见[镜像安装方式](../user_guide/install/source/ima
     umask $old_umask
     ```
 
-7. 编译ATB_Models的`.whl` 包。
+7. 编译ATB_Models的 `.whl` 包。
 
-    ```
+    ```bash
     cd example/atb_models
     pip wheel . --no-build-isolation -v
     ```
 
-8. 安装ATB_Models。
+8. 安装 ATB_Models。
    
-   ```
+   ```bash
    pip install atb_llm*.whl
    ```
 
