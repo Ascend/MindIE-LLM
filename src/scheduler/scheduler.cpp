@@ -1580,6 +1580,9 @@ void Scheduler::ParallelSeqGroupLifeEnd(SequenceGroupSPtr seqGroup)
         ClearSeq(seqId);
         seqGroup->seqId2ParallelSeqGroup_.Erase(seqId);
         LiveInferContext::GetInstance(localDPRank_)->RemoveFromSeqRootMap(seqId);
+        if (isAbortedRequest) {
+            abortedSequenceIds_.insert(seqId);
+        }
     }
 }
 
@@ -1598,7 +1601,12 @@ bool Scheduler::LifeEndedWrapup_(SequenceGroupSPtr &seqGroup)
     }
 
     if (abortedReqIds_.count(seqGroup->requestId) > 0) {
-        abortedSequenceIds_.insert(seqGroup->seqs_[0]->seqId_);
+        auto seqId = seqGroup->seqs_[0]->seqId_;
+        // When parallel sampling is enabled, an insert operation
+        // has already been performed in ParallelSeqGroupLifeEnd.
+        if (abortedSequenceIds_.count(seqId) == 0) {
+            abortedSequenceIds_.insert(seqId);
+        }
     }
 
     ClearSeqGrp(seqGroup, finalStatus);

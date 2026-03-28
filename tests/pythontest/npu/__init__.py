@@ -126,6 +126,7 @@ class FakeModelWrapper:
         self.config = MagicMock()
         self.config.eos_token_id = 0
         self.config.bos_token_id = 1
+        self.config.top_k = 1000
 
         self.mapping = MagicMock()
         self.mapping.attn_inner_sp.group_size = model_runner.mapping.attn_inner_sp.group_size

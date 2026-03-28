@@ -1210,7 +1210,7 @@ Failed to get vocab size from tokenizer wrapper with exception...
 
 ### 解决方案
 
--   模型适配的transformers/tokenizer版本不正确。
+- 模型适配的transformers/tokenizer版本不正确。
     -   确认每个模型需要安装依赖的transformers的版本，一般在模型文件的requirements.txt文件中可查看。然后查看模型权重路径下的config.json文件中的transformers版本号是否一致。
     -   使用以下tokenizer校验方法，创建一个Python脚本，如果运行成功，则tokenizer加载无问题。
 
@@ -1222,7 +1222,7 @@ Failed to get vocab size from tokenizer wrapper with exception...
     -   将trust\_remote\_code参数配置为true。
 
 -   服务化的config.json文件、模型权重路径和模型config.json文件权限不正确。
-    -   将服务化的config.json文件、模型权重路径和模型config.json文件权限修改为640。
+  -   将服务化的config.json文件、模型权重路径和模型config.json文件权限修改为640。
 
 -   模型权重文件下可能缺少config.json文件。
     -   如果缺少config.json文件，将其补齐。

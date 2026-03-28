@@ -13,11 +13,11 @@ Context Parallel（CP，上下文并行）主要针对Self-attention模块在seq
 -  支持PD分离场景和PD混部场景。
 -  PD混部场景时：
     -  该特性可以和SP(sequence parallel)、TP(tensor parallel)同时使用。开启CP特性时，DP(data parallel)必须等于1，SP必须等于TP，且CP、DP和TP的乘积等于Worldsize。
-    -  该特性支持与MTP=1、异步调度、prefixcache特性叠加使用。
+    -  该特性支持与MTP=1、异步调度、Prefix Cache特性叠加使用。
 
 -  PD分离场景时：
     -  仅支持在P节点开启CP特性，该特性可以和SP、TP、MTP同时使用。开启CP特性时，DP必须等于1，SP必须等于TP，且CP、DP和TP的乘积等于Worldsize。
-    -  该特性支持与MTP、异步调度、prefixcache特性叠加使用。
+    -  该特性支持与MTP、异步调度、Prefix Cache特性叠加使用。
 
 -  该特性不支持BF16。
 

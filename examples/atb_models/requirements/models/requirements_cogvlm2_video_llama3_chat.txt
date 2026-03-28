@@ -1,5 +1,5 @@
-torch==2.1.0
-torchvision== 0.16.0
+torch==2.9.0
+torchvision==0.24.0
 transformers==4.42.4
 pytorchvideo==0.1.5
 pillow==10.4.0

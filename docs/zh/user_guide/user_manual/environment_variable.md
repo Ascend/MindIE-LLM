@@ -6,7 +6,6 @@ MindIE LLM安装完成后，提供进程级环境变量设置脚本“set\_env.s
 
 **表 1** “set\_env.sh“脚本环境变量说明
 
-
 |环境变量名|功能描述|取值范围|默认值|
 |--|--|--|--|
 |**MindIE_LLM相关环境变量**|
@@ -19,14 +18,9 @@ MindIE LLM安装完成后，提供进程级环境变量设置脚本“set\_env.s
 |ATB_SPEED_HOME_PATH|ATB模型lib路径的环境变量，必须配置。|必须是ATB模型lib路径|None|
 |HCCL_INTRA_PCIE_ENABLE|控制是否开启All2All分层通信及INT8通信特性。“HCCL_INTRA_PCIE_ENABLE”和“HCCL_INTRA_ROCE_ENABLE”必须同时设置为开启，才能开启该功能。这两个环境变量的更多描述请参见《CANN 环境变量参考》中的“集合通信”章节。建议在Atlas 800I A2 推理服务器和Atlas 800I A3 超节点服务器，MoE模型的Combine INT8算子场景下打开 ，提升性能优化。|0：关闭<br>1：开启|N/A|
 |HCCL_INTRA_ROCE_ENABLE|0：开启1：关闭|N/A|
-|**日志相关环境变量**|
-|MINDIE_LOG_TO_FILE|MindIE日志写入文件开关。|0：不开启<br>1：开启|1|
-|MINDIE_LOG_LEVEL|MindIE日志级别。|DEBUG<br>INFO<br>WARN<br>ERROR<br>CRITICAL|INFO|
-|MINDIE_LOG_TO_STDOUT|MindIE日志写入标准输出流开关。|0：不开启<br>1：开启|0|
 |**Ascend Extension for PyTorch相关环境变量**|
 |MASTER_IP|多机服务化设置的主机ip|若值非空，则IP应该是合法ip|None|
 |MASTER_PORT|多机服务化设置的主机接口|若值非空，则端口号[0,65535]|None|
-
 
 ## 其他可选环境变量
 
@@ -66,15 +60,11 @@ MindIE\_LLM相关环境变量请参考**表3**。
 
 |环境变量名|功能描述|取值范围|默认值|
 |--|--|--|--|
-|HOST_IP|宿主机IP地址。|N/A|N/A|
+|HOST_IP|宿主机IP地址。<br>仅Coordinator需要配置，配置为提供推理API的物理机IP。|N/A|N/A|
 |LOCAL_RANK|指示Device的本地ID。|[0, ${WORLD_SIZE} - 1]|0|
 |MIES_USE_MB_SWAPPER|高性能Swap开关。|0：不开启<br>1：开启|0|
 |MINDIE_CHECK_INPUTFILES_PERMISSION|是否需要检验外部文件的权限信息，包括文件所有者和其他人对文件的写权限。|0：不需要检验外部文件的权限信息<br>其他值或None：需要检验外部文件的权限信息。|None|
-<<<<<<< HEAD
 |MINDIE_LLM_BENCHMARK_ENABLE|是否开启MindIE LLM模块的Benchmark功能，开启后将会输出性能数据到指定文件路径。|0：不开启<br>1：开启|0|
-=======
-|MINDIE_LLM_BENCHMARK_ENABLE|是否开启MindIE LLM模块的Benchmark功能，开启后将会输出性能数据到请求响应体(指定路径时，还输出到指定文件路径)。|1：开启同步模式<br>2：开启异步模式<br>其他值或None：不开启|None|
->>>>>>> upstream/dev
 |MINDIE_LLM_BENCHMARK_FILEPATH|指定MindIE LLM模块的Benchmark功能输出的性能数据文件路径。|N/A|"{MINDIE_LLM_HOME_PATH}/logs/benchmark.jsonl"|
 |MINDIE_LLM_BENCHMARK_RESERVING_RATIO|当性能数据文件超过最大文件大小限制时，旧数据会被新数据覆盖。此环境变量指定保留旧数据的比例，默认为0.1。|[0.0, 1.0]|0.1|
 |MINDIE_LLM_FRAMEWORK_BACKEND|MindIE LLM框架后端类型，当前可选值为"atb"（ATB，默认值）和"ms"（MindSpore）。|ATB<br>MS（不区分大小写）|ATB|
@@ -129,7 +119,7 @@ ATB\_Models相关环境变量请参考**表4**。
 |--|--|--|--|
 |MINDIE_LOG_LEVEL|控制日志级别。|DEBUG<br>INFO<br>WARN<br>ERROR<br>CRITICAL|INFO|
 |MINDIE_LOG_PATH|控制日志写入路径。|N/A|"mindie/log/debug"|
-|MINDIE_LOG_ROTATE|控制日志轮转。|-fs：每个日志文件的大小，单位MB，取值范围[1, 500]<br>-r：每个进程可写日志文件个数，取值范围[1, 64]<br>例如：export MINDIE_LOG_ROTATE="-fs 40 -r 2"|-fs：20-r：10|
+|MINDIE_LOG_ROTATE|控制日志轮转的大小和个数。|<li>-fs：每个日志文件的大小，单位MB，取值范围[1, 500]<li>-r：每个进程可写日志文件个数，取值范围[1, 64]<br>例如：export MINDIE_LOG_ROTATE="-fs 40 -r 2"|<li>-fs：20<li>-r：10<br>"PYTHON_LOG_MAXSIZE"和"MINDIE_LOG_ROTATE"兼容，且"PYTHON_LOG_MAXSIZE"优先级高于"MINDIE_LOG_ROTATE"中的"-fs"参数设置。|
 |MINDIE_LOG_TO_FILE|控制日志是否保存到文件，设置为1则开启。|{0, 1, true, false}|true|
 |MINDIE_LOG_TO_STDOUT|控制日志是否打印，设置为1则开启。|{0, 1, true, false}|false|
 |MINDIE_LOG_VERBOSE|控制日志中是否加入可选日志内容。|{0, 1, true, false}|true|

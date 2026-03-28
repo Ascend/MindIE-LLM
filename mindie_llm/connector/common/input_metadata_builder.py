@@ -751,8 +751,9 @@ def parse_para_is_prefill(seq_group_metadata_list: List[SequenceGroupMetadata], 
             pad_input_ids(input_ids, cp_size)
 
         # splitfuse时decode请求需要向input_ids中加入占位符，在插件中从cache里获取真正token
+        # TODO：splitfuse叠加mtp时需要进一步适配input_ids占位符个数
         if not input_ids:
-            batch_input_ids.extend([0])
+            batch_input_ids.extend([0] * len(seq_group_metadata.split_start_pos))
         else:
             batch_input_ids.extend(input_ids)
 

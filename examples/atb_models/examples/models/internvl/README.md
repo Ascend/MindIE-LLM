@@ -51,9 +51,9 @@
 
 **基础环境变量**
 
-- 1.python 3.10, torch 2.1.0. Python其他第三方库依赖，参考[requirements_internvl.txt](../../../requirements/models/requirements_internvl.txt)
+- 1.Python其他第三方库依赖，参考[requirements_internvl.txt](../../../requirements/models/requirements_internvl.txt)
 - 2.参考[此README文件](../../../README.md)
-- 注意：保证先后顺序，首先安装FrameworkPTAdapter中的2.1.0版本的pytorch和torch_npu，然后再安装其他的python依赖。
+- 注意：保证先后顺序，首先安装FrameworkPTAdapter中的pytorch和torch_npu，再安装其他的python依赖。
 
 ## 推理
 

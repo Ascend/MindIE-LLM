@@ -471,11 +471,10 @@ class MtpPlugin(Plugin):
             model_inputs.forward_context.attn_metadata.actual_seq_lengths_query = \
                 actual_seq_lengths_query * speculative_length
             model_inputs.forward_context.attn_metadata.actual_seq_lengths_kv = model_inputs.input_lengths
-            if not model_output_wrapper.input_metadata.is_prefill:
-                model_inputs.forward_context.sub_forward_context.attn_metadata.actual_seq_lengths_kv = \
-                    model_inputs.input_lengths
-                model_inputs.forward_context.sub_forward_context.attn_metadata.actual_seq_lengths_query = \
-                    model_inputs.forward_context.attn_metadata.actual_seq_lengths_query
+            model_inputs.forward_context.sub_forward_context.attn_metadata.actual_seq_lengths_kv = \
+                model_inputs.input_lengths.clone()
+            model_inputs.forward_context.sub_forward_context.attn_metadata.actual_seq_lengths_query = \
+                model_inputs.forward_context.attn_metadata.actual_seq_lengths_query.clone()
             model_inputs.forward_context.attn_metadata.seq_lens = model_inputs.input_lengths
 
             hit_mask_per_token_mod_tensor = filling_masks.get('hit_mask_per_token_mod_tensor')

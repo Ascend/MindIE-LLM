@@ -79,7 +79,7 @@
 
         例如：使用/data/Llama-3-8b路径下的权重，使用8卡推理"What's deep learning?"和"Hello World."，推理时batch size为2。
 
-        ```
+        ```bash
         # 指定当前机器上可用的逻辑NPU核心，多个核心间使用逗号相连
         export ASCEND_RT_VISIBLE_DEVICES=0,1,2,3,4,5,6,7
         # 执行推理
@@ -93,7 +93,7 @@
 
         新建一个py脚本（如test.py）用于生成Token id：
 
-        ```
+        ```python
         from transformers import AutoTokenizer
         tokenizer = AutoTokenizer.from_pretrained(
             pretrained_model_name_or_path="{tokenizer所在的文件夹路径}",
@@ -107,13 +107,13 @@
 
         执行如下命令，生成Token id：
 
-        ```
+        ```python
         python test.py
         ```
 
         执行如下命令进行推理，如下以生成的第一个推理内容对应的Token id为"1,15043,2787"，第二个推理内容对应的Token id为"1,306,626,2691"为例，其中推理内容间以空格分开。
 
-        ```
+        ```linux
         # 执行推理
         torchrun --nproc_per_node 8 --master_port 20030 -m examples.run_pa --model_path /data/Llama-3-8b --input_ids 1,15043,2787 1,306,626,2691 --max_batch_size 2
         ```
@@ -153,7 +153,8 @@
         |--max_lora_rank|否|int|0|动态加载卸载LoRA场景中，定义最大LoRA秩。动态LoRA场景下必须配置，静态LoRA场景中可以不配置。若传入数值过大，由于预留了过多权重空间，会出现out_of_memory报错信息，例如: "RuntimeError: NPU out of memory. Tried to allocate xxx GiB."|
 
 
-        > [!NOTE]说明 
+        > [!NOTE]说明
+
         > 此章节中的run\_pa.py脚本用于纯模型快速测试，脚本中未增加强校验，出现异常情况时，会直接抛出异常信息。例如：
         > - nput\_texts、input\_ids、input\_file、input\_dict参数包含推理内容，程序进行数据处理的时间和传入数据量成正比。同时这些输入会被转换成token id搬运至NPU，传入数据量过大可能会导致这些NPU tensor占用显存过大，而出现由out of memory导致的报错信息，例如："req: xx input length: xx is too long, max\_prefill\_tokens: xx"等报错信息。
         > - chat\_template参数可以使用两种形式输入：模板文本或模板文件的路径。当以模板文本输入时，若文本长度过大，可能会导致运行缓慢。
@@ -165,7 +166,7 @@
 
     开启ATB\_LLM\_BENCHMARK\_ENABLE环境变量后，将统计模型首Token、增量Token及端到端推理时延。
 
-    ```
+    ```bash
     # 环境变量开启方式
     export ATB_LLM_BENCHMARK_ENABLE=1
     # 启动推理方式见步骤4、步骤5
@@ -207,7 +208,7 @@
 
     服务化配置中默认使用ATB Models作为模型后端。
 
-    ```
+    ```bash
     vim /usr/local/Ascend/mindie/latest/mindie-service/conf/config.json
     # ModelDeployConfig.ModelConfig.backendType字段默认值为"atb"
     "backendType": "atb"
@@ -236,7 +237,7 @@ MindIE LLM不仅支持ATB Models，同时支持MindSpore作为框架后端，Min
 
 以Qwen2.5-72B为例，转换后的模型权重目录结构如下：
 
-```
+```text
 mf_model
 └── qwen2_5_72b
 ├── config.json                 # 模型json配置文件
@@ -251,7 +252,7 @@ mf_model
 
 predict\_qwen2\_5\_72b.yaml需要关注以下配置：
 
-```
+```yaml
 load_checkpoint: '/mf_model/qwen2_5_72b/qwen2_5_72b_ckpt_dir' # 为存放模型分布式权重文件夹路径
 use_parallel: True
 auto_trans_ckpt: False    # 是否开启自动权重转换，离线切分设置为False
@@ -267,7 +268,7 @@ processor:
 
 模型的config.json文件可以使用save\_pretrained接口生成，示例如下：
 
-```
+```python
 from mindformers import AutoConfig
 
 model_config = AutoConfig.from_pretrained("/mf_model/qwen2_5_72b/predict_qwen2_5_72b.yaml")
@@ -282,7 +283,7 @@ model_config.save_pretrained(save_directory="./json/qwen2_5_72b/", save_json=Tru
 
     若安装路径为默认路径，可以运行以下命令初始化各组件环境变量。
 
-    ```
+    ```bash
     # Ascend
     source /usr/local/Ascend/cann/set_env.sh
     # MindIE
@@ -304,7 +305,7 @@ model_config.save_pretrained(save_directory="./json/qwen2_5_72b/", save_json=Tru
 
     若要启用MindSpore Models作为模型后端，服务化配置中需将ModelDeployConfig.ModelConfig.backendType字段设置为"ms"。
 
-    ```
+    ```bash
     vim /usr/local/Ascend/mindie/latest/mindie-service/conf/config.json
     # 修改ModelDeployConfig.ModelConfig.backendType
     "backendType": "ms"
@@ -314,9 +315,9 @@ model_config.save_pretrained(save_directory="./json/qwen2_5_72b/", save_json=Tru
 
     用户可使用HTTPS客户端（Linux curl命令，Postman工具等）发送HTTPS请求，此处以Linux curl命令为例进行说明。重开一个窗口，使用以下命令发送请求。
 
-    ```
+    ```bash
     curl -H "Accept: application/json" -H "Content-type: application/json" -X POST --cacert {Server服务端证书的验签证书/根证书路径} --cert {客户端证书文件路径} --key {客户端证书私钥路径} -d '{"inputs": "I love Beijing, because","stream": false}' https://{ip}:{port}/generate
     ```
-
+    
     > [!NOTE]说明
     > MindSpore场景下，请求体中的seed字段限制在\[0, 2^32\)范围内，若超过则按照默认值seed = 0设置。

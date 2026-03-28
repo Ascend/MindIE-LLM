@@ -25,7 +25,7 @@
 #include <mutex>
 #include <memory>
 #include "log.h"
-#include "concurrent_deque.h"
+#include "error_queue.h"
 #include "infer_instances.h"
 #include "config_manager.h"
 #include "simulate_task_runner.h"
@@ -39,21 +39,6 @@ enum ServiceStatus : uint32_t {
     SERVICE_PAUSE = 3,
     SERVICE_INIT = 4,
     SERVICE_BUSY = 5
-};
-
-struct ErrorItem {
-    int64_t timestamp;
-    std::string errCode;
-    std::string createdBy;
-    ErrorItem()
-        : timestamp(
-            std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch())
-            .count()),
-          errCode(""), createdBy("") {}
-    ErrorItem(const std::string &errCode, const std::string &createdBy,
-        const std::chrono::time_point<std::chrono::system_clock> &timestamp)
-        : timestamp(std::chrono::duration_cast<std::chrono::milliseconds>(timestamp.time_since_epoch()).count()),
-          errCode(errCode), createdBy(createdBy) {}
 };
 
 class HealthChecker {
@@ -80,7 +65,6 @@ public:
 private:
     std::atomic<ServiceStatus> mServiceStatus;
     int mChipPerCard = 1;    // A2: 1, A3: 2
-    mindie_llm::ConcurrentDeque<ErrorItem> mErrorList;
     std::set<int> mNpuDeviceCardIds;
     std::string mEngineName;
     mutable std::shared_mutex mNpuDevicesMutex;
@@ -89,13 +73,6 @@ private:
     std::mutex mStatusMutex; // 状态锁
     std::unordered_map<int, std::vector<int>> statusTransferMap;
     static constexpr int checkIntervalSeconds = 5;
-    static constexpr int maxErrorListSize = 100;
-
-    std::set<std::string> mRecoverableErrCodes = {
-        "MIE05E01000A", // TEXT_GENERATOR_OUT_OF_MEMORY
-        "MIE05E01000B", // TEXT_GENERATOR_HBM_MULTI_BIT_ECC_ERROR
-        "MIE05E01001B", // TEXT_GENERATOR_PD_PULL_KV_ERROR
-    };
     
     void CheckServiceStatus();
     bool WaitForLlmEngineReady();

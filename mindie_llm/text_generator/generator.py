@@ -205,6 +205,8 @@ class Generator(PDInterface):
         self.max_batch_size = parse_config(model_config, 'max_batch_size', required=True, parse_type=ParseType.TO_INT)
         self.max_prefill_batch_size = parse_config(model_config, 'max_prefill_batch_size',
                                                    required=True, parse_type=ParseType.TO_INT)
+        self.max_beam_width = parse_config(model_config, 'max_beam_width', required=False,
+                                           parse_type=ParseType.TO_INT, default_value=128)
         max_prefill_tokens = parse_config(model_config, 'max_prefill_tokens', required=True,
                                           parse_type=ParseType.TO_INT)
         self.soc_version = parse_config(model_config, 'soc_version', required=False,
@@ -323,6 +325,18 @@ class Generator(PDInterface):
                 eos_token_id_obf = self.obfuscation_func.token_obf(self.cache_config.eos_token_id)
             self.cache_config.set_eos_token_id(eos_token_id_obf)
         print_log(self.rank, logger.info, f'The effective eos_token_id is `{self.cache_config.eos_token_id}`.')
+
+        eos_token_id = self.cache_config.eos_token_id
+        if isinstance(eos_token_id, list):
+            num_eos = len(eos_token_id)
+        else:
+            num_eos = 1 if eos_token_id is not None else 0
+        beamsearch_topk = (num_eos + 1) * self.max_beam_width
+        if beamsearch_topk > self.warmup_topk_size:
+            print_log(self.rank, logger.info, 
+                      f'Adjusting warmup_topk_size from {self.warmup_topk_size} to {beamsearch_topk} '
+                      f'for beam search (num_eos={num_eos}, max_beam_width={self.max_beam_width}).')
+            self.warmup_topk_size = beamsearch_topk
 
         if getattr(self.model_wrapper.config, 'pad_token_id', None) is not None:
             self.cache_config.set_pad_token_id(self.model_wrapper.config.pad_token_id)

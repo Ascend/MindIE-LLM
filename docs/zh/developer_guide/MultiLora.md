@@ -43,7 +43,7 @@ LoRA权重中需包含 `adapter_config.json` 和 `adapter_model.safetensors` 文
 
 ## 执行推理
 
-### 纯模型使用：
+### 纯模型使用
 
 已在环境上安装CANN和ATB Models，详情请参见《MindIE安装指南》。
 
@@ -68,7 +68,7 @@ torchrun --nproc_per_node 8 --master_port 20030 -m examples.run_pa \
   --lora_modules '{"{Lora权重1的名称}": "{Lora权重1的路径}", "{Lora权重2的名称}": "{Lora权重2路径}"}'
 ```
 
-### 服务化使用：
+### 服务化使用
 
 `lora_adapter.json`文件配置方式已日落，新的配置方式是在MindIE Motor的`config.json`文件中添加`LoraModules`字段开启Multi LoRA特性，详细操作步骤如下所示。
 

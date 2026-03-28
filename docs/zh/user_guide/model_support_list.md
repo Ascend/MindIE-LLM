@@ -1,6 +1,7 @@
 # MindIE-LLM 支持模型列表
 
 > **图例说明**  
+>
 > - **<span style="font-size: 1.4em; color:green">●</span>**：充分验证支持  
 > - **<span style="font-size: 1.4em; color: #FFA500;">●</span>**：仅功能支持  
 > - ✅：支持该列的特性 
@@ -73,7 +74,6 @@
 | 模型 | Support | 最大上下文长度 | W8A8 | W4A8 | W8A16 | LoRA | atbgraph | aclgraph | 硬件规格 | README 链接 | Hugging Face 链接 | ModelScope 链接 |
 |:---|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---|:---|:---|:---|
 | ERNIE-4.5-300B-A47B | <span style="font-size:1.4em;color:green">●</span> | 32k | ✅ | ❌ | ❌ | ❌ | ✅ | ❌ | Atlas 800I A2：16卡<br>Atlas 800I A3：8卡<br>Atlas 300I Duo：不支持 | [README](https://gitcode.com/Ascend/MindIE-LLM/blob/master/examples/atb_models/examples/models/ernie_moe/README.md) | [baidu/ERNIE-4.5-300B-A47B-PT](https://huggingface.co/baidu/ERNIE-4.5-300B-A47B-PT) | [baidu/ERNIE-4.5-300B-A47B](https://modelscope.cn/models/baidu/ERNIE-4.5-300B-A47B) |
-
 
 ---
 

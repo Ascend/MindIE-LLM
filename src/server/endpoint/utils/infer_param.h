@@ -135,6 +135,7 @@ private:
     bool ValidateFeatureDmi(const ValidationContext &ctx, std::string &error,
         bool dmiSupportStopWords = false) const noexcept;
     bool ValidateFeatureBeamSearch(const ValidationContext &ctx, std::string &error) const noexcept;
+    bool ValidateFeatureBeamSearchEnable(const ValidationContext &ctx, std::string &error) const noexcept;
     bool ValidateFeatureOverlay(const ValidationContext &ctx, std::string &error) const noexcept;
 };
 

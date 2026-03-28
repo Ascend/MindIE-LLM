@@ -91,6 +91,35 @@ bool InferParam::ValidateFeatureDmi(const ValidationContext &ctx, std::string &e
     return true;
 }
 
+bool InferParam::ValidateFeatureBeamSearchEnable(const ValidationContext &ctx, std::string &error) const noexcept
+{
+    if (maxNewTokens > MAX_NUM_NEW_TOKENS_OF_BEAM_SEARCH) {
+        std::stringstream ss;
+        ss << "Please set the max_tokens to be not larger than " <<
+            std::to_string(MAX_NUM_NEW_TOKENS_OF_BEAM_SEARCH) << " when the use_beam_search is on.";
+        error = ss.str();
+        return false;
+    }
+    auto &scheduleConfig = GetScheduleConfig();
+    if (ctx.reqN > scheduleConfig.maxBatchSize) {
+        std::stringstream ss;
+        ss << "The n parameter (" << ctx.reqN << ") for beam search exceeds 'max_batch_size' ("
+           << scheduleConfig.maxBatchSize << "). Please reduce n or increase 'max_batch_size' "
+           << "in config.json of mindie-service.";
+        error = ss.str();
+        return false;
+    }
+    if (ctx.reqN > scheduleConfig.maxBeamWidth) {
+        std::stringstream ss;
+        ss << "The n parameter (" << ctx.reqN << ") for beam search exceeds 'max_beam_width' ("
+           << scheduleConfig.maxBeamWidth << "). Please reduce n or increase 'max_beam_width' "
+           << "in config.json of mindie-service.";
+        error = ss.str();
+        return false;
+    }
+    return true;
+}
+
 bool InferParam::ValidateFeatureBeamSearch(const ValidationContext &ctx, std::string &error) const noexcept
 {
     // 规则二：接口能力限制
@@ -101,11 +130,7 @@ bool InferParam::ValidateFeatureBeamSearch(const ValidationContext &ctx, std::st
 
     // safety specification of beam search
     if (ctx.reqUseBeamSearch) {
-        if (maxNewTokens > MAX_NUM_NEW_TOKENS_OF_BEAM_SEARCH) {
-            std::stringstream ss;
-            ss << "Please set the max_tokens to be not larger than " <<
-                std::to_string(MAX_NUM_NEW_TOKENS_OF_BEAM_SEARCH) << " when the use_beam_search is on.";
-            error = ss.str();
+        if (!ValidateFeatureBeamSearchEnable(ctx, error)) {
             return false;
         }
         return true; // 注意：本函数后续仅检查非beamSearch模式！！！

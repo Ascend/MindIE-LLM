@@ -21,6 +21,7 @@
 #include "infer_instances.h"
 #include "health_checker.h"
 
+
 namespace mindie_llm {
 
 constexpr size_t EXECUTE_COMMAND_BUFFER_SIZE = 128;
@@ -153,15 +154,17 @@ HealthChecker &HealthChecker::GetInstance()
 
 ServiceStatus HealthChecker::GetServiceStatus() { return mServiceStatus.load(); }
 
-bool HealthChecker::CheckErrorListEmpty() { return mErrorList.Empty(); }
+bool HealthChecker::CheckErrorListEmpty() { return ErrorQueue::GetInstance().Size() == 0; }
 
 void HealthChecker::GetStatusAndErrorList(ServiceStatus &status, std::vector<ErrorItem> &errorList)
 {
     status = mServiceStatus.load();
-    mErrorList.ForEach([&errorList](const ErrorItem &item) { errorList.push_back(item); }, mErrorList.Size());
+    ErrorItem item;
+    while (ErrorQueue::GetInstance().PopError(item)) {
+        errorList.push_back(item);
+    }
     ULOG_DEBUG(SUBMODLE_NAME_HEALTHCHECKER, "HealthChecker: GetStatusAndErrorList called. Status: "
                                                 << status << ", ErrorList size: " << errorList.size());
-    mErrorList.Clear();
 }
 
 bool HealthChecker::WaitForLlmEngineReady()
@@ -246,12 +249,7 @@ void HealthChecker::HandleHealthStatus()
         errCode = GenerateHealthCheckerErrCode(INFO, SUBMODLE_FEATURE_SECURE, SIMULATE_NORMAL);
     }
     if (!errCode.empty()) {
-        ErrorItem item(errCode, SUBMODLE_NAME_HEALTHCHECKER, std::chrono::system_clock::now());
-        if (mErrorList.Size() >= maxErrorListSize) {
-            ErrorItem itemToRemove;
-            mErrorList.PopFront(itemToRemove);
-        }
-        mErrorList.PushBack(item);
+        ErrorQueue::GetInstance().EnqueueErrorMessage(errCode, SUBMODLE_NAME_HEALTHCHECKER);
     }
     mServiceStatus.store(status);
     ULOG_INFO(SUBMODLE_NAME_HEALTHCHECKER, "HealthChecker: The simulate infer health check result is "
@@ -516,21 +514,7 @@ void HealthChecker::UpdateStatus(const ServiceStatus &status)
 void HealthChecker::EnqueueErrorMessage(const std::string &errCode, const std::string &createdBy,
                                         const std::chrono::time_point<std::chrono::system_clock> &timestamp)
 {
-    ErrorItem item(errCode, createdBy, timestamp);
-
-    if (mErrorList.Size() >= maxErrorListSize) {
-        ErrorItem itemToRemove;
-        mErrorList.PopFront(itemToRemove);
-    }
-    mErrorList.PushBack(item);
-
-    if (mRecoverableErrCodes.find(errCode) != mRecoverableErrCodes.end()) {
-        ULOG_INFO(SUBMODLE_NAME_HEALTHCHECKER,
-            "HealthChecker: error code " << errCode << " is in the recoverable error code list, " <<
-            "do not update the status to SERVICE_ABNORMAL");
-        return;
-    }
- 
+    ErrorQueue::GetInstance().EnqueueErrorMessage(errCode, createdBy, timestamp);
     ULOG_INFO(SUBMODLE_NAME_HEALTHCHECKER, "HealthChecker: New error added. Error code: "
                                                << errCode << ", createdBy: " << createdBy);
 

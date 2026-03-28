@@ -39,14 +39,22 @@ max_input_length长度设置可参考模型权重路径下config.json里的max_p
 -注意：
 开源权重于2025-10-25日更新了config.json格式，需使用2025-10-25日后的权重版本。
 
+
 **权重量化**
 - 参考[msit](https://gitcode.com/Ascend/msit/blob/master/msmodelslim/example/multimodal_vlm/GLM-4.1V/README.md)
 - 800I A2支持w8a8量化，命令如下  
     python quant_glm4_1v.py --model_path {浮点权重路径} --save_directory {量化权重保存路径} --calib_images {校准图片路径} --w_bit 8 --a_bit 8 --device_type npu --anti_method m2 --torch_dtype bf16 --trust_remote_code True  
 - 300I DUO支持w8a8sc量化，命令如下
-  - 权重稀疏：  
-  python quant_glm41v.py --model_path {浮点权重路径} --save_directory {W8A8S量化权重路径} --calib_images {校准集图片路径} --w_bit 4 --a_bit 8 --device_type npu --anti_method m2 --is_lowbit True --fraction 0.01 --use_sigma True --torch_dtype fp16 --trust_remote_code True
-  - 权重压缩：  
+
+  - 昇腾原生量化权重下载 或 生成量化权重 二选一：
+
+    - 可以通过ModelScope魔搭社区直接下载昇腾原生量化模型权重：
+
+    [GLM-4.1V-9B-Thinking-w8a8s-310](https://www.modelscope.cn/models/Eco-Tech/GLM-4.1V-9B-Thinking-w8a8s-310)
+
+    - 生成量化权重：  
+    python quant_glm41v.py --model_path {浮点权重路径} --save_directory {W8A8S量化权重路径} --calib_images {校准集图片路径} --w_bit 4 --a_bit 8 --device_type npu --anti_method m2 --is_lowbit True --fraction 0.01 --use_sigma True --torch_dtype fp16 --trust_remote_code True
+  - 量化权重切分及压缩：  
   torchrun --nproc_per_node {TP数} -m examples.convert.model_slim.sparse_compressor --model_path {W8A8S量化权重路径} --save_directory {W8A8SC量化权重路径} --multiprocess_num 4  
   权重压缩后，需手动将浮点权重路径下的chat_template.jinja，preprocessor_config.json，video_preprocessor_config.json三个文件拷贝至W8A8SC量化权重路径下。
 

@@ -614,6 +614,7 @@ static void InitScheduleConfig(EngineConfig &engineConfig, const ScheduleConfig 
     engineConfig.maxPreemptCount = scheduleConfig.maxPreemptCount;
     engineConfig.supportSelectBatch = scheduleConfig.supportSelectBatch;
     engineConfig.maxQueueDelayMicroseconds = scheduleConfig.maxQueueDelayMicroseconds;
+    engineConfig.maxBeamWidth = scheduleConfig.maxBeamWidth;
     // policy config
     engineConfig.policyType = scheduleConfig.policyType;
     engineConfig.maxIterTimes = scheduleConfig.maxIterTimes;
@@ -919,6 +920,7 @@ static void LLMSetModelConfig(std::map<std::string, std::string> &modelConfig, c
     modelConfig["distributed_enable"] = engineConfig.distributedEnable ? "true" : "false";
     modelConfig["max_batch_size"] = std::to_string(engineConfig.maxBatchSize);
     modelConfig["max_prefill_batch_size"] = std::to_string(engineConfig.maxPrefillBatchSize);
+    modelConfig["max_beam_width"] = std::to_string(engineConfig.maxBeamWidth);
     modelConfig["kv_pool_backend"] = engineConfig.kvPoolConfig.backend;
     modelConfig["kv_pool_config_path"] = engineConfig.kvPoolConfig.configPath;
    

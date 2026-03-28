@@ -345,9 +345,20 @@ bash examples/models/qwen/convert_quant_weight.sh -src ${浮点权重路径} -ds
   msmodelslim quant --model_path ${浮点权重路径} --save_path ${量化权重保存路径} --device npu --model_type Qwen3-32B --quant_type w8a8 --trust_remote_code True
   ```
 
-#### Qwen3-8B、Qwen3-14B、Qwen3-32B 稀疏量化
+#### Qwen3-8B、Qwen3-14B、Qwen3-32B W8A8SC稀疏量化
 - 安装msmodelslim量化工具 https://gitcode.com/ascend/msit/tree/master/msmodelslim
-- 生成量化权重
+- 昇腾原生量化权重下载 或 生成量化权重 二选一
+  - 可以通过ModelScope魔搭社区直接下载昇腾原生量化模型权重：
+
+  **300I DUO**
+
+  [Qwen3-8B-w8a8s-310](https://www.modelscope.cn/models/Eco-Tech/Qwen3-8B-w8a8s-310)
+
+  [Qwen3-14B-w8a8s-310](https://www.modelscope.cn/models/Eco-Tech/Qwen3-14B-w8a8s-310)
+
+  [Qwen3-32B-w8a8s-310](https://www.modelscope.cn/models/Eco-Tech/Qwen3-32B-w8a8s-310)
+
+  - 生成量化权重
   Qwen3-8B建议使用BF16格式的浮点权重，精度损失更低。
   ```shell
   # Qwen3-32B量化指令
@@ -364,6 +375,41 @@ bash examples/models/qwen/convert_quant_weight.sh -src ${浮点权重路径} -ds
   ```
   - TP数为tensor parallel并行个数
   - 注意：若权重生成时以TP=4进行切分，则运行时也需以TP=4运行
+
+#### Qwen3-32B W16A16SC稀疏量化
+- 安装msmodelslim量化工具 https://gitcode.com/ascend/msit/tree/master/msmodelslim
+- 昇腾原生量化权重下载 或 生成量化权重 二选一
+  - 可以通过ModelScope魔搭社区直接下载昇腾原生量化模型权重：
+
+  **300I DUO**
+
+  [Qwen3-32B-w16a16s-310](https://www.modelscope.cn/models/Eco-Tech/Qwen3-32B-w16a16s-310)
+
+  - 生成量化权重
+  ```shell
+  msmodelslim quant --model_path ${浮点权重路径} --save_path ${W16A16S量化权重保存路径} --device npu --model_type Qwen3-32B --quant_type w16a16s --trust_remote_code True
+  ```
+- 量化权重切分及压缩
+  ```shell
+  torchrun --nproc_per_node {TP数} -m examples.convert.model_slim.sparse_compressor --model_path {W16A16S量化权重路径} --save_directory {W16A16SC量化权重路径}
+  ```
+  - TP数为tensor parallel并行个数
+  - 注意：若权重生成时以TP=4进行切分，则运行时也需以TP=4运行
+
+#### Qwen3-30B-A3B W8A8混合量化
+生成Qwen3-30B-A3B模型W8A8混合量化权重（Attention:w8a8量化，MoE:w8a8 dynamic量化）
+- 安装msmodelslim量化工具 https://gitcode.com/ascend/msit/tree/master/msmodelslim
+- 昇腾原生量化权重下载 或 生成量化权重 二选一
+  - 可以通过ModelScope魔搭社区直接下载昇腾原生量化模型权重：
+
+  **300I DUO**
+
+  [Qwen3-30B-A3B-w8a8-QuaRot-310](https://www.modelscope.cn/models/Eco-Tech/Qwen3-30B-A3B-w8a8-QuaRot-310)
+  
+  - 生成量化权重
+  ```shell
+  python3 quant_qwen_moe_w8a8.py --model_path {浮点权重路径} --save_path {W8A8量化权重路径}  --anti_dataset ../common/qwen3-moe_anti_prompt_50.json --calib_dataset ../common/qwen3-moe_calib_prompt_50.json --trust_remote_code True
+  ```
 
 ## 推理
 

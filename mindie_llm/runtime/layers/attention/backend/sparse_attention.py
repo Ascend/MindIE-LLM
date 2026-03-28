@@ -277,6 +277,7 @@ class SfaMetadata(AttentionMetadata):
         num_reqs = num_actual_tokens // (self.num_speculative_tokens + 1)
 
         input_buffer_slot_mapping = input_buffer.get("slot_mapping")
+        input_buffer_slot_mapping.fill_(-1)
         input_buffer_slot_mapping[:num_actual_tokens].copy_(self.slot_mapping[:num_actual_tokens])
         self.slot_mapping = input_buffer_slot_mapping[:num_tokens]
 
@@ -304,6 +305,8 @@ class SfaMetadata(AttentionMetadata):
         input_buffer_actual_seq_lengths_query[:self.actual_seq_lengths_query.shape[-1]].copy_(
             self.actual_seq_lengths_query[:self.actual_seq_lengths_query.shape[-1]])
         self.actual_seq_lengths_query = input_buffer_actual_seq_lengths_query[:actual_len]
+        if last_req_tokens > 0:
+            self.actual_seq_lengths_query[-1] = self.actual_seq_lengths_query[-2] + last_req_tokens
 
         input_buffer_block_tables = input_buffer.get("block_tables")
         input_buffer_block_tables.fill_(0)

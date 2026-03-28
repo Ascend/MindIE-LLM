@@ -11,13 +11,13 @@ Server提供EndPoint模块对推理服务化协议和接口封装，兼容Triton
 
 HTTP/HTTPS请求的URL的IP地址和端口号在config.json中进行配置，详情请参见[ServerConfig参数说明](../user_manual/service_parameter_configuration.md#serverconfig参数说明)。
 
--   以Linux curl工具发送generate请求，URL请求格式如下：
-    -   操作类型：**POST**
-    -   **URL：http_\[__s\]_://**_\{ip\}:\{port\}_**/generate**
+- 以Linux curl工具发送generate请求，URL请求格式如下：
+    - 操作类型：**POST**
+    - **URL：http_\[__s\]_://**_\{ip\}:\{port\}_**/generate**
 
--   未开启HTTPS，发送推理请求：
+- 未开启HTTPS，发送推理请求：
 
-    ```
+    ```bash
     curl -H "Accept: application/json" -H "Content-type: application/json" -X POST -d '{
       "inputs": "My name is Olivier and I",
       "parameters": {
@@ -32,9 +32,9 @@ HTTP/HTTPS请求的URL的IP地址和端口号在config.json中进行配置，详
     }' http://{ip}:{port}/generate
     ```
 
--   HTTPS双向认证的请求方式示例： 
+- HTTPS双向认证的请求方式示例： 
 
-    ```
+    ```bash
     curl --location --request POST 'https://{ip}:{port}/generate' \
     --header 'Content-Type: application/json' \
     --cacert /home/runs/static_conf/ca/ca.pem \
@@ -60,12 +60,12 @@ HTTP/HTTPS请求的URL的IP地址和端口号在config.json中进行配置，详
     ```
 
     >[!NOTE]说明 
-    >-   --cacert：验签证书文件路径。
-    >-   ca.pem：Server服务端证书的验签证书/根证书。
-    >-   --cert：客户端证书文件路径。
-    >-   client.pem：客户端证书。
-    >-   --key：客户端私钥文件路径。
-    >-   client.key.pem：客户端证书私钥（未加密，建议采用加密密钥）。
+    >- --cacert：验签证书文件路径。
+    >- ca.pem：Server服务端证书的验签证书/根证书。
+    >- --cert：客户端证书文件路径。
+    >- client.pem：客户端证书。
+    >- --key：客户端私钥文件路径。
+    >- client.key.pem：客户端证书私钥（未加密，建议采用加密密钥）。
     >请用户根据实际情况对相应参数进行修改。
 
 提供的RESTful API列表如下：
@@ -92,7 +92,6 @@ HTTP/HTTPS请求的URL的IP地址和端口号在config.json中进行配置，详
 |动态加载lora接口|POST|/v1/load_lora_adapter|动态加载lora|OpenAI|
 |动态卸载lora接口|POST|/v1/unload_lora_adapter|动态卸载lora|OpenAI|
 
-
 **表 2**  模型/服务查询API（业务面的查询接口）
 
 |API|接口类型|URL|说明|支持框架|
@@ -102,7 +101,6 @@ HTTP/HTTPS请求的URL的IP地址和端口号在config.json中进行配置，详
 |服务元数据查询|GET|/v2|获取服务元数据。|Triton|
 |模型元数据查询|GET|/v2/models/${MODEL_NAME}[/versions/\${MODEL_VERSION}]|查询模型元数据信息。|Triton|
 |查询模型配置|GET|/v2/models/${MODEL_NAME}[/versions/\${MODEL_VERSION}]/config|查询模型配置。|Triton|
-
 
 **表 3**  推理API（业务面的业务接口）
 
@@ -122,8 +120,7 @@ HTTP/HTTPS请求的URL的IP地址和端口号在config.json中进行配置，详
 |POST|/v1/tokenizer|计算token数量。|原生|
 |GET|/dresult|调度器与D实例间，存在一个长连接，D实例每推理出一个结果，就通过该长连接响应给调度器。|PD分离相关|
 
-
 >[!NOTE]说明 
->-   $\{MODEL\_NAME\}字段指定需要查询的模型名称。
->-   \[/versions/$\{MODEL\_VERSION\}\]字段暂不支持，不传递。
-
+>
+>- $\{MODEL\_NAME\}字段指定需要查询的模型名称。
+>- \[/versions/$\{MODEL\_VERSION\}\]字段暂不支持，不传递。

@@ -213,7 +213,7 @@ class BaseRouter:
             if filename is not None:
                 with file_utils.safe_open(filename, 'r', check_link=False) as f:
                     quant_descs = json.load(f)
-                if quant_descs.get("model_quant_type") is not None:
+                if quant_descs.get("model_quant_type") is not None and self.config_dict.get("quantize") is None:
                     self.config_dict[quantize] = quant_descs.get("model_quant_type").lower()
                 if quant_descs.get(is_nzcasted) is not None:
                     self.config_dict[is_nzcasted] = quant_descs.get(is_nzcasted)
@@ -223,8 +223,7 @@ class BaseRouter:
                 # convert the new version `w8a8_mix` to the old version `w8a8_pdmix`.
                 if self.config_dict[quantize] == "w8a8_mix":
                     self.config_dict[quantize] = "w8a8_pdmix"
-                if "quantization_config" in self.config_dict:
-                    self.config_dict["quantization_config"] = quant_descs
+                self.config_dict.setdefault("quantization_config", {}).update(quant_descs)
 
             self._config = self.get_config()
             if not hasattr(self._config, quantize):

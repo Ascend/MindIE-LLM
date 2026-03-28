@@ -66,6 +66,18 @@ class TestFlashCommModifier(unittest.TestCase):
         self.assertFalse(modifier.active)
         self.assertDictEqual(runtime_param, {})
         self.assertEqual(len(engine_inputs), 1) 
+    
+    def test_modify_inputs_inactive_when_not_in_prefill(self):
+        modifier = FlashCommModifier(self.weights, self.hidden_size, False)
+
+        engine_inputs = [torch.randint(0, 100, (2048,), dtype=torch.int64).npu()] 
+        runtime_param = {}
+
+        modifier.modify_inputs(engine_inputs, is_prefill=False, runtime_param=runtime_param)
+
+        self.assertFalse(modifier.active)
+        self.assertDictEqual(runtime_param, {})
+        self.assertEqual(len(engine_inputs), 1) 
 
     def test_modify_inputs_inactive_due_to_below_threshold(self):
         modifier = FlashCommModifier(self.weights, self.hidden_size, True)
@@ -126,7 +138,7 @@ class TestFlashCommModifier(unittest.TestCase):
         engine_inputs = [input_ids]
         runtime_param = {}
 
-        modifier.modify_inputs(engine_inputs, is_prefill=False, runtime_param=runtime_param)
+        modifier.modify_inputs(engine_inputs, is_prefill=True, runtime_param=runtime_param)
 
         expected_send_bs = [513, 512, 512, 512]
         expected_send_counts = [513 * 5120, 512 * 5120, 512 * 5120, 512 * 5120]

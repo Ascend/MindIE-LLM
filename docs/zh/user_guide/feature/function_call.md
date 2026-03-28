@@ -24,6 +24,7 @@
 -  Function Call特性支持与量化、长序列、多机推理、PD分离、MoE、Multi-LoRA、SplitFuse、并行解码、专家并行、MTP、Prefix Cache、思考解析（DeepSeek-V3.1模型除外，DeepSeek-V3.1模型能力不支持一条请求同时使能Function Call和思考解析）、张量并行、MLA特性进行叠加，其中SplitFuse、并行解码、MTP特性暂不支持在流式推理下叠加Function call特性。
 -  Function Call特性当前暂不支持include\_stop\_str\_in\_output、stop、best\_of、n、use\_beam\_search和logprobs后处理参数；当temperature设置较高（导致采样随机性较高），可能会影响触发Function Call的稳定性。
 -  Function Call特性支持非流式推理，仅Qwen3-32B、Qwen3-235B-A22B、Qwen3-30B-A3B和DeepSeek-R1-0528模型的Function Call特性支持流式推理。
+-  当请求报文中包含Function Call功能时，当前版本请求报文最大支持的JSON嵌套层次为10层。
 
 ## 参数说明
 

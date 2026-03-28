@@ -112,13 +112,11 @@
 |weights_options|
 |low_cpu_memory_mode|bool|<ul><li>true</li><li>false</li></ul>|是否开启低CPU内存占用模式。<ul><li>此特性需与Python组图同时开启。</li><li>仅Qwen2.5-7B模型支持此特性。</li><li>默认值：false（关闭）</li></ul><br>开启此功能后，权重加载阶段将逐Tensor加载模型参数，可显著降低CPU内存占用，尤其适用于边缘设备、小规格服务器等内存受限场景。在CPU内存充足的环境中，建议关闭该功能减少加载时间开销。|
 
-
 ## models参数
 
 |配置项|取值类型|取值范围|配置说明|
 |--|--|--|--|
 |deepseekv2|map|-|deepseekv2相关配置。详情请参见[deepseekv2参数](#deepseekv2参数)。|
-
 
 ## deepseekv2参数 
 

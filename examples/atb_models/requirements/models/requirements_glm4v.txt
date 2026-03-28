@@ -6,7 +6,7 @@ pillow==10.4.0
 pyYaml==6.0.2
 regex==2024.7.24
 tokenizers==0.19.1
-torchvision==0.16.0
+torchvision==0.24.0
 tqdm==4.66.5
 transformers==4.42.4
 av==14.0.1

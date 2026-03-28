@@ -1,9 +1,10 @@
 # 配置参数说明（服务化）
 
-
 > [!NOTE]说明 
->-  Server的配置文件config.json，获取路径为：_\{MindIE安装目录\}_/latest/mindie-service/conf/config.json
->-  系统读取配置文件时，会先校验文件大小，若文件大小范围不在\(0MB, 10MB\]，将读取失败。
+>
+> 
+>- Server的配置文件config.json，获取路径为：_\{MindIE安装目录\}_/latest/mindie-service/conf/config.json
+>- 系统读取配置文件时，会先校验文件大小，若文件大小范围不在\(0MB, 10MB\]，将读取失败。
 
 ## 配置文件参数说明
 
@@ -13,7 +14,7 @@
 |ServerConfig|map|-|服务端相关配置，例如ip:port、网络请求、网络安全等。详情请参见[ServerConfig参数说明](#serverconfig参数说明)。|
 |BackendConfig|map|-|模型后端相关配置，包含调度、模型相关配置。详情请参见[BackendConfig参数说明](#backendconfig参数说明)。|
 |LogConfig|map|-|日志级别相关配置。详情请参见[LogConfig参数说明](#logconfig参数说明)。|
-
+|EnableDynamicAdjustTimeoutConfig|bool|<li>true</li><li>false</li>|超时时间动态配置参数。<br>若设置为true，则动态将推理相关的超时时延全部设置为最大值。|
 
 ## ServerConfig参数说明
 
@@ -66,19 +67,22 @@
 |distDPServerEnabled|bool|truefalse|必填，默认值false。<br>是否开启分布式部署，该参数只在大规模专家并行场景下生效。|
 |HealthCheckConfig|map|-|健康检查相关配置，详情请参见[HealthCheckConfig参数说明](#healthcheckconfig参数说明)。|
 
-
+>
 > [!NOTE]说明 
->-  如果网络环境不安全，不开启HTTPS通信，即“httpsEnabled“=“false“时，会存在较高的网络安全风险。
->-  如果推理服务所在的计算节点的网络为跨公网和局域网，绑定0.0.0.0的IP地址可能导致网络隔离失效，存在较大安全风险。故该场景下默认禁止EndPoint的IP地址绑定为0.0.0.0。若用户仍需要使用0.0.0.0，请在环境具备全零监管防护能力的前提下，通过设置配置项“allowAllZeroIpListening“=true手动打开允许配置0.0.0.0的IP地址开关，启用全零监管的安全风险由用户自行承担。
->-  推理超时相关的时间参数除了配置文件中的“tokenTimeout“和“e2eTimeout“参数，还有部分接口中来自客户端的“timeout“参数（例如：Token推理接口）。两者达到任何一个参数约束的超时时间，即认为超时。当某条请求超时后，Server向客户端返回超时报错，并终止该条请求的推理过程。
-
+> 
+>- 果网络环境不安全，不开启HTTPS通信，即“httpsEnabled“=“false“时，会存在较高的网络安全风险。
+>- 如果推理服务所在的计算节点的网络为跨公网和局域网，绑定0.0.0.0的IP地址可能导致网络隔离失效，存在较大安全风险。故该场景下默认禁止EndPoint的IP地址绑定为0.0.0.0。若用户仍需要使用0.0.0.0，请在环境具备全零监管防护能力的前提下，通过设置配置项“allowAllZeroIpListening“=true手动打开允许配置0.0.0.0的IP地址开关，启用全零监管的安全风险由用户自行承担。
+>- 推理超时相关的时间参数除了配置文件中的“tokenTimeout“和“e2eTimeout“参数，还有部分接口中来自客户端的“timeout“参数（例如：Token推理接口）。两者达到任何一个参数约束的超时时间，即认为超时。当某条请求超时后，Server向客户端返回超时报错，并终止该条请求的推理过程。
+>
 ### HealthCheckConfig参数说明
+
 |配置项|取值类型|取值范围|配置说明|
 |--|--|--|--|
-|npuUsageThreshold|uint32_t|[0,100]|选填，默认值："10"，单位：%。<br>代表是否开启健康检查以及健康检查的NPU利用率阈值，健康检查会结合虚拟推理（单Token推理）场景下的NPU利用率结果判断服务是否健康。<br><li> 取值为0时，代表关闭健康检查。<br><li>取值为[1,100]时，代表开启健康检查。<br>取值为[1,100]时，该参数表示健康检查的NPU利用率阈值：<br><li>虚拟推理正常，服务状态为健康。<br><li>虚拟推理失败且NPU实际利用率≥设定阈值，服务状态为繁忙。<br><li>虚拟推理失败且NPU实际利用率＜设定阈值，服务状态为异常。
+|npuUsageThreshold|uint32_t|[0,100]|选填，默认值："10"，单位：%。<br>代表是否开启健康检查以及健康检查的NPU利用率阈值，健康检查会结合虚拟推理（单Token推理）场景下的NPU利用率结果判断服务是否健康。<li> 取值为0时，代表关闭健康检查。</li><li>取值为[1,100]时，代表开启健康检查。</li><br>取值为[1,100]时，该参数表示健康检查的NPU利用率阈值：<li>虚拟推理正常，服务状态为健康。</li><li>虚拟推理失败且NPU实际利用率≥设定阈值，服务状态为繁忙。</li><li>虚拟推理失败且NPU实际利用率＜设定阈值，服务状态为异常。</li>
 
 > [!NOTE]说明 
->-  健康检查方案：在每个Server实例中，周期性地同步执行虚拟推理（单Token推理）与NPU利用率检测，基于检测结果在实例内部更新服务状态。<br>　　健康状态：服务能够正常工作的状态。<br>　　繁忙状态：服务在较高负载下的运行状态，此时部分请求可能出现响应延迟或超时。<br> 　　异常状态：服务内部出现故障，无法正常正常处理请求。
+> 
+>- 健康检查方案：在每个Server实例中，周期性地同步执行虚拟推理（单Token推理）与NPU利用率检测，基于检测结果在实例内部更新服务状态。<br>　　健康状态：服务能够正常工作的状态。<br>　　繁忙状态：服务在较高负载下的运行状态，此时部分请求可能出现响应延迟或超时。<br> 　　异常状态：服务内部出现故障，无法正常正常处理请求。
 >- 服务状态可通过 v2/health/live和v2/health/ready 健康接口查询。当服务健康时，接口均返回状态码200；当服务繁忙时， v2/health/live接口返回状态码200，v2/health/ready接口返回状态码503；当服务异常时，接口均返回状态码500。
 
 ## BackendConfig参数说明
@@ -100,12 +104,10 @@
 |interNodeTlsCrlPath|std::string|建议interNodeTlsCrlPath+interNodeTlsCrlFiles路径长度<=4096。实际路径为工程路径+interNodeTlsCrlPath，上限与操作系统有关，最小值为1。|选填，默认值："security/grpc/certs/"。<br>服务证书吊销列表文件夹路径。**interNodeTLSEnabled**=**true**生效。|
 |interNodeTlsCrlFiles|std::set`<std::string>`|建议interNodeTlsCrlPath+interNodeTlsCrlFiles路径长度<=4096。实际路径为工程路径+interNodeTlsCrlFiles，上限与操作系统有关，最小值为1。|选填，默认值：["server_crl.pem"]。<br>服务证书吊销列表名称列表。interNodeTLSEnabled=true生效。|
 |interNodeKmcKsfMaster|std::string|建议文件路径长度<=4096。实际路径为工程路径+interNodeKmcKsfMaster，上限与操作系统有关，最小值为1。|KMC密钥库文件路径，只支持软件包安装路径下的相对路径。<br>**interNodeTLSEnabled**=**true**生效，生效后必填，默认值："tools/pmt/master/ksfa"。|
-|interNodeKmcKsfStandby|std::string|建议文件路径长度<=4096。实际路径为工程路径+interNodeKmcKsfStandby，上限与操作系统有关，最小值为1。|KMC密钥库备份文件路径，只支持软件包安装路径下的相对路径。<br>**interNodeTLSEnabled**=**true**生效，生效后必填，默认值："tools/pmt/standby/ksfb"。|
-|ModelDeployConfig|map|-|模型部署相关配置。详情请参见[ModelDeployConfig参数说明](#modeldeployconfig参数说明)。|
+|ModlDeployConfig|map|-|模型部署相关配置。详情请参见[ModelDeployConfig参数说明](#modeldeployconfig参数说明)。|
 |ScheduleConfig|map|-|调度相关配置。详情请参见[ScheduleConfig参数说明](#scheduleconfig参数说明)。|
 
-
-###  ModelDeployConfig参数说明
+### ModelDeployConfig参数说明
 
 |配置项|取值类型|取值范围|配置说明|
 |--|--|--|--|
@@ -114,8 +116,7 @@
 |truncation|int32_t / bool|<ul><li>-1</li><li>0</li><li>1</li><li>true</li><li>false</li></ul> |选填，默认值：0。<br>输入超长时截断方式。<ul><li>-1 or true：右侧截断</li><li>0 or false：禁止截断 </li><li>1：左侧截断</li></ul>maxInputTokenLen = min(maxInputTokenLen, maxSeqLen -1)<ul><li>当truncation=-1 or true时：请求的输入长度inputLen会进行右侧截断，当truncation=1时：请求的输入长度inputLen会进行左侧截断（注：目前仅qwen和deepseek模型支持左侧截断，其他模型不支持，其他模型请配置为-1/0/true/false），请求的实际输入长度inputLen = min(inputLen, maxInputLen)。</li><li>当truncation=0 or false时：若请求的输入长度inputLen > maxInputTokenLen，会返回Error。</li></ul>|
 |ModelConfig|map|-|模型相关配置，包括后处理参数。详情请参见[ModelConfig参数说明](#modelconfig参数说明)。|
 
-
-###  ModelConfig参数说明
+### ModelConfig参数说明
 
 |配置项|取值类型|取值范围|配置说明|
 |--|--|--|--|
@@ -127,12 +128,10 @@
 |npuMemSize|int32_t|<ul><li>-1</li><li>整型数字，取值范围：(0, 2147483647]</li></ul>|必填，默认值：-1，建议值：-1，单位：GB。<br>单个NPU中可以用来申请KV Cache的size上限。<ul><li>自动分配KV Cache：当配置值为-1时，kv cache会根据可用显存自动进行分配。<br>KV Cache快速计算公式：npuMemSize=单卡总内存\*内存分配比例-单卡权重占用内存-运行时相关变量占用内存-系统占用内存<ul><li>单卡总内存：通过**npu-smi info**命令查看总显存。</li><li>内存分配比例：默认值0.8；可通过环境变量NPU_MEMORY_FRACTION控制；**当出现权重加载OOM情况时，可适当调高分配比例或使用更多显卡进行推理**。</li><li>单卡权重占用内存：约等于权重大小\*类型大小（浮点为2，int8类型为1）/卡数；以实际加载权重为准。</li><li>运行时相关变量占用内存：模型输入变量、输出变量、中间变量等内存。</li><li>系统占用内存：通过**npu-smi info**命令查看静息状态下使用显存。</li></ul></li><li>手动分配KV Cache：当配置值大于0时，根据设置值会固定分配KV Cache大小。</li><li>当前版本中一些性能优化算法可能导致设备内存占用增多，若您在旧版本中设置了npuMemSize为固定值，并在更新版本后运行服务中出现了OOM现象，建议将npuMemSize改为-1或适当改小。</li></ul>**说明**<br>1. 对于多模态模型，**npuMemSize**不支持设置为-1，因为需要给ViT部分预留空间。可根据以下公式计算，并向上取整后得到**npuMemSize**的值：4\*num_hidden_layers\*num_key_value_heads\*(hidden_size/num_attention_heads)*(maxPrefillBatchSize×maxSeqLen)/worldSize/(1024×1024×1024)，其中：num_hidden_layers、num_key_value_heads、hidden_size、num_attention_heads为权重路径下配置文件config.json中的参数。<br>2. 当**backendType**为**ms**时，**npuMemSize**=-1仅支持PD混合部署下的前端并行模型ParallelLlamaForCausalLM。<br>3. 为快速确定最佳显存参数取值范围，提供了快速计算公式。该公式计算的结果仅作为取值参考，为了达到最佳性能，可以适当向上调整该值并进行性能压力测试。<br>4. 如果设置的**npuMemSize**参数超过系统可分配最大显存值，会出现推理服务启动失败、推理服务启动卡死等异常现象，需要减小该值并重试。<br>5. PD分离部署场景中，当**backendType**选择**atb**时该参数才可以设置为-1。|
 |backendType|std::string|<ul><li>"atb"</li><li>"ms"</li></ul>|必填，默认值："atb"。<br>对接的后端类型。<ul><li>atb：推理引擎后端为加速库。</li><li>ms：推理引擎后端为MindSpore。</li></ul>**说明**工<br>如果选择"ms"作为对接的推理引擎后端，需要提前安装MindSpore和MindFormers，以及修改MindIE启动配置信息，详情请参见[链接](https://gitee.com/mindspore/docs/blob/master/docs/mindformers/docs/source_zh_cn/guide/deployment.md)。|
 |trustRemoteCode|bool|<ul><li>true</li><li>false</li></ul>|选填，默认值：false。<br>是否信任远程代码。<ul><li>false：不信任远程代码。</li><li>true：信任远程代码。</li></ul>**说明**<br>如果设置为true，会存在信任远程代码行为，可能会导致恶意代码注入风险，请自行保障代码注入安全风险。|
-|async_scheduler_wait_time|int32_t|整型数字，取值范围：[1, 3600]|选填，默认值：120，单位：秒。<br>异步调度的等待时间，在开启异步调度功能时可配置。|
 |kv_trans_timeout|int32_t|上限根据显存和用户需求来决定。当取值小于或等于0时，会自动修改为1。|PD分离场景中，D节点从P节点拉取KV Cache的超时时间，只需要在D节点进行设置。默认值：10，单位：秒。<ul><li>仅用于PD分离场景，非PD分离场景下该值不生效。</li><li>建议值：大于网络包重传次数*每次重传的超时时间</li><li>配置该参数时，需要同步关注“HCCL_RDMA_RETRY_CNT”和“HCCL_RDMA_TIMEOUT”两个环境变量。详细请参见《MindIE Motor开发指南》中的[使用kubectl部署单机PD分离服务示例](https://gitcode.com/Ascend/MindIE-Motor/blob/dev/docs/zh/user_guide/%E5%8D%95%E6%9C%BAPD%E5%88%86%E7%A6%BB%E7%A4%BA%E4%BE%8B.md)章节。</li></ul>|
 |kv_link_timeout|int32_t|上限根据显存和用户需求来决定。当取值小于或等于0时，会自动修改为默认值1080。|PD分离场景中，用于建立KV Cache传输的通信域的超时时间。超时时间内，通信域如果创建失败会自动进行重试，直至通信域创建成功或者超时退出。默认值为：1080，建议值：1080，单位：秒。<ul><li>仅用于PD分离场景，非PD分离场景下该值不生效。</li><li>若无网络问题，默认值无需修改；若集群规模较小，且出现网络故障导致通信域持续建立失败，可以适当降低超时时间，进行快速调试。</li></ul>|
 
-
-###  ScheduleConfig参数说明
+### ScheduleConfig参数说明
 
 > [!NOTE]说明
 > 由于重计算调度策略调整，各版本间性能在相同调度参数下可能有波动，若想获取最佳性能，详情请参见[性能调优](performance_tuning.md)。
@@ -151,22 +150,21 @@
 |maxBatchSize|uint32_t|[1, 819200]，且必须大于或等于maxPreemptCount参数的取值。|必填，默认值：200。<br>最大decode batch size。<br>1. 首先计算block_num：Total Block Num = Floor(NPU显存/(模型网络层数\*cacheBlockSize\*模型注意力头数\*注意力头大小\*Cache类型字节数\*Cache数))，其中，Cache数=2；在tensor并行的情况下，block_num\*world_size为实际的分配block数。如果是多卡，公式中的模型注意力头数\*注意力大小的值需要均摊在每张卡上，即“模型注意力头数*注意力大小/卡数”。公式中的Floor表示计算结果向下取整。<br>2. 为每个请求申请的block数量Block Num=Ceil(输入Token数/cacheBlockSize)+Ceil(最大输出Token数/cacheBlockSize)。输入Token数：输入（字符串）做完tokenizer后的tokenID个数；最大输出Token数：模型推理最大迭代次数和最大输出长度之间取较小值。公式中的Ceil表示计算结果向上取整。<br>3. maxBatchSize=Total Block Num/Block Num。|
 |maxIterTimes|uint32|[1, maxSeqLen]|必填，默认值：512。<br>模型全局最大输出长度。<ul><li>请求的最大输出长度maxOutputLen=min(maxIterTimes, max_tokens)或maxOutputLen=min(maxIterTimes, max_new_tokens)</li><li>请求的实际输出长度outputLen = min(maxSeqLen - inputLen, maxOutputLen)</li></ul>|
 |maxPreemptCount|uint32_t|[0, maxBatchSize]，当取值大于0时，cpuMemSize取值不可为0。|必填，默认值：0。<br>每一批次最大可抢占请求的上限，即限制一轮调度最多抢占请求的数量，最大上限为maxBatchSize，取值大于0则表示开启可抢占功能。|
-|supportSelectBatch|bool|<ul><li>true</li><li>false</li></ul>|必填，默认值：false。<br>batch选择策略。<br>PD分离场景下该字段不生效。<ul><li>false：表示每一轮调度时，优先调度和执行Prefill阶段的请求。</li><li>true：表示每一轮调度时，根据当前Prefill与Decode请求的数量，自适应调整Prefill和Decode阶段请求调度和执行的先后顺序。</li></ul>|
 |maxQueueDelayMicroseconds|uint32_t|[500, 1000000]|必填，默认值：5000。<br>在队列中的请求数量达到最大maxBatchSize、maxPrefillBatchSize或maxPrefillTokens前，请求在队列中的最大等待时间，单位：us。<br>只要等待时间达到该值，即使请求数量未达到最大maxBatchSize、maxPrefillBatchSize或maxPrefillTokens，也要进行下一次推理。|
 |maxFirstTokenWaitTime|uint32_t|[0, 3600000]|选填，默认值：2500，单位：ms。<br>请求到达后的最长排队时间。达到该等待时间后，将允许本轮调度抢占请求，缩短首token时延。<br>PD分离场景下该字段配置不生效。|
-
 
 ## LogConfig参数说明
 
 |配置项|取值类型|取值范围|配置说明|
-|--|--|--|--|<
-|dynamicLogLevel|string|<ul><li>critical</li><li>error</li><li>warn</li><li>info</li><li>debug</li></ul>参数取值不区分大小写。|动态日志配置级别。<br>选填，默认为空。<br>日志级别请参考《MindIE日志参考》的[设置日志级别](https://hiascend.com/document/detail/zh/mindie/22RC1/ref/logreference/mindie_log_0208.html)。|
+|--|--|--|--|
 |dynamicLogLevelValidHours|uint32_t|[1, 168]|动态日志持续生效时间。<br>必填，默认值：2，单位：小时。<br>具体生效时间为**dynamicLogLevelValidTime**参数配置的起始时间加上该参数配置的时间，到达配置时长后，**dynamicLogLevel**、**dynamicLogLevelValidHours**和**dynamicLogLevelValidTime**参数值会自动恢复为默认值。|
 |dynamicLogLevelValidTime|string|-|动态日志开始时间。<br>选填，默认为空。<br>修改**dynamicLogLevel**或**dynamicLogLevelValidHours**参数值后，系统会自动配置为当前修改时间。|
 
-
 **图 1**  调度策略和执行先后顺序流程图    <a id="figure1"></a>
-![](./figures/scheduling_strategy_and_execution_flowchart.png "调度策略和执行先后顺序流程图")
+
+![](./figures/scheduling_strategy_and_execution_flowchart.png "调度策略和执行先后顺
+序流程图")
 
 **图 2**  Prefill和Decode阶段的调度策略流程图  <a id="figure2"></a>
+
 ![](./figures/scheduling_flowchart_for_PD.png "Prefill和Decode阶段的调度策略流程图")
