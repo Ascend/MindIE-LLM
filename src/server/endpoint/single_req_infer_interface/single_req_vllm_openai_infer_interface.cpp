@@ -46,7 +46,7 @@ bool SingleReqVllmOpenAiInferInterface::SetupInferParams(RequestSPtr tmpReq, std
           AssignTopK(reqJsonBody_, tmpReq, msg, false, true) &&
           AssignTopP(reqJsonBody_, tmpReq, msg) &&
           AssignSeed(reqJsonBody_, tmpReq, msg) &&
-          AssignThinkingConfig(reqJsonBody_, tmpReq, msg) &&
+          AssignThinkingConfig(reqJsonBody_, tmpReq, inputParam, msg) &&
           AssignRepetitionPenalty(reqJsonBody_, tmpReq, msg, MAX_OPENAI_REPETITION_PENALTY) &&
           AssignFrequencyPenalty(reqJsonBody_, tmpReq, msg) &&
           AssignPresencePenalty(reqJsonBody_, tmpReq, msg) &&

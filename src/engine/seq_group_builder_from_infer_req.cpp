@@ -146,7 +146,9 @@ void SeqGroupBuilderFromInferReq::InitSeqGrpFromInferRequest(RequestSPtr request
             seqGroup->firstSeq->SetExtraHash(hv);
         }
     }
-
+    if (seqGroup->isThinking_) {
+        seqGroup->thinkingTokens = 1;
+    }
     uint32_t inputTokenNum = static_cast<uint32_t>(seqGroup->seqs_.at(0)->data_.promptTokenIds.size());
     seqGroup->maxIterTimes_ =
         std::min(schedulerConfigSptr->maxSeqLen - inputTokenNum, schedulerConfigSptr->maxIterTimes);

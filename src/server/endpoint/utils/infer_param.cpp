@@ -523,7 +523,7 @@ bool AssignMaxTokens(const OrderedJson &jsonObj, InferParamSPtr param, std::stri
     return true;
 }
 
-bool AssignThinkingConfig(const OrderedJson &jsonObj, RequestSPtr tmpReq, std::string &error)
+bool AssignThinkingConfig(const OrderedJson &jsonObj, RequestSPtr tmpReq, InferParamSPtr param, std::string &error)
 {
     const std::string chatKwargsKey = "chat_template_kwargs";
     const std::string enableThinkingKey = "enable_thinking";
@@ -558,6 +558,7 @@ bool AssignThinkingConfig(const OrderedJson &jsonObj, RequestSPtr tmpReq, std::s
         }
         if (checkFirst.isPresent && kwargs[enableThinkingKey]) {
             tmpReq->thinkingBudget = value;
+            param->thinkingBudget = value;
         }
     }
     return true;
