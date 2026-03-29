@@ -79,6 +79,7 @@ struct InferParam {
         FeatureSupport endpoint;
         // 服务/模型级能力（从配置/插件解析）
         bool pluginEnabled = false;
+        bool mtpEnabled = false;
         bool deepseekEnabled = false;
         // 运行形态
         bool streamMode = false;
@@ -97,7 +98,8 @@ struct InferParam {
         uint32_t reqBestOf = 1;
         uint32_t reqN = 1;
         float reqTemperature = 0.0f;
-        
+        bool reqStructuredOutput = false;
+
         std::string ToString() const
         {
             std::ostringstream oss;
@@ -109,6 +111,7 @@ struct InferParam {
             oss << "    useFunctionCall: " << (endpoint.useFunctionCall ? "true" : "false") << "\n";
             oss << "  },\n";
             oss << "  pluginEnabled: " << (pluginEnabled ? "true" : "false") << ",\n";
+            oss << "  mtpEnabled: " << (mtpEnabled ? "true" : "false") << ",\n";
             oss << "  streamMode: " << (streamMode ? "true" : "false") << ",\n";
             oss << "  isDmiMode: " << (isDmiMode ? "true" : "false") << ",\n";
             oss << "  enableThinking: " << (enableThinking ? "true" : "false") << ",\n";
@@ -122,7 +125,8 @@ struct InferParam {
             oss << "  reqIncludeStopStrInOutput: " << (reqIncludeStopStrInOutput ? "true" : "false") << ",\n";
             oss << "  reqBestOf: " << reqBestOf << ",\n";
             oss << "  reqN: " << reqN << ",\n";
-            oss << "  reqTemperature: " << reqTemperature << "\n";
+            oss << "  reqTemperature: " << reqTemperature << ",\n";
+            oss << "  reqStructuredOutput: " << (reqStructuredOutput ? "true" : "false") << "\n";
             oss << "}";
             return oss.str();
         }
@@ -138,6 +142,10 @@ private:
     bool ValidateFeatureBeamSearch(const ValidationContext &ctx, std::string &error) const noexcept;
     bool ValidateFeatureBeamSearchEnable(const ValidationContext &ctx, std::string &error) const noexcept;
     bool ValidateFeatureOverlay(const ValidationContext &ctx, std::string &error) const noexcept;
+    bool ValidateAsyncSchedulingConstraints(const ValidationContext &ctx, std::string &error) const noexcept;
+    bool ValidatePluginConstraints(const ValidationContext &ctx, std::string &error) const noexcept;
+    bool ValidateMtpConstraints(const ValidationContext &ctx, std::string &error) const noexcept;
+    bool ValidateDeepseekConstraints(const ValidationContext &ctx, std::string &error) const noexcept;
 };
 
 using InferParamSPtr = std::shared_ptr<InferParam>;

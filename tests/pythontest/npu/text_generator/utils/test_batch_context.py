@@ -181,6 +181,21 @@ class TestBatchContext(unittest.TestCase):
         mock_ndarray_clear.assert_called_once_with(handle)
         mock_dict_clear.assert_called_once_with(handle)
 
+    @patch.object(NdarrayContext, 'clear_context')
+    @patch.object(DictContext, 'clear_context')
+    def test_clear_context_by_handles_clears_structured_output_with_handles(
+        self, mock_dict_clear, mock_ndarray_clear
+    ):
+        """测试通过handle清除context时同步按handle清理structured output状态"""
+        handle = np.array([1, 2], dtype=np.int32)
+        self.batch_ctx.structured_output_manager = Mock()
+
+        self.batch_ctx.clear_context_by_handles(handle)
+
+        self.batch_ctx.structured_output_manager.clear_finished_requests.assert_called_once_with(handle)
+        mock_ndarray_clear.assert_called_once_with(handle)
+        mock_dict_clear.assert_called_once_with(handle)
+
     def test_block_mapping_methods(self):
         """测试block_to_slots和block_table_to_slots"""
         block_id = np.array([0, 1])
@@ -247,6 +262,7 @@ class TestBatchContext(unittest.TestCase):
         input_metadata.batch_request_ids = np.array(["0"])
         input_metadata.is_dummy_batch = False
         input_metadata.adapter_ids = None
+        input_metadata.batch_response_format = None
 
         self.batch_ctx.update_context(
             context_handles=np.array([0]),

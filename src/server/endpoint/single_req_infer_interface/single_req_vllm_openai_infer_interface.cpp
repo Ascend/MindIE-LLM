@@ -1291,6 +1291,7 @@ std::string SingleReqVllmOpenAiInferInterface::BuildVllmOpenAIReComputeBody(cons
     if (request_->topLogprobs.has_value()) {
         newReqJsonObj["top_logprobs"] = request_->topLogprobs.value();
     }
+    BuildResponseFormat(newReqJsonObj);
     return newReqJsonObj.dump();
 }
 
@@ -1314,6 +1315,16 @@ void SingleReqVllmOpenAiInferInterface::BuildThinkingConfig(nlohmann::ordered_js
     }
     if (request_->thinkingBudget.has_value()) {
         newReqJsonObj["chat_template_kwargs"]["thinking_budget"] = request_->thinkingBudget.value();
+    }
+}
+
+void SingleReqVllmOpenAiInferInterface::BuildResponseFormat(nlohmann::ordered_json& newReqJsonObj)
+{
+    if (request_->responseFormat.has_value()) {
+        auto responseFormatJson = nlohmann::json::parse(request_->responseFormat.value(), nullptr, false);
+        if (!responseFormatJson.is_discarded()) {
+            newReqJsonObj["response_format"] = responseFormatJson;
+        }
     }
 }
 

@@ -49,6 +49,7 @@ def apply_token_bitmask_inplace_npu(
 ) -> None:
     """在 NPU 上原地将 bitmask 应用到 logits（将不允许的 token 置为 -inf）。"""
     import torch
+
     mask_expanded = torch.repeat_interleave(bitmask, 32, dim=-1)
     bit_indices = torch.arange(32, device=logits.device, dtype=torch.int32).repeat(bitmask.shape[-1])
     bit_masks = (mask_expanded >> bit_indices) & 1
@@ -79,8 +80,12 @@ def apply_token_bitmask_inplace(
     """
     try:
         import torch
-        bitmask_tensor = torch.from_numpy(bitmask).to(logits.device)
+
+        bitmask_tensor = torch.from_numpy(
+            np.asarray(bitmask, dtype=np.int32, order="C")
+        ).to(logits.device)
         apply_token_bitmask_inplace_npu(logits, bitmask_tensor, vocab_size)
+
     except Exception as e:
-        logger.error(f"NPU apply_token_bitmask failed: {e}")
+        logger.error(f"[BitmaskApply] apply_token_bitmask failed: {e}")
         raise

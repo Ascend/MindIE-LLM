@@ -174,6 +174,12 @@ void ConstructExecuteRequest::ConstructProtoMeta(const SequenceGroupMetaData &me
         protoMeta.set_response_format(metaData.responseFormat_.value());
     }
 
+    if (!metaData.predictedTokenIds_.empty()) {
+        for (TokenId tokenId : metaData.predictedTokenIds_) {
+            protoMeta.add_predicted_token_ids(tokenId);
+        }
+    }
+
     // 采样参数
     if (metaData.samplingParams_->doSample.has_value()) {
         protoMeta.set_do_sample(metaData.samplingParams_->doSample.value());

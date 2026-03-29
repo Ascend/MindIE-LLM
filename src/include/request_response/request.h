@@ -67,6 +67,7 @@ struct Request {
     std::optional<uint32_t> topLogprobs;
     std::optional<bool> logprobs;
     std::optional<std::string> responseFormat; // JSON structured output format
+    std::vector<TokenId> prefillReplayTokenIds; // P 节点 prefill 已输出 token，作为 D 侧 replay 前缀初始值
     uint64_t priority = 5; // PRIORITY_DFT
     std::string loraId = "None";
 

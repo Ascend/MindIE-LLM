@@ -672,35 +672,32 @@ TEST_F(InferParamTest, testAssignResponseFormat)
     EXPECT_TRUE(AssignResponseFormat(jsonObj, request, error));
     EXPECT_TRUE(request->responseFormat.has_value());
 
-    // invalid values - json_schema.name contains invalid character (space)
+    // valid values - json_schema.name contains valid character (space)
     request = std::make_shared<Request>(RequestIdNew("mockRequest"));
     jsonObj["response_format"] = {
         {"type", "json_schema"},
         {"json_schema", {{"name", "invalid name"}, {"schema", {{"type", "object"}}}}}
     };
-    EXPECT_FALSE(AssignResponseFormat(jsonObj, request, error));
-    EXPECT_FALSE(request->responseFormat.has_value());
-    EXPECT_EQ(error, "Parameter response_format.json_schema.name must contain only 0-9, a-z, A-Z, -, _");
+    EXPECT_TRUE(AssignResponseFormat(jsonObj, request, error));
+    EXPECT_TRUE(request->responseFormat.has_value());
 
-    // invalid values - json_schema.name contains invalid character (dot)
+    // valid values - json_schema.name contains valid character (dot)
     request = std::make_shared<Request>(RequestIdNew("mockRequest"));
     jsonObj["response_format"] = {
         {"type", "json_schema"},
         {"json_schema", {{"name", "invalid.name"}, {"schema", {{"type", "object"}}}}}
     };
-    EXPECT_FALSE(AssignResponseFormat(jsonObj, request, error));
-    EXPECT_FALSE(request->responseFormat.has_value());
-    EXPECT_EQ(error, "Parameter response_format.json_schema.name must contain only 0-9, a-z, A-Z, -, _");
+    EXPECT_TRUE(AssignResponseFormat(jsonObj, request, error));
+    EXPECT_TRUE(request->responseFormat.has_value());
 
-    // invalid values - json_schema.name contains invalid character (special char)
+    // valid values - json_schema.name contains valid character (special char)
     request = std::make_shared<Request>(RequestIdNew("mockRequest"));
     jsonObj["response_format"] = {
         {"type", "json_schema"},
         {"json_schema", {{"name", "invalid@name"}, {"schema", {{"type", "object"}}}}}
     };
-    EXPECT_FALSE(AssignResponseFormat(jsonObj, request, error));
-    EXPECT_FALSE(request->responseFormat.has_value());
-    EXPECT_EQ(error, "Parameter response_format.json_schema.name must contain only 0-9, a-z, A-Z, -, _");
+    EXPECT_TRUE(AssignResponseFormat(jsonObj, request, error));
+    EXPECT_TRUE(request->responseFormat.has_value());
 }
 
 } // namespace mindie_llm

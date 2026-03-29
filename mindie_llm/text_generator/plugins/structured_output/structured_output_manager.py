@@ -9,6 +9,7 @@
 # See the Mulan PSL v2 for more details.
 import hashlib
 import json
+import threading
 from dataclasses import dataclass
 from enum import Enum
 from typing import Any, Dict, List, Optional, Tuple
@@ -23,6 +24,34 @@ from .structured_output_grammar import (
     StructuredOutputType,
     XgrammarGrammar,
 )
+
+BITS_PER_BITMASK_WORD = 32
+
+
+def parse_bitmask_allowed_tokens(bitmask: np.ndarray, vocab_size: int) -> List[int]:
+    """
+    将 xgrammar 打包的 int32 bitmask 解析为「允许」的 token id 列表（位为 1 表示允许）。
+    """
+    allowed_tokens: List[int] = []
+    if bitmask is None:
+        return []
+    bm = np.asarray(bitmask, dtype=np.int32, order="C")
+    if bm.size == 0:
+        return []
+    if bm.ndim != 2:
+        return []
+    batch_size, bitmask_width = int(bm.shape[0]), int(bm.shape[1])
+    for batch_idx in range(batch_size):
+        for col_idx in range(bitmask_width):
+            val = int(bm[batch_idx, col_idx])
+            if val == 0:
+                continue
+            for bit_idx in range(BITS_PER_BITMASK_WORD):
+                if val & (1 << bit_idx):
+                    token_id = col_idx * BITS_PER_BITMASK_WORD + bit_idx
+                    if token_id < vocab_size:
+                        allowed_tokens.append(token_id)
+    return sorted(set(allowed_tokens))
 
 
 # 模块级缓存：延迟导入 xgrammar 模块（如果可用）
@@ -69,7 +98,7 @@ _DEFAULT_GRAMMAR_CACHE_SIZE = 100
 class StructuredOutputConfig:
     """结构化输出配置"""
     backend: GuidedDecodingBackendType = GuidedDecodingBackendType.XGRAMMAR
-    xgrammar_any_whitespace: bool = True
+    xgrammar_any_whitespace: bool = False 
     grammar_cache_size: int = _DEFAULT_GRAMMAR_CACHE_SIZE
     bitmask_prealloc_batch: int = _DEFAULT_BITMASK_PREALLOC_BATCH
 
@@ -171,8 +200,9 @@ class GrammarBackend:
                 "xgrammar is not installed. Please install it with: pip install xgrammar"
             )
         self._xgr = xgr
+        xgr_ver = xgr.__version__ if hasattr(xgr, "__version__") else "unknown"
         logger.debug(
-            f"[StructuredOutput|Backend] xgrammar module loaded (version: {getattr(xgr, '__version__', 'unknown')})"
+            f"[StructuredOutput|Backend] xgrammar module loaded (version: {xgr_ver})"
         )
         
         # 创建 TokenizerInfo
@@ -273,7 +303,7 @@ class StructuredOutputManager:
         # Grammar 缓存：short_key → (grammar_spec, CompiledGrammar)，value 存 spec 用于碰撞校验
         self._grammar_cache: Dict[str, Tuple[str, CompiledGrammar]] = {}
         
-        # 请求状态：request_id → StructuredOutputGrammar
+        # 运行态状态：state_key(当前由 context_handle 承担) → StructuredOutputGrammar
         self._request_grammars: Dict[int, StructuredOutputGrammar] = {}
         
         # 预分配的 bitmask 缓冲区
@@ -285,6 +315,15 @@ class StructuredOutputManager:
             f"backend={self.config.backend.value}, "
             f"vocab_size={vocab_size}"
         )
+
+    @staticmethod
+    def has_structured_response_formats(response_format_array: Optional[List[Any]]) -> bool:
+        if response_format_array is None:
+            return False
+        try:
+            return any(response_format is not None for response_format in response_format_array)
+        except TypeError:
+            return response_format_array is not None
     
     @staticmethod
     def _get_cache_key(
@@ -295,16 +334,88 @@ class StructuredOutputManager:
         h = hashlib.sha256(grammar_spec.encode()).hexdigest()
         return f"{output_type.value}:{h}"
 
+    @staticmethod
+    def _to_numpy_array(data_instance: Any):
+        if data_instance is None:
+            return None
+        if isinstance(data_instance, np.ndarray):
+            return data_instance
+        if hasattr(data_instance, "asnumpy"):
+            return data_instance.asnumpy()
+        if hasattr(data_instance, "detach") and hasattr(data_instance, "cpu") and hasattr(data_instance, "numpy"):
+            return data_instance.detach().cpu().numpy()
+        if hasattr(data_instance, "cpu") and hasattr(data_instance, "numpy"):
+            return data_instance.cpu().numpy()
+        try:
+            return np.asarray(data_instance)
+        except Exception:
+            return None
+
+    @staticmethod
+    def _sanitize_replay_tokens(
+        replay_tokens: Optional[List[int]],
+        state_key: Optional[int] = None,
+        source: str = "unknown",
+    ) -> List[int]:
+        if not replay_tokens:
+            return []
+        valid_tokens = [int(token) for token in replay_tokens if int(token) >= 0]
+        dropped_count = len(replay_tokens) - len(valid_tokens)
+        if dropped_count > 0:
+            logger.debug(
+                "[StructuredOutput][ReplaySanitize] state_key=%s source=%s dropped_invalid=%s raw_count=%s",
+                state_key, source, dropped_count, len(replay_tokens),
+            )
+        return valid_tokens
+
+    @staticmethod
+    def _accept_tokens_on_grammar(
+        state_key: int,
+        grammar: StructuredOutputGrammar,
+        tokens: List[int],
+    ) -> bool:
+        """在已解析 grammar 时推进 FSM，供 accept_tokens / replay / decode sync 复用。"""
+        tried_before = grammar.num_tried_tokens
+        accepted_before = grammar.num_processed_tokens
+        terminated_before = grammar.is_terminated()
+        ok = grammar.accept_tokens(state_key, tokens)
+        tried_after = grammar.num_tried_tokens
+        accepted_after = grammar.num_processed_tokens
+        logger.debug(
+            "[StructuredOutput][Accept] state_key=%s tokens=%s ok=%s "
+            "tried %s→%s accepted %s→%s terminated_before=%s terminated_after=%s",
+            state_key, tokens, ok, tried_before, tried_after, accepted_before,
+            accepted_after, terminated_before, grammar.is_terminated(),
+        )
+        return ok
+
+    @classmethod
+    def _extract_replay_tokens(cls, sampling_metadata: Any, sequence_index: int) -> List[int]:
+        output_token_ids = cls._to_numpy_array(sampling_metadata.output_token_ids)
+        if output_token_ids is not None and sequence_index < len(output_token_ids):
+            output_tokens = np.asarray(output_token_ids[sequence_index]).reshape(-1)
+            valid_output_tokens = output_tokens[output_tokens >= 0]
+            if valid_output_tokens.size > 0:
+                return [int(token_id) for token_id in valid_output_tokens.tolist()]
+
+        all_token_ids = cls._to_numpy_array(sampling_metadata.all_token_ids)
+        if all_token_ids is not None and sequence_index < len(all_token_ids):
+            all_tokens = np.asarray(all_token_ids[sequence_index]).reshape(-1)
+            valid_all_tokens = all_tokens[all_tokens >= 0]
+            if valid_all_tokens.size > 0:
+                return [int(token_id) for token_id in valid_all_tokens.tolist()]
+        return []
+    
     def grammar_init(
         self,
-        request_id: int,
+        state_key: int,
         structured_output_request: StructuredOutputRequest,
     ) -> Optional[StructuredOutputGrammar]:
         """
         为请求初始化 Grammar
         
         Args:
-            request_id: 请求 ID
+            state_key: 当前运行态状态 key
             structured_output_request: 结构化输出请求
             
         Returns:
@@ -312,10 +423,14 @@ class StructuredOutputManager:
         """
         if structured_output_request is None:
             return None
+        existing_grammar = self._request_grammars.get(state_key)
+        if existing_grammar is not None:
+            structured_output_request.grammar = existing_grammar
+            return existing_grammar
         try:
             logger.debug(
                 f"[StructuredOutput] "
-                f"request_id={request_id}, compiling schema..."
+                f"state_key={state_key}, compiling schema..."
             )
             compiled = self._compile_grammar(
                 structured_output_request.output_type,
@@ -323,73 +438,75 @@ class StructuredOutputManager:
             )
             logger.debug(
                 f"[StructuredOutput] "
-                f"request_id={request_id} Schema compiled, creating grammar matcher..."
+                f"state_key={state_key} Schema compiled, creating grammar matcher..."
             )
             grammar = GrammarBackend.create_grammar(compiled)
             logger.debug(
                 f"[StructuredOutput] "
-                f"request_id={request_id} Grammar matcher created"
+                f"state_key={state_key} Grammar matcher created"
             )
-            self._request_grammars[request_id] = grammar
+            self._request_grammars[state_key] = grammar
+            total_grammars = len(self._request_grammars)
+            grammar_keys = list(self._request_grammars.keys())
             structured_output_request.grammar = grammar
             logger.debug(
                 f"[StructuredOutput] "
-                f"request_id={request_id} Grammar stored in manager. "
-                f"Total grammars: {len(self._request_grammars)}, "
-                f"keys: {list(self._request_grammars.keys())}"
+                f"state_key={state_key} Grammar stored in manager. "
+                f"Total grammars: {total_grammars}, "
+                f"keys: {grammar_keys}"
             )
             return grammar
-            
+
         except Exception as e:
             logger.error(
                 f"[StructuredOutput] "
-                f"request_id={request_id} ✗ Exception: {e}"
+                f"state_key={state_key} ✗ Exception: {e}"
             )
             return None
     
     def grammar_bitmask(
         self,
-        request_ids: List[int],
+        cache_ids: List[int],
         apply_bitmask_flags: Optional[List[bool]] = None,
     ) -> Optional[np.ndarray]:
         """
         批量生成 token bitmask
         
         Args:
-            request_ids: 请求 ID 列表
+            cache_ids: 状态 key 列表
             apply_bitmask_flags: 每个请求是否应用 bitmask（可选）
             
         Returns:
             bitmask 数组 [batch_size, vocab_size // 32]，或 None（如果没有需要约束的请求）
         """
-        if not request_ids:
+        if not cache_ids:
             return None
-        
-        batch_size = len(request_ids)
-        if not any(req_id in self._request_grammars for req_id in request_ids):
+
+        has_any_grammar = any(state_key in self._request_grammars for state_key in cache_ids)
+        if not has_any_grammar:
             return None
+
+        batch_size = len(cache_ids)
         if batch_size > self._bitmask_buffer.shape[0]:
             self._bitmask_buffer = np.zeros((batch_size, self._bitmask_width), dtype=np.int32)
         bitmask = self._bitmask_buffer[:batch_size]
         bitmask.fill(self._full_mask)
-        for idx, req_id in enumerate(request_ids):
-            grammar = self._request_grammars.get(req_id)
-            if grammar is None:
-                continue
+        for idx, state_key in enumerate(cache_ids):
             if apply_bitmask_flags is not None and not apply_bitmask_flags[idx]:
                 continue
-            if grammar.is_terminated():
+            grammar = self._request_grammars.get(state_key)
+            if grammar is None or grammar.is_terminated():
                 continue
             try:
                 grammar.fill_bitmask(bitmask, idx)
             except Exception as e:
-                logger.warning(f"Failed to fill bitmask for request {req_id}: {e}")
-        
+                logger.warning(f"Failed to fill bitmask for state_key {state_key}: {e}")
+
         return bitmask.copy()
-    
+
     def accept_tokens(
         self,
-        request_id: int,
+        state_key: int,
         tokens: List[int],
     ) -> bool:
         """
@@ -398,68 +515,63 @@ class StructuredOutputManager:
         在采样后调用，推进 FSM 状态。
         
         Args:
-            request_id: 请求 ID
+            state_key: 当前运行态状态 key
             tokens: 采样得到的 token 列表
             
         Returns:
             是否成功接受 token
         """
-        grammar = self._request_grammars.get(request_id)
+        grammar = self._request_grammars.get(state_key)
         if grammar is None:
             return True  # 没有约束，直接返回成功
-        
-        return grammar.accept_tokens(request_id, tokens)
+
+        return self._accept_tokens_on_grammar(state_key, grammar, tokens)
     
-    def should_advance(self, request_id: int) -> bool:
+    def should_advance(self, state_key: int) -> bool:
         """
         检查是否应该推进 FSM 状态
         
         用于判断请求是否有约束且未终止
         
         Args:
-            request_id: 请求 ID
+            state_key: 当前运行态状态 key
             
         Returns:
             是否应该调用 accept_tokens
         """
-        grammar = self._request_grammars.get(request_id)
+        grammar = self._request_grammars.get(state_key)
         if grammar is None:
-            logger.debug(
-                f"[StructuredOutput] "
-                f"should_advance(request_id={request_id}) → False (grammar is None). "
-                f"Current grammars in manager: {list(self._request_grammars.keys())}"
-            )
             return False
-        
         return not grammar.is_terminated()
     
-    def is_terminated(self, request_id: int) -> bool:
+    def is_terminated(self, state_key: int) -> bool:
         """
         检查请求是否已完成约束生成
         
         Args:
-            request_id: 请求 ID
+            state_key: 当前运行态状态 key
             
         Returns:
             是否已终止
         """
-        grammar = self._request_grammars.get(request_id)
+        grammar = self._request_grammars.get(state_key)
         if grammar is None:
             return True  # 没有约束，视为已完成
-        
         return grammar.is_terminated()
     
-    def clear_requests(self, request_ids: List[int]) -> None:
-        for req_id in request_ids:
-            if req_id in self._request_grammars:
-                del self._request_grammars[req_id]
+    def clear_requests(self, cache_ids: List[int]) -> None:
+        for state_key in cache_ids:
+            self._request_grammars.pop(state_key, None)
     
-    def get_request_grammar(self, request_id: int) -> Optional[StructuredOutputGrammar]:
-        return self._request_grammars.get(request_id)
+    def get_request_grammar(self, state_key: int) -> Optional[StructuredOutputGrammar]:
+        return self._request_grammars.get(state_key)
     
-    def has_structured_output(self, request_id: int) -> bool:
-        return request_id in self._request_grammars
-    
+    def has_structured_output(self, state_key: int) -> bool:
+        return state_key in self._request_grammars
+
+    def has_any_structured_output(self, cache_ids: List[int]) -> bool:
+        return any(int(state_key) in self._request_grammars for state_key in cache_ids)
+
     def shutdown(self) -> None:
         self._request_grammars.clear()
         self._grammar_cache.clear()
@@ -468,94 +580,352 @@ class StructuredOutputManager:
     
     def process_batch_for_generation(
         self,
-        sequence_ids: List[int],
+        cache_ids: List[int],
         response_format_array: List[Optional[str]],
     ) -> Optional[np.ndarray]:
-        if not sequence_ids or not response_format_array:
+        if not cache_ids or not response_format_array:
             return None
-        
-        # 快速路径：检查是否有任何请求需要约束解码
+
         has_constraint = any(rf is not None for rf in response_format_array)
         if not has_constraint:
             return None
-        
-        # 1. 为新请求初始化 grammar（如果尚未初始化）
-        request_ids = []
+
+        state_key_list = []
         grammar_init_count = 0
-        for i, seq_id in enumerate(sequence_ids):
-            request_id = int(seq_id)
-            
-            # 检查该请求是否需要结构化输出
+        for i, state_key in enumerate(cache_ids):
+            normalized_state_key = int(state_key)
             if i < len(response_format_array) and response_format_array[i] is not None:
-                # 需要约束：初始化 grammar（如果尚未初始化）
-                if not self.has_structured_output(request_id):
-                    success = self._init_grammar_from_response_format(request_id, response_format_array[i])
+                has_grammar = normalized_state_key in self._request_grammars
+                if not has_grammar:
+                    success = self._init_grammar_from_response_format(normalized_state_key, response_format_array[i])
                     if not success:
-                        logger.warning(f"[StructuredOutput] Failed to init grammar for request {request_id}")
+                        logger.warning(f"[StructuredOutput] Failed to init grammar for state_key" \
+                                       f"{normalized_state_key}")
                     else:
                         grammar_init_count += 1
-                request_ids.append(request_id)
+                state_key_list.append(normalized_state_key)
             else:
-                # 不需要约束：添加 request_id 但后续会跳过
-                request_ids.append(request_id)
-        # 2. 生成 bitmask（批量）
-        # 注意：grammar_bitmask 内部会检查每个 request_id 是否有 grammar
-        # 没有 grammar 的请求会使用 full mask（允许所有 token）
-        bitmask = self.grammar_bitmask(request_ids)
+                state_key_list.append(normalized_state_key)
+
+        bitmask = self.grammar_bitmask(state_key_list)
         return bitmask
+
+    def compute_structured_output_accepted(
+        self,
+        cache_ids: Optional[np.ndarray],
+        token_ids: Any,
+    ) -> Optional[np.ndarray]:
+        """刷新结构化输出 FSM 状态，返回与 cache_ids 对齐的 is_accepted 数组。"""
+        if (
+            cache_ids is None or
+            token_ids is None or
+            not self.has_any_structured_output(cache_ids)
+        ):
+            return None
+        return self.update_states_after_sampling(
+            cache_ids=cache_ids,
+            token_ids=token_ids,
+        )
+
+    def build_and_assign_structured_guided_bitmask(
+        self,
+        input_metadata: Any,
+        sampling_metadata: Any,
+        cache_ids: Any,
+        response_format_array: Optional[List[Optional[str]]],
+    ) -> None:
+        """生成结构化 guided bitmask 并写入 sampling_metadata.guided_bitmask。"""
+        if sampling_metadata is None:
+            return
+        all_sequence_ids = getattr(sampling_metadata, "all_sequence_ids", None)
+        if not self.has_structured_response_formats(response_format_array) or all_sequence_ids is None:
+            return
+
+        num_with_constraint = sum(1 for rf in response_format_array if rf is not None)
+        if num_with_constraint == 0:
+            return
+
+        predicted_token_ids = input_metadata.batch_predicted_token_ids
+        # Decode 须先 sync_states_for_decode 再 process_batch_for_generation，否则会先为无 grammar 的
+        # sequence 初始化 grammar（初始态），导致 sync 误判「已有 grammar」而跳过回放，产生多余 '{'。
+        if not input_metadata.is_prefill:
+            self.sync_states_for_decode(
+                cache_ids=cache_ids,
+                response_format_array=response_format_array,
+                predicted_token_ids=predicted_token_ids,
+                sampling_metadata=sampling_metadata,
+            )
+        bitmask = self.process_batch_for_generation(
+            cache_ids=cache_ids,
+            response_format_array=response_format_array,
+        )
+        # PD 分离/重计算：prefill 初始化 grammar 后回放 predicted_token_ids；回放后须重算 bitmask，
+        # 否则当前轮仍使用回放前初始态的约束。
+        if predicted_token_ids and input_metadata.is_prefill:
+            self.replay_predicted_tokens_after_init(
+                cache_ids=cache_ids,
+                predicted_token_ids=predicted_token_ids,
+            )
+            bitmask = self.process_batch_for_generation(
+                cache_ids=cache_ids,
+                response_format_array=response_format_array,
+            )
+        if bitmask is not None:
+            sampling_metadata.guided_bitmask = bitmask
     
     def update_states_after_sampling(
         self,
-        sequence_ids: List[int],
+        cache_ids: List[int],
         token_ids: np.ndarray,
-    ) -> None:
+    ) -> np.ndarray:
         """
         采样后更新 FSM 状态
-        
+
         Args:
-            sequence_ids: 序列 ID 列表
+            cache_ids: 当前批次状态 key 列表
             token_ids: 采样得到的 token ID 数组
+
+        Returns:
+            每个序列的结构接受状态数组，与 cache_ids 维度对齐
         """
-        if not sequence_ids or token_ids is None:
-            return
+        if not cache_ids or token_ids is None:
+            return np.ones(len(cache_ids) if cache_ids else 0, dtype=bool)
+
+        flattened_token_ids = np.asarray(token_ids).reshape(-1)
+        is_accepted_array = np.ones(len(cache_ids), dtype=bool)
+        for i, state_key in enumerate(cache_ids):
+            normalized_state_key = int(state_key)
+            grammar = self._request_grammars.get(normalized_state_key)
+            if grammar is None or grammar.is_terminated():
+                continue
+            try:
+                if i < len(flattened_token_ids):
+                    token = int(flattened_token_ids[i])
+                    is_accepted = self._accept_tokens_on_grammar(normalized_state_key, grammar, [token])
+                    is_accepted_array[i] = is_accepted
+            except Exception as e:
+                logger.warning(f"[StructuredOutput] Exception updating state_key {normalized_state_key}: {e}")
+                is_accepted_array[i] = False
+        return is_accepted_array
         
-        update_count = 0
-        for i, seq_id in enumerate(sequence_ids):
-            request_id = int(seq_id)
-            
-            # 检查是否应该更新
-            if self.should_advance(request_id):
-                try:
-                    if i < len(token_ids):
-                        token = int(token_ids[i])
-                        success = self.accept_tokens(request_id, [token])
-                        if not success:
-                            logger.warning(f"[StructuredOutput] Token {token} rejected for request {request_id}")
-                        else:
-                            update_count += 1
-                except Exception as e:
-                    logger.warning(f"[StructuredOutput] Exception updating request {request_id}: {e}")
-        
-    def clear_finished_requests(self, sequence_ids: np.ndarray) -> None:
+    def clear_finished_requests(self, cache_ids: np.ndarray) -> None:
         """
         清理已完成的请求
         
         Args:
-            sequence_ids: 需要清理的序列 ID 数组
+            cache_ids: 需要清理的状态 key 数组
         """
-        request_ids = [int(sid) for sid in sequence_ids]
-        self.clear_requests(request_ids)
+        normalized_cache_ids = [int(state_key) for state_key in cache_ids]
+        self.clear_requests(normalized_cache_ids)
+
+    def replay_predicted_tokens_after_init(
+        self,
+        cache_ids: List[int],
+        predicted_token_ids: Optional[List[Optional[List[int]]]],
+    ) -> None:
+        """PD分离/重计算 prefill 后，将已生成 token 回放到刚初始化的 grammar 中。"""
+        if not predicted_token_ids:
+            logger.debug("[StructuredOutput][PrefillReplay] skipped because predicted_token_ids is empty")
+            return
+        for idx, state_key in enumerate(cache_ids):
+            normalized_state_key = int(state_key)
+            grammar = self._request_grammars.get(normalized_state_key)
+            if grammar is None:
+                logger.warning(
+                    "[StructuredOutput][PrefillReplay] state_key=%s has no grammar before replay, skip",
+                    normalized_state_key,
+                )
+                continue
+            if idx >= len(predicted_token_ids) or not predicted_token_ids[idx]:
+                logger.debug(
+                    "[StructuredOutput][PrefillReplay] state_key=%s has no predicted tokens, skip",
+                    normalized_state_key,
+                )
+                continue
+            replay_tokens = self._sanitize_replay_tokens(
+                predicted_token_ids[idx],
+                state_key=normalized_state_key,
+                source="predicted_token_ids",
+            )
+            if not replay_tokens:
+                logger.debug(
+                    "[StructuredOutput][PrefillReplay] state_key=%s has no valid predicted tokens after sanitize, skip",
+                    normalized_state_key,
+                )
+                continue
+            if self._accept_tokens_on_grammar(normalized_state_key, grammar, replay_tokens):
+                logger.info(
+                    f"[StructuredOutput][Prefill] replayed {len(replay_tokens)} predicted tokens "
+                    f"for state_key={normalized_state_key}"
+                )
+            else:
+                logger.warning(
+                    f"[StructuredOutput][Prefill] failed to replay predicted tokens "
+                    f"for state_key={normalized_state_key}, token_count={len(replay_tokens)}"
+                )
+
+    def sync_states_for_decode(
+        self,
+        cache_ids: List[int],
+        response_format_array: List[Optional[str]],
+        predicted_token_ids: Optional[List[Optional[List[int]]]],
+        sampling_metadata: Any,
+    ) -> None:
+        for idx, state_key in enumerate(cache_ids):
+            if idx >= len(response_format_array) or response_format_array[idx] is None:
+                continue
+            normalized_state_key = int(state_key)
+            replay_tokens, source = self._resolve_replay_tokens(
+                predicted_token_ids=predicted_token_ids,
+                sequence_index=idx,
+                sampling_metadata=sampling_metadata,
+                state_key=normalized_state_key,
+            )
+            grammar = self._request_grammars.get(normalized_state_key)
+            # replay_position（num_tried_tokens）：replay buffer 游标，含被 reject 的 token，
+            # 用作切片下标，避免 C++ 无条件存储的 rejected token 导致的索引错位。
+            # accepted_count（num_processed_tokens）：FSM 合法接受的 token 数，仅用于日志。
+            replay_position = 0 if grammar is None else int(grammar.num_tried_tokens)
+            accepted_count = 0 if grammar is None else int(grammar.num_processed_tokens)
+            if grammar is not None:
+                if not replay_tokens:
+                    continue
+                if replay_position == len(replay_tokens):
+                    continue
+                if source != "predicted_token_ids" and replay_position > len(replay_tokens):
+                    logger.warning(
+                        "[StructuredOutput][DecodeSync] state_key=%s grammar replay_pos=%s exceeds replay_count=%s "
+                        "(source=%s), keep current grammar to avoid rollback",
+                        normalized_state_key, replay_position, len(replay_tokens), source,
+                    )
+                    continue
+                # 增量推进：从 replay_position（游标）起切片，而非从 accepted_count 起。
+                # 使用 num_tried_tokens 作为下标，确保 C++ 无条件存储的 rejected token 不会
+                # 阻塞其后的合法 token，也不会导致合法 token 被重复喂入 FSM。
+                if 0 < replay_position < len(replay_tokens):
+                    incremental_tokens = replay_tokens[replay_position:]
+                    self._accept_tokens_on_grammar(normalized_state_key, grammar, incremental_tokens)
+                    new_replay_pos = grammar.num_tried_tokens
+                    new_accepted = grammar.num_processed_tokens
+                    if new_replay_pos > replay_position:
+                        status = "accepted" if new_accepted > accepted_count else "rejected"
+                        logger.debug(
+                            "[StructuredOutput][DecodeSync] state_key=%s cursor %s→%s %s %s→%s (%s)",
+                            normalized_state_key, replay_position, new_replay_pos, status,
+                            accepted_count, new_accepted, source,
+                        )
+                        continue
+                    logger.debug(
+                        "[StructuredOutput][DecodeSync] state_key=%s cursor no-advance (%s) pos=%s acc=%s",
+                        normalized_state_key, source, replay_position, accepted_count,
+                    )
+                    continue
+                logger.debug(
+                    "[StructuredOutput][DecodeSync] state_key=%s pos=%s != replay_len=%s (%s), rebuild",
+                    normalized_state_key, replay_position, len(replay_tokens), source,
+                )
+                self._request_grammars.pop(normalized_state_key, None)
+
+            replay_count = self._build_and_replay_structured_output_state(
+                normalized_state_key, response_format_array[idx], replay_tokens
+            )
+            extra = ""
+            if replay_count == 0 and replay_tokens:
+                extra = f", input_replay_len={len(replay_tokens)}"
+            logger.debug(
+                f"[StructuredOutput][Recompute] synced state_key={normalized_state_key}, "
+                f"replay_accepted={replay_count}, source={source}{extra}"
+                )
+            self._request_grammars.pop(normalized_state_key, None)
+
+            replay_count = self._build_and_replay_structured_output_state(
+                normalized_state_key, response_format_array[idx], replay_tokens
+            )
+            extra = ""
+            if replay_count == 0 and replay_tokens:
+                extra = f", input_replay_len={len(replay_tokens)}"
+            logger.info(
+                f"[StructuredOutput][Recompute] synced state_key={normalized_state_key}, "
+                f"replay_accepted={replay_count}, source={source}{extra}"
+            )
+
+    def _resolve_replay_tokens(
+        self,
+        predicted_token_ids: Optional[List[Optional[List[int]]]],
+        sequence_index: int,
+        sampling_metadata: Any,
+        state_key: int,
+    ) -> Tuple[List[int], str]:
+        predicted_tokens = []
+        if predicted_token_ids and sequence_index < len(predicted_token_ids):
+            predicted_tokens = self._sanitize_replay_tokens(
+                predicted_token_ids[sequence_index],
+                state_key=state_key,
+                source="predicted_token_ids",
+            )
+
+        sampling_tokens = self._extract_replay_tokens(sampling_metadata, sequence_index)
+
+        if predicted_tokens:
+            return predicted_tokens, "predicted_token_ids"
+        if sampling_tokens:
+            return sampling_tokens, "sampling_metadata"
+        return [], "empty"
+
+    def _build_and_replay_structured_output_state(
+        self,
+        state_key: int,
+        response_format: str,
+        replay_tokens: List[int],
+    ) -> int:
+        if not self._init_grammar_from_response_format(state_key, response_format):
+            logger.warning(f"[StructuredOutput][Recompute] failed to init grammar for state_key={state_key}")
+            return 0
+        if not replay_tokens:
+            return 0
+
+        logger.debug(
+            "[StructuredOutput][Replay] step=rebuild_accept state_key=%s replay_len=%s replay_tokens=%s",
+            state_key, len(replay_tokens), replay_tokens,
+        )
+        # 优先完整重放；accept_tokens 是逐 token 推进的，失败时 FSM 已停在合法的部分状态。
+        if self.accept_tokens(state_key, replay_tokens):
+            return len(replay_tokens)
+
+        # 完整重放失败：accept_tokens 逐 token 处理，在第一个非法 token 处停止，
+        # 此时 grammar 已处于接受了合法前缀后的正确状态（_num_processed_tokens 已更新）。
+        # 直接使用该部分状态，避免 suffix search 清空 grammar 导致状态归零。
+        grammar = self._request_grammars.get(state_key)
+        partial_count = 0 if grammar is None else grammar.num_processed_tokens
+        if partial_count > 0:
+            return partial_count
+
+        # 所有 token 均在起始位置被拒绝：可能 replay_tokens 包含 prompt 等前缀噪声，
+        # 尝试在尾部窗口内寻找可重放后缀。
+        search_start = max(1, len(replay_tokens) - 512)
+        for start_idx in range(search_start, len(replay_tokens)):
+            self.clear_requests([state_key])
+            if not self._init_grammar_from_response_format(state_key, response_format):
+                return 0
+            suffix_tokens = replay_tokens[start_idx:]
+            if self.accept_tokens(state_key, suffix_tokens):
+                logger.debug(
+                    f"[StructuredOutput][Recompute] state_key={state_key} replayed from suffix start={start_idx}, "
+                    f"suffix_len={len(suffix_tokens)}"
+                )
+                return len(suffix_tokens)
+        return 0
 
     def _init_grammar_from_response_format(
         self,
-        request_id: int,
+        state_key: int,
         response_format: str,
     ) -> bool:
         """
         从 response_format 字符串初始化 grammar
         
         Args:
-            request_id: 请求 ID
+            state_key: 当前运行态状态 key
             response_format: response_format JSON 字符串
             
         Returns:
@@ -565,41 +935,40 @@ class StructuredOutputManager:
         try:
             logger.debug(
                 f"[StructuredOutput|Parse] "
-                f"request_id={request_id}, parsing response_format..."
+                f"state_key={state_key}, parsing response_format..."
             )
-            
             # 解析 response_format
             structured_output = StructuredOutputRequest.from_response_format(response_format)
             
             if structured_output is None:
                 logger.warning(
                     f"[StructuredOutput] "
-                    f"request_id={request_id} ✗ Failed to parse response_format"
+                    f"state_key={state_key} ✗ Failed to parse response_format"
                 )
                 return False  # 无效的 response_format
             
             
             # 初始化 grammar
-            logger.debug(f"[StructuredOutput|Compile] request_id={request_id}, compiling grammar...")
-            grammar = self.grammar_init(request_id, structured_output)
+            logger.debug(f"[StructuredOutput|Compile] state_key={state_key}, compiling grammar...")
+            grammar = self.grammar_init(state_key, structured_output)
             
             if grammar is None:
                 logger.warning(
                     f"[StructuredOutput] "
-                    f"request_id={request_id} Failed to compile grammar"
+                    f"state_key={state_key} Failed to compile grammar"
                 )
                 return False
             
             logger.debug(
                 f"[StructuredOutput|Compile] "
-                f"request_id={request_id} Grammar compiled and initialized"
+                f"state_key={state_key} Grammar compiled and initialized"
             )
             return True
             
         except Exception as e:
             logger.error(
                 f"[StructuredOutput] "
-                f"request_id={request_id} Exception: {e}"
+                f"state_key={state_key} Exception: {e}"
             )
             return False
 

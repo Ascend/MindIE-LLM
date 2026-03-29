@@ -168,6 +168,7 @@ message SequenceGroupMetadata {
   int32 request_gap = 32; // 边云动态切块新增
   optional LwdCloudMetadata lwd_cloud_metadata = 33; //边云特性spcp云侧block管理
   optional string response_format = 34; // JSON 结构化输出约束
+  repeated int64 predicted_token_ids = 35; // PD分离/重计算场景下已生成的output token IDs，用于同步grammar等状态
 }
 
 message IntPair {

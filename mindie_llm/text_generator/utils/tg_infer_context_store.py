@@ -8,7 +8,7 @@
 # MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
 # See the Mulan PSL v2 for more details.
 
-from typing import Optional, Tuple, Callable
+from typing import Any, Optional, Tuple, Callable
 import numpy as np
 import numpy.typing as npt
 
@@ -90,6 +90,9 @@ class TGInferContextStore:
         )
         self.aborted_context_handles = []
         self.cache_config = batch_context_config
+
+    def set_structured_output_manager(self, structured_output_manager: Optional[Any]) -> None:
+        self._batch_context.set_structured_output_manager(structured_output_manager)
 
     def get_batch_context_handles(self, metadata: InputMetadata) -> np.ndarray:
         """get batch context handles, originally save_input_cache, allocate new context handles or get existing context
@@ -366,6 +369,12 @@ class TGInferContextStore:
 
     def get_skip_special_tokens(self, context_handles):
         return self._batch_context.all_ndarray_context.skip_special_tokens[context_handles]
+
+    def get_response_format(self, context_handles):
+        return self._batch_context.all_dict_context.get_response_format(context_handles)
+
+    def set_response_format(self, context_handle: int, response_format: str):
+        self._batch_context.all_dict_context.response_format[context_handle] = response_format
 
     def get_include_stop(self, context_handles):
         return self._batch_context.all_ndarray_context.include_stop[context_handles]

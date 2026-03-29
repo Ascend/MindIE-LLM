@@ -28,6 +28,7 @@ class SamplingOutput:
     num_new_tokens_numpy: np.ndarray = None
     num_top_tokens: np.ndarray = None
     seeds: np.ndarray = None
+    is_structured_accepted: np.ndarray = None
 
     def to_deprecated(self):
         return self.token_ids, self.logprobs

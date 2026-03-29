@@ -47,6 +47,25 @@ class OutputFilter:
         # Trigger compilation here with a minimal input to reduce first-request latency.
         check_column_equals_numba(np.zeros((2, 2), dtype=np.int64), np.zeros(2, dtype=np.int64), 0)
 
+    @staticmethod
+    def filter_by_structure(
+        cache_ids: np.ndarray,
+        is_structured_accepted: np.ndarray,
+        filter_ids_arr: np.ndarray,
+        end_reason: np.ndarray,
+    ):
+        """
+        根据结构化输出的接受状态过滤序列。
+        当 is_structured_accepted 为 False 时，拒绝该序列。
+        """
+        rejected_mask = ~is_structured_accepted  # 拒绝accepted为False的请求（取反accepted. rejected_mask True 表示被拒绝）
+        rejected_indices = np.nonzero(rejected_mask)[0]  # 获取被拒绝的索引
+        if rejected_indices.size != 0:
+            filter_ids_arr = np.union1d(filter_ids_arr, rejected_indices)
+            end_reason[rejected_indices] = ResponseConfig.REJECTED_STRUCTURED_OUTPUT
+
+        return filter_ids_arr
+
     def decode_one(self, input_tokens, skip_special_tokens):
         return decode_one(self.tokenizer, input_tokens, skip_special_tokens, self.tokenizer_sliding_window_size)
 
@@ -191,7 +210,8 @@ class OutputFilter:
         self,
         cache_ids: np.ndarray,
         metadata: InputMetadata,
-        sampling_output: SamplingOutput
+        sampling_output: SamplingOutput,
+        is_structured_accepted: np.ndarray,
     ):
         if ENV.model_runner_exp:
             for eos in self.eos_token_id:
@@ -213,6 +233,8 @@ class OutputFilter:
             cache_ids, sampling_output.token_ids, sampling_output.num_new_tokens, filter_ids_arr, end_reason)
         filter_ids_arr = self.filter_by_length(
             cache_ids, batch_max_output_lens, sampling_output, filter_ids_arr, end_reason)
+        filter_ids_arr = OutputFilter.filter_by_structure(
+            cache_ids, is_structured_accepted, filter_ids_arr, end_reason)
 
         # 对于没有完成prefill的req，不可以清除后处理参数
         if metadata.is_mix is not None:

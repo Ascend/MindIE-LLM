@@ -95,16 +95,23 @@ class GuidedDecodingLogitsHandler(LogitsHandler):
         bitmask = metadata.guided_bitmask
         if bitmask is None:
             return logits
+
         _, vocab_size = logits.shape
+
         try:
             import_success = self._lazy_import()
             if not import_success:
+                logger.warning("[GuidedDecoding] Failed to import apply_token_bitmask_inplace," \
+                    " returning original logits")
                 return logits
+
             self._apply_token_bitmask_inplace(logits, bitmask, vocab_size)
+
         except Exception as e:
-            logger.warning(f"Failed to apply grammar bitmask: {e}")
+            logger.warning(f"[GuidedDecoding] Failed to apply grammar bitmask: {e}")
+
         return logits
-    
+
     def _lazy_import(self) -> bool:
         if self._import_attempted:
             return self._apply_token_bitmask_inplace is not None
