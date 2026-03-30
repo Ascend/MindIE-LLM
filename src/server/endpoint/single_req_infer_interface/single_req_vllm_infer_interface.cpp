@@ -21,7 +21,7 @@
 #include "common_util.h"
 #include "base64_util.h"
 #include "config_manager_impl.h"
-#include "safe_io.h"
+#include "json_util.h"
 
 using OrderedJson = nlohmann::ordered_json;
 
@@ -260,7 +260,7 @@ bool SingleReqVllmInferInterface::EncodeVllmResponse(RespBodyQueue &jsonStrs)
         std::string space = " ";
         std::string parsedPrompt;
         if (IsValidJson(inputParam->textInput)) {
-            Json multiModalInput = Json::parse(inputParam->textInput, CheckJsonDepthCallbackUlog);
+            Json multiModalInput = Json::parse(inputParam->textInput, CheckJsonDepthCallback);
             for (const auto& item: multiModalInput) {
                 if (item.contains("type") && item["type"] == "text" && item.contains("text")) {
                     parsedPrompt = item["text"];
@@ -380,7 +380,7 @@ std::string SingleReqVllmInferInterface::BuildVllmReComputeBody(const std::vecto
     std::string stopStr = request_->stopStrings.has_value() ? request_->stopStrings.value() : "";
     if (stopStr != "") {
         try {
-            newReqJsonObj["stop"] = nlohmann::json::parse(stopStr, CheckJsonDepthCallbackUlog);
+            newReqJsonObj["stop"] = nlohmann::json::parse(stopStr, CheckJsonDepthCallback);
         } catch(...) {
             ULOG_ERROR(SUBMODLE_NAME_ENDPOINT, GenerateEndpointErrCode(ERROR, SUBMODLE_FEATURE_SINGLE_INFERENCE,
                 JSON_PARSE_ERROR), "Failed to parse stopStrings");

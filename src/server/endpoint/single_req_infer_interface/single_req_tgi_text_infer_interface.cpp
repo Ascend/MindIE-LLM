@@ -21,7 +21,7 @@
 #include "http_rest_resource.h"
 #include "common_util.h"
 #include "base64_util.h"
-#include "safe_io.h"
+#include "json_util.h"
 
 using OrderedJson = nlohmann::ordered_json;
 
@@ -454,7 +454,7 @@ void SingleReqTgiTextInferInterface::ParseStopString(nlohmann::ordered_json& new
     std::string stopStr = request_->stopStrings.has_value() ? request_->stopStrings.value() : "";
     if (stopStr != "") {
         try {
-            newReqJsonObj["parameters"]["stop"] = nlohmann::json::parse(stopStr, CheckJsonDepthCallbackUlog);
+            newReqJsonObj["parameters"]["stop"] = nlohmann::json::parse(stopStr, CheckJsonDepthCallback);
         } catch(...) {
             ULOG_ERROR(SUBMODLE_NAME_ENDPOINT, GenerateEndpointErrCode(ERROR, SUBMODLE_FEATURE_SINGLE_INFERENCE,
                 CHECK_ERROR), "Failed to parse stopStrings");

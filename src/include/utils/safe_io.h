@@ -31,9 +31,6 @@ int GetJsonDepthLimit();
 bool CheckJsonDepth(int depth, Json::parse_event_t ev);
 bool CheckJsonDepthWithLogger(int depth, Json::parse_event_t ev, std::function<void(void)> logger);
 bool CheckJsonDepthCallbackNoLogger(int depth, Json::parse_event_t ev, Json& obj);
-bool CheckJsonDepthCallback(int depth, Json::parse_event_t ev, Json& obj);
-bool CheckJsonDepthCallbackUlog(int depth, Json::parse_event_t ev, Json& obj);
-bool CheckOrderedJsonDepthCallback(int depth, OrderedJson::parse_event_t ev, OrderedJson& obj);
 
 } // namespace mindie_llm
 

@@ -18,7 +18,7 @@
 #include "common_util.h"
 #include "base64_util.h"
 #include "config_manager_impl.h"
-#include "safe_io.h"
+#include "json_util.h"
 
 using OrderedJson = nlohmann::ordered_json;
 
@@ -771,7 +771,7 @@ void SingleReqVllmOpenAiCompletionsInferInterface::BuildResponseFormat(nlohmann:
     if (request_->responseFormat.has_value()) {
         try {
             newReqJsonObj["response_format"] = nlohmann::json::parse(request_->responseFormat.value(),
-                CheckJsonDepthCallbackUlog);
+                CheckJsonDepthCallback);
         } catch (...) {
             ULOG_ERROR(SUBMODLE_NAME_ENDPOINT, GenerateEndpointErrCode(ERROR, SUBMODLE_FEATURE_SINGLE_INFERENCE,
                 JSON_PARSE_ERROR), "Failed to parse responseFormat");
