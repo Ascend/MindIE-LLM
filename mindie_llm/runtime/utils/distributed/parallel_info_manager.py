@@ -285,5 +285,5 @@ class ParallelInfoManager:
         parallel_info.rank = parallel_info.rank_per_group[parallel_info.current_group_id].index(self.rank)
 
         parallel_info.process_group = self._create_npu_process_group(parallel_info)
-        parallel_info.preprocess_group = self._create_npu_process_group(parallel_info, is_all_reduce=True)
+        parallel_info.preprocess_group = self._create_cpu_process_group(parallel_info)
         return parallel_info

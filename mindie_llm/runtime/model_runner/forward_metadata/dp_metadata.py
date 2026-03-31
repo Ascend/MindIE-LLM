@@ -40,10 +40,10 @@ class DPMetadata(ModuleMetadata):
         dp_para_info = get_parallel_info_manager().get(ParallelType.ATTN_DP)
         num_token_tensor = torch.tensor([
                 num_token_cur_dp if i == dp_para_info.rank else 0 for i in range(dp_para_info.group_size)
-            ], dtype=torch.int32, device="npu")
+            ], dtype=torch.int32, device="cpu")
         if dp_para_info.is_enabled():
             torch_dist.all_reduce(num_token_tensor, group=dp_para_info.preprocess_group)
-        self.num_tokens_across_dp_cpu = num_token_tensor.cpu()
+        self.num_tokens_across_dp_cpu = num_token_tensor
         self.max_tokens_across_dp_cpu = max(self.num_tokens_across_dp_cpu).item()
         self.num_actual_tokens_across_dp_cpu = self.num_tokens_across_dp_cpu
 
