@@ -8,7 +8,7 @@ ci:
 
 repos:
   # pre-commit 基础检查
-  - repo: https://github.com/pre-commit/pre-commit-hooks
+  - repo: https://gitcode.com/pre-commit/pre-commit-hooks
     rev: v4.6.0
     hooks:
       - id: trailing-whitespace
@@ -53,7 +53,7 @@ repos:
 
 #--------------- C++ 核心检查 ---------------------------------------------
   # clang-format：C/C++ 代码格式化
-  - repo: https://github.com/pre-commit/mirrors-clang-format
+  - repo: https://gitcode.com/pre-commit-clang/mirrors-clang-format
     rev: v18.1.8
     hooks:
       - id: clang-format
@@ -70,25 +70,3 @@ repos:
         exclude: '.*\.inc\.md$|.*report_template\.md$|.*contributors\.md$|.*PULL_REQUEST_TEMPLATE\.md$'
         stages: [manual]
         description: "Markdown format check (run in CI: pre-commit run markdownlint --all-files)"
-
-  # 本地钩子：文件名检查+友好提示
-  - repo: local
-    hooks:
-      - id: check-filenames
-        name: Check for spaces in all filenames
-        entry: bash
-        args:
-          - -c
-          - 'git ls-files | grep -q " " && echo "Filenames should not contain spaces!" && exit 1 || exit 0'
-        language: system
-        always_run: true
-        pass_filenames: false
-
-      # Keep `suggestion` last
-      - id: suggestion
-        name: Suggestion
-        entry: bash -c 'echo "To bypass pre-commit hooks, add --no-verify to git commit."'
-        language: system
-        verbose: true
-        pass_filenames: false
-    # Insert new entries above the `suggestion` entry

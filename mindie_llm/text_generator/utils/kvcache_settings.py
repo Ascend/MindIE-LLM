@@ -173,18 +173,7 @@ class KVCacheSettings:
 
     @staticmethod
     def dtype_to_str(backend_type: BackendType, dtype) -> str:
-        if backend_type != BackendType.MS:
-            dtype_map = torch_dtype_map
-        else:
-            import mindspore
-
-            mindspore_dtype_map = {
-                mindspore.float16: "float16",
-                mindspore.bfloat16: "bfloat16",
-                mindspore.float32: "float",
-                mindspore.int8: "int8",
-            }
-            dtype_map = mindspore_dtype_map
+        dtype_map = torch_dtype_map
         if dtype not in dtype_map:
             raise Exception("not supported kvcache dtype for ATB backend")
         return dtype_map[dtype]

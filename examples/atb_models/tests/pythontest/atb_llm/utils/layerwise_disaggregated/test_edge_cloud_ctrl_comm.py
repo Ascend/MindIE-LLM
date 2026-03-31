@@ -355,8 +355,79 @@ class TestEdgeCloudCtrlComm(unittest.TestCase):
         msg = '0'
         comm.broadcast_multi_nodes_decision(msg)
         mock_send.assert_called_once_with(msg)
-        
 
+    def test_npu_smi_info_sync_edge_0(self):
+        comm = EdgeCloudCtrlComm({})
+        comm.rank = 0
+        comm.role = EDGE
+        npu_smi_info = {'hbm_capacity': 65452113920, 'soc_name': 'Ascend910B3'}
+        comm.prefill_client = MagicMock()
+        comm.prefill_client.recv.side_effect = \
+            [f"npu_smi_info_ack|{json.dumps(npu_smi_info)}", f"npu_smi_info_notify|{json.dumps(npu_smi_info)}"]
+
+        comm.npu_smi_info_sync(npu_smi_info)
+        self.assertTrue(comm.npu_smi_info_sync_is_done())
+
+    def test_npu_smi_info_sync_edge_1(self):
+        comm = EdgeCloudCtrlComm({})
+        comm.rank = 1
+        comm.role = EDGE
+        npu_smi_info = {'hbm_capacity': 65452113920, 'soc_name': 'Ascend910B3'}
+
+        comm.npu_smi_info_sync(npu_smi_info)
+        self.assertTrue(comm.npu_smi_info_sync_is_done())
+
+    def test_npu_smi_info_sync_cloud_0(self):
+        comm = EdgeCloudCtrlComm({})
+        comm.rank = 0
+        comm.role = CLOUD
+        npu_smi_info = {'hbm_capacity': 65452113920, 'soc_name': 'Ascend910B3'}
+        comm.prefill_server = MagicMock()
+        comm.prefill_server.recv.side_effect = \
+            [f"npu_smi_info_notify|{json.dumps(npu_smi_info)}", f"npu_smi_info_ack|{json.dumps(npu_smi_info)}"]
+
+        comm.npu_smi_info_sync(npu_smi_info)
+        self.assertTrue(comm.npu_smi_info_sync_is_done())
+
+    def test_npu_smi_info_sync_cloud_1(self):
+        comm = EdgeCloudCtrlComm({})
+        comm.rank = 1
+        comm.role = CLOUD
+        npu_smi_info = {'hbm_capacity': 65452113920, 'soc_name': 'Ascend910B3'}
+
+        comm.npu_smi_info_sync(npu_smi_info)
+        self.assertTrue(comm.npu_smi_info_sync_is_done())
+
+    def test_npu_smi_info_sync_cloud_0_master(self):
+        comm = EdgeCloudCtrlComm({})
+        comm.rank = 0
+        comm.role = CLOUD
+        comm.comm_group_size = 1
+        comm.multi_nodes_infer_enabled = True
+        comm.multi_nodes_is_master = True
+        npu_smi_info = {'hbm_capacity': 65452113920, 'soc_name': 'Ascend910B3'}
+        comm.prefill_server = MagicMock()
+        comm.prefill_server.recv.side_effect = \
+            [f"npu_smi_info_notify|{json.dumps(npu_smi_info)}", f"npu_smi_info_ack|{json.dumps(npu_smi_info)}"]
+        comm.multi_nodes_ctrl_server = MagicMock()
+        comm.multi_nodes_ctrl_server.recv.return_value = f"npu_smi_info_ack|{json.dumps(npu_smi_info)}"
+
+        comm.npu_smi_info_sync(npu_smi_info)
+        self.assertTrue(comm.npu_smi_info_sync_is_done())
+
+    def test_npu_smi_info_sync_cloud_0_slave(self):
+        comm = EdgeCloudCtrlComm({})
+        comm.rank = 0
+        comm.role = CLOUD
+        comm.comm_group_size = 1
+        comm.multi_nodes_infer_enabled = True
+        comm.multi_nodes_is_master = False
+        npu_smi_info = {'hbm_capacity': 65452113920, 'soc_name': 'Ascend910B3'}
+        comm.multi_nodes_ctrl_client = MagicMock()
+        comm.multi_nodes_ctrl_client.recv.return_value = f"npu_smi_info_notify|{json.dumps(npu_smi_info)}"
+
+        comm.npu_smi_info_sync(npu_smi_info)
+        self.assertTrue(comm.npu_smi_info_sync_is_done())
 
 if __name__ == '__main__':
     unittest.main()

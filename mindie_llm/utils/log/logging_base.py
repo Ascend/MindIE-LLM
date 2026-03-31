@@ -66,6 +66,7 @@ class HandlerType(Enum):
     LLM = "llm"
     LLMMODELS = "llmmodels"
     TOKEN = "token"
+    TOKENIZER = "tokenizer"
 
 
 class CustomLogger(logging.Logger):
@@ -263,7 +264,7 @@ class LoggerManager:
         self._loggers: dict[Component, CustomLoggerAdapter] = {}
         # The first handler type is the default one to use.
         self._logger_to_handlers_map: dict[Component, list[HandlerType]] = {
-            Component.LLM: [HandlerType.LLM, HandlerType.TOKEN],
+            Component.LLM: [HandlerType.LLM, HandlerType.TOKEN, HandlerType.TOKENIZER],
             Component.LLMMODELS: [HandlerType.LLMMODELS],
         }
         self._shared_console_handler = None

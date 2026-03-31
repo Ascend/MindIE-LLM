@@ -12,7 +12,6 @@ from enum import Enum
 
 class BackendType(str, Enum):
     ATB = 'atb'
-    MS = 'ms'
     TORCH = 'torch'
 
     @classmethod

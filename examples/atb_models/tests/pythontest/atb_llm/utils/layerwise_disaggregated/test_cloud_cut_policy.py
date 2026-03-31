@@ -100,6 +100,16 @@ class TestCloudCutPolicy(unittest.TestCase):
         self.cloud_cut_policy.moe_quantize = None
         self.cloud_cut_policy._CloudCutPolicy__ajust_prefill_cut_num_for_multi_nodes()
         self.assertEqual(self.cloud_cut_policy.prefill_default_cut_map.get(7.5), 50)
+
+    @patch('atb_llm.utils.layerwise_disaggregated.cloud_cut_policy.acl')
+    def test_ajust_prefill_cut_num_for_standard_card(self, standard_card_mock_acl):
+        with patch.object(CloudCutPolicy, '__new__', return_value=object.__new__(CloudCutPolicy)):
+            standard_card_mock_acl.get_soc_name = Mock()
+            standard_card_mock_acl.get_soc_name.return_value = 'Ascend910B4'
+            standard_card_cloud_cut_policy = CloudCutPolicy("slave")
+            standard_card_cloud_cut_policy.initialize("slave", 0, (2, 62), False)
+            standard_card_cloud_cut_policy.initialize_standard_card("Ascend910B4", 65452113920)
+            self.assertEqual(standard_card_cloud_cut_policy.prefill_cut_num_min.get(4), 6)
         
 if __name__ == "__main__":
     unittest.main()

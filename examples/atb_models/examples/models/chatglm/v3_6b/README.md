@@ -6,6 +6,7 @@
 - 此代码仓中实现了一套基于NPU硬件的ChatGLM3-6B推理模型。配合加速库使用，旨在NPU上获得极致的推理性能。
 
 # 特性矩阵
+
 - 此矩阵罗列了ChatGLM3-6B模型支持的特性
 
 | 模型及参数量 | 800I A2 Tensor Parallelism | 300I DUO Tensor Parallelism | FP16 | BF16 | Flash Attention | Paged Attention | W8A8量化 | W8A16量化 | KV cache量化 | 稀疏量化 | MOE量化 | MindIE Service | TGI | 长序列 |
@@ -18,17 +19,19 @@
   - [ChatGLM3-6B-32K](https://huggingface.co/THUDM/chatglm3-6b-32k/tree/main)
   - 注：ChatGLM3-6B 推荐使用commit id为 `a5ba5501eb873d40d48bd0983bd2a8dd006bb838` 的模型仓版本
 
-
 # 使用说明
 
 - 参考[此README文件](../../chatglm/v2_6b/README.md)
 
 ## 精度测试
+
 - 参考[此README文件](../../../../tests/modeltest/README.md)
 
 ## 性能测试
+
 - 参考[此README文件](../../../../tests/modeltest/README.md)
 
 ## FAQ
+
 - `import torch_npu`遇到`xxx/libgomp.so.1: cannot allocate memory in static TLS block`报错，可通过配置`LD_PRELOAD`解决。
   - 示例：`export LD_PRELOAD=/lib/aarch64-linux-gnu/libgomp.so.1:$LD_PRELOAD`

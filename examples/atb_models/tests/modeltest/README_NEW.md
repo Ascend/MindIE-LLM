@@ -118,7 +118,7 @@ pip install -r requirements/vllm.txt # GPU + VLLM
 pip install -r requirements/[task_name].txt
 ```
 
-#### 数据集依赖安装：
+#### 数据集依赖安装
 
 - `HumanEval_X`数据集任务的环境配置
 
@@ -160,7 +160,6 @@ export LOGITS_DUMP_TOKEN_MAX_LENGTH = "[int]"
 # modeltest开启Logits dump功能后，指定推理和dump的具体Case，需要配合BAD_CASE_LOGITS_DUMP使用.例如export BAD_CASE_LIST="[0,2,4]"，选择推理和dump在整体数据集中下标为0、2、4的Case
 export BAD_CASE_LIST = "[int, int, int, ...]" 
 ```
-
 
 ##### NPU场景下以下环境变量默认设置
 
@@ -234,7 +233,7 @@ export CUDA_VISIBLE_DEVICES="[卡号（设备ID）]" # GPU场景，如"0,1,2,3,4
 
 模型的yaml文件在`modeltest/config/model`路径下，参数介绍：
 
-```
+```text
 model_name: str
 model_path: str
 model_type: str
@@ -265,12 +264,11 @@ mm_model: dict
 |mm_model.classname|【多模态】名为{path}的文件所含的Runner（及其子类）的类名|
 |mm_model.infer_params| 【多模态】为一个字典，其包含的属性为llm_model/examples/models/{MODEL}/run_{model_type}.sh所调用的PARunner或FARunner（及其子类）的infer函数的第二个至最后一个参数的名称（key）及其取值（value）|
 
-
 #### 任务配置
 
 任务的yaml文件在`modeltest/config/task`路径下，参数介绍：
 
-```
+```text
 task_type: str
 task_name: str
 hf_dataset_path: str
@@ -374,19 +372,19 @@ modeltest \
 
 - 生成路径：
 
-```
+```text
 [output_dir]/results/[device_type]/[task_type]_test/[task_name]/[data_type]/[model_name]
 ```
 
 - 文件名格式：
 
-```
+```text
 [task_name]_[model_type]_batch[batch_size]_tp[tp]_result.csv
 ```
 
 - 示例文件路径：
 
-```
+```text
 ./outputs/results/NPU/precision_test/boolq/fp16/llama2_7b/boolq_pa_batch1_tp1_result.csv
 ```
 
@@ -398,18 +396,19 @@ modeltest \
 
 - 生成路径：
 
-```
+```text
 [output_dir]/debug/[device_type]/[task_type]_test/[task_name]/[data_type]/[model_name]
 ```
 
 - 文件名格式：
-```
+
+```text
 [task_name]_[model_type]_batch[batch_size]_tp[tp]_debug_info.csv
 ```
 
 - 示例文件路径：
 
-```
+```text
 ./outputs/debug/NPU/precision_test/boolq/fp16/llama2_7b/boolq_pa_batch1_tp1_debug_info.csv
 ```
 
@@ -429,19 +428,19 @@ modeltest \
 
 - 生成路径：
 
-```
+```text
 [output_dir]/results/[device_type]/[task_type]_test/[task_name]/[data_type]/[model_name]
 ```
 
 - 文件名格式：
 
-```
+```text
 [task_name](_[humaneval_x_datasets_selector])_infer_results.csv
 ```
 
 - 示例文件路径：
 
-```
+```text
 ./outputs/results/NPU/precision_test/humaneval/fp16/llama2_7b/humaneval_infer_results.csv
 ```
 
@@ -451,13 +450,13 @@ modeltest \
 
 | 参数名  | 含义                                             |
 |--------|--------------------------------------------------|
-|   output_dir	|   输出文件的根目录，生成所有测试结果、调试信息和日志的存储路径。默认路径为modeltest根目录下的`./outputs`  |
+|   output_dir    |   输出文件的根目录，生成所有测试结果、调试信息和日志的存储路径。默认路径为modeltest根目录下的`./outputs`  |
 |   device_type |   设备类型，例如 NPU 或 GPU   |
-|   task_type   |	任务类型，来自于任务yaml配置文件，在`modeltest/config/task`路径下，表示测试的类型，支持`precision`（精度测试）    |
-|   task_name   |	任务名称，来自于任务yaml配置文件，在`modeltest/config/task`路径下    |
+|   task_type   |    任务类型，来自于任务yaml配置文件，在`modeltest/config/task`路径下，表示测试的类型，支持`precision`（精度测试）    |
+|   task_name   |    任务名称，来自于任务yaml配置文件，在`modeltest/config/task`路径下    |
 |   data_type   |   模型数据类型，来自于模型yaml配置文件，在`modeltest/config/model`路径下，支持`fp16`/`bf16`，需要提前配在权重路径下`config.json`中修改`torch_dtype`为对应的参数类型     |
-|   model_name  |	模型名称，来自于模型yaml配置文件，在`modeltest/config/model`路径下    |
-|   model_type  |	模型结构类型，来自于模型yaml配置文件，在`modeltest/config/task`路径下，支持`fa`/`pa`    |
+|   model_name  |    模型名称，来自于模型yaml配置文件，在`modeltest/config/model`路径下    |
+|   model_type  |    模型结构类型，来自于模型yaml配置文件，在`modeltest/config/task`路径下，支持`fa`/`pa`    |
 |   batch_size  |   batch数，默认为1  |
 |   tp  |   tensor并行数 ，默认为1  |
 
@@ -467,7 +466,7 @@ modeltest \
 - `TruthfulQA`数据集仅支持 1 batch。
 - 目前数据集精度测试暂不支持多卡同时起多进程测试任务。
 
-##  📖 数据集支持
+## 📖 数据集支持
 
 ### NPU
 
@@ -496,7 +495,7 @@ modeltest \
     - NeedleBench
     - TruthfulQA
 
-##  🤖 模型支持
+## 🤖 模型支持
 
 - LLaMA
     - LLaMA-7B

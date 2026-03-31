@@ -112,7 +112,7 @@
                     "npuMemSize" : -1,
                     "backendType" : "atb",
                     "trustRemoteCode" : false,
-		            "dp": 2,
+                    "dp": 2,
                     "cp": 1,
                     "tp": 8,
                     "sp": 1,
@@ -124,8 +124,8 @@
                             "ep_level":1,
                             "kv_cache_options": {"enable_nz": true},
                             "enable_mlapo_prefetch": true
-			    }
-		    }
+                }
+            }
                 }
             ]
         },
@@ -154,9 +154,8 @@
     }
 }
 ```
+
 该配置文件只需要改权重路径，建议新建文件直接复制粘贴修改后再覆盖容器内部原文件
-
-
 
 # 三、拉起脚本与环境变量
 
@@ -164,8 +163,8 @@
 
 多机拉起服务化脚本：多机需要同时执行脚本，且多机的每台机器执行的脚本`MIES_CONTAINER_IP`参数不同。双机对比单机脚本多出ranktable路径、主节点ip、当前节点ip几个环境变量，且这几个环境变量需要自行指定。
 
-
 **环境变量说明**
+
 - NPU_MEMORY_FRACTION：参数为显存比例因子，默认参数为0.92，高并发场景下建议 <=0.92。
     - 建议配置方案：建议将该值设置为可拉起服务的最小值。具体方法是，按照默认配置启动服务，若无法拉起服务，则上调参数至可拉起为止；若拉起服务成功，则下调该参数至刚好拉起服务为止。总之，在服务能正常拉起的前提下，更低的值可以保障更高的服务系统稳定性。
 
@@ -175,14 +174,14 @@
 
 随意在同一个网段的一个机器中起一个最新MindIE版本的容器，aisbench工具已经装好在`/opt/package/benchmark/ais_bench/`路径中，请勿自己安装，需要改几个python配置文件，然后发送aisbench命令即可，需要将数据集上传到`/opt/package/benchmark/ais_bench/datasets`路径中。
 
-### 4.1 修改vllm_api_general_chat.py
+## 4.1 修改vllm_api_general_chat.py
 
 ```shell
 cd /opt/package/benchmark/ais_bench/benchmark/configs/models/vllm_api/
 vim vllm_api_general_chat.py
 ```
 
-```
+```python
 from ais_bench.benchmark.models import VLLMCustomAPIChat
 models = [
     dict(
@@ -214,12 +213,12 @@ models = [
 
 ### 4.2 修改vllm_api_stream_chat.py
 
-```
+```bash
 cd /opt/package/benchmark/ais_bench/benchmark/configs/models/vllm_api/
 vim vllm_api_stream_chat.py
 ```
 
-```
+```python
 from ais_bench.benchmark.models import VLLMCustomAPIChatStream
 models = [
     dict(
@@ -250,7 +249,7 @@ models = [
 
 ### 4.3 修改ceval_gen_0_shot_cot_chat_prompt.py
 
-```
+```bash
 cd /opt/package/benchmark/ais_bench/benchmark/configs/datasets/ceval/
 vim ceval_gen_0_shot_cot_chat_prompt.py
 ```
@@ -262,13 +261,13 @@ vim ceval_gen_0_shot_cot_chat_prompt.py
 **性能测试**：
 gsm8k数据集case为20的性能测试命令
 
-```
+```shell
 ais_bench --models vllm_api_stream_chat  --datasets gsm8k_gen_0_shot_cot_str_perf  --mode perf --summarizer default_perf --debug --num-prompts 20
 ```
 
 精度测试：
 
-```
+```shell
 # gsm8k数据集测试命令
 ais\_bench --models vllm\_api\_general\_chat --datasets gsm8k\_gen\_0\_shot\_cot\_chat\_prompt
 # mmlu数据集测试命令

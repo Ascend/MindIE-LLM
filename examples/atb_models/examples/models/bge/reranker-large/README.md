@@ -3,6 +3,7 @@
 > ⚠️ 本模型仓库已迁移至 `atb_models/examples/models/embedding`，请参考新仓库的[README](../../embedding/README.md)
 
 # 特性矩阵
+
 - 此矩阵罗列了各bge-reranker-large模型支持的特性
 
 | 模型及参数量             | 800I A2 Tensor Parallelism | 300I DUO Tensor Parallelism | FP16 | BF16 | Flash Attention | Paged Attention | W8A8量化 | W8A16量化 | KV cache量化 | 稀疏量化 | MOE量化 | MindIE Service | TGI | 长序列 |
@@ -156,6 +157,7 @@ git checkout master
 可在以下方法中任选一种获取开源模型权重
 
 - 使用命令行获取
+
   - ```shell
     mkdir ${weight_path}
     cd ${script_path}
@@ -164,6 +166,7 @@ git checkout master
     git clone https://huggingface.co/BAAI/bge-reranker-large
     mv bge-reranker-large ${weight_path}
     ```
+
 - 访问[模型页面](https://huggingface.co/BAAI/bge-reranker-large/tree/main)获取
   - 下载 `HuggingFace` 原始模型所有文件至 `${weight_path}` 目录
 
@@ -184,15 +187,19 @@ git checkout master
 可在以下方法中任选一种下载 [C-MTEB/T2Reranking](https://huggingface.co/datasets/C-MTEB/T2Reranking) 数据集
  
 - 使用命令行获取
+
   - ```shell
     cd ${dataset_path}
     git clone https://huggingface.co/datasets/C-MTEB/T2Reranking
     mv T2Reranking/data/dev-00000-of-00001-65d96bde8023d9b9.parquet T2Reranking/
     ```
+
 - 访问数据集页面获取
+
   - ```shell
     mkdir T2Reranking
     ``` 
+
   - 下载数据集文件 [data/dev-00000-of-00001-65d96bde8023d9b9.parquet](https://huggingface.co/datasets/C-MTEB/T2Reranking/resolve/main/data/dev-00000-of-00001-65d96bde8023d9b9.parquet)至 `${dataset_path}/T2Reranking` 目录中
 
 修改 `${script_path}/eval_performance.py` 和 `${script_path}/eval_t2reranking.py` 脚本文件中的数据集路径为实际路径

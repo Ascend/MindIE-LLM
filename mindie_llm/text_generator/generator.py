@@ -48,7 +48,7 @@ from mindie_llm.text_generator.utils.request import Request
 from mindie_llm.utils.decorators.time_decorator import timer
 from mindie_llm.utils.env import ENV
 from mindie_llm.utils.log import ErrorCode, logger, print_log
-from mindie_llm.utils.log.error_code import ErrorCodeException, convert_exception_to_error_code
+from mindie_llm.utils.log.error_code import ErrorCodeException, convert_exception_to_error_code, is_force_stop_exception
 from mindie_llm.utils.status import MindieLlmStatusCode
 from mindie_llm.utils.tensor import npu
 from mindie_llm.text_generator.utils.separate_deployment_engine import (
@@ -554,6 +554,9 @@ class Generator(PDInterface):
             else:
                 raise e
         except Exception as e:
+            if isinstance(e, ErrorCodeException):
+                self.generator_backend.is_fault_device = True
+                raise e
             error_code = convert_exception_to_error_code(str(e))
 
             # Handle PyTorch OOM(Only supports Torch 2.6+ native exception)
@@ -572,9 +575,13 @@ class Generator(PDInterface):
                     f'{error_code.name} fault happened in generate_token, error code: {error_code.value}.'
                 )
                 logger.error(message)
+                self.generator_backend.is_fault_device = True
                 raise ErrorCodeException(error_code) from e
             print_log(self.rank, logger.error, f'Unknown exception: {e}')
             if self.is_inference_pause:
+                if is_force_stop_exception(e):
+                    logger.info(f"FORCE STOP exception detected in generator.generate_token: {e}")
+                    self.generator_backend.notify_force_stop_exception()
                 return GenerationOutput.make_empty()
             raise e
 
@@ -756,13 +763,6 @@ class Generator(PDInterface):
             "npu_device_id": self.npu_device_id
         }
 
-        # Only 'atb' backend supports recovery commands
-        if self.backend_type != 'atb':
-            error_msg = f"Recovery commands are only supported by 'atb' backend, got: {self.backend_type!r}"
-            logger.error(error_msg)
-            ret_dict[error_msg_key] = error_msg
-            return ret_dict
-
         logger.info(f"Executing recover command {command} on NPU device {self.npu_device_id}.")
         # Dispatch by command
         if command == "CMD_REINIT_NPU":
@@ -770,10 +770,6 @@ class Generator(PDInterface):
                 self.infer_context.reset_all_context()
                 self.plugin_manager.error_code_collected_in_async = None
                 ret_dict = self.generator_backend.execute_recover_command(command)
-                if ret_dict[command_res_key] == 0:
-                    acl.rt.set_device(self.npu_device_id)
-                    self.model_wrapper.resume_hccl_comm()
-                    ret_dict[command_res_key] = 0  # success
             except Exception as e:
                 error_msg = f"Failed to execute recovery command {command!r}: {e}"
                 logger.exception(error_msg)
@@ -799,14 +795,12 @@ class Generator(PDInterface):
             # Delegate pause to generator backend
             self.is_inference_pause = True
             self.plugin_manager.is_inference_pause = True
-            time.sleep(20)
-            
             ret_dict = self.generator_backend.execute_recover_command(command)
 
         elif command == "CMD_PAUSE_ENGINE_ROCE":
             # Delegate pause to generator backend
             self.is_inference_pause = True
-            self.plugin.is_inference_pause = True
+            self.plugin_manager.is_inference_pause = True
             ret_dict[command_res_key] = 0
 
         elif command == "CMD_CLEAR_TRANSER":

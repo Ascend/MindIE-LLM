@@ -43,9 +43,6 @@ class StructuredOutputRequest:
         # 解析 JSON 字符串
         try:
             response_format_dict = json.loads(response_format)
-            logger.debug(
-                f"[Structured Output Request from_response_format] response_format_dict: {response_format_dict}"
-            )
         except json.JSONDecodeError:
             logger.warning(f"Invalid response_format JSON: {response_format}")
             return None
@@ -95,16 +92,22 @@ class StructuredOutputGrammar(ABC):
     @property
     @abstractmethod
     def num_processed_tokens(self) -> int:
-        """已处理的 token 数量"""
+        """已被 FSM 合法接受的 token 数量（不含被拒绝的 token）"""
+        raise NotImplementedError
+
+    @property
+    @abstractmethod
+    def num_tried_tokens(self) -> int:
+        """在 replay buffer 中已尝试过的 token 数量（含被拒绝的），用作 replay buffer 游标"""
         raise NotImplementedError
 
     @abstractmethod
-    def accept_tokens(self, request_id: int, tokens: List[int]) -> bool:
+    def accept_tokens(self, state_key: int, tokens: List[int]) -> bool:
         """
         接受 token 并推进 FSM 状态
         
         Args:
-            request_id: 请求 ID（用于日志）
+            state_key: 当前运行态状态 key（用于日志）
             tokens: 要接受的 token 列表
             
         Returns:
@@ -154,49 +157,47 @@ class XgrammarGrammar(StructuredOutputGrammar):
         self.vocab_size = vocab_size
         self.ctx = ctx
         self._num_processed_tokens = 0
+        self._num_tried_tokens = 0
         self._is_terminated = False
     
     @property
     def num_processed_tokens(self) -> int:
         return self._num_processed_tokens
 
-    def accept_tokens(self, request_id: int, tokens: List[int]) -> bool:
+    @property
+    def num_tried_tokens(self) -> int:
+        return self._num_tried_tokens
+
+    def accept_tokens(self, state_key: int, tokens: List[int]) -> bool:
         """接受 token 并推进 FSM 状态"""
         if self._is_terminated:
-            # 已终止，不再接受 token
-            logger.debug(
-                f"[StructuredOutput|FSM] "
-                f"request_id={request_id}, already terminated, skipping tokens"
-            )
             return True
-        
+
         for token in tokens:
+            # 无论 accept/reject，先推进 replay 游标，保证 num_tried_tokens 始终对齐
+            # replay buffer 中的实际位置（含被 C++ 无条件存储的 rejected token）
+            self._num_tried_tokens += 1
             accepted = self.matcher.accept_token(token)
             if not accepted:
                 logger.warning(
-                    f"[StructuredOutput] Token {token} rejected for request {request_id}"
+                    f"[StructuredOutput] Token {token} rejected for state_key {state_key}"
+                )
+                logger.debug(
+                    "[StructuredOutput][Accept] layer=grammar state_key=%s reject_token=%s "
+                    "tried=%s accepted=%s (matcher rejected, replay cursor still advanced)",
+                    state_key,
+                    token,
+                    self._num_tried_tokens,
+                    self._num_processed_tokens,
                 )
                 return False
-            
+
             self._num_processed_tokens += 1
-            
-            # 检查是否到达接受状态
+
             matcher_terminated = self.matcher.is_terminated()
-            logger.debug(
-                f"[StructuredOutput|FSM|Debug] "
-                f"request_id={request_id}, "
-                f"token={token}, "
-                f"processed_tokens={self._num_processed_tokens}, "
-                f"matcher.is_terminated()={matcher_terminated}, "
-                f"_is_terminated={self._is_terminated}"
-            )
-            
+
             if matcher_terminated:
                 self._is_terminated = True
-                logger.debug(
-                    f"[StructuredOutput|FSM] "
-                    f"request_id={request_id} ✓ FSM terminated after {self._num_processed_tokens} tokens"
-                )
                 break
         
         return True
@@ -204,24 +205,11 @@ class XgrammarGrammar(StructuredOutputGrammar):
     def fill_bitmask(self, bitmask: np.ndarray, idx: int) -> None:
         """填充 bitmask"""
         if self._is_terminated:
-            logger.debug(
-                f"[StructuredOutput|FSM|Debug] "
-                f"fill_bitmask: idx={idx}, is_terminated=True, setting full mask"
-            )
             bitmask[idx, :] = -1
             return
-        
-        logger.debug(
-            f"[StructuredOutput|FSM|Debug] "
-            f"fill_bitmask: idx={idx}, is_terminated=False, calling fill_next_token_bitmask"
-        )
+
         self.matcher.fill_next_token_bitmask(bitmask, idx)
-    
+
     def is_terminated(self) -> bool:
         """检查是否终止"""
-        result = self._is_terminated
-        logger.debug(
-            f"[StructuredOutput|FSM|Debug] "
-            f"is_terminated() called, returning {result}"
-        )
-        return result
+        return self._is_terminated

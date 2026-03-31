@@ -4,12 +4,13 @@
 
 1. 确认系统
 
-   ```
+   ```bash
    cat /etc/os-release
    ```
 
    ubuntu系统显示结果：
-   ```
+
+   ```text
    PRETTY_NAME="Ubuntu 22.04 LTS"
    NAME="Ubuntu"
    VERSION_ID="22.04"
@@ -29,13 +30,13 @@
 
    - 切换可用源：
 
-   ```
+   ```bash
    sudo mv /etc/apt/sources.list.d/kubernetes.list /etc/apt/sources.list.d/kubernetes.list.disabled && sudo apt update
    ```
 
    - 成功显示：
 
-   ```
+   ```text
    Get:1 http://mirrors.tools.huawei.com/ubuntu-ports jammy InRelease [270 kB]
    Hit:2 http://mirrors.tools.huawei.com/ubuntu-ports jammy-updates InRelease
    Hit:3 http://mirrors.tools.huawei.com/ubuntu-ports jammy-backports InRelease
@@ -48,13 +49,13 @@
 
    - 安装docker：
 
-   ```
+   ```bash
    sudo apt install docker.io -y
    ```
 
    - 安装成功显示结果：
 
-   ```
+   ```text
    Reading package lists... Done
    Building dependency tree... Done
    Reading state information... Done
@@ -96,7 +97,7 @@
 
    - 查看升级docker app版本
 
-   ```
+   ```bash
    # 查看docker版本
    docker --version
    

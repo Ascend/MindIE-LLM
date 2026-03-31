@@ -22,8 +22,8 @@
 ## 使用样例
 
 - （推荐）搭配专家负载均衡
-    1.  请参见[冗余专家部署表生成](./expert_parallelism_load_balancer.md#冗余专家部署表生成)，生成专家部署表。
-    2.  在配置文件中修改如下参数。
+    1. 请参见[冗余专家部署表生成](./expert_parallelism_load_balancer.md#冗余专家部署表生成)，生成专家部署表。
+    2. 在配置文件中修改如下参数。
 
         ```json
                 "models": {
@@ -66,4 +66,3 @@
 
 1. 配置服务化参数。服务化的config.json文件路径的详细说明请参考[配置参数说明（服务化）](../user_manual/service_parameter_configuration.md)。具体参数配置请参见[使用样例](#使用样例)。
 2. 启动服务。具体请参考《MindIE Motor开发指南》中的“快速入门 \> [启动服务](https://gitcode.com/Ascend/MindIE-Motor/blob/dev/docs/zh/user_guide/quick_start.md)”章节。
-

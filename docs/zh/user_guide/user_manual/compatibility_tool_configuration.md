@@ -5,8 +5,9 @@
 将老版本配置更新为指定的新版本配置。支持往前三个版本的配置兼容。
 
 > [!NOTE]说明 
->-  不支持回退到低版本，不支持同版本更新配置，即target\_version必须大于源config.json的版本号。
->-  1.0.RC1中的“pipelineNumber“字段在后续版本中已删除，新增“modelInstanceNumber“字段代表模型实例个数，需要按照配置关系正确填写。
+>
+>- 不支持回退到低版本，不支持同版本更新配置，即target\_version必须大于源config.json的版本号。
+>- 1.0.RC1中的“pipelineNumber“字段在后续版本中已删除，新增“modelInstanceNumber“字段代表模型实例个数，需要按照配置关系正确填写。
 
 ## 命令介绍
 
@@ -20,16 +21,15 @@
 |--upgrade_info_path|必选|新老版本配置文件之间的差异信息，文件路径为：*{脚本所在文件夹}下的*upgrade_info.json|
 |--save_path|可选|老版本更新为新版本配置后，生成的新配置文件路径。如果未指定路径，默认路径为老版本的配置文件路径。|
 
-
 ## 操作步骤
 
-1.  进入\{mindie-service\_install\_path\}/scripts/utils目录。
+1. 进入\{mindie-service\_install\_path\}/scripts/utils目录。
 
     ```bash
     cd {mindie-service_install_path}/scripts/utils
     ```
 
-2.  转换版本配置。
+2. 转换版本配置。
 
     命令格式：
 

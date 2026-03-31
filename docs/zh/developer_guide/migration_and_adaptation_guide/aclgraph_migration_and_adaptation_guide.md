@@ -4,7 +4,7 @@
 
 完整的模型迁移流程包括以下步骤:
 
-```
+```text
 1. 核心交付件 (必需)
    ├─ Router (router_my_model.py)
    ├─ Config (config_my_model.py)
@@ -19,6 +19,7 @@
 ```
 
 > [!IMPORTANT]
+> 
 > - 如果模型需要支持 `/chat/completion` 接口、多轮对话或 ToolCall，需实现 `InputBuilder`
 > - 如果模型需要支持 ToolCall 能力，需实现 `ToolCallsProcessor`
 
@@ -28,7 +29,7 @@
 
 在 `mindie_llm/runtime/models/` 下创建以 `model_type` 命名的目录：
 
-```
+```text
 mindie_llm/runtime/models/my_model/
 ├── __init__.py                         # 模块初始化
 ├── router_my_model.py                  # Router (必需)
@@ -44,7 +45,6 @@ mindie_llm/runtime/models/my_model/
 > - 框架读取 `model_type` 字段时会统一转换成小写进行匹配，**文件夹名、文件名前缀需与 `config.json` 中的 `model_type` 字段对应**
 > - 文件名统一使用小写加下划线的格式（snake_case），如 `model_type = "my_model"` → 文件路径 `my_model/my_model.py`
 > - 类名使用大驼峰命名法（PascalCase），如 `MyModelRouter`、`MyModelConfig`
-
 > [!TIP]
 > 详细的匹配机制可参考 [mindie_llm/runtime/models/\_\_init\_\_.py](../../../../mindie_llm/runtime/models/__init__.py) 和 [mindie_llm/runtime/models/base/router.py](../../../../mindie_llm/runtime/models/base/router.py)。
 
@@ -59,6 +59,7 @@ Router 是模型迁移的入口，负责协调 Config、Model 和其他组件的
 `BaseRouter` 提供了以下核心功能：
 
 **自动加载**：
+
 - 从 `config.json` 自动识别 `model_type`
 - 动态导入对应的 Config、Model 类
 - 自动加载 HuggingFace tokenizer
@@ -66,12 +67,13 @@ Router 是模型迁移的入口，负责协调 Config、Model 和其他组件的
 **可扩展接口**：
 
 如果用户希望自定义一些行为，`BaseRouter` 提供了可扩展接口，例如：
+
 - `_get_input_builder()`：自定义 InputBuilder
 - `_get_tool_calls_parser()`：自定义工具调用解析器
 
 ### 2.2 Router 的工作流程
 
-```
+```text
 1. BaseRouter.__post_init__()
    └─ 从 config_dict 获取 model_type
 
@@ -97,6 +99,7 @@ Router 需要继承 `BaseRouter` 。
 > **必需接口**：`__init__` - 继承基类即可，无需特殊实现
 >
 > **可扩展接口**（举例）：
+> 
 > - `_get_input_builder()` - 返回自定义的 InputBuilder 实例
 > - `_get_tool_calls_parser()` - 返回工具调用解析器名称（支持 ToolsCall 时需要）
 
@@ -158,6 +161,7 @@ Config 需要继承 `HuggingFaceConfig`。
 > **必需接口**：`__init__` - 调用父类初始化，处理模型特有的配置项
 >
 > **可扩展接口**（举例）：
+> 
 > - `_create_rope_scaling()` - 自定义 RoPE 缩放配置，详细配置请参考 [RoPE 文档](../RoPEFactoryGuide.md)
 
 **示例**：
@@ -194,7 +198,7 @@ class MyModelConfig(HuggingFaceConfig):
 
 MindIE-LLM 的模型按照模型结构分模块实现，可以参考下方示例：
 
-```
+```text
 MyModelForCausalLM (顶层，包含 LM Head)
 ├── MyModelModel (基础模型，包含 Embedding + Layers + Norm)
 │   ├── VocabParallelEmbedding (词嵌入层)
@@ -224,7 +228,6 @@ MyModelForCausalLM (顶层，包含 LM Head)
 
 > [!NOTE]
 > 在 forward 方法中，可以调用 layer 模块的 forward 实现，也可以使用 torch 和 torch_npu 的接口。
-
 > [!TIP]
 > **Layer 相关模块请参考**：
 >
@@ -302,6 +305,7 @@ class MyModelForCausalLM(BaseModelForCausalLM):
 > **权重加载注意事项**：
 >
 > 模块的权重名称优先使用 `prefix` 字段定义，如果 `prefix` 字段没有定义，则直接使用模块的属性名进行匹配。
+> 
 > - 权重名称与属性名一致时，无需指定 `prefix`，如 `self.o_proj = RowParallelLinear(...)`
 > - 权重名称与属性名不一致时，需要指定 `prefix`，如 `qkv_proj` 对应 `q_proj, k_proj, v_proj`，此时 `prefix` 为列表：`prefix=[f"{prefix}.q_proj", f"{prefix}.k_proj", f"{prefix}.v_proj"]`
 >
@@ -348,6 +352,7 @@ class MyModelInputBuilder(InputBuilder):
 
 > [!NOTE]
 > **必需接口**：
+> 
 > - `__init__` - 初始化，定义工具调用的正则表达式
 > - `tool_call_start_token` - 工具调用起始标记
 > - `tool_call_end_token` - 工具调用结束标记
@@ -418,6 +423,7 @@ class ToolCallsProcessorMyModel(ToolCallsProcessorWithXml):
 - `QKVParallelLinear`: 多头和分组查询注意力机制的查询、键和值投影的并行线性层。当键值头数小于 world size 时，该类会正确复制键值头。
 
 > [!TIP]
+> 
 > - `MergedColumnParallelLinear` 支持量化方式不一致的场景，当多个并行线性层的量化方式不统一时，会变成一个包含多个 `ColumnParallelLinear` 模块的列表。
 > - 框架提供 `ParallelInfoManager` 单例，用于获取并行数与 rank，通信域使用懒加载机制创建。可以通过 `get_parallel_info_manager().get(ParallelType.ATTN_TP).group_size` 获取并行信息。
 
@@ -426,6 +432,7 @@ class ToolCallsProcessorMyModel(ToolCallsProcessorWithXml):
 ### 问题 2. MoE 模型如何配置专家并行?
 
 MindIE-LLM 自动处理 MoE 的专家并行：
+
 - 使用 `FusedMoE` 组件，框架会自动分配专家到不同设备
 - 通过 `assign_experts` 函数根据并行配置分配专家
 - 支持专家并行（EP）和混合并行策略

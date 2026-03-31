@@ -15,15 +15,15 @@
 ```json
 {
   "model.layers.0.self_attn.q_proj.weight": "W8A8_MIX",
-  "model.layers.0.self_attn.q_proj.bias": "FLOAT",				//optional
+  "model.layers.0.self_attn.q_proj.bias": "FLOAT",                //optional
   "model.layers.0.self_attn.q_proj.quant_bias": "W8A8_MIX",
   "model.layers.0.self_attn.q_proj.input_scale": "W8A8_MIX",
   //...
   "model.layers.0.mlp.down_proj.weight_offset": "W8A8_MIX",
   "model.layers.0.input_layernorm.weight": "FLOAT",
-  "model.layers.0.input_layernorm.bias": "FLOAT",				//optional
+  "model.layers.0.input_layernorm.bias": "FLOAT",                //optional
   "model.layers.0.post_attention_layernorm.weight": "FLOAT",
-  "model.layers.0.post_attention_layernorm.bias": "FLOAT",		//optional
+  "model.layers.0.post_attention_layernorm.bias": "FLOAT",        //optional
   //...
 }
 ```
@@ -32,19 +32,20 @@
 
 为了保证计算等价性，该算法的执行逻辑如下：
 
-1.  **Norm层引入**：在执行Norm操作时，将`norm_bias`加到权重中。
-2.  **Linear层抵消**：在随后的Linear层计算前，将对应的`norm_bias`减去。
+1. **Norm层引入**：在执行Norm操作时，将`norm_bias`加到权重中。
+2. **Linear层抵消**：在随后的Linear层计算前，将对应的`norm_bias`减去。
 
 在实际的模型权重中，`norm_bias`在Linear层的抵消张量，会根据量化场景的不同，以不同方式融合：
 
--   **Per-tensor场景**：直接融合进Linear层的量化偏置`quant_bias`中。
-    -   例如上文示例中的`model.layers.0.self_attn.q_proj.quant_bias`。
--   **Per-token场景**：体现为Linear层的普通偏置`bias`。
-    -   例如上文示例中的`model.layers.0.self_attn.q_proj.bias`。
+- **Per-tensor场景**：直接融合进Linear层的量化偏置`quant_bias`中。
+    - 例如上文示例中的`model.layers.0.self_attn.q_proj.quant_bias`。
+- **Per-token场景**：体现为Linear层的普通偏置`bias`。
+    - 例如上文示例中的`model.layers.0.self_attn.q_proj.bias`。
 
 > [!NOTE]说明
-> *   **若原Linear层已有Bias**（如Qwen2系列）：直接融合进原有的Bias中。
-> *   **若原Linear层无Bias**（如Qwen3-32B）：创建一个新的Bias层来存储该值。
+>
+> * **若原Linear层已有Bias**（如Qwen2系列）：直接融合进原有的Bias中。
+> * **若原Linear层无Bias**（如Qwen3-32B）：创建一个新的Bias层来存储该值。
 
 **性能优化建议**：
 在PDMIX场景（P阶段使用Per-token量化）下，离群值抑制的bias对量化精度的影响通常较小。为提升性能，可考虑在保证等价性的前提下，在Norm层和Linear层同时移除Bias，从而节省一次Add计算开销。

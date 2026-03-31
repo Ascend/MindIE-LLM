@@ -14,7 +14,6 @@ import unittest
 from unittest.mock import MagicMock, patch
 
 from mindie_llm.text_generator.adapter import get_generator_backend  # noqa: E402
-from mindie_llm.text_generator.adapter.generator_ms import GeneratorMS  # noqa: E402
 from mindie_llm.text_generator.adapter.generator_torch import GeneratorTorch  # noqa: E402
 
 
@@ -25,13 +24,6 @@ class TestAdapter(unittest.TestCase):
         backend_type = 'atb'
         generator_backend = get_generator_backend({'backend_type': backend_type})
         self.assertIsInstance(generator_backend, GeneratorTorch)
-
-    @patch('mindie_llm.text_generator.adapter.generator_ms.GeneratorMS',
-           return_value=MagicMock(GeneratorMS))
-    def test_get_generator_ms(self, mock_generator_ms):
-        backend_type = 'ms'
-        generator_backend = get_generator_backend({'backend_type': backend_type})
-        self.assertIsInstance(generator_backend, GeneratorMS)
 
     def test_get_generator_backend_exception(self):
         backend_type = 'xxx'

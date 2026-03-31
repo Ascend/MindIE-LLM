@@ -5,6 +5,7 @@
 **MindIE LLM**（Mind Inference Engine for Large Language Models）作为 MindIE 系列推理组件中的重要一员，提供基于昇腾（Ascend）亲和的调度、推理优化能力，支持 Continuous Batching、PagedAttention、FlashDecoding 等**推理加速特性**，满足多种高性能推理场景需求。
 
 ## 架构介绍
+
 ![MindIE LLM架构图](./../../figures/architecture.png)
 
 - **Server**：推理引擎服务层，提供模型推理的服务化能力。支持 OpenAI/vLLM/Triton 等主流协协议，由Endpoint进行协议封装转换，提供对外 RESTful 接口。
@@ -31,7 +32,7 @@
 
 ## 目录结构
 
-```
+```text
 ├── mindie_llm                                     # 推理引擎Python核心代码
 │   ├── text_generator                             # 核心推理引擎
 │   │   ├── plugins                                # 高阶特性插件

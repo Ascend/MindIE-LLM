@@ -22,10 +22,10 @@ import psutil
 import requests
 from PIL import Image
 from urllib3.util import parse_url
+
+from .tokenizer_log import logger
 from . import file_utils
 
-logger = file_utils.get_tokenizer_logger()
-logger.info("tokenizer start.")
 
 _CHUNK_SIZE = 1024 * 1024
 _TOKENIZER_ENCODE_TIMEOUT = "TOKENIZER_ENCODE_TIMEOUT"

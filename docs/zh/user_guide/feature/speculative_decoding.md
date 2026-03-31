@@ -8,9 +8,9 @@
 
 为了发挥并行解码的优势，需满足如下前提：
 
-1.  当前的并发数不高，属于内存带宽受限、计算资源有冗余的情况。
-2.  有较长的输入作为猜测token的初步来源。
-3.  并行解码主要通过减少推理步数获取增益，因此需要一定长度的输出才有性能提升效果。
+1. 当前的并发数不高，属于内存带宽受限、计算资源有冗余的情况。
+2. 有较长的输入作为猜测token的初步来源。
+3. 并行解码主要通过减少推理步数获取增益，因此需要一定长度的输出才有性能提升效果。
 
 目前支持两种并行解码算法，差异主要在于候选token生成的方式不同。如[表1](#table1)所示。
 
@@ -21,18 +21,17 @@
 |memory_decoding|利用trie tree（前缀树）缓存模型历史的输入输出，从中获取候选token。|代码生成或检索类场景。|
 |lookahead|基于Jacobi迭代并辅以Prompt以及输出结果生成候选token。|文本生成、对话系统及多样化查询回答。|
 
-
 ## 限制与约束
 
--  Atlas 800I A2 推理服务器和Atlas 300I Duo 推理卡支持此特性。
--  LLaMA3系列、Qwen2系列、Qwen2.5系列、Qwen3-14B和Qwen3-32B模型支持对接此特性。
--  并行解码支持的量化特性：W8A8量化与稀疏量化，其他量化特性暂不支持。
--  该特性不能和PD分离、Multi-LoRA、SplitFuse、长序列、MTP、异步调度以及多机推理特性同时使用。
--  该特性暂不支持n、best\_of、use\_beam\_search、logprobs、top\_logprobs等与多序列推理相关的后处理参数。
--  并行解码场景暂不支持流式推理。
--  并行解码惩罚类后处理仅支持重复惩罚。
--  并行解码场景暂不支持开启健康检查HealthCheck。
--  lookahead和memory\_decoding算法不可同时使能。
+- Atlas 800I A2 推理服务器和Atlas 300I Duo 推理卡支持此特性。
+- LLaMA3系列、Qwen2系列、Qwen2.5系列、Qwen3-14B和Qwen3-32B模型支持对接此特性。
+- 并行解码支持的量化特性：W8A8量化与稀疏量化，其他量化特性暂不支持。
+- 该特性不能和PD分离、Multi-LoRA、SplitFuse、长序列、MTP、异步调度以及多机推理特性同时使用。
+- 该特性暂不支持n、best\_of、use\_beam\_search、logprobs、top\_logprobs等与多序列推理相关的后处理参数。
+- 并行解码场景暂不支持流式推理。
+- 并行解码惩罚类后处理仅支持重复惩罚。
+- 并行解码场景暂不支持开启健康检查HealthCheck。
+- lookahead和memory\_decoding算法不可同时使能。
 
 ## 参数说明
 
@@ -44,13 +43,11 @@
 |--|--|--|--|
 |plugin_params|std::string|plugin_type：memory_decoding<br>decoding_length：[1, 16]<br>dynamic_algo：true或false|<ul><li>plugin_type配置memory_decoding，表示当前选择memory_decoding并行解码。</li><li>decoding_length为memory_decoding算法中的参数，表示候选token的最大长度，默认值16。</li><li>dynamic_algo为可选参数，配为true时表示开启动态自适应候选长度功能，默认值False。</li><li>不需要生效任何插件功能时，请删除该配置项字段。</li><li>配置示例：{\"plugin_type\":\"memory_decoding\",\"decoding_length\": 16,\"dynamic_algo\": true}或{\"plugin_type\":\"memory_decoding\",\"decoding_length\": 16}</li></ul>|
 
-
 **表 3**  memory\_decoding补充参数2：**ModelDeployConfig的参数**
 
 |配置项|取值类型|取值范围|配置说明|
 |--|--|--|--|
 |speculationGamma|uint32_t|与plugin参数配置有关|memory_decoding时，该值配置应大于等于decoding_length。<br>建议值：等于decoding_length。|
-
 
 **表 4**  memory\_decoding补充参数3：**ScheduleConfig的参数**
 
@@ -58,13 +55,11 @@
 |--|--|--|--|
 |maxIterTimes|uint32_t|与plugin参数配置有关|如果dynamic_algo为true，该值需大于等于期望输出的长度+speculationGamma的值。<br>例：期望最大输出长度为512，则该值需要配置>=512+speculationGamma。|
 
-
 **表 5**  lookahead补充参数1：**ModelDeployConfig中的ModelConfig参数**
 
 |配置项|取值类型|取值范围|配置说明|
 |--|--|--|--|
 |plugin_params|std::string|plugin_type：la<br>level ：[3, 16]<br>window ：[1, 16]<br>guess_set_size ：[1, 16]|plugin_type配置la，表示当前选择lookahead并行解码。<br>level/window/guess_set_size为lookahead算法中的N/W/G参数，默认值为4/5/5，且每个参数可配置的上限不超过16。配置示例："{\"plugin_type\":\"la\",\"level\": 4,\"window\": 5,\"guess_set_size\": 5}"|
-
 
 **表 6**  lookahead补充参数2：**ModelDeployConfig的参数**  <a id="table6"></a>
 
@@ -72,12 +67,11 @@
 |--|--|--|--|
 |speculationGamma|uint32_t|与plugin参数配置有关|lookahead中，配置值应大于等于(N-1)*(W+G)<br>建议值：等于(N-1)*(W+G)。|
 
-
 ## 执行推理<a name="section1788515529541"></a>
 
 1. 打开Server的config.json文件。
 
-    ```
+    ```bash
     cd {MindIE安装目录}/latest/mindie-service/
     vi conf/config.json
     ```
@@ -139,4 +133,3 @@
     ```bash
     ./bin/mindieservice_daemon
     ```
-

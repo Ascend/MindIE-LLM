@@ -76,9 +76,7 @@ bool SingleLLMDecodeReqHandler::GetContextJsonBody(InferParamSPtr inputParam, Re
         reqTokens.emplace_back(grpcContext_->GetDecodeParams().tokens()[i]);
     }
     tokenNum = grpcContext_->GetDecodeParams().firsttoken_size();
-    for (int64_t i = 0; i < tokenNum; i++) {
-        respTokens.emplace_back(grpcContext_->GetDecodeParams().firsttoken()[i]);
-    }
+    FillRespTokensAndReplayIds(request, respTokens);
     tokenNum = grpcContext_->GetDecodeParams().outputnames_size();
     for (int64_t i = 0; i < tokenNum; i++) {
         inputParam->outputNames.emplace_back(grpcContext_->GetDecodeParams().outputnames()[i]);
@@ -155,10 +153,14 @@ void SingleLLMDecodeReqHandler::GetContextSamplingParamsNext(InferParamSPtr inpu
         request->enableThinking = samplingParams.enablethinking().value();
     }
     if (samplingParams.thinkingbudget().has_value()) {
+        inputParam->thinkingBudget = samplingParams.thinkingbudget().value();
         request->thinkingBudget = samplingParams.thinkingbudget().value();
     }
     if (samplingParams.isthinking().has_value()) {
         request->isThinking = samplingParams.isthinking().value();
+    }
+    if (samplingParams.has_responseformat()) {
+        request->responseFormat = samplingParams.responseformat();
     }
 }
 
@@ -221,6 +223,22 @@ void SingleLLMDecodeReqHandler::GetContextMetrics()
     metrics.prefixCachedTokenNums.insert(metrics.prefixCachedTokenNums.end(), grpcPrefixCachedTokenNums.begin(),
         grpcPrefixCachedTokenNums.end());
     metrics.callbackIndex = grpcContext_->GetDecodeParams().metrics().callbackindex();
+}
+
+void SingleLLMDecodeReqHandler::FillRespTokensAndReplayIds(RequestSPtr request, std::vector<int64_t>& respTokens)
+{
+    const int64_t tokenNum = grpcContext_->GetDecodeParams().firsttoken_size();
+    const int64_t prefillReplayTokenNum = grpcContext_->GetDecodeParams().prefilltokennum();
+    const int64_t replayStartIdx = std::max<int64_t>(0, tokenNum - prefillReplayTokenNum);
+    request->prefillReplayTokenIds.clear();
+    request->prefillReplayTokenIds.reserve(prefillReplayTokenNum > 0 ? prefillReplayTokenNum : 0);
+    for (int64_t i = 0; i < tokenNum; i++) {
+        const int64_t token = grpcContext_->GetDecodeParams().firsttoken()[i];
+        respTokens.emplace_back(token);
+        if (i >= replayStartIdx) {
+            request->prefillReplayTokenIds.emplace_back(token);
+        }
+    }
 }
 
 bool SingleLLMDecodeReqHandler::GetContextRequestId(std::string& requestId)

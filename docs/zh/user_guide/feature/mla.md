@@ -14,4 +14,3 @@ MLA（Multi-head Latent Attention），利用低秩键值联合压缩来消除�
 cd ${ATB_SPEED_HOME_PATH}
 bash examples/models/deepseekv2/run_pa.sh {模型权重路径}
 ```
-

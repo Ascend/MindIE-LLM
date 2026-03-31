@@ -55,10 +55,6 @@ class TestTensorBackend(unittest.TestCase):
         ENV.framework_backend = BackendType.ATB
         self.use_operations()
 
-    def test_mindspore(self):
-        ENV.framework_backend = BackendType.MS
-        self.use_operations()
-
 
 if __name__ == '__main__':
     unittest.main()

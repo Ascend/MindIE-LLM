@@ -14,6 +14,7 @@ import os
 import struct
 import time
 import mmap
+import pickle
 from typing import Optional
 import posix_ipc
 
@@ -64,6 +65,22 @@ class SharedMemoryManager:
         if self._data_sem:
             self._data_sem.close()
 
+    @staticmethod
+    def dict_to_bytes(dict_data):
+        try:
+            return pickle.dumps(dict_data)
+        except Exception as e:
+            logger.error(f"[layerwiseDisaggregated] dict_to_bytes error is {e}")
+            return b""
+
+    @staticmethod
+    def bytes_to_dict(byte_data):
+        try:
+            return pickle.loads(byte_data)
+        except Exception as e:
+            logger.error(f"[layerwiseDisaggregated] bytes_to_dict error is {e}")
+            return {}
+
     # init interface
     def initialize(self, is_producer, consumer_num, share_mem_type='i'):
         self._initialize(is_producer, consumer_num, share_mem_type)
@@ -84,6 +101,40 @@ class SharedMemoryManager:
             except Exception:
                 time.sleep(0.1)
         raise TimeoutError(f"Failed to initialize SharedMemoryManager after {max_retries} retries")
+
+    # 调用者保证信号量
+    def notify_all_consumer_can_read(self):
+        # write can_read
+        can_read = [1] * self._consumer_num
+        can_read_offset = 0
+        for item in can_read:
+            if isinstance(item, int):
+                packed_item = struct.pack(self._share_mem_type, item)
+            else:
+                raise ValueError("Unsupported data type in can_read")
+
+            self._ptr.seek(can_read_offset)
+            can_read_offset += self._ptr.write(packed_item)
+
+    # 调用者保证信号量
+    def consumer_clear_can_read_flag(self, consumer_id):
+        can_read_offset = self._mem_type_size * (consumer_id - 1)
+        self._ptr.seek(can_read_offset)
+        can_read = struct.pack(self._share_mem_type, 0)
+        self._ptr.write(can_read)
+
+    # 调用者保证信号量
+    def consumer_check_is_can_read(self, consumer_id) -> bool:
+        can_read_offset = self._mem_type_size * (consumer_id - 1)
+        self._ptr.seek(can_read_offset)
+        item = self._ptr.read(self._mem_type_size)
+        can_read = struct.unpack(self._share_mem_type, item)[0]
+        logger.info(
+            f"[layerwiseDisaggregated] sem value is {self._data_sem.value} id: {consumer_id} can_read: {can_read}")
+        if can_read == 0:
+            return False
+        else:
+            return True
 
     # 共享内存暂时规划方式: consumer_num * size(can_read) + size(data) + data
     def write_list_memory(self, data_list: list) -> None:
@@ -124,17 +175,7 @@ class SharedMemoryManager:
             for _ in range(self._consumer_num):
                 self._data_sem.release()
         finally:
-            # write can_read
-            can_read = [1] * self._consumer_num
-            can_read_offset = 0
-            for item in can_read:
-                if isinstance(item, int):
-                    packed_item = struct.pack(SHARED_MEM_TYPE, item)
-                else:
-                    raise ValueError("Unsupported data type in can_read")
-
-                self._ptr.seek(can_read_offset)
-                can_read_offset += self._ptr.write(packed_item)
+            self.notify_all_consumer_can_read()
             self._sem.release()
 
     # consumer_id is range from 1 to N, the producer id is 0.
@@ -144,13 +185,7 @@ class SharedMemoryManager:
             return None
 
         self._sem.acquire()
-        can_read_offset = self._mem_type_size * (consumer_id - 1)
-        self._ptr.seek(can_read_offset)
-        item = self._ptr.read(self._mem_type_size)
-        can_read = struct.unpack(SHARED_MEM_TYPE, item)[0]
-        logger.info(
-            f"[layerwiseDisaggregated] sem value is {self._data_sem.value} id: {consumer_id} can_read: {can_read}")
-        if can_read == 0:
+        if not self.consumer_check_is_can_read(consumer_id):
             self._sem.release()
             return None
 
@@ -176,12 +211,70 @@ class SharedMemoryManager:
                 raise ValueError("Unknown data type in shared memory") from e
         logger.info(f"[layerwiseDisaggregated] read complete: {data_list}")
 
-        can_read_offset = self._mem_type_size * (consumer_id - 1)
-        self._ptr.seek(can_read_offset)
-        can_read = struct.pack(SHARED_MEM_TYPE, 0)
-        self._ptr.write(can_read)
+        self.consumer_clear_can_read_flag(consumer_id)
         self._sem.release()
         return data_list
+
+    # 共享内存暂时规划方式: consumer_num * size(can_read) + size(data) + data
+    def write_dict_memory(self, data_dict: dict) -> None:
+        if not self._is_producer:
+            logger.error("[layerwiseDisaggregated] is not producer, can't write mem")
+            return
+
+        logger.info(f"[layerwiseDisaggregated] write dict: {data_dict}")
+
+        self._sem.acquire()
+        try:
+            # write data size
+            data_size_offset = self._mem_type_size * self._consumer_num
+            self._ptr.seek(data_size_offset)
+            data_bytes = self.dict_to_bytes(data_dict)
+            data_len = struct.pack(self._share_mem_type, len(data_bytes))
+            self._ptr.write(data_len)
+
+            # write data
+            data_offset = data_size_offset + self._mem_type_size
+            self._ptr.seek(data_offset)
+            self._ptr.write(data_bytes)
+
+            logger.info(f"[layerwiseDisaggregated] write complete: {data_dict}")
+            self._ptr.flush()
+
+            # release sem
+            for _ in range(self._consumer_num):
+                self._data_sem.release()
+        finally:
+            self.notify_all_consumer_can_read()
+            self._sem.release()
+
+    # consumer_id is range from 1 to N, the producer id is 0.
+    def read_dict_memory(self, consumer_id) -> Optional[dict]:
+        if consumer_id < 1 or consumer_id > self._consumer_num:
+            logger.error(f"[layerwiseDisaggregated] consumer_id: {consumer_id} out of range:[1, {self._consumer_num}]")
+            return None
+
+        self._sem.acquire()
+        if not self.consumer_check_is_can_read(consumer_id):
+            self._sem.release()
+            return None
+
+        self._data_sem.acquire()
+        logger.info(f"[layerwiseDisaggregated] now data sem value is {self._data_sem.value} id: {consumer_id}")
+
+        data_size_offset = self._mem_type_size * (self._consumer_num)
+        self._ptr.seek(data_size_offset)
+        packed_len = self._ptr.read(self._mem_type_size)
+        data_len = struct.unpack(self._share_mem_type, packed_len)[0]
+
+        data_offset = data_size_offset + self._mem_type_size
+        self._ptr.seek(data_offset)
+        data_bytes = self._ptr.read(data_len)
+        data_dict = self.bytes_to_dict(data_bytes)
+        logger.info(f"[layerwiseDisaggregated] read complete: {data_dict}")
+
+        self.consumer_clear_can_read_flag(consumer_id)
+        self._sem.release()
+        return data_dict
 
     def _initialize_mem_path(self):
         try:

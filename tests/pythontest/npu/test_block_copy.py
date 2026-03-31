@@ -35,13 +35,6 @@ class TestBlockCopy(unittest.TestCase):
             k_cache = self.to_tensor(torch.randn(num_block, block_size, num_head, head_size).to(torch.bfloat16))
             v_cache = self.to_tensor(torch.randn(num_block, block_size, num_head, head_size).to(torch.bfloat16))
             self.kv_cache = [(k_cache, v_cache) for _ in range(num_layer)]
-        elif self.backend_type == BackendType.MS:
-            import mindspore as ms
-
-            def to_tensor_ms(data_):
-                return ms.Tensor(data_) if data_.size > 0 else None
-
-            self.to_tensor = to_tensor_ms
         else:
             raise ValueError('No such backend type.')
         self.block_copy_ops = BlockCopy('atb', self.kv_cache, self.to_tensor)

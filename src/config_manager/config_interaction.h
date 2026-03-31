@@ -37,6 +37,11 @@ public:
     static bool CheckPluginEnabled(const std::vector<ModelDeployConfig> &modelDeployConfigs);
 
     /**
+     * 检查 plugin_params 中是否启用 mtp 插件（不修改 serverConfig）
+     */
+    static bool CheckMtpEnabled(const std::vector<ModelDeployConfig> &modelDeployConfigs);
+
+    /**
      * 检查各模型的config.json中model_type是否包含deepseek前缀
      */
     static bool CheckModelTypeDeepseek(const std::vector<ModelDeployConfig> &modelDeployConfigs);
@@ -53,6 +58,9 @@ public:
     static bool UpdateDeepseekEnabledStatus(const std::vector<ModelDeployConfig> &modelDeployConfigs,
         ServerConfigManager &serverConfigManager);
 
+    static bool UpdateMtpEnabledStatus(const std::vector<ModelDeployConfig> &modelDeployConfigs,
+        ServerConfigManager &serverConfigManager);
+
 private:
     /**
      * 检查插件参数中是否包含指定插件
@@ -60,6 +68,8 @@ private:
      * @return 是否包含插件
      */
     static bool HasPluginEnabled(const std::string &pluginParams);
+
+    static bool HasMtpInPluginParams(const std::string &pluginParams);
 
     // 不支持的插件类型
     static const std::vector<std::string> UNSUPPORTED_PLUGINS;

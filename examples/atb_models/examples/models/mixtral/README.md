@@ -4,6 +4,7 @@
 - 此代码仓中实现了一套基于 NPU 硬件的 Mixtral-MoE 模型。配合加速库使用，旨在 NPU 上获得极致的推理性能。
 
 # 特性矩阵
+
 - 矩此阵罗列了各Mixtral模型支持的特性
 
 | 模型及参数量 | 800I A2 Tensor Parallelism | 300I DUO Tensor Parallelism | FP16 | BF16 | Flash Attention | Paged Attention | W8A8动态量化 | W8A16量化  | KV cache量化 | 稀疏量化 | MindIE Service | TGI | 长序列   |
@@ -38,7 +39,8 @@
 - W8A8 Dynamic量化权重请使用以下指令生成
 
   - 执行量化脚本
-    ```
+
+    ```bash
     # 指定当前机器上可用的逻辑NPU核心
     export ASCEND_RT_VISIBLE_DEVICES=0,1,2,3,4,5,6,7
     cd ${llm_path}
@@ -47,6 +49,7 @@
     --save_directory {W8A8量化权重路径}
     (--trust_remote_code{是否外部下载})
     ```
+
     - 注意：`model_path`和`save_directory`请勿使用同一个文件夹，避免浮点权重和量化权重混淆
 
 - 从浮点权重路径下复制一下文件到量化权重路径
@@ -57,9 +60,9 @@
     - tokenizer.model
     - tokenizer_config.json
 
-
 - 修改量化权重的 config.json 文件 加入quantize
-    ```
+
+    ```json
     "quantize": "w8a8_dynamic"
     ```
 
@@ -77,9 +80,11 @@
 
 - 运行启动脚本（Mixtral_8x7B transformers 版本需求：4.36.0.dev0 | Mixtral_8x22B transformers 版本需求：4.39.0）
   - 在\${llm_path}目录下执行以下指令
+
     ```shell
     bash ${script_path}/run_pa.sh ${weight_path} -trust_remote_code
     ```
+
   - trust_remote_code为可选参数代表是否信任本地的可执行文件：默认不执行。传入此参数，则信任本地可执行文件。
 - 启动脚本中可设置自定义问题，具体在 input_text 后面修改即可 (默认问题为"Who is the CEO of Google?")
 - 启动脚本中可设置自定义输出长度，具体在 max_output_length 后面修改即可（默认长度为 10）
@@ -96,6 +101,7 @@
     - 目的是为了避免同一台机器同时运行多个多卡模型时出现通信冲突
     - 设置时端口建议范围为：20000-20050
   - 以下环境变量与性能和内存优化相关，通常情况下无需修改
+
     ```shell
     export INF_NAN_MODE_ENABLE=0
     export ATB_OPERATION_EXECUTE_ASYNC=1
@@ -109,6 +115,7 @@
 
 - 参考[此 README 文件](../../../tests/modeltest/README.md)
   - 示例 
+
     ```shell
     cd ${llm_path}/tests/modeltest
     export ASCEND_RT_VISIBLE_DEVICES=0,1,2,3,4,5,6,7
@@ -122,6 +129,7 @@
 
 - 参考[此 README 文件](../../../tests/modeltest/README.md)
   - 示例
+
     ```shell
     cd ${llm_path}/tests/modeltest
     export ASCEND_RT_VISIBLE_DEVICES=0,1,2,3,4,5,6,7

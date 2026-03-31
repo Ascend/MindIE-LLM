@@ -24,7 +24,7 @@
 
 权重下载链接：
 
-* bloom-7b1: https://huggingface.co/bigscience/bloom-7b1/tree/main
+* bloom-7b1: <https://huggingface.co/bigscience/bloom-7b1/tree/main>
 
 > 下载权重时无需下载 `pytorch_model.bin.index.json` 以及 `.bin` 文件。
 

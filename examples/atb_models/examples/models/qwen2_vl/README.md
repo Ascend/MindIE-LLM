@@ -32,6 +32,7 @@
 | llm_path   | 模型仓路径，若使用模型仓安装包，则该路径为安装包解压后的路径；若使用源码编译，则路径为 `MindIE-LLM/examples/atb_models`; 若使用镜像运行，则路径为 `/usr/local/Ascend/atb-models`。|
 
 ## 快速上手
+
 ### 权重下载
 
 - [Qwen2-VL-2B-Instruct](https://modelscope.cn/models/Qwen/Qwen2-VL-2B-Instruct/files)
@@ -50,9 +51,11 @@
 
 - Toolkit, MindIE/ATB, ATB-SPEED等，参考[此README文件](../../../README.md)，镜像包中一般已默认安装。
 - 安装Python其他第三方库依赖，参考[requirements_qwen2_vl.txt](../../../requirements/models/requirements_qwen2_vl.txt)，注意 `transformers == 4.49.0` 
+
   ```shell
   pip install -r ${llm_path}/requirements/models/requirements_qwen2_vl.txt
   ```
+
 ### 调试建议
 
 - **遇到未知错误时的日志调试建议**  
@@ -68,6 +71,7 @@
   启用该环境变量后，系统日志将输出至终端（标准输出），并同步保存在'/root/mindie'目录下，方便后续定位和分析问题
 
 ### 纯模型推理
+
 - 必要入参说明
     - `--model_path` : 本地权重路径，必须输入
     - `--input_image` : 图片或者视频的本地文件路径
@@ -79,20 +83,27 @@
     - `--shm_name_save_path` : 共享内存的保存路径，设置为能访问到的txt文件即可
     - 其他支持的推理参数请参考 `${llm_path}/examples/models/qwen2_vl/run_pa.py` 文件
 - 如需修改TP卡数，修改 `${llm_path}/examples/models/qwen2_vl/run_pa.sh` 文件中环境变 `ASCEND_RT_VISIBLE_DEVICES` 为指定卡号
+
     ```shell
     export ASCEND_RT_VISIBLE_DEVICES=0,1,2,3
     ```
+
 - 打开模型日志
+
   ```shell
   export MINDIE_LOG_TO_STDOUT=1
   export MINDIE_LOG_TO_FILE=1
   export MINDIE_LOG_LEVEL=info
   ```
+
 - 执行启动脚本 `${llm_path}/examples/models/qwen2_vl/run_pa.sh`
+
     ```shell
     bash ${llm_path}/examples/models/qwen2_vl/run_pa.sh --model_path MODEL_PATH --input_image INPUT_IMAGE
     ```
+
     或
+
     ```shell
     bash ${llm_path}/examples/models/qwen2_vl/run_pa.sh --model_path MODEL_PATH --dataset_path DATASET_PATH
     ```
@@ -108,13 +119,16 @@
     - 目的是为了避免同一台机器同时运行多个多卡模型时出现通信冲突
     - 设置时端口建议范围为：20000-20050
   - 以下环境变量与性能和内存优化相关，通常情况下无需修改
+
     ```shell
     export INF_NAN_MODE_ENABLE=0
     export ATB_OPERATION_EXECUTE_ASYNC=1
     export TASK_QUEUE_ENABLE=1
     export ATB_CONVERT_NCHW_TO_ND=1
     ```
+
 ### 服务化推理
+
 - 以容器化部署 `MindIE` 为例，打开 `MindIE-Service` 配置文件 `config.json`
 
   ```shell
@@ -124,6 +138,7 @@
 - 修改`MindIE-Service`配置文件`config.json`，以`Qwen2-VL-7B-Instruct`，`Qwen2-VL-72B-Instruct`为例，在800I A2环境下，推荐使用以下配置，请自行修改`modelWeightPath`为实际权重路径：
 
   - **Qwen2-VL-7B-Instruct**
+
   ```json
   {
       "ServerConfig": {
@@ -156,6 +171,7 @@
   ```
 
   - **Qwen2-VL-72B-Instruct**
+
   ```json
   {
       "ServerConfig": {
@@ -186,7 +202,9 @@
       }
   }
   ```
+
   - **QvQ**
+
   ```json
   {
       "ServerConfig": {
@@ -221,12 +239,15 @@
 
 - 部署服务化
   - 在部署服务化的终端设置模型日志开启环境变量
+
     ```shell
     export MINDIE_LOG_TO_STDOUT=1
     export MINDIE_LOG_TO_FILE=1
     export MINDIE_LOG_LEVEL=info
     ```
+
   - 部署
+
     ```shell
     cd /usr/local/Ascend/mindie/latest/mindie-service/bin
     ./mindieservice_daemon
@@ -235,6 +256,7 @@
 - 新建一个Docker终端会话，发送curl请求完成推理，以OpenAI接口与vLLM接口为例
 
   - **OpenAI接口**
+
   ```shell
   curl http://localhost:${端口号，与起服务化时config.json中的'port'保持一致}/v1/chat/completions -d '{
     "model": "qwen2_vl",
@@ -254,6 +276,7 @@
   ```
 
   - **vLLM接口**
+
   ```shell
   curl localhost:${端口号，与起服务化时config.json中的'port'保持一致}/generate -d '{
       "prompt": [
@@ -271,12 +294,14 @@
   ```
 
 ## 精度测试（纯模型推理场景）
+
 ### TextVQA
 
 - 数据准备
     - 数据集下载 [textvqa](https://huggingface.co/datasets/maoxx241/textvqa_subset)
     - 保证 `textvqa_val.jsonl` 和 `textvqa_val_annotations.json` 在同一目录下
     - 将 `textvqa_val.jsonl` 文件中所有 `image` 属性的值改为相应图片的绝对路径
+
   ```json
   ...
   {
@@ -287,47 +312,65 @@
   }
   ...
   ```
+
 - 设置环境变量
+
   ```shell
   source /usr/local/Ascend/cann/set_env.sh
   source /usr/local/Ascend/nnal/atb/set_env.sh 
   source ${llm_path}/set_env.sh 
   ```
+
 - 进入以下目录 `${llm_path}/tests/modeltest`
+
   ```shell
   cd ${llm_path}/tests/modeltest
   ```
+
 - 安装`modeltest`及其三方依赖
+
   ```shell
   pip install --upgrade pip
   pip install -e .
   pip install tabulate termcolor 
   ```
+
 - 将 `modeltest/config/model/qwen2_vl.yaml` 中的 `model_path` 的值修改为模型权重的绝对路径
+
   ```yaml
   model_path: /data_mm/weights/Qwen2-VL-7B-Instruct
   ```
+
 - 将 `modeltest/config/task/textvqa.yaml` 中的 `local_dataset_path` 修改为textvqa_val.jsonl文件的绝对路径
+
   ```yaml
   local_dataset_path: /data_mm/datasets/textvqa_val/textvqa_val.jsonl
   ```
+
 - 设置可见卡数，修改 `scripts/mm_run.sh` 文件中的 `ASCEND_RT_VISIBLE_DEVICES` 。依需求设置单卡或多卡可见。
+
   ```shell
   export ASCEND_RT_VISIBLE_DEVICES=0,1
   ```
+
 - 运行测试命令
+
   ```shell
   bash scripts/mm_run.sh textvqa qwen2_vl
   ```
+
 - 测试结果保存于以下路径。其下的 `results/..(一系列文件夹嵌套)/\*\_result.csv` 中存放着modeltest的测试结果；`debug/..(一系列文件夹嵌套)/output\_\*.txt` 中存储着每一条数据的运行结果。
+
   ```shell
   output/$DATE/modeltest/$MODEL_NAME/precision_result/
   ```
+
 ### VideoBench
 
 - 数据准备
   - 数据集下载 [Eval_QA](https://huggingface.co/datasets/maoxx241/videobench_subset) && [Video-Bench](https://huggingface.co/datasets/LanguageBind/Video-Bench/tree/main)
   - 将`Eval_QA/`目录下的各json文件中的`vid_path`属性的值改为相应图片的绝对路径
+
   ```json
   ...
   "v_C7yd6yEkxXE_4": {
@@ -335,27 +378,37 @@
   }
   ...
   ```
+
 - 设置环境变量
+
   ```shell
   source /usr/local/Ascend/cann/set_env.sh
   source /usr/local/Ascend/nnal/atb/set_env.sh 
   source ${llm_path}/set_env.sh 
   ```
+
 - 进入以下目录 `${llm_path}/tests/modeltest`
+
   ```shell
   cd ${llm_path}/tests/modeltest
   ```
+
 - 安装`modeltest`及其三方依赖
+
   ```shell
   pip install --upgrade pip
   pip install -e .
   pip install tabulate termcolor 
   ```
+
 - 将 `modeltest/config/model/qwen2_vl.yaml` 中的 `model_path` 的值修改为模型权重的绝对路径
+
   ```yaml
   model_path: /data_mm/weights/Qwen2-VL-7B-Instruct
   ```
+
 - 将 `modeltest/config/task/videobench.yaml` 中的 `local_dataset_path` 修改为 `Video-Bench-main/Eval_QA` 文件夹的绝对路径，调整输入长度`requested_max_input_length`，查看 `EVAL_QA` 文件夹下的json文件，将 `subject_mapping` 中不涉及测试的视频子数据集注释掉（可自行调整），样例如下：
+
   ```yaml
   local_dataset_path: /data_mm/datasets/VideoBench/Video-Bench-main/Eval_QA
   ...
@@ -367,15 +420,21 @@
   Driving-decision-making:
     name: Driving-decision-making
   ```
+
 - 设置可见卡数，修改 `scripts/mm_run.sh` 文件中的 `ASCEND_RT_VISIBLE_DEVICES` 。依需求设置单卡或多卡可见。
+
   ```shell
   export ASCEND_RT_VISIBLE_DEVICES=0,1
   ```
+
 - 运行测试命令
+
   ```shell
   bash scripts/mm_run.sh videobench qwen2_vl
   ```
+
 - 测试结果保存于以下路径。其下的 `results/..(一系列文件夹嵌套)/\*\_result.csv` 中存放着modeltest的测试结果，`debug/..(一系列文件夹嵌套)/output\_\*.txt` 中存储着每一条数据的运行结果。
+
   ```shell
   output/$DATE/modeltest/$MODEL_NAME/precision_result/
   ```
@@ -391,11 +450,13 @@
 - 新建一个Docker终端会话，使用benchmark工具进行数据集测试，执行如下命令：
 
   - 打开benchmark工具日志日志打印开关
+
     ```shell
     export MINDIE_LOG_TO_STDOUT="benchmark:1; client:1" 
     ```
 
   - 发送benchmark推理请求
+
     ```shell
     benchmark \
     --TestAccuracy True \
@@ -427,11 +488,13 @@
 - 新建一个Docker终端会话，使用benchmark工具进行数据集测试，执行如下命令：
 
   - 打开benchmark工具日志打印开关
+
     ```shell
     export MINDIE_LOG_TO_STDOUT="benchmark:1; client:1" 
     ```
 
   - 发送benchmark推理请求
+
     ```shell
     benchmark \
     --TestAccuracy True \
@@ -457,11 +520,13 @@
 ## 性能测试（纯模型推理场景）
 
 - 打开模型日志
+
   ```shell
   export MINDIE_LOG_TO_STDOUT=1
   export MINDIE_LOG_TO_FILE=1
   export MINDIE_LOG_LEVEL=info
   ```
+
 - 使用 `${llm_path}/examples/models/qwen2_vl/run_pa.sh` 进行纯模型推理测试。
 - 设置 `--max_output_length` 为合理值（默认256），确保实际输出文本长度 ≥ 该值。
 - 使用 `--input_image` + `--max_batch_size`：测试指定batch数量的单张图片性能。
@@ -477,11 +542,13 @@
 - 新建一个Docker终端会话，使用benchmark工具进行数据集测试，执行如下命令：
 
   - 打开benchmark工具日志打印开关
+
     ```shell
     export MINDIE_LOG_TO_STDOUT="benchmark:1; client:1" 
     ```
 
   - 发送benchmark推理请求
+
     ```shell
     benchmark \
     --TestAccuracy False \

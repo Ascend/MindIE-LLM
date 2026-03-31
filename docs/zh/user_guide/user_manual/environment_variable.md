@@ -53,7 +53,6 @@ Server相关环境变量请参考**表2**。
 |TOKENIZER_ENCODE_TIMEOUT|TOKENIZER Encode截断的超时时间，单位为秒。|[5, 300]|60|
 |MINDIE_ASYNC_SCHEDULING_ENABLE|是否开启异步调度。|1：开启其他值：关闭|NA|
 
-
 MindIE\_LLM相关环境变量请参考**表3**。
 
 **表 3**  MindIE\_LLM相关环境变量说明
@@ -67,7 +66,6 @@ MindIE\_LLM相关环境变量请参考**表3**。
 |MINDIE_LLM_BENCHMARK_ENABLE|是否开启MindIE LLM模块的Benchmark功能，开启后将会输出性能数据到指定文件路径。|0：不开启<br>1：开启|0|
 |MINDIE_LLM_BENCHMARK_FILEPATH|指定MindIE LLM模块的Benchmark功能输出的性能数据文件路径。|N/A|"{MINDIE_LLM_HOME_PATH}/logs/benchmark.jsonl"|
 |MINDIE_LLM_BENCHMARK_RESERVING_RATIO|当性能数据文件超过最大文件大小限制时，旧数据会被新数据覆盖。此环境变量指定保留旧数据的比例，默认为0.1。|[0.0, 1.0]|0.1|
-|MINDIE_LLM_FRAMEWORK_BACKEND|MindIE LLM框架后端类型，当前可选值为"atb"（ATB，默认值）和"ms"（MindSpore）。|ATB<br>MS（不区分大小写）|ATB|
 |NPU_DEVICE_IDS|使用的NPU卡号。|[0,卡号]<br>例：[0, 1, 2,...]|N/A|
 |NPU_MEMORY_FRACTION|NPU显存利用率，代表总显存分配给模型权重、kvcache和work space的比例。不包含HCCL和PTA申请的空间。建议将该值设置为可拉起服务的最小值。具体方法是：按照默认配置启动服务，若无法拉起服务，则上调参数至可拉起为止；若拉起服务成功，则下调该参数至刚好拉起服务为止。总之，在服务能正常拉起的前提下，更低的值可以保障更高的服务系统稳定性。|(0.0, 1.0]Kimi K2模型，推荐设置为0.9。|在ATB Models中默认值为1.0在MindIE LLM中默认值为0.8|
 |PERFORMANCE_PREFIX_TREE_ENABLE|memory_decoding并行解码高性能前缀树实现开关。|0：不开启<br>1：开启|0|
@@ -75,7 +73,6 @@ MindIE\_LLM相关环境变量请参考**表3**。
 |RANK|指示device的全局ID。|[0, ${WORLD_SIZE})|0|
 |SOURCE_DATE_EPOCH|消除whl包的bep差异。|N/A|N/A|
 |WORLD_SIZE|启用几张卡进行推理。|[1,1048576]|N/A|
-
 
 ATB\_Models相关环境变量请参考**表4**。
 
@@ -110,7 +107,6 @@ ATB\_Models相关环境变量请参考**表4**。
 |MINDIE_EXPERT_HOTPOT_DUMP_PATH|负载均衡专家热点信息保存路径。|所有值|None|
 |REMOVE_GENERATION_CONFIG_DICT|开启后，设置模型后处理参数为默认值（仅LLM类模型生效）|1：开启其他值或None：不开启|None|
 
-
 日志相关环境变量请参考**表5**。
 
 **表 5**  日志相关环境变量说明
@@ -119,12 +115,11 @@ ATB\_Models相关环境变量请参考**表4**。
 |--|--|--|--|
 |MINDIE_LOG_LEVEL|控制日志级别。|DEBUG<br>INFO<br>WARN<br>ERROR<br>CRITICAL|INFO|
 |MINDIE_LOG_PATH|控制日志写入路径。|N/A|"mindie/log/debug"|
-|MINDIE_LOG_ROTATE|控制日志轮转的大小和个数。|<li>-fs：每个日志文件的大小，单位MB，取值范围[1, 500]<li>-r：每个进程可写日志文件个数，取值范围[1, 64]<br>例如：export MINDIE_LOG_ROTATE="-fs 40 -r 2"|<li>-fs：20<li>-r：10<br>"PYTHON_LOG_MAXSIZE"和"MINDIE_LOG_ROTATE"兼容，且"PYTHON_LOG_MAXSIZE"优先级高于"MINDIE_LOG_ROTATE"中的"-fs"参数设置。|
+|MINDIE_LOG_ROTATE|控制日志轮转的大小和个数。|<li>-fs：每个日志文件的大小，单位MB，取值范围[1, 500]</li><li>-r：每个进程可写日志文件个数，取值范围[1, 64]</li><br>例如：export MINDIE_LOG_ROTATE="-fs 40 -r 2"|<li>-fs：20</li><li>-r：10</li><br>"PYTHON_LOG_MAXSIZE"和"MINDIE_LOG_ROTATE"兼容，且"PYTHON_LOG_MAXSIZE"优先级高于"MINDIE_LOG_ROTATE"中的"-fs"参数设置。|
 |MINDIE_LOG_TO_FILE|控制日志是否保存到文件，设置为1则开启。|{0, 1, true, false}|true|
 |MINDIE_LOG_TO_STDOUT|控制日志是否打印，设置为1则开启。|{0, 1, true, false}|false|
 |MINDIE_LOG_VERBOSE|控制日志中是否加入可选日志内容。|{0, 1, true, false}|true|
 |PYTHON_LOG_MAXSIZE|ATB Python日志单个文件的最大容量（单位：字节）。|[0, 524288000]|None|
-
 
 加速库相关环境变量请参考**表6**。
 
@@ -139,10 +134,10 @@ ATB\_Models相关环境变量请参考**表4**。
 |ATB_OPSRUNNER_KERNEL_CACHE_LOCAL_COUNT|本地kernelCache的槽位数。增加槽位数时：增加cache命中率，但降低检索效率。减少槽位数时：提高检索效率，但降低cache命中率。|[1, 1024]|1|
 |ATB_WORKSPACE_MEM_ALLOC_GLOBAL|是否使用全局中间tensor内存分配算法。开启后会对中间tensor内存进行大小计算与分配。|0：不开启<br>1：开启|1|
 
-
 更多加速库相关的环境变量可参考《CANN ATB加速库开发指南》的“环境变量参考”章节。
 
 > [!NOTE]说明
->-  “INF\_NAN\_MODE\_ENABLE”，“TASK\_QUEUE\_ENABLE”和“RANK\_TABLE\_FILE”等更多PyTorch环境变量，请参见《环境变量参考》中的“INF\_NAN\_MODE\_ENABLE”章节。
->-  当BIND\_CPU环境变量开启时，会调用execute\_command方法执行以下命令：
->   **execute\_command\(\["npu-smi", "info", "-i", f"\{npu\_id\}", "-t", "memory"\]\).split\("\\n"\)\[1:\]execute\_command\(\["npu-smi", "info", "-i", f"\{npu\_id\}", "-t", "usages"\]\).split\("\\n"\)\[1:\]execute\_command\(\["npu-smi", "info", "-m"\]\).strip\(\).split\("\\n"\)\[1:\]execute\_command\(\["npu-smi", "info", "-t", "board", "-i", f"\{device\_info.npu\_id\}", -c", f"\{device\_info.chip\_id\}"\]\).strip\(\).split\("\\n"\)execute\_command\(\["lspci", "-s", f"\{pcie\_no\}", "-vvv"\]\).split\("\\n"\)execute\_command\(\["lscpu"\]\).split\("\\n"\)**
+>
+>- “INF\_NAN\_MODE\_ENABLE”，“TASK\_QUEUE\_ENABLE”和“RANK\_TABLE\_FILE”等更多PyTorch环境变量，请参见《环境变量参考》中的“INF\_NAN\_MODE\_ENABLE”章节。
+>- 当BIND\_CPU环境变量开启时，会调用execute\_command方法执行以下命令：
+> **execute\_command\(\["npu-smi", "info", "-i", f"\{npu\_id\}", "-t", "memory"\]\).split\("\\n"\)\[1:\]execute\_command\(\["npu-smi", "info", "-i", f"\{npu\_id\}", "-t", "usages"\]\).split\("\\n"\)\[1:\]execute\_command\(\["npu-smi", "info", "-m"\]\).strip\(\).split\("\\n"\)\[1:\]execute\_command\(\["npu-smi", "info", "-t", "board", "-i", f"\{device\_info.npu\_id\}", -c", f"\{device\_info.chip\_id\}"\]\).strip\(\).split\("\\n"\)execute\_command\(\["lspci", "-s", f"\{pcie\_no\}", "-vvv"\]\).split\("\\n"\)execute\_command\(\["lscpu"\]\).split\("\\n"\)**

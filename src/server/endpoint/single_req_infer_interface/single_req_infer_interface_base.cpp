@@ -25,8 +25,9 @@
 #include "random_generator.h"
 #include "parameters_checker.h"
 #include "config_manager_impl.h"
-#include "safe_io.h"
+#include "json_util.h"
 #include "safe_path.h"
+
 using OrderedJson = nlohmann::ordered_json;
 
 namespace mindie_llm {
@@ -464,9 +465,13 @@ bool SingleReqInferInterfaceBase::GenerateInferRequest(std::string &msg) noexcep
     if (inputParam->maxNewTokens > 0) {
         int maxOutputLen = inputParam->maxNewTokens - static_cast<int>(inputParam->outputLenOffset);
         if (maxOutputLen < 0) {
-            msg = "MaxNewTokens is less than already generated tokens. The requestId is " + std::string(requestId_);
-            MINDIE_LLM_LOG_ERROR(msg);
-            return false;
+            if (inputParam->thinkingBudget.has_value() && inputParam->thinkingBudget.value() > 0) {
+                maxOutputLen = 0;
+            } else {
+                msg = "MaxNewTokens is less than already generated tokens. The requestId is " + std::string(requestId_);
+                MINDIE_LLM_LOG_ERROR(msg);
+                return false;
+            }
         }
         request_->maxOutputLen = static_cast<uint64_t>(maxOutputLen);
     }
@@ -937,10 +942,12 @@ InferParam::ValidationContext SingleReqInferInterfaceBase::BuildValidationContex
         ctx.reqBestOf = bestOfValue;
         ctx.reqN = nValue;
         ctx.reqTemperature = request_->temperature.value_or(0.0f);
+        ctx.reqStructuredOutput = request_->responseFormat.has_value();
     }
     // 服务/模型级能力（从 ServerConfig 的 pluginEnabled 获取）
     auto &serverConfig = GetServerConfig();
     ctx.pluginEnabled = serverConfig.pluginEnabled;
+    ctx.mtpEnabled = serverConfig.mtpEnabled;
     ctx.deepseekEnabled = serverConfig.deepseekEnabled;
     return ctx;
 }
@@ -1076,7 +1083,7 @@ bool SingleReqInferInterfaceBase::DecodeSingleToken(std::vector<int64_t> &tokenI
         return false;
     }
     try {
-        Json resultJson = Json::parse(inferResult, CheckJsonDepthCallbackUlog);
+        Json resultJson = Json::parse(inferResult, CheckJsonDepthCallback);
         if (JsonParse::JsonContainItemWithType(resultJson, "content", Json::value_t::string, err) &&
             !resultJson["content"].get<std::string>().empty()) {
             output = resultJson["content"];

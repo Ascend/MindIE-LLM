@@ -12,10 +12,10 @@ SLO（Service Level Objective，服务级别目标）指在设定时间段内为
 
 ## 限制与约束
 
--  仅Atlas 800I A2 推理服务器支持此特性。
--  DeepSeek-R1、DeepSeek-V3、Qwen系列模型支持对接此特性。
--  仅适用于PD混部场景，无法与splitfuse特性同时打开。
--  此特性的收益场景主要在短输出（256以下）场景，随着输出长度变长，吞吐收益会下降。
+- 仅Atlas 800I A2 推理服务器支持此特性。
+- DeepSeek-R1、DeepSeek-V3、Qwen系列模型支持对接此特性。
+- 仅适用于PD混部场景，无法与splitfuse特性同时打开。
+- 此特性的收益场景主要在短输出（256以下）场景，随着输出长度变长，吞吐收益会下降。
 
 ## 参数说明
 
@@ -29,7 +29,6 @@ SLO（Service Level Objective，服务级别目标）指在设定时间段内为
 |dynamicBatchSizeEnable|bool|<ul><li>true</li><li>false</li></ul>|是否开启动态BatchSize调整算法。<br>选填，默认值：false。|
 |prefillExpectedTime|uint32_t|[0,10000]|Prefill阶段Token生成的SLO期望时延。<br>选填，默认值：1500。|
 |decodeExpectedTime|uint32_t|[0,10000]|Decode阶段Token生成的SLO期望时延。<br>选填，默认值：50。|
-
 
 ## 执行推理
 
@@ -59,7 +58,7 @@ SLO（Service Level Objective，服务级别目标）指在设定时间段内为
 
 4. 以AISBench工具、gsm8k数据集和并发500为例展示调优方式。AISBench工具配置如下，详情请参见《MindIE Motor开发指南》中的“快速入门 > [性能测试](https://gitcode.com/Ascend/MindIE-Motor/blob/dev/docs/zh/user_guide/quick_start.md)”章节。
 
-    ```
+    ```text
     models = [
         dict(
             attr="service",
@@ -83,4 +82,3 @@ SLO（Service Level Objective，服务级别目标）指在设定时间段内为
     ]
     
     ```
-

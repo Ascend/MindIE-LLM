@@ -36,7 +36,7 @@ _\{llm\_path\}_/atb\_llm/models/_\{model\}_/flash\_causal\__\{model\}_.py （_\{
 
 推理接口接收的输入类型如下：
 
-```
+```python
 @dataclass
 class MultimodalInput:
     input_texts:List | None
@@ -45,11 +45,11 @@ class MultimodalInput:
     audio_path:List | None
 ```
 
--  “input\_texts”类型为“List\[str\]”或者“List\[dict\]”，以InternVL2.5为例，其输入的input\_texts可以为：
+- “input\_texts”类型为“List\[str\]”或者“List\[dict\]”，以InternVL2.5为例，其输入的input\_texts可以为：
 
     \[\{'role': 'user', 'content': 'Write an essay about this image, at least 256 words.'\}\]或\['Write an essay about this image, at least 256 words.'\]
 
--  “image\_path”、“video\_path”、“audio\_path”这三个参数对应路径列表，存放相应模态数据的路径。以图片“image\_path”为例，这里必须存放每张图片的对应路径，而不能是目录。
+- “image\_path”、“video\_path”、“audio\_path”这三个参数对应路径列表，存放相应模态数据的路径。以图片“image\_path”为例，这里必须存放每张图片的对应路径，而不能是目录。
 
 以InternVL2.5模型接收图片和文本作为输入为例：
 
@@ -97,8 +97,8 @@ class InternvlRunner(MultimodalPARunner):
             return super().infer(mm_inputs, batch_size, max_output_length, ignore_eos, max_iters=max_iters)
     ```
 
--  如果有四种模态（文本、图像、音频或视频）输入之外的其他定制参数，则需要重写“prepare\_request”参数，可参考_\{llm\_path\}_/examples/models/multimodal\_runner.py中“prepare\_request”函数的实现。
--  如果需要对精度测试结果进行保存，则需要在子类中重写precision\_save方法来保存结果。示例如下：
+- 如果有四种模态（文本、图像、音频或视频）输入之外的其他定制参数，则需要重写“prepare\_request”参数，可参考_\{llm\_path\}_/examples/models/multimodal\_runner.py中“prepare\_request”函数的实现。
+- 如果需要对精度测试结果进行保存，则需要在子类中重写precision\_save方法来保存结果。示例如下：
 
     ```python
 
@@ -328,7 +328,7 @@ class InternvlRouter(BaseRouter):
         return query_ids
 ```
 
-###  _\{model\}_Config类适配
+### _\{model\}_Config类适配
 
 _\{model\}_Config类实现模型配置参数的加载，用于初始化模型。它位置不固定，可置于“_\{llm\_path\}_/atb\_llm/models/_\{model\}_/flash\_causal\__\{model\}_.py”文件或为独立文件“_\{llm\_path\}_/atb\_llm/models/_\{model\}_/config\__\{model\}_.py”。
 
@@ -675,7 +675,7 @@ class FlashInternvlForCausalLM(FlashForCausalLM):
 
 2. forward，由于底座大语言模型已适配，直接self.language\_model.forward即可。
 
-    ```
+    ```python
     def forward(
             self,
             input_ids: torch.Tensor,
@@ -713,7 +713,7 @@ class FlashInternvlForCausalLM(FlashForCausalLM):
 
     服务化传递过来的输入一定是List\[Dict\]类型的，其中字典包含的Keys目前有：image、video、audio、text四种。示例如下：
 
-    ```
+    ```text
     [
         {"text": "What is in the image?"},
         {"image": "/XXX/XXXX/image.png"},
@@ -722,7 +722,7 @@ class FlashInternvlForCausalLM(FlashForCausalLM):
     ]
     ```
 
-2. tokenize\(\) 函数实现
+ 2. tokenize\(\) 函数实现
 
     ![](./figures/tokenize_function.png)
 
@@ -737,8 +737,8 @@ class FlashInternvlForCausalLM(FlashForCausalLM):
     3. 遍历输入，加载并处理多媒体数据，计算input\_ids的大小，进行padding。
 
     4. 将处理好的pixel\_value数据存入共享内存，需要注意：
-        1.  需要将数据转换为numpy.ndarray才能存入共享内存。
-        2.  dtype不做限制但是在后续读取数据时需要保持一致。
+        1. 需要将数据转换为numpy.ndarray才能存入共享内存。
+        2. dtype不做限制但是在后续读取数据时需要保持一致。
 
     5. 将共享内存的name和存入数据的shape进行编码，涉及到的编码函数已在如下公共代码中定义：
 
@@ -798,13 +798,14 @@ class FlashInternvlForCausalLM(FlashForCausalLM):
     > 代码中标注了一段Important Attention代码，代码片段中的shm\_name\_save\_path变量是用来存放共享内存地址的文件路径，以便在服务侧从该文件中读取共享内存地址释放共享内存。服务侧释放资源强依赖于传入的多媒体数据路径，因此服务化时该参数必须为“None”。
     >- 如果是服务化调用这个接口，则该参数默认为None，代码直接通过服务侧传递过来的多媒体路径寻找。
     >- 如果是纯模型侧调用接口，请指定该参数，并且在run\_pa.py模型推理之后释放共享内存。详情可以参考Qwen-VL的run\_pa.py。
-    >  示例如下：
+    > 示例如下：
+>
     >    ```
     >    if file_utils.is_path_exists(args.shm_name_save_path):
     >            shm_utils.release_shared_memory(args.shm_name_save_path)
     >    ```
 
-3.  forward\(\) 多媒体数据处理
+ 3. forward\(\) 多媒体数据处理
 
     模型的flashcacusal类的forward\(\)中，实际就是tokenize\(\)的逆变换。
 
@@ -876,7 +877,7 @@ class FlashInternvlForCausalLM(FlashForCausalLM):
 
     ![](./figures/inputbuilder_class.png)
 
-2.  make\_context\(\) 函数输入
+2. make\_context\(\) 函数输入
 
     OpenAI格式的请求，在输入上变为了List\[Dict\[str, Dict\]\]格式，可以支持多轮对话的输入。每一轮对话是Dict，其中多出了两个字段“role”和“content”，“role”表示这一轮对话的角色，“content”表示这一轮对话的内容，其格式与[1](#step1)一致。
 
@@ -903,7 +904,7 @@ class FlashInternvlForCausalLM(FlashForCausalLM):
     ]
     ```
 
-3.  make\_context\(\) 函数实现
+3. make\_context\(\) 函数实现
 
     这个函数实现的目的与tokenize\(\)是一致的，都是将输入转换为input\_ids。不过这个函数通常是以模型支持的chat template来安排整个内容。
 

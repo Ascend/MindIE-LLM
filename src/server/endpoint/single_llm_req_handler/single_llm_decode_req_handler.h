@@ -54,6 +54,7 @@ public:
     void GetContextSamplingStopWords(InferParamSPtr param, RequestSPtr request);
     void GetContextInferParams(InferParamSPtr param, RequestSPtr request);
     void GetContextMetrics();
+    void FillRespTokensAndReplayIds(RequestSPtr request, std::vector<int64_t>& respTokens);
 
 private:
     bool SendKvRelease(const std::string& reqId);

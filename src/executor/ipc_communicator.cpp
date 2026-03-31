@@ -39,11 +39,13 @@ bool SerializeExecuteMessage(ExecuteRequest &request, std::string &buf)
     return true;
 }
 
-IPCCommunicator::IPCCommunicator(std::string prefixName, uint32_t workerNum)
-    : requestSharedMemory_(IPCSharedMemoryType::REQUEST, prefixName + "_request", workerNum),
-      responseSharedMemory_(IPCSharedMemoryType::RESPONSE, prefixName + "_response", workerNum),
-      workerNum_(workerNum)
+IPCCommunicator::IPCCommunicator(std::string prefixName, const SemaphoreConfig &semConfig)
 {
+    requestSharedMemory_ =
+        IPCSharedMemory(IPCSharedMemoryType::REQUEST, prefixName + "_request", semConfig.requestSemNum);
+    responseSharedMemory_ =
+        IPCSharedMemory(IPCSharedMemoryType::RESPONSE, prefixName + "_response", semConfig.responseSemNum);
+    responseWorkerNum_ = semConfig.responseSemNum;
 }
 
 IPCSharedMemory::IPCSharedMemory(IPCSharedMemoryType iPCSharedMemoryType, std::string prefix, uint32_t semNum)
@@ -87,6 +89,9 @@ bool IPCCommunicator::WriteMessage(const char *message, uint32_t length)
 
 bool IPCCommunicator::CreateSharedMemory(IPCSharedMemory &iPCSharedMemory, const size_t sharedMemorySize) const
 {
+    if (sharedMemorySize == 0) {
+        return true;
+    }
     iPCSharedMemory.sharedMemory = std::make_unique<SharedMemory>();
     if (!iPCSharedMemory.sharedMemory->Create(iPCSharedMemory.sharedMemoryName, sharedMemorySize)) {
         MINDIE_LLM_LOG_ERROR("Failed to create shared memory.");
@@ -263,7 +268,7 @@ bool IPCCommunicator::ReceiveInitResponses(std::vector<ExecuteResponse> &respons
     // Wait until all consume semaphores reach 1,
     // then decrement each of them to mark the response buffer as being read.
     WaitOnAllSemaphores(responseSharedMemory_.semConsumeVec);
-    for (size_t i = 0; i < workerNum_; ++i) {
+    for (size_t i = 0; i < responseWorkerNum_; ++i) {
         ExecuteResponse response;
         if (!ParseResponse(response, responseSharedMemory_.sharedMemory->GetBuf() + i * MODEL_INIT_RESP_SIZE)) {
             MINDIE_LLM_LOG_ERROR("Failed to parse init response at index: " << i);
@@ -284,7 +289,7 @@ bool IPCCommunicator::ReceiveRecoverCommandResponses(std::vector<ExecuteResponse
     // Wait until all consume semaphores reach 1,
     // then decrement each of them to mark the response buffer as being read.
     WaitOnAllSemaphores(responseSharedMemory_.semConsumeVec);
-    for (size_t i = 0; i < workerNum_; ++i) {
+    for (size_t i = 0; i < responseWorkerNum_; ++i) {
         ExecuteResponse response;
         if (!ParseResponse(response, responseSharedMemory_.sharedMemory->GetBuf() + i * RECOVER_COMMAND_RESP_SIZE)) {
             MINDIE_LLM_LOG_ERROR("Failed to parse recover command response at index: " << i);
@@ -310,22 +315,6 @@ bool IPCCommunicator::ReceiveResponse(ExecuteResponse &response)
     SignalAllSemaphores(responseSharedMemory_.semProduceVec);
 
     return parseResponseResult;
-}
-
-bool IPCCommunicator::TryReceiveExecuteResponse(ExecuteResponse &response)
-{
-    for (uint32_t i = 0; i < responseSharedMemory_.semConsumeVec.size(); ++i) {
-        if (sem_trywait(responseSharedMemory_.semConsumeVec[i]) == 0) {
-            bool parseResponseResult = ParseResponse(response,
-                responseSharedMemory_.sharedMemory->GetBuf() + i * EXECUTE_RESP_SLOT_SIZE);
-            SemV(*responseSharedMemory_.semProduceVec[i], 1);
-            return parseResponseResult;
-        }
-        if (errno != EAGAIN && errno != EINTR) {
-            MINDIE_LLM_LOG_ERROR("sem_trywait failed at rank " << i << ", errno=" << errno);
-        }
-    }
-    return false;
 }
 
 bool IPCCommunicator::HandleRcvMsg()
@@ -385,5 +374,4 @@ void IPCCommunicator::StopHandleResponseThread()
         handleResponseThread_->join();
     }
 }
-
 } // namespace mindie_llm

@@ -30,9 +30,9 @@
 1. 执行./mindieservice_daemon 启动服务
 2. 执行benchmark（如跑MMLU数据集测试few-shot场景）
 
-```
-    benchmark --DatasetPath "/path/to/dataset/MMLU/" \
-    --DatasetType "mmlu" --Http "http://127.0.0.1:1025" --ManagementHttp http://127.0.0.1:1025 \
-    --ModelName "llama2_7b" --ModelPath "/home/models/llama2-7b" --TestType client --Concurrency 8 --Tokenizer True \
-    --TaskKind stream --DoSampling False --TestAccuracy True --MaxOutputLen 2
-```
+    ```bash
+        benchmark --DatasetPath "/path/to/dataset/MMLU/" \
+        --DatasetType "mmlu" --Http "http://127.0.0.1:1025" --ManagementHttp http://127.0.0.1:1025 \
+        --ModelName "llama2_7b" --ModelPath "/home/models/llama2-7b" --TestType client --Concurrency 8 --Tokenizer True \
+        --TaskKind stream --DoSampling False --TestAccuracy True --MaxOutputLen 2
+    ```

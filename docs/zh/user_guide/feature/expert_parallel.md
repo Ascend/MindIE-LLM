@@ -10,8 +10,8 @@ MoE类模型支持Expert Parallel（EP，专家并行），通过将专家分别
 
 ## 限制与约束
 
--   DeepSeek-V2，DeepSeek-V3，DeepSeek-R1模型支持对接此特性。
--   当专家并行数超过32时，DeepSeek-V3、DeepSeek-R1自动使能Grouped MatMul融合算子，提升计算性能。
+- DeepSeek-V2，DeepSeek-V3，DeepSeek-R1模型支持对接此特性。
+- 当专家并行数超过32时，DeepSeek-V3、DeepSeek-R1自动使能Grouped MatMul融合算子，提升计算性能。
 
 ## 参数说明
 
@@ -26,7 +26,6 @@ MoE类模型支持Expert Parallel（EP，专家并行），通过将专家分别
 |enable_init_routing_cutoff|bool|truefalse|是否允许topk截断。<br>默认值：false（关闭）<br>“ep_level”=“1”时，可配置该参数。|
 |topk_scaling_factor|float|(0,1]|topk截断参数。<br>“ep_level”=“1”时，每台设备的hidden_states后段部分为无效数据，可设置截断参数减小显存开销。<br>需同时配置“enable_init_routing_cutoff”=“true”。|
 |alltoall_ep_buffer_scale_factors|list[list[int, float]]|列表每个成员包含两个数：第一个数为非负整数，第二个数为大于0的浮点数。排列顺序按照第一个数的大小降序排列。|AllToAll通信buffer大小，第二层list包含两个元素，第一个数为序列长度、第二个数为buffer系数。序列长度为buffer系数的选择判断条件。示例：<br>[[1048576, 1.32], [524288, 1.4], [262144, 1.53], [131072, 1.8], [32768, 3.0], [8192, 5.2], [0, 8.0]]<br>“ep_level”=“2”时，且用户需要精细化地管理显存的时候建议配置该项。<br>“ep_level”=“1”时该参数配置不生效。|
-
 
 ## 使用样例
 
@@ -98,4 +97,3 @@ MoE类模型支持Expert Parallel（EP，专家并行），通过将专家分别
 
 1. 配置服务化参数。该特性需配合MindIE Motor使用，按照[参数说明](#参数说明)在服务化的config.json文件中添加相应参数。服务化参数说明请参见[配置参数说明（服务化）](../user_manual/service_parameter_configuration.md)章节。
 2. 启动服务。具体请参考《MindIE Motor开发指南》中的“快速入门 \> [启动服务](https://gitcode.com/Ascend/MindIE-Motor/blob/dev/docs/zh/user_guide/quick_start.md)”章节。
-

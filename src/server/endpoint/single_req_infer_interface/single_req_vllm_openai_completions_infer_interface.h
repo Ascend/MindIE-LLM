@@ -52,6 +52,7 @@ private:
     bool EncodeStreamResponse(RespBodyQueue &jsonStrings) noexcept;
     std::string BuildReComputeBody(const std::vector<BestNTokens>& tokens);
     void BuildStopWords(nlohmann::ordered_json& newReqJsonObj);
+    void BuildResponseFormat(nlohmann::ordered_json& newReqJsonObj);
     std::map<uint64_t, std::string> cachedStreamTextMap{};
     // encode logprobs
     bool EncodeLogprobsFullText(nlohmann::ordered_json &choiceJsonObj, const uint64_t seqId) noexcept;

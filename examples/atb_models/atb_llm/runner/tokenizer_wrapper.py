@@ -139,9 +139,10 @@ class TokenizerWrapper:
                 all_token_ids[prev_decode_index:curr_decode_index], skip_special_tokens=skip_special_tokens)
             # No new content is added or the characters are incomplete.
             if len(curr_and_prev_content) <= len(pre_text) or curr_and_prev_content.endswith("�"):
-                if use_tool_calls:
-                    return {"update_index": False, METADATA_KEY: metadata}
-                return {"update_index": False}
+                if not metadata.get("req_end_flag", False):
+                    if use_tool_calls:
+                        return {"update_index": False, METADATA_KEY: metadata}
+                    return {"update_index": False}
             delta_text = curr_and_prev_content[len(pre_text):]
             if use_reasoning_parser and use_tool_calls and is_chat_req:
                 return self.get_combined_stream_result(all_token_ids, prev_decode_index, curr_decode_index,

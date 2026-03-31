@@ -8,9 +8,13 @@
 # MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
 # See the Mulan PSL v2 for more details.
 
+import threading
+import time
 from typing import Any, Dict, Iterable, List, Optional, Tuple, Union
 
 import numpy as np
+import torch
+import torch_npu
 
 from ..samplers.sampler import Sampler
 from ..utils.config import SamplerConfig
@@ -19,8 +23,11 @@ from ..utils.sampling_output import SamplingOutput
 from ..utils.sampling_metadata import SamplingMetadata, SamplingData, SamplingParam
 from ...modeling.model_wrapper import get_model_wrapper
 from ...utils.decorators.time_decorator import timer
+from ...utils.log.error_code import ErrorCode
+from ...utils.log.logging import logger
 from ...utils.tensor import op
 from ...utils.validation import parse_config, ParseType, MODEL_CONFIG_KEY_TYPE
+from .recovery_utils import check_and_recover_uce_in_cache
 
 MAX_WORLD_SIZE = 1048576
 MAX_KEY_LENGTH = 256
@@ -128,6 +135,11 @@ class GeneratorBackend:
         self.enable_dap = False
         self.obfuscation_func = None
         self.device = None
+        self.cache_pool = None
+
+        # Thread-safe mechanism for detecting FORCE STOP exception
+        self.force_stop_exception_occurred = threading.Event()
+        self.is_fault_device = False
 
         self.max_position_embeddings = self.model_wrapper.max_position_embeddings
 
@@ -156,6 +168,37 @@ class GeneratorBackend:
 
     def set_device(self):
         pass
+
+    def notify_force_stop_exception(self):
+        '''
+        Notify that a FORCE STOP exception has occurred in the inference thread.
+        This method should be called from the inference thread when catching FORCE STOP exceptions.
+        '''
+        self.force_stop_exception_occurred.set()
+        logger.info(f"FORCE STOP exception detected and notified for device {self.npu_device_id}")
+    
+    def execute_recover_command(self, command: str) -> dict:
+        '''
+        Execute recover related command.
+        Args:
+            command (str): recover command, including "CMD_PAUSE_ENGINE".
+        Returns:
+            dict: {"command_result": int, "error_msg": str, "npu_device_id": int}.
+                  command_result: 0 for success, 1 for failure.
+        '''
+        error_msg = ""
+        command_result = 1
+        try:
+            if command == "CMD_PAUSE_ENGINE":
+                command_result, error_msg = self._execute_cmd_pause_engine()
+            elif command == "CMD_REINIT_NPU":
+                self._execute_cmd_reinit_npu()
+                command_result = 0
+        except Exception as e:
+            error_msg = f"Execute recover command {command} failed, exception msg: {e}"
+            logger.error(error_msg, ErrorCode.TEXT_GENERATOR_INTERNAL_ERROR)
+            error_msg = str(e)
+        return {"command_result": command_result, "error_msg": error_msg, "npu_device_id": self.npu_device_id}
 
     def build_inputs(self, conversations: List[List[Dict[str, str]]], **kwargs) -> List[List[int]]:
         return [self.model_wrapper.make_context(conversation, **kwargs) for conversation in conversations]
@@ -216,3 +259,88 @@ class GeneratorBackend:
         else:
             output = self.sampler(logits, sampling_metadata)
         return output
+
+    def _execute_cmd_pause_engine(self):
+        self.force_stop_exception_occurred.clear()
+        wait_exception_time = 10.0
+        time.sleep(wait_exception_time)
+        if torch_npu.npu.stop_device(self.npu_device_id) != 0:
+            error_msg = "Stop device failed"
+            command_result = 1
+        else:
+            uce_command_result, uce_error_msg = self._handle_uce_error()
+            if uce_command_result == 1:
+                command_result = uce_command_result
+                error_msg = uce_error_msg
+            elif uce_command_result == 2:
+                command_result = 0
+                error_msg = ""
+            elif not self._wait_for_force_stop_exception():
+                command_result = 1
+                error_msg = "Timeout waiting for FORCE STOP exception"
+            else:
+                command_result = 0
+                error_msg = ""
+        return command_result, error_msg
+    
+    def _execute_cmd_reinit_npu(self):
+        '''Reinitialize NPU. Subclasses must override with backend-specific logic.'''
+        raise NotImplementedError("Subclasses must implement _execute_cmd_reinit_npu")
+
+    def _wait_for_force_stop_exception(self):
+        if not self.is_fault_device:
+            timeout = 60.0
+            exception_detected = self.force_stop_exception_occurred.wait(timeout=timeout)
+            if exception_detected:
+                logger.info(
+                    f"FORCE STOP exception detected for device {self.npu_device_id}, "
+                    "stop_device execution successful"
+                )
+                return True
+            else:
+                logger.warning(
+                    f"Timeout waiting for FORCE STOP exception for device {self.npu_device_id} "
+                    f"after {timeout} seconds"
+                )
+                return False
+        else:
+            return True
+
+    def _handle_uce_error(self):
+        '''Check and recover UCE error in kvcache. Returns (command_result, error_msg).'''
+        command_result = 0
+        error_msg = ""
+        res = torch.npu.check_uce_in_memory(self.npu_device_id)
+        if res == 2 or res == 3:
+            logger.info(f"Encountered HBM UCE error, check_uce_in_memory result: {res}")
+            command_result = 2
+            if not self._check_and_recover_uce_in_kvcache():
+                logger.warning(f"HBM UCE address not in any kvcache, should trigger reschedule")
+                command_result = 1
+                error_msg = "HBM uce address not overlap kvcache address, should trigger reschedule"
+        elif res == 1:
+            logger.warning(f"Encountered HBM UCE error, but unknown UCE address, should trigger reschedule")
+            command_result = 1
+            error_msg = "HBM uce address unknown, should trigger reschedule"
+        return command_result, error_msg
+
+    def _check_and_recover_uce_in_kvcache(self):
+        '''Check and recover UCE error in kvcache. Returns True if recovered, False otherwise.'''
+        uce_addr_list = torch_npu.npu._get_uce_addr()
+        logger.info(f"UCE address list: {uce_addr_list}")
+        if len(uce_addr_list) == 0:
+            return False
+        for addr_entry in uce_addr_list:
+            uce_addr = addr_entry["ptr"]
+            addr_size = addr_entry["size"]
+            uce_addr_start = uce_addr
+            uce_addr_end = uce_addr_start + addr_size
+
+            for n in range(self.cache_pool.kvcache_settings.num_layers):
+                k_cache = self.cache_pool.npu_cache[n][0]
+                if check_and_recover_uce_in_cache(uce_addr_start, uce_addr_end, k_cache, n, "kcache"):
+                    return True
+                v_cache = self.cache_pool.npu_cache[n][1]
+                if check_and_recover_uce_in_cache(uce_addr_start, uce_addr_end, v_cache, n, "vcache"):
+                    return True
+        return False

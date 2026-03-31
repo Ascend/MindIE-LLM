@@ -5,14 +5,15 @@
 此量化方式将k cache和v cache量化为8 bit，通过减少KV Cache的显存占用，在显存受限场景（如长序列场景）下，可以减少重计算触发次数以提升吞吐。
 
 > [!NOTE]说明 
->-  仅Atlas 800I A2 推理服务器支持KV Cache int8量化。
->-  仅支持搭配W8A8使用。
->-  仅支持LLaMA3.1-70B，Qwen2-72B，Qwen2.5-72B-Instruct。
->-  仅支持float16数据类型。
+>
+>- 仅Atlas 800I A2 推理服务器支持KV Cache int8量化。
+>- 仅支持搭配W8A8使用。
+>- 仅支持LLaMA3.1-70B，Qwen2-72B，Qwen2.5-72B-Instruct。
+>- 仅支持float16数据类型。
 
 KV Cache int8搭配W8A8量化后权重目录结构：
 
-```
+```text
 ├─ config.json
 ├─ quant_model_weight_w8a8.safetensors
 ├─ quant_model_description_w8a8.json
@@ -21,8 +22,8 @@ KV Cache int8搭配W8A8量化后权重目录结构：
 └─ tokenizer.model
 ```
 
--  量化输出包含：权重文件quant\_model\_weight\_w8a8.safetensors和权重描述文件quant\_model\_description.json。
--  目录中的其余文件为推理时所需的配置文件，不同模型略有差异。
+- 量化输出包含：权重文件quant\_model\_weight\_w8a8.safetensors和权重描述文件quant\_model\_description.json。
+- 目录中的其余文件为推理时所需的配置文件，不同模型略有差异。
 
 以下展示了量化后权重描述文件quant\_model\_description.json中的部分内容：
 
@@ -53,11 +54,9 @@ KV Cache int8搭配W8A8量化后权重目录结构：
 |dtype|float16|float16|
 |shape|[kv_head_num * kv_head_dim]|[kv_head_num * kv_head_dim]|
 
-
 **表 2**  bfloat16权重量化后dtype及shape信息（假设原始权重的shape为\[n, k\]）
 
 |Tensor信息|kv_cache_scale|kv_cache_offset|
 |--|--|--|
 |dtype|bfloat16|bfloat16|
 |shape|[kv_head_num * kv_head_dim]|[kv_head_num * kv_head_dim]|
-

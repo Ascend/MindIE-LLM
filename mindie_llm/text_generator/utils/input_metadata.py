@@ -95,6 +95,10 @@ class InputMetadata:
     simulator_ids: Optional[List[Any]] = None
     # JSON 结构化输出约束 (response_format)
     batch_response_format: Optional[List[Optional[str]]] = None
+    # PD分离/重计算场景下已生成的output token IDs，用于同步grammar等有状态组件
+    batch_predicted_token_ids: Optional[List[Optional[List[int]]]] = None
+    batch_tools: Optional[List[Any]] = None
+    batch_tool_choice: Optional[List[Any]] = None
 
     # attributes for prefixcache
     computed_blocks: Optional[np.ndarray] = None
@@ -312,20 +316,19 @@ class InputMetadata:
                 batch_seq_len = split_end_pos - split_start_pos
                 total_seq_num = sum(batch_seq_len)
         else:
+            # decode 阶段：response_format 已在 prefill 阶段存入 DictContext，无需重复收集
             batch_max_output_lens = []
-            batch_response_format = []
             batch_dp_rank_ids = []
             for llm_request in llm_requests:
                 num_sequences = len(llm_request.sequences.keys())
                 batch_max_output_lens.extend([llm_request.max_new_tokens] * num_sequences)
-                # 收集 response_format（每个 sequence 都需要相同的 response_format）
-                batch_response_format.extend([llm_request.response_format] * num_sequences)
-                batch_dp_rank_ids.append(llm_request.dp_rank_id)
-                if llm_request.sp_tokens is not None:
-                    batch_sp_tokens.append(llm_request.sp_tokens)
-                    batch_sp_rank_ids.append(llm_request.sp_rank_id)
-                    batch_is_append_block.append(llm_request.is_append_block)
-                    batch_block_rank_id.append(llm_request.block_rank_id)
+                # 收集 response_format（每个 sequence 都需要相同的 response_format） 
+                batch_dp_rank_ids.append(llm_request.dp_rank_id) 
+                if llm_request.sp_tokens is not None: 
+                    batch_sp_tokens.append(llm_request.sp_tokens) 
+                    batch_sp_rank_ids.append(llm_request.sp_rank_id) 
+                    batch_is_append_block.append(llm_request.is_append_block) 
+                    batch_block_rank_id.append(llm_request.block_rank_id)                
 
         batch_max_output_lens = np.array(batch_max_output_lens, dtype=np.int64)
         if req_block_tables is not None:

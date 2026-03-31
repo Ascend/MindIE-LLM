@@ -5,6 +5,7 @@
 - 支持GLM-4v-9B模型的多模态推理
 
 # 特性矩阵
+
 - 此矩阵罗列了GLM-4v-9b模型支持的特性
 
 | 模型及参数量 | 800I A2 Tensor Parallelism | 300I DUO Tensor Parallelism | FP16 | BF16 | MindIE Service | 纯模型支持模态 | 服务化支持模态 | 
@@ -31,12 +32,12 @@
 
 -注意：
 max_input_length长度设置可参考模型权重路径下config.json里的max_position_embeddings参数值
+
 ## 权重
 
 **权重下载**
 
 - [GLM-4v-9B](https://huggingface.co/THUDM/glm-4v-9b/tree/main)
-
 
 **基础环境变量**
 
@@ -52,9 +53,11 @@ max_input_length长度设置可参考模型权重路径下config.json里的max_p
 
 - 运行启动脚本
   - 在\${llm_path}目录下执行以下指令
+
     ```shell
     bash ${script_path}/run_pa.sh --run --trust_remote_code ${weight_path} ${image_path} ${max_batch_size} ${max_input_length} ${max_output_length}
     ```
+
 - 环境变量说明
   - `export ASCEND_RT_VISIBLE_DEVICES=0,1,2,3,4,5,6,7`
     - 指定当前机器上可用的逻辑NPU核心，多个核心间使用逗号相连
@@ -66,6 +69,7 @@ max_input_length长度设置可参考模型权重路径下config.json里的max_p
     - 目的是为了避免同一台机器同时运行多个多卡模型时出现通信冲突
     - 设置时端口建议范围为：20000-20050
   - 以下环境变量与性能和内存优化相关，通常情况下无需修改
+
     ```shell
     export INF_NAN_MODE_ENABLE=0
     export ATB_OPERATION_EXECUTE_ASYNC=1
@@ -168,11 +172,14 @@ curl 127.0.0.1:1040/v1/chat/completions -d ' {
 ```
 
 ## ModelTest精度测试
+
 使用ModelTest测试下游精度数据集TextVQA
+
 - 数据准备
     - 数据集下载 [textvqa](https://huggingface.co/datasets/maoxx241/textvqa_subset)
     - 保证textvqa_val.jsonl和textvqa_val_annotations.json在同一目录下
     - 将textvqa_val.jsonl文件中所有"image"属性的值改为相应图片的绝对路径
+
   ```json
   ...
   {
@@ -183,39 +190,55 @@ curl 127.0.0.1:1040/v1/chat/completions -d ' {
   }
   ...
   ```
+
 - 设置环境变量
+
   ```shell
   source /usr/local/Ascend/cann/set_env.sh
   source /usr/local/Ascend/nnal/atb/set_env.sh 
   source ${llm_path}/set_env.sh 
   ```
+
 - 进入以下目录 `${llm_path}/tests/modeltest`
+
   ```shell
   cd ${llm_path}/tests/modeltest
   ```
+
 - 安装modeltest及其三方依赖
+
   ```shell
   pip install --upgrade pip
   pip install -e .
   pip install tabulate termcolor 
   ```
+
 - 将 `modeltest/config/model/glm4v.yaml` 中的model_path的值修改为模型权重的绝对路径
+
   ```yaml
   model_path: /data_mm/weights/glm-4v-9b
   ```
+
 - 将 `modeltest/config/task/textvqa.yaml` 中的model_path修改为textvqa_val.jsonl文件的绝对路径
+
   ```yaml
   local_dataset_path: /data_mm/datasets/textvqa_val/textvqa_val.jsonl
   ```
+
 - 设置可见卡数，修改 `scripts/mm_run.sh` 文件中的ASCEND_RT_VISIBLE_DEVICES。依需求设置单卡或多卡可见。
+
   ```shell
   export ASCEND_RT_VISIBLE_DEVICES=0,1
   ```
+
 - 运行测试命令
+
   ```shell
   bash scripts/mm_run.sh textvqa glm4v
   ```
+
 - 测试结果保存于以下路径。其下的results/..(一系列文件夹嵌套)/\*\_result.csv中存放着modeltest的测试结果。debug/..(一系列文件夹嵌套)/output\_\*.txt中存储着每一条数据的运行结果，第一项为output文本，第二项为输入infer函数的第一个参数的值，即模型输入。第三项为e2e_time。
+
   ```shell
   output/$DATE/modeltest/$MODEL_NAME/precision_result/
   ```
@@ -223,6 +246,7 @@ curl 127.0.0.1:1040/v1/chat/completions -d ' {
 ## ModelTest性能测试
 
 - 配置性能测试环境变量:
+
 ```shell
   export ATB_LLM_BENCHMARK_ENABLE=1
   export ATB_LLM_BENCHMARK_FILEPATH=${script_path}/benchmark.csv
@@ -233,13 +257,15 @@ curl 127.0.0.1:1040/v1/chat/completions -d ' {
 ```shell
 bash ${script_path}/run_pa.sh --performance --trust_remote_code ${weight_path} ${image_path} ${batch_size} ${max_input_length} ${max_output_length}
 ```
+
 注：性能测试结果保存在 ${script_path} 目录下
 
-
 ## Benchmark精度测试
+
 - 首先按照[服务化推理](#服务化推理)，启动服务端进程
 
 - 新建窗口，配置MindIE环境变量，运行如下benchmark命令
+
 ```shell
 # 输出Benchmark运行日志
 export MINDIE_LOG_TO_STDOUT="benchmark:1; client:1" 
@@ -265,9 +291,11 @@ benchmark \
 ```
 
 ## Benchmark性能测试
+
 - 首先按照[服务化推理](#服务化推理)，启动服务端进程
 
 - 新建窗口，配置MindIE环境变量，运行如下benchmark命令
+
 ```shell
 # 输出benchmark运行日志
 export MINDIE_LOG_TO_STDOUT="benchmark:1; client:1" 

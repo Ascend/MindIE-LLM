@@ -8,10 +8,16 @@
 # MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
 # See the Mulan PSL v2 for more details.
 """单元测试：structured_output_bitmask 模块（apply_token_bitmask_inplace 等）。"""
+import sys
 import unittest
+from pathlib import Path
 from unittest.mock import patch, MagicMock
 
 import numpy as np
+
+PROJECT_ROOT = Path(__file__).resolve().parents[6]
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
 
 try:
     import torch

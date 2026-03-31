@@ -97,6 +97,15 @@ class RequestRouterCloud(RequestRouterLwd):
         cloud_cut_instance = self.router_impl.generator.model_wrapper.model_runner.time_counter
         cut_num_range = (LAYERS_DIVI_MIN_NUM, self.cloud_layer_num)
         cloud_cut_instance.initialize("slave", self.rank, cut_num_range, self.lwd_multi_nodes_enable)
+        #standard card
+        edge_is_standard_card = self.ctrl_comm.edge_npu_smi_info.get("communication_backend") == 'hccl' if \
+            self.ctrl_comm is not None and self.ctrl_comm.edge_npu_smi_info is not None else False
+        if edge_is_standard_card:
+            edge_soc_name = self.ctrl_comm.edge_npu_smi_info.get("soc_name")
+            edge_hbm_cap = self.ctrl_comm.edge_npu_smi_info.get("hbm_capacity")
+            if edge_soc_name and edge_hbm_cap:
+                cloud_cut_instance.initialize_standard_card(edge_soc_name, edge_hbm_cap)
+     
         self.prepare_prefill_cut_policy(self.prefill_layers_divi_num)
 
         logger.info(f"[layerwiseDisaggregated] cloud initliaze ok rank:{self.rank}, "

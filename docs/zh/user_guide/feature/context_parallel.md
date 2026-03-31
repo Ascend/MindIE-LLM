@@ -7,19 +7,19 @@ Context Parallel（CP，上下文并行）主要针对Self-attention模块在seq
 
 ## 限制与约束
 
--  Atlas 800I A2 推理服务器和Atlas 800I A3 超节点服务器支持此特性。
--  当前仅DeepSeek-R1的W8A8量化模型、DeepSeek-R1的W4A8量化模型、 DeepSeek-V3的W4A8量化模型和DeepSeek-V3.1的W4A8量化模型支持此特性。
--  当前不支持CP单独开启，开启CP需要同时开始SP。
--  支持PD分离场景和PD混部场景。
--  PD混部场景时：
-    -  该特性可以和SP(sequence parallel)、TP(tensor parallel)同时使用。开启CP特性时，DP(data parallel)必须等于1，SP必须等于TP，且CP、DP和TP的乘积等于Worldsize。
-    -  该特性支持与MTP=1、异步调度、Prefix Cache特性叠加使用。
+- Atlas 800I A2 推理服务器和Atlas 800I A3 超节点服务器支持此特性。
+- 当前仅DeepSeek-R1的W8A8量化模型、DeepSeek-R1的W4A8量化模型、 DeepSeek-V3的W4A8量化模型和DeepSeek-V3.1的W4A8量化模型支持此特性。
+- 当前不支持CP单独开启，开启CP需要同时开始SP。
+- 支持PD分离场景和PD混部场景。
+- PD混部场景时：
+    - 该特性可以和SP(sequence parallel)、TP(tensor parallel)同时使用。开启CP特性时，DP(data parallel)必须等于1，SP必须等于TP，且CP、DP和TP的乘积等于Worldsize。
+    - 该特性支持与MTP=1、异步调度、Prefix Cache特性叠加使用。
 
--  PD分离场景时：
-    -  仅支持在P节点开启CP特性，该特性可以和SP、TP、MTP同时使用。开启CP特性时，DP必须等于1，SP必须等于TP，且CP、DP和TP的乘积等于Worldsize。
-    -  该特性支持与MTP、异步调度、Prefix Cache特性叠加使用。
+- PD分离场景时：
+    - 仅支持在P节点开启CP特性，该特性可以和SP、TP、MTP同时使用。开启CP特性时，DP必须等于1，SP必须等于TP，且CP、DP和TP的乘积等于Worldsize。
+    - 该特性支持与MTP、异步调度、Prefix Cache特性叠加使用。
 
--  该特性不支持BF16。
+- 该特性不支持BF16。
 
 ## 参数说明
 
@@ -30,7 +30,6 @@ Context Parallel（CP，上下文并行）主要针对Self-attention模块在seq
 |配置项|取值类型|取值范围|配置说明|
 |--|--|--|--|
 |cp|int|[1，2]|将一个输入序列切分后得到的份数。<br>1：不开启CP特性。<br>2：输入序列切分成2份。<br>目前开启CP特性，切分的份数仅支持“2”。|
-
 
 ## 执行推理
 
@@ -72,7 +71,6 @@ Context Parallel（CP，上下文并行）主要针对Self-attention模块在seq
 
 3. 启动服务。
 
-    ```
+    ```bash
     ./bin/mindieservice_daemon
     ```
-

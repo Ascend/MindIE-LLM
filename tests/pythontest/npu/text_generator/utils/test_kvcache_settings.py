@@ -155,10 +155,6 @@ class TestKVCacheSettings(unittest.TestCase):
             KVCacheSettings.dtype_to_str(BackendType.ATB, torch.float16),
             "float16"
         )
-        self.assertEqual(
-            KVCacheSettings.dtype_to_str(BackendType.MS, mindspore.float32),
-            "float"
-        )
         # 测试不匹配的后端和数据类型
         with self.assertRaises(Exception):
             KVCacheSettings.dtype_to_str(BackendType.ATB, mindspore.float16)

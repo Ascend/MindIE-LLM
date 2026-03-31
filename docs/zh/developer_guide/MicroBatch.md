@@ -27,10 +27,10 @@ Micro Batch 即在批处理过程中，将数据切分为更小粒度的多个 b
 
 1. 打开 Server 的 `config.json` 文件。
 
-```bash
-cd {MindIE安装目录}/latest/mindie-service/
-vi conf/config.json
-```
+    ```bash
+    cd {MindIE安装目录}/latest/mindie-service/
+    vi conf/config.json
+    ```
 
 2. 配置服务化参数。在 Server 的 `config.json` 文件中添加 `"micro_batch"` 字段（如下加粗部分），参数字段说明请参见表 **Micro Batch 特性补充参数：ModelConfig 中的 models 参数**，服务化参数说明请参见 5.2-配置参数说明（服务化）章节，参数配置示例如下：
 
@@ -58,14 +58,12 @@ vi conf/config.json
             "micro_batch": true
           }
         }
-      }
+      ]
     }
-  ]
-}
-```
+    ```
 
 3. 启动服务。
 
-```bash
-./bin/mindieservice_daemon
-```
+    ```bash
+    ./bin/mindieservice_daemon
+    ```

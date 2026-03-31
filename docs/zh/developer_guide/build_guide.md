@@ -50,6 +50,7 @@ MindIE镜像获取请参见[镜像安装方式](../user_guide/install/source/ima
     ```bash
     export MINDIE_LLM_VERSION_OVERRIDE=3.0.0
     ```
+    
 5. 编译生成 MindIE-LLM 的 `.whl` 包。
     在源码根目录下执行：
 

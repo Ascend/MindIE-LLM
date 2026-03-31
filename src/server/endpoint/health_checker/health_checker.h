@@ -53,9 +53,11 @@ public:
         const std::string &errCode, const std::string &createdBy,
         const std::chrono::time_point<std::chrono::system_clock> &timestamp = std::chrono::system_clock::now());
     void PrintNpuDeviceIds();
+    void SetSendingDecodeMessageStatus(bool sendingDecodeMessageStatus) noexcept;
     std::string StatusToString(const ServiceStatus &status) const;
     bool Start();
     void Stop();
+    bool IsEnabled() const noexcept;
     SimulateResult RunHttpTimedHealthCheck(uint32_t waitTime);
     HealthChecker(const HealthChecker &) = delete;
     HealthChecker &operator=(const HealthChecker &) = delete;
@@ -70,6 +72,7 @@ private:
     mutable std::shared_mutex mNpuDevicesMutex;
     std::thread mCheckerThread;
     std::atomic<bool> mRunning;
+    std::atomic<bool> mSendingDecodeMessage{false};
     std::mutex mStatusMutex; // 状态锁
     std::unordered_map<int, std::vector<int>> statusTransferMap;
     static constexpr int checkIntervalSeconds = 5;
@@ -106,6 +109,16 @@ private:
 
 private:
     HealthChecker();
+};
+
+class SendingDecodeMessageScope {
+public:
+    explicit SendingDecodeMessageScope(HealthChecker &checker) noexcept;
+    ~SendingDecodeMessageScope() noexcept;
+    SendingDecodeMessageScope(const SendingDecodeMessageScope &) = delete;
+    SendingDecodeMessageScope &operator=(const SendingDecodeMessageScope &) = delete;
+private:
+    HealthChecker &checker_;
 };
 
 } // namespace mindie_llm

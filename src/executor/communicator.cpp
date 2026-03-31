@@ -70,7 +70,8 @@ Communicator::Communicator(std::unordered_map<std::string, std::string> &config,
 bool Communicator::InitIPCCommunicators(const std::string &sharedMemPrefix, uint32_t localWorldSize)
 {
     ShmSizeConfig executeShmConfig{SHARED_MEMORY_256MB, DEFAULT_SHARED_MEMORY_SIZE};
-    ipcCommunicatorExecute_ = InitSingleIPCCommunicator(sharedMemPrefix + "_execute", localWorldSize, executeShmConfig);
+    SemaphoreConfig semConfig{localWorldSize, localWorldSize};
+    ipcCommunicatorExecute_ = InitSingleIPCCommunicator(sharedMemPrefix + "_execute", semConfig, executeShmConfig);
     if (ipcCommunicatorExecute_ == nullptr) {
         MINDIE_LLM_LOG_ERROR("Failed to initialize IPC Communicator for Execute channel.");
         return false;
@@ -78,7 +79,7 @@ bool Communicator::InitIPCCommunicators(const std::string &sharedMemPrefix, uint
 
     ShmSizeConfig sharedSyncShmConfig{DEFAULT_SHARED_MEMORY_SIZE, DEFAULT_SHARED_MEMORY_SIZE};
     ipcCommunicatorSharedSync_ =
-        InitSingleIPCCommunicator(sharedMemPrefix + "_shared_sync_link", localWorldSize, sharedSyncShmConfig);
+        InitSingleIPCCommunicator(sharedMemPrefix + "_shared_sync_link", semConfig, sharedSyncShmConfig);
     if (ipcCommunicatorSharedSync_ == nullptr) {
         MINDIE_LLM_LOG_ERROR("Failed to initialize IPC Communicator for Shared Link channel.");
         return false;
@@ -86,15 +87,16 @@ bool Communicator::InitIPCCommunicators(const std::string &sharedMemPrefix, uint
 
     ShmSizeConfig kvTransferShmConfig{SHARED_MEMORY_256MB, DEFAULT_SHARED_MEMORY_SIZE};
     ipcCommunicatorKVTransfer_ =
-        InitSingleIPCCommunicator(sharedMemPrefix + "_transfer", localWorldSize, kvTransferShmConfig);
+        InitSingleIPCCommunicator(sharedMemPrefix + "_transfer", semConfig, kvTransferShmConfig);
     if (ipcCommunicatorKVTransfer_ == nullptr) {
         MINDIE_LLM_LOG_ERROR("Failed to initialize IPC Communicator for KV Transfer channel.");
         return false;
     }
 
-    ShmSizeConfig executeErrorShmConfig{DEFAULT_SHARED_MEMORY_SIZE, DEFAULT_SHARED_MEMORY_SIZE};
+    ShmSizeConfig executeErrorShmConfig{0, ERROR_SHARED_MEMORY_SIZE}; // no request shared memory
+    SemaphoreConfig executeErrorSemConfig{0, 1}; // no request semaphores, 1 response read/write semaphore
     ipcCommunicatorExecuteError_ =
-        InitSingleIPCCommunicator(sharedMemPrefix + "_execute_error", localWorldSize, executeErrorShmConfig);
+        InitSingleIPCCommunicator(sharedMemPrefix + "_execute_error", executeErrorSemConfig, executeErrorShmConfig);
     if (ipcCommunicatorExecuteError_ == nullptr) {
         MINDIE_LLM_LOG_ERROR("Failed to initialize IPC Communicator for Execute Error channel.");
         return false;
@@ -307,9 +309,10 @@ bool Communicator::LaunchIPCHandleResponseThreads(ResponseHandler handler)
         MINDIE_LLM_LOG_ERROR("Failed to register and start handler for Execute channel.");
         return false;
     }
-    executeErrorRecvActive_ = true;
-    handleExecuteErrorThread_ =
-        std::make_unique<std::thread>(&Communicator::HandleExecuteErrorResponse, this, responseHandler);
+    if (!RegisterAndStartIPCHandler(ipcCommunicatorExecuteError_, responseHandler)) {
+        MINDIE_LLM_LOG_ERROR("Failed to register and start handler for Execute Error channel.");
+        return false;
+    }
     if (!RegisterAndStartIPCHandler(ipcCommunicatorKVTransfer_, responseHandler)) {
         MINDIE_LLM_LOG_ERROR("Failed to register and start handler for KV Transfer channel.");
         return false;
@@ -322,19 +325,6 @@ bool Communicator::LaunchIPCHandleResponseThreads(ResponseHandler handler)
         }
     }
     return true;
-}
-
-void Communicator::HandleExecuteErrorResponse(ResponseHandler handler) const
-{
-    pthread_setname_np(pthread_self(), "ExecErrRcv");
-    while (executeErrorRecvActive_) {
-        ExecuteResponse response;
-        if (ipcCommunicatorExecuteError_->TryReceiveExecuteResponse(response)) {
-            handler(response);
-            continue;
-        }
-        std::this_thread::sleep_for(std::chrono::milliseconds(1));
-    }
 }
 
 bool Communicator::RegisterAndStartIPCHandler(std::shared_ptr<IPCCommunicator> ipcCommunicator,
@@ -401,17 +391,16 @@ bool Communicator::GRPCGetSyncResponse(ExecuteResponse &response)
 }
 
 std::unique_ptr<IPCCommunicator> Communicator::InitSingleIPCCommunicator(const std::string &sharedMemName,
-                                                                         uint32_t localWorldSize,
+                                                                         const SemaphoreConfig &semConfig,
                                                                          const ShmSizeConfig &shmSizeConfig) const
 {
-    std::unique_ptr<IPCCommunicator> ipcCommunicator = std::make_unique<IPCCommunicator>(sharedMemName, localWorldSize);
+    std::unique_ptr<IPCCommunicator> ipcCommunicator = std::make_unique<IPCCommunicator>(sharedMemName, semConfig);
     if (!ipcCommunicator->SetupChannel(shmSizeConfig)) {
         MINDIE_LLM_LOG_ERROR("Failed to initialize Execute channel.");
         return nullptr;
     }
     return ipcCommunicator;
 }
-
 bool Communicator::SendAsyncRequest(ExecuteRequest &request)
 {
     if (isMultiNodesInfer_ && msRole_ == MasterSlaveRole::SLAVE) {
@@ -499,7 +488,6 @@ bool Communicator::SendAsyncRequestToRemote(ExecuteRequest &request)
 
 void Communicator::CleanUp()
 {
-    executeErrorRecvActive_ = false;
     if (handleExecuteErrorThread_ && handleExecuteErrorThread_->joinable()) {
         handleExecuteErrorThread_->join();
         handleExecuteErrorThread_.reset();

@@ -10,6 +10,7 @@
 # MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
 # See the Mulan PSL v2 for more details.
 import os
+import queue
 import unittest
 import sys
 from unittest.mock import MagicMock, patch
@@ -19,7 +20,7 @@ from ddt import ddt, data, unpack
 
 from mindie_llm.utils.env import ENV
 from mindie_llm.utils.status import MindieLlmStatusCode
-from mindie_llm.text_generator.generator import Generator, PDInterface, PDModelConfig
+from mindie_llm.text_generator.generator import Generator, PDInterface, PDModelConfig, STANDARD_TAG
 from mindie_llm.text_generator.utils.generation_output import GenerationOutput
 from mindie_llm.text_generator.utils.request import Request
 from mindie_llm.text_generator.utils.input_metadata import InputMetadata, SAMPLING_DTYPE
@@ -27,6 +28,7 @@ from mindie_llm.text_generator.adapter import generator_torch
 from mindie_llm.text_generator.utils.generation_metadata import GenerationParams
 from mindie_llm.connector.common.model_execute_data_pb2 import LoraOperationStatus
 from mindie_llm.modeling.model_wrapper.model_info import ModelInfo
+from mindie_llm.utils.log.error_code import ErrorCode, ErrorCodeException
 
 from tests.pythontest.npu import FakeModelRunner, FakeModelWrapper, FakeParallelInfo
 
@@ -489,21 +491,6 @@ class TestGenerator(unittest.TestCase):
         generator.separate_deployment_worker = None
         ret = generator.unload_lora("fake_id")
         self.assertEqual(ret, LoraOperationStatus.LORA_CMD_SUCCESS)
-    
-
-    @patch("mindie_llm.text_generator.generator.Generator.__init__", return_value=None)
-    def test_execute_recover_command_non_atb_backend(self, _):
-        """测试非atb后端不支持恢复命令"""
-        generator = Generator(self.model_config)
-        generator.separate_deployment_worker = None
-        generator.backend_type = 'ms'
-        generator.npu_device_id = 0
-        
-        result = generator.execute_recover_command("CMD_REINIT_NPU")
-        
-        self.assertEqual(result["command_result"], 1)
-        self.assertIn("Recovery commands are only supported by 'atb' backend", result["error_msg"])
-        self.assertEqual(result["npu_device_id"], 0)
 
     @patch("mindie_llm.text_generator.generator.Generator.__init__", return_value=None)
     @patch("mindie_llm.text_generator.generator.acl")
@@ -524,8 +511,6 @@ class TestGenerator(unittest.TestCase):
             "npu_device_id": 0
         })
         generator.model_wrapper = MagicMock()
-        generator.model_wrapper.resume_hccl_comm = MagicMock()
-        mock_acl.rt.set_device = MagicMock()
         
         result = generator.execute_recover_command("CMD_REINIT_NPU")
         
@@ -534,8 +519,6 @@ class TestGenerator(unittest.TestCase):
         self.assertEqual(result["npu_device_id"], 0)
         generator.infer_context.reset_all_context.assert_called_once()
         generator.generator_backend.execute_recover_command.assert_called_once_with("CMD_REINIT_NPU")
-        mock_acl.rt.set_device.assert_called_once_with(0)
-        generator.model_wrapper.resume_hccl_comm.assert_called_once()
 
     @patch("mindie_llm.text_generator.generator.Generator.__init__", return_value=None)
     def test_execute_recover_command_reinit_npu_backend_failure(self, _):
@@ -702,14 +685,42 @@ class TestGenerator(unittest.TestCase):
         generator.generator_backend.execute_recover_command.assert_called_once_with("CMD_PAUSE_ENGINE")
 
     @patch("mindie_llm.text_generator.generator.Generator.__init__", return_value=None)
-    def test_execute_recover_command_pause_engine_roce(self, _):
-        """测试CMD_PAUSE_ENGINE_ROCE命令"""
+    def test_execute_recover_command_pause_engine_backend_failure(self, _):
+        """测试CMD_PAUSE_ENGINE命令后端执行失败时仍正确设置pause状态"""
         generator = Generator(self.model_config)
+        generator.separate_deployment_worker = None
         generator.backend_type = 'atb'
         generator.npu_device_id = 0
         generator.is_inference_pause = False
-        generator.plugin = MagicMock()
-        generator.plugin.is_inference_pause = False
+        generator.plugin_manager = MagicMock()
+        generator.plugin_manager.is_inference_pause = False
+        generator.generator_backend = MagicMock()
+        generator.generator_backend.execute_recover_command = MagicMock(return_value={
+            "command_result": 1,
+            "error_msg": "Stop device failed",
+            "npu_device_id": 0
+        })
+
+        result = generator.execute_recover_command("CMD_PAUSE_ENGINE")
+
+        self.assertEqual(result["command_result"], 1)
+        self.assertEqual(result["error_msg"], "Stop device failed")
+        self.assertEqual(result["npu_device_id"], 0)
+        # 即使后端失败，pause 状态应在调用 backend 前已设置
+        self.assertTrue(generator.is_inference_pause)
+        self.assertTrue(generator.plugin_manager.is_inference_pause)
+        generator.generator_backend.execute_recover_command.assert_called_once_with("CMD_PAUSE_ENGINE")
+
+    @patch("mindie_llm.text_generator.generator.Generator.__init__", return_value=None)
+    def test_execute_recover_command_pause_engine_roce(self, _):
+        """测试CMD_PAUSE_ENGINE_ROCE命令"""
+        generator = Generator(self.model_config)
+        generator.separate_deployment_worker = None
+        generator.backend_type = 'atb'
+        generator.npu_device_id = 0
+        generator.is_inference_pause = False
+        generator.plugin_manager = MagicMock()
+        generator.plugin_manager.is_inference_pause = False
 
         result = generator.execute_recover_command("CMD_PAUSE_ENGINE_ROCE")
 
@@ -717,7 +728,7 @@ class TestGenerator(unittest.TestCase):
         self.assertEqual(result["error_msg"], "")
         self.assertEqual(result["npu_device_id"], 0)
         self.assertTrue(generator.is_inference_pause)
-        self.assertTrue(generator.plugin.is_inference_pause)
+        self.assertTrue(generator.plugin_manager.is_inference_pause)
 
     @patch("mindie_llm.text_generator.generator.Generator.__init__", return_value=None)
     def test_execute_recover_command_clear_transer(self, _):
@@ -746,6 +757,91 @@ class TestGenerator(unittest.TestCase):
         self.assertEqual(result["command_result"], 1)
         self.assertIn("Unknown recovery command", result["error_msg"])
         self.assertEqual(result["npu_device_id"], 0)
+
+    @patch('mindie_llm.utils.prof.profiler.span_end')
+    @patch('mindie_llm.utils.prof.profiler.span_attr')
+    @patch('mindie_llm.utils.prof.profiler.span_start')
+    @patch("mindie_llm.text_generator.generator.Generator.__init__", return_value=None)
+    def test_generate_token_sets_fault_device_when_exception_maps_to_error_code(
+        self, _, mock_span_start, mock_span_attr, mock_span_end
+    ):
+        """异常信息命中 convert_exception_to_error_code 时设置 is_fault_device 并抛出 ErrorCodeException。"""
+        mock_span_start.return_value = None
+        generator = Generator(self.model_config)
+        generator.pd_config = MagicMock()
+        generator.pd_config.model_role = STANDARD_TAG
+        generator.input_metadata_queue = queue.Queue()
+        generator.rank = 0
+        generator.async_inference = False
+        generator.plugin_manager = MagicMock()
+        generator.plugin_manager.generate_token.side_effect = RuntimeError(
+            "backend reported MIE05E0000005 in stack"
+        )
+        generator.generator_backend = MagicMock()
+        generator.generator_backend.is_fault_device = False
+        im = MagicMock(spec=InputMetadata)
+        im.batch_seq_len = np.array([0])
+        im.is_prefill = False
+        with self.assertRaises(ErrorCodeException) as cm:
+            generator.generate_token(im, warmup=False)
+        self.assertEqual(cm.exception.error_code, ErrorCode.TEXT_GENERATOR_OUT_OF_MEMORY)
+        self.assertTrue(generator.generator_backend.is_fault_device)
+
+    @patch('mindie_llm.utils.prof.profiler.span_end')
+    @patch('mindie_llm.utils.prof.profiler.span_attr')
+    @patch('mindie_llm.utils.prof.profiler.span_start')
+    @patch("mindie_llm.text_generator.generator.Generator.__init__", return_value=None)
+    def test_generate_token_notify_force_stop_when_inference_paused(
+        self, _, mock_span_start, mock_span_attr, mock_span_end
+    ):
+        """推理暂停时 FORCE STOP 异常应调用 notify_force_stop_exception 并返回空 GenerationOutput。"""
+        mock_span_start.return_value = None
+        generator = Generator(self.model_config)
+        generator.pd_config = MagicMock()
+        generator.pd_config.model_role = STANDARD_TAG
+        generator.input_metadata_queue = queue.Queue()
+        generator.rank = 0
+        generator.async_inference = False
+        generator.is_inference_pause = True
+        generator.plugin_manager = MagicMock()
+        generator.plugin_manager.generate_token.side_effect = RuntimeError("User FORCE STOP request")
+        generator.generator_backend = MagicMock()
+        generator.generator_backend.notify_force_stop_exception = MagicMock()
+        im = MagicMock(spec=InputMetadata)
+        im.batch_seq_len = np.array([0])
+        im.is_prefill = False
+        out = generator.generate_token(im, warmup=False)
+        self.assertIsInstance(out, GenerationOutput)
+        self.assertEqual(out.sequence_ids.size, 0)
+        generator.generator_backend.notify_force_stop_exception.assert_called_once()
+
+    @patch('mindie_llm.utils.prof.profiler.span_end')
+    @patch('mindie_llm.utils.prof.profiler.span_attr')
+    @patch('mindie_llm.utils.prof.profiler.span_start')
+    @patch("mindie_llm.text_generator.generator.Generator.__init__", return_value=None)
+    def test_generate_token_force_stop_reraises_when_not_paused(
+        self, _, mock_span_start, mock_span_attr, mock_span_end
+    ):
+        """非暂停状态下 FORCE STOP 仍按未知异常向上抛出。"""
+        mock_span_start.return_value = None
+        generator = Generator(self.model_config)
+        generator.pd_config = MagicMock()
+        generator.pd_config.model_role = STANDARD_TAG
+        generator.input_metadata_queue = queue.Queue()
+        generator.rank = 0
+        generator.async_inference = False
+        generator.is_inference_pause = False
+        generator.plugin_manager = MagicMock()
+        err = RuntimeError("FORCE STOP abort")
+        generator.plugin_manager.generate_token.side_effect = err
+        generator.generator_backend = MagicMock()
+        im = MagicMock(spec=InputMetadata)
+        im.batch_seq_len = np.array([0])
+        im.is_prefill = False
+        with self.assertRaises(RuntimeError) as cm:
+            generator.generate_token(im, warmup=False)
+        self.assertIs(cm.exception, err)
+        generator.generator_backend.notify_force_stop_exception.assert_not_called()
 
 
 class TestPDInterface(unittest.TestCase):

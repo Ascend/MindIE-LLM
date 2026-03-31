@@ -16,16 +16,20 @@
 | InternVL2.5-78B | 支持world size 8         | 不支持 | √    | √    | √               | 文本、图片               | 文本、图片        |
 
 注意：
+
 - 当前多模态场景, MindIE Service仅支持MindIE Service、TGI、Triton、vLLM Generate 4种服务化请求格式。
 - 表中所示支持的world size为建议配置，实际运行时还需考虑单卡的显存上限，以及输入序列长度。
 - 推理默认加载BF16权重，如运行特性矩阵中不支持BF16的模型，请将权重路径下config.json文件的`torch_dtype`字段修改为`float16`。
 - MindIE Service表示模型支持MindIE服务化部署，多卡服务化推理场景。
 - 若需要在同一环境下拉起多个 MindIE Service 服务，需要设置以下环境变量，确保每个服务之间的 MASTER_PORT 不冲突。该变量的取值范围通常为 [1024, 65535]，建议动态分配一个未占用的端口。
+
   ```shell
   export MASTER_ADDR=localhost
   export MASTER_PORT=<动态分配的未占用端口号>
   ```
+
   提示：可以通过以下命令检查某个端口是否被占用：
+
   ```shell
   netstat -anp | grep <PORT>
   ```
@@ -40,6 +44,7 @@
 | weight_path | 模型权重路径                                                                                                                |
 | trust_remote_code | 是否信任模型权重路径下的可执行文件：默认不信任，若传入此参数则信任，**用户需自行承担风险**                                                                 |
 | image_path  | 图片所在路径                                                                                                                |
+
 ## 权重
 
 **权重下载**
@@ -61,9 +66,11 @@
 
 - Toolkit, MindIE/ATB, ATB-SPEED等，参考[此README文件](../../../README.md)，镜像包中一般已默认安装
 - 安装Python其他第三方库依赖，参考[requirements_internvl.txt](../../../requirements/models/requirements_internvl.txt)
+
   ```shell
   pip install -r ${llm_path}/requirements/models/requirements_internvl.txt
   ```
+
 - 若下载有SSL相关报错，可在命令后加上 `-i https://mirrors.aliyun.com/pypi/simple --trusted-host mirrors.aliyun.com` 参数使用阿里源进行下载
 
 ### 调试建议
@@ -84,9 +91,11 @@
 
 - 运行启动脚本
   - 在`${llm_path}`目录下执行以下指令
+
     ```shell
     bash ${script_path}/run_pa.sh --run --trust_remote_code ${weight_path} ${image_path}
     ```
+
   - 环境变量说明 (以下为run_pa.sh启动脚本中配置的环境变量)
     - `export ASCEND_RT_VISIBLE_DEVICES=0,1,2,3,4,5,6,7`
       - 指定当前机器上可用的逻辑NPU核心，多个核心间使用逗号相连
@@ -98,6 +107,7 @@
       - 目的是为了避免同一台机器同时运行多个多卡模型时出现通信冲突
       - 设置时端口建议范围为：20000-20050
     - 以下环境变量与性能和内存优化相关，通常情况下无需修改
+
       ```shell
       export INF_NAN_MODE_ENABLE=0
       export ATB_OPERATION_EXECUTE_ASYNC=1
@@ -106,6 +116,7 @@
       ```
 
 ## 服务化推理
+
 - 打开配置文件
 
   ```shell
@@ -115,6 +126,7 @@
 - 修改`MindIE-Service`配置文件`config.json`，以`InternVL2_5-8B`，`InternVL2_5-78B`为例，在800I A2环境下，推荐使用以下配置，请自行修改`modelWeightPath`为实际权重路径：
 
   - **InternVL2_5-78B**
+
   ```json
   {
       "ServerConfig": {
@@ -148,6 +160,7 @@
   ```
 
   - **InternVL2_5-8B**
+
   ```json
   {
       "ServerConfig": {
@@ -190,6 +203,7 @@
 - 新建同一个Docker容器的终端会话，在任意路径下发送curl请求完成推理，以下分别以OpenAI接口与vLLM接口为例
 
   - **OpenAI接口**
+
   ```shell
   curl http://localhost:${端口号，与起服务化时config.json中的'port'保持一致}/v1/chat/completions -d '{
     "model": "internvl",
@@ -209,6 +223,7 @@
   ```
 
   - **vLLM接口**
+
   ```shell
   curl localhost:${端口号，与起服务化时config.json中的'port'保持一致}/generate -d '{
       "prompt": [
@@ -226,15 +241,18 @@
   ```
 
 ## 精度与性能测试方案
+
 为了全面评估模型在处理不同类型数据（如文本、图像、视频等）时的效果与表现，我们为MindIE中的纯模型推理与服务化推理场景分别准备了对应的精度与性能测试方案供用户参考，以下是方案的具体实现。
 
 ## 纯模型推理场景 精度测试
 
 ### TextVQA 图片+文本理解场景
+
 - 数据准备
     - 数据集下载 [textvqa_val](https://huggingface.co/datasets/maoxx241/textvqa_val)
     - 保证 `textvqa_val.jsonl` 和 `textvqa_val_annotations.json` 在同一目录下
     - 将 `textvqa_val.jsonl` 文件中所有 `image` 属性的值改为相应图片的绝对路径
+
   ```json
   ...
   {
@@ -245,10 +263,13 @@
   }
   ...
   ```
+
 - 进入以下目录 ${llm_path}/examples/atb_models/tests/modeltest
+
   ```shell
   cd ${llm_path}/examples/atb_models/tests/modeltest
   ```
+
 - 安装`modeltest`及其三方依赖
  
   ```shell
@@ -256,26 +277,32 @@
   pip install -e .
   pip install tabulate termcolor 
   ```
+
    - 若下载有SSL相关报错，可在命令后加上 `-i https://mirrors.aliyun.com/pypi/simple --trusted-host mirrors.aliyun.com` 参数使用阿里源进行下载
 - 修改modeltest/config/model/internvl.yaml中配置项
     - 将`model_path`的值修改为模型权重的绝对路径
     - 将warm_up_image_path改为textvqa数据集中任一图片的绝对路径
     - 将trust_remote_code修改为 `True` (注意：trust_remote_code为可选参数代表是否信任本地的可执行文件，默认为false。若设置为true，则信任本地可执行文件，此时transformers会执行用户权重路径下的代码文件，这些代码文件的功能的安全性需由用户保证。)
+
   ```yaml
   model_path: /data_mm/weights/InternVL2-8B 
   trust_remote_code: {用户输入的trust_remote_code值}
   mm_model:
     warm_up_image_path: ['/data_mm/datasets/textvqa_val/train_images/003a8ae2ef43b901.jpg']
   ```
+
 - 修改 `modeltest/config/task/textvqa.yaml` 中配置项
     - 将local_dataset_path的值修改为数据集中textvqa_val.jsonl文件的绝对路径
     - 将requested_max_input_length和requested_max_output_length的值分别设置为为20000和256
+
   ```yaml
   local_dataset_path: /data_mm/datasets/textvqa_val/textvqa_val.jsonl
   requested_max_input_length: 20000
   requested_max_output_length: 256
   ```
+
 - 将textvqa_val.jsonl文件中所有"image"属性的值改为相应图片的绝对路径
+
   ```json
   ...
   {
@@ -286,23 +313,31 @@
   }
   ...
   ```
+
 - 设置可见卡数，修改mm_run.sh文件中的ASCEND_RT_VISIBLE_DEVICES。依需求设置单卡或多卡可见。
+
   ```shell
   export ASCEND_RT_VISIBLE_DEVICES=0,1
   ```
+
 - 运行测试命令
+
   ```shell
   bash scripts/mm_run.sh textvqa internvl
   ```
+
 - 测试结果保存于以下路径。其下的results/..(一系列文件夹嵌套)/\*\_result.csv中存放着modeltest的测试结果。debug/..(一系列文件夹嵌套)/output\_\*.txt中存储着每一条数据的运行结果，第一项为output文本，第二项为输入infer函数的第一个参数的值，即模型输入。第三项为e2e_time。
+
   ```shell
   output/$DATE/modeltest/$MODEL_NAME/precision_result/
   ```
 
 ### VideoBench 视频+文本理解场景
+
 - 数据准备
   - 数据集下载 [Eval_QA](https://huggingface.co/datasets/maoxx241/videobench_subset) && [Video-Bench](https://huggingface.co/datasets/LanguageBind/Video-Bench/tree/main)
   - 将`Eval_QA/`目录下的各json文件中的`vid_path`改为相应视频的绝对路径
+
   ```json
   ...
   "v_C7yd6yEkxXE_4": {
@@ -310,27 +345,35 @@
   }
   ...
   ```
+
 - 进入以下目录 `${llm_path}/tests/modeltest`
+
   ```shell
   cd ${llm_path}/tests/modeltest
   ```
+
 - 安装`modeltest`及其三方依赖
+
   ```shell
   pip install --upgrade pip
   pip install -e .
   pip install tabulate termcolor 
   ```
+
   - 若下载有SSL相关报错，可在命令后加上 `-i https://mirrors.aliyun.com/pypi/simple --trusted-host mirrors.aliyun.com` 参数使用阿里源进行下载
 - 修改 `modeltest/config/model/internvl.yaml` 中配置项
     - 将`model_path`的值修改为模型权重的绝对路径
     - 将trust_remote_code修改为 `True` (注意：trust_remote_code为可选参数代表是否信任本地的可执行文件，默认为false。若设置为true，则信任本地可执行文件，此时transformers会执行用户权重路径下的代码文件，这些代码文件的功能的安全性需由用户保证。)
+
   ```yaml
   model_path: /data_mm/weights/InternVL2-8B 
   trust_remote_code: {用户输入的trust_remote_code值}
   ```
+
 - 修改 `modeltest/config/task/videobench.yaml` 中配置项
     - 将local_dataset_path的值修改为数据集中Video-Bench-main/Eval_QA目录的绝对路径
     - (可选) 若只需运行部分子集，可将subject_mapping中不需要的子集注释掉，如下以注释ActivityNet子集为例
+
   ```yaml
   local_dataset_path: /data_mm/datasets/VideoBench/Video-Bench-main/Eval_QA
   ...
@@ -340,15 +383,21 @@
   Driving-decision-making:
     name: Driving-decision-making
   ```
+
 - 设置可见卡数，修改 `scripts/mm_run.sh` 文件中的`ASCEND_RT_VISIBLE_DEVICES`。依需求设置单卡或多卡可见。
+
   ```shell
   export ASCEND_RT_VISIBLE_DEVICES=0,1
   ```
+
 - 运行测试命令
+
   ```shell
   bash scripts/mm_run.sh videobench internvl
   ```
+
 - 测试结果保存于以下路径。其下的`results/..(一系列文件夹嵌套)/\*\_result.csv`中存放着modeltest的测试结果。`debug/..(一系列文件夹嵌套)/output\_\*.txt`中存储着每一条数据的运行结果，第一项为output文本，第二项为输入infer函数的第一个参数的值，即模型输入。第三项为e2e_time。
+
   ```shell
   output/$DATE/modeltest/$MODEL_NAME/precision_result/
   ```
@@ -358,10 +407,12 @@
 _性能测试时需要在 `${image_path}` 下仅存放一张图片_
 
 测试模型侧性能数据，需要开启环境变量
+
   ```shell
   export ATB_LLM_BENCHMARK_ENABLE=1
   export ATB_LLM_BENCHMARK_FILEPATH=${script_path}/benchmark.csv
   ```
+
 **在${llm_path}目录使用以下命令运行 `run_pa.sh`**，会自动输出batchsize为1-10时，输出token长度为 256时的吞吐。
 
 ```shell
@@ -381,11 +432,13 @@ bash examples/models/internvl/run_pa.sh --performance (--trust_remote_code) ${we
 - 新建同一个Docker容器的终端会话，在任意路径下使用benchmark工具进行数据集测试，执行如下benchmark命令：
 
 - 打开benchmark工具打印开关
+
   ```shell
   export MINDIE_LOG_TO_STDOUT="benchmark:1; client:1" 
   ```
 
 - 发送benchmark推理请求（若出现trust_remote_code相关报错，需将--TrustRemoteCode置为True，可能引入文件读取风险，请知悉）
+
   ```shell
   benchmark \
   --TestAccuracy True \
@@ -418,11 +471,13 @@ bash examples/models/internvl/run_pa.sh --performance (--trust_remote_code) ${we
 - 新建同一个Docker容器的终端会话，在任意路径下使用benchmark工具进行数据集测试，执行如下benchmark命令：
 
 - 打开benchmark工具打印开关
+
   ```shell
   export MINDIE_LOG_TO_STDOUT="benchmark:1; client:1" 
   ```
 
 - 发送benchmark推理请求（若出现trust_remote_code相关报错，需将--TrustRemoteCode置为True，可能引入文件读取风险，请知悉）
+
   ```shell
   benchmark \
   --TestAccuracy True \
@@ -447,6 +502,7 @@ bash examples/models/internvl/run_pa.sh --performance (--trust_remote_code) ${we
 完成数据集推理后，测试结果将打印展示数据集得分等指标，同时测试结果会保存在--SavePath路径下。
 
 ## 服务化推理场景 性能测试
+
 - 参考[服务化推理](#服务化推理)章节，在当前Docker容器中部署并启动推理服务
 
 - 下载数据集[textvqa_val_performance](https://huggingface.co/datasets/maoxx241/textvqa_val_performance)
@@ -454,11 +510,13 @@ bash examples/models/internvl/run_pa.sh --performance (--trust_remote_code) ${we
 - 新建同一个Docker容器的终端会话，在任意路径下使用benchmark工具进行数据集测试，执行如下benchmark命令：
 
 - 打开benchmark工具打印开关
+
   ```shell
   export MINDIE_LOG_TO_STDOUT="benchmark:1; client:1" 
   ```
 
 - 发送benchmark推理请求（若出现trust_remote_code相关报错，需将--TrustRemoteCode置为True，可能引入文件读取风险，请知悉）
+
   ```shell
   benchmark \
   --TestAccuracy False \
@@ -483,10 +541,12 @@ bash examples/models/internvl/run_pa.sh --performance (--trust_remote_code) ${we
 完成数据集推理后，测试结果将打印展示吞吐(GenerationSpeed)等性能指标，同时测试结果会保存在--SavePath路径下。
 
 ## FAQ
+
 - 在对话测试或者精度测试时，用户如果需要修改输入input_texts,max_batch_size时，可以修改`${script_path}/internvl.py`里的参数，具体可见internvl.py
 - 更多环境变量见[此README文件](../../README.md)
 
 ## 限制与约束
+
 - 当用户使用多模态理解模型在服务化推理，且输入输出序列为长序列时，可能会由于超出NPU内存限制而推理失败。以 800I A2 64G 8卡，输入tokens=16384，输出tokens=2048场景为例，需要使用以下服务化参数进行配置。当用户使用的序列更长时，可以适当下调并发数。
 
 | 模型名称 | maxPrefillTokens | npuMemSize | 最大并发数  |

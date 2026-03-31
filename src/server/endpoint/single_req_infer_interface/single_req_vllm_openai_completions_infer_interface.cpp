@@ -18,7 +18,7 @@
 #include "common_util.h"
 #include "base64_util.h"
 #include "config_manager_impl.h"
-#include "safe_io.h"
+#include "json_util.h"
 
 using OrderedJson = nlohmann::ordered_json;
 
@@ -749,15 +749,7 @@ std::string SingleReqVllmOpenAiCompletionsInferInterface::BuildReComputeBody(con
     if (request_->skipSpecialTokens.has_value()) {
         newReqJsonObj["skip_special_tokens"] = request_->skipSpecialTokens.value();
     }
-    if (request_->responseFormat.has_value()) {
-        try {
-            newReqJsonObj["response_format"] = nlohmann::json::parse(request_->responseFormat.value(),
-                CheckJsonDepthCallbackUlog);
-        } catch (...) {
-            ULOG_ERROR(SUBMODLE_NAME_ENDPOINT, GenerateEndpointErrCode(ERROR, SUBMODLE_FEATURE_SINGLE_INFERENCE,
-                JSON_PARSE_ERROR), "Failed to parse responseFormat");
-        }
-    }
+    BuildResponseFormat(newReqJsonObj);
     return newReqJsonObj.dump();
 }
 
@@ -771,6 +763,19 @@ void SingleReqVllmOpenAiCompletionsInferInterface::BuildStopWords(nlohmann::orde
     }
     if (request_->includeStopStrInOutput.has_value()) {
         newReqJsonObj["include_stop_str_in_output"] = request_->includeStopStrInOutput.value();
+    }
+}
+
+void SingleReqVllmOpenAiCompletionsInferInterface::BuildResponseFormat(nlohmann::ordered_json& newReqJsonObj)
+{
+    if (request_->responseFormat.has_value()) {
+        try {
+            newReqJsonObj["response_format"] = nlohmann::json::parse(request_->responseFormat.value(),
+                CheckJsonDepthCallback);
+        } catch (...) {
+            ULOG_ERROR(SUBMODLE_NAME_ENDPOINT, GenerateEndpointErrCode(ERROR, SUBMODLE_FEATURE_SINGLE_INFERENCE,
+                JSON_PARSE_ERROR), "Failed to parse responseFormat");
+        }
     }
 }
 } // namespace mindie_llm

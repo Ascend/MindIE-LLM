@@ -25,9 +25,6 @@ def get_model_wrapper(model_config, backend_type):
     elif backend_type == BackendType.ATB:
         from .atb.atb_model_wrapper import ATBModelWrapper
         wrapper_cls = ATBModelWrapper
-    elif backend_type == BackendType.MS:
-        from .ms.mf_model_wrapper import MFModelWrapper
-        wrapper_cls = MFModelWrapper
     else:
         raise NotImplementedError(f'{backend_type} not implemented, '
                                   f'supported backends `{BackendType.__members__.values()}`')
@@ -41,9 +38,6 @@ def get_tokenizer_wrapper(model_id: str, backend_type: str, **kwargs):
     elif backend_type == BackendType.ATB:
         from .atb.atb_tokenizer_wrapper import ATBTokenizerWrapper
         wrapper_cls = ATBTokenizerWrapper
-    elif backend_type == BackendType.MS:
-        from .ms.mf_tokenizer_wrapper import MFTokenizerWrapper
-        wrapper_cls = MFTokenizerWrapper
     else:
         raise NotImplementedError(f'{backend_type} not implemented, '
                                   f'supported backends `{BackendType.__members__.values()}`')

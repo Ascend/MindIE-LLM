@@ -1,8 +1,10 @@
+# 公网地址
+
 | 类型   | 开源代码地址 | 文件名                                                                              | 公网IP地址/公网URL地址/域名/邮箱地址                                                                         | 用途说明 |
 |------|--------|----------------------------------------------------------------------------------|------------------------------------------------------------------------------------------------|------|
-| 开发引入 | 不涉及    | scripts/uninstall.sh等                               | http://license.coscl.org.cn/MulanPSL2                                                          | 代码注释 |
-| 开发引入 | 不涉及    | examples/atb_models/atb_framework/core/include/atb_speed/base/context_factory.h等 | http://www.apache.org/licenses/LICENSE-2.0                                                     | 代码注释 |
-| 开发引入 | 不涉及    | README.md                                                                        | https://gitcode.com/ascend/MindIE-LLM.git                                                        | 获取代码 |
-| 开源软件中引入 | 不涉及    |   Ascend-mindie-llm_{version}_linux-{arch}.run_/2.gz_/2_/lib/libmindie_llm_utils.so              | https://gcc.gnu.org/bugs                                                        | 开源软件中引入 |
-| 开发引入 | 不涉及    |   examples/atb_models/scripts/build.sh等              | https://github.com/google/googletest/archive/refs/tags/v1.13.0.tar.gz                                                        | 开发引入 |
-| 开发引入 | 不涉及    |   examples/atb_models/scripts/build.sh等              | https://github.com/coolxv/cpp-stub/archive/refs/heads/master.tar.gz                                                        | 开发引入 |
+| 开发引入 | 不涉及    | scripts/uninstall.sh等                               | <http://license.coscl.org.cn/MulanPSL2>                                                          | 代码注释 |
+| 开发引入 | 不涉及    | examples/atb_models/atb_framework/core/include/atb_speed/base/context_factory.h等 | <http://www.apache.org/licenses/LICENSE-2.0>                                                     | 代码注释 |
+| 开发引入 | 不涉及    | README.md                                                                        | <https://gitcode.com/ascend/MindIE-LLM.git>                                                        | 获取代码 |
+| 开源软件中引入 | 不涉及    |   Ascend-mindie-llm_{version}_linux-{arch}.run_/2.gz_/2_/lib/libmindie_llm_utils.so              | <https://gcc.gnu.org/bugs>                                                        | 开源软件中引入 |
+| 开发引入 | 不涉及    |   examples/atb_models/scripts/build.sh等              | <https://github.com/google/googletest/archive/refs/tags/v1.13.0.tar.gz>                                                        | 开发引入 |
+| 开发引入 | 不涉及    |   examples/atb_models/scripts/build.sh等              | <https://github.com/coolxv/cpp-stub/archive/refs/heads/master.tar.gz>                                                        | 开发引入 |

@@ -11,11 +11,16 @@
 # See the Mulan PSL v2 for more details.
 
 import math
-from enum import IntEnum
+import re
+from enum import IntEnum, Enum
 from dataclasses import dataclass
 from collections import deque
 import acl
 from atb_llm.utils.log import logger
+
+PREFILL_DEFAULT_CUT_MAP = "prefill_default_cut_map"
+PREFILL_CUT_NUM_MAX = "prefill_cut_num_max"
+PREFILL_CUT_NUM_MIN = "prefill_cut_num_min"
 
 
 class CloudCutState(IntEnum):
@@ -31,6 +36,73 @@ class CloudCutClassType(IntEnum):
 class CloudCutModelType(IntEnum):
     QWEN = 0
     DEEP_SEEK = 1
+
+
+class CardType(Enum):
+    ASCEND_910B4 = "ASCEND910B4"
+    ASCEND_910B3 = "ASCEND910B3"
+    ASCEND_910C = "Ascend910C" 
+
+
+class NodeMode(Enum):
+    SINGLE_NODE = "SINGLE_NODE"
+    MULTI_NODE = "MULTI_NODE"
+
+
+class MemoryType(Enum):
+    MEM_32G = "32G"
+    MEM_64G = "64G"
+    MEM_128G = "128G"
+
+
+class PolicyParserUtils:
+
+    @staticmethod
+    def merge_nested_dicts(dict1: dict, dict2: dict) -> dict:
+        merged = dict1.copy()
+        for key, value in dict2.items():
+            # 如果key在两个字典中都存在，且都是字典，则递归合并；否则直接覆盖/新增
+            if key in merged and isinstance(merged[key], dict) and isinstance(value, dict):
+                merged[key] = PolicyParserUtils.merge_nested_dicts(merged[key], value)
+            else:
+                merged[key] = value
+        return merged
+
+    @staticmethod
+    def parse_card_type(card_str: str) -> CardType:
+        normalized = re.sub(r'[^A-Z0-9]', '', card_str.strip().upper()) 
+        match_map = {
+            "910B4": CardType.ASCEND_910B4,
+            "B4": CardType.ASCEND_910B4,
+            "910B3": CardType.ASCEND_910B3,
+            "B3": CardType.ASCEND_910B3,
+            "910C": CardType.ASCEND_910C,
+            "C": CardType.ASCEND_910C,   
+            "9362": CardType.ASCEND_910C
+        }
+
+        for key, card_type in match_map.items():
+            if key in normalized:
+                return card_type
+        
+        supported = [c.value for c in CardType]
+        raise ValueError(f"not support {card_str}，support：{supported}")
+
+    @staticmethod
+    def parse_memory_type(mem_str: str) -> MemoryType:
+        try:
+            return MemoryType(f"{mem_str}G")
+        except ValueError as e:
+            supported = [m.value for m in MemoryType]
+            raise ValueError(f"not support memory {mem_str}G，support：{supported}") from e
+
+    @staticmethod
+    def parse_deploy_mode(deploy_str: str) -> NodeMode:
+        try:
+            return NodeMode(deploy_str.upper())
+        except ValueError as e:
+            supported = [m.value for m in NodeMode]
+            raise ValueError(f"not support memory {deploy_str}，support：{supported}") from e
 
 
 @dataclass
@@ -92,6 +164,7 @@ class CloudCutPolicy():
             self.prefill_gap_list = deque(maxlen=50)
             self.request_rate = []
             self.moe_quantize = None
+            self.hierarchical_policy_config = {}
 
             if self.model_type == CloudCutModelType.DEEP_SEEK:
                 self.prefill_default_cut_map = {31.5: 80, 15.5: 40, 7.5: 62, 3.8: 30, 3.3: 36, 1.8: 30, 0.8: 17, 0: 17}
@@ -116,6 +189,13 @@ class CloudCutPolicy():
             return CloudCutModelType.DEEP_SEEK
         return CloudCutModelType.QWEN
 
+    @staticmethod
+    def __get_closest_standard(mem_bytes: int) -> int:
+        standard_gbs = [32, 64, 128, 256]
+        mem_gb = mem_bytes / (1024 ** 3)
+        closest_gb = min(standard_gbs, key=lambda gb: abs(mem_gb - gb))
+        return closest_gb
+
     def initialize(self, name, rank_id, cut_num_range, multi_nodes_enable):
         self.role_type = CloudCutClassType.CLOUD if name == "slave" else CloudCutClassType.OTHER
         self.rank_id = rank_id
@@ -128,6 +208,32 @@ class CloudCutPolicy():
             f"default_cut_map: {self.prefill_default_cut_map} cut_num_max: {self.prefill_cut_num_max} "
             f"cut_num_min: {self.prefill_cut_num_min} ")
         self.initialized = True
+
+    def initialize_standard_card(self, peer_soc_name, peer_mem_size):
+        self.__ajust_prefill_cut_num_for_standard_card()
+
+        edge_card_type = PolicyParserUtils.parse_card_type(peer_soc_name)
+        peer_mem_size_gb = self.__get_closest_standard(peer_mem_size)
+        edge_card_mem = PolicyParserUtils.parse_memory_type(peer_mem_size_gb)
+        cloud_card_type = PolicyParserUtils.parse_card_type(self.soc_name)
+        cloud_deploy_mode = "single_node"
+        if self.multi_nodes_enable:
+            cloud_deploy_mode = "multi_node"
+        cloud_deploy_mode = PolicyParserUtils.parse_deploy_mode(cloud_deploy_mode)
+        hardware_combo = (edge_card_type, edge_card_mem, cloud_card_type)
+        logger.info(f"[layerwiseDisaggregated]hardware_combo is {hardware_combo}, {cloud_deploy_mode}")
+        try:
+            hw_config = self.hierarchical_policy_config[cloud_deploy_mode][hardware_combo]
+            model_policy = hw_config[self.model_type]
+            self.prefill_default_cut_map = model_policy["prefill_default_cut_map"]
+            self.prefill_cut_num_max = model_policy["prefill_cut_num_max"]
+            self.prefill_cut_num_min = model_policy["prefill_cut_num_min"]
+            logger.info(f"[layerwiseDisaggregated]prefill default cut map is {self.prefill_default_cut_map}")
+            logger.info(f"[layerwiseDisaggregated]prefill_cut_num_max is {self.prefill_cut_num_max}")
+            logger.info(f"[layerwiseDisaggregated]prefill_cut_num_min is {self.prefill_cut_num_min}")
+
+        except KeyError:
+            logger.info(f"[layerwiseDisaggregated]not found hardware combo: {hardware_combo}, use default cut policy")
 
     def get_cut_num(self, input_data: CloudCutInputData):
         if not self.initialized:
@@ -351,3 +457,122 @@ class CloudCutPolicy():
             self.prefill_default_cut_map = {31.5: 59, 15.5: 59, 7.5: 45, 3.8: 21, 3.3: 20, 1.8: 20, 0.8: 21, 0: 21}
             self.prefill_cut_num_max = {31.5: 59, 15.5: 59, 7.5: 45, 3.8: 21, 3.3: 20, 1.8: 20, 0.8: 21, 0: 21}
             self.prefill_cut_num_min = {31.5: 59, 15.5: 59, 7.5: 45, 3.8: 21, 3.3: 20, 1.8: 20, 0.8: 21, 0: 21}
+
+    def __ajust_prefill_cut_num_for_standard_card(self):
+        self.prefill_seq_k_len_default_forward_time = {16: 100000000000,
+                                                            8: 610.166,
+                                                            4: 432,
+                                                            3: 380,
+                                                            2: 195,
+                                                            1: 71.434,
+                                                            0: 71.434
+                                                            }
+        self.__ajust_prefill_cut_num_for_standard_card_edge_b4_32g()
+        self.__ajust_prefill_cut_num_for_standard_card_edge_b4_64g()
+
+    def __ajust_prefill_cut_num_for_standard_card_edge_b4_32g(self):
+        hierarchical_policy_config_edge_b4_32g = {
+            NodeMode.SINGLE_NODE: {
+                (CardType.ASCEND_910B4, MemoryType.MEM_32G, CardType.ASCEND_910B3): {
+                    CloudCutModelType.QWEN: {
+                        PREFILL_DEFAULT_CUT_MAP: {125: 330, 64: 120, 32: 50, 16: 24, 8: 10, 4: 6,
+                                                    3: 8, 2: 9, 1: 6, 0: 8},
+                        PREFILL_CUT_NUM_MAX: {125: 330, 64: 120, 32: 50, 16: 24, 8: 10, 4: 6,
+                                                    3: 8, 2: 9, 1: 5, 0: 8},
+                        PREFILL_CUT_NUM_MIN: {125: 330, 64: 120, 32: 50, 16: 24, 8: 10, 4: 6,
+                                                    3: 6, 2: 3, 1: 5, 0: 8},
+                    },
+                    CloudCutModelType.DEEP_SEEK: {
+                        PREFILL_DEFAULT_CUT_MAP: {31.5: 80, 15.5: 30, 7.5: 50, 3.8: 30,
+                                                    3.3: 28, 1.8: 38, 0.8: 18, 0: 18},
+                        PREFILL_CUT_NUM_MAX: {31.5: 80, 15.5: 30, 7.5: 50, 3.8: 30, 3.3: 28, 1.8: 38, 0.8: 18, 0: 18},
+                        PREFILL_CUT_NUM_MIN: {31.5: 80, 15.5: 30, 7.5: 50, 3.8: 30, 3.3: 28, 1.8: 38, 0.8: 18, 0: 18},
+                    }
+                },
+                (CardType.ASCEND_910B4, MemoryType.MEM_32G, CardType.ASCEND_910B4): {
+                    CloudCutModelType.QWEN: {
+                        PREFILL_DEFAULT_CUT_MAP: {125: 330, 64: 120, 32: 100, 16: 24, 8: 12, 4: 6,
+                                                    3: 6, 2: 9, 1: 6, 0: 8},
+                        PREFILL_CUT_NUM_MAX: {125: 330, 64: 120, 32: 100, 16: 24, 8: 12, 4: 6,
+                                                    3: 6, 2: 9, 1: 6, 0: 8},
+                        PREFILL_CUT_NUM_MIN: {125: 330, 64: 120, 32: 100, 16: 24, 8: 10, 4: 6,
+                                                    3: 6, 2: 3, 1: 6, 0: 8},
+                    },
+                    CloudCutModelType.DEEP_SEEK: {
+                        PREFILL_DEFAULT_CUT_MAP: {31.5: 80, 15.5: 30, 7.5: 50, 3.8: 30,
+                                                     3.3: 28, 1.8: 38, 0.8: 18, 0: 18},
+                        PREFILL_CUT_NUM_MAX: {31.5: 80, 15.5: 30, 7.5: 50, 3.8: 30, 3.3: 28, 1.8: 38, 0.8: 18, 0: 18},
+                        PREFILL_CUT_NUM_MIN: {31.5: 80, 15.5: 30, 7.5: 50, 3.8: 30, 3.3: 28, 1.8: 38, 0.8: 18, 0: 18},
+                    }
+                },
+               
+            },
+            NodeMode.MULTI_NODE: {
+                (CardType.ASCEND_910B4, MemoryType.MEM_32G, CardType.ASCEND_910C): {
+                    CloudCutModelType.QWEN: {
+                        PREFILL_DEFAULT_CUT_MAP: {125: 330, 64: 120, 32: 100, 16: 24, 8: 10, 4: 6,
+                                                    3: 8, 2: 9, 1: 6, 0: 8},
+                        PREFILL_CUT_NUM_MAX: {125: 330, 64: 120, 32: 100, 16: 24, 8: 10, 4: 6,
+                                                    3: 8, 2: 9, 1: 5, 0: 8},
+                        PREFILL_CUT_NUM_MIN: {125: 330, 64: 120, 32: 100, 16: 24, 8: 10, 4: 4,
+                                                    3: 6, 2: 5, 1: 5, 0: 8},
+                    }
+                }
+            }
+        }
+        merged_ = PolicyParserUtils.merge_nested_dicts(self.hierarchical_policy_config, \
+                                                       hierarchical_policy_config_edge_b4_32g)
+        self.hierarchical_policy_config = merged_.copy()
+
+    def __ajust_prefill_cut_num_for_standard_card_edge_b4_64g(self):
+        hierarchical_policy_config_edge_b4_64g = {
+            NodeMode.SINGLE_NODE: {
+                (CardType.ASCEND_910B4, MemoryType.MEM_64G, CardType.ASCEND_910B3): {
+                    CloudCutModelType.QWEN: {
+                        PREFILL_DEFAULT_CUT_MAP: {125: 330, 64: 120, 32: 100, 16: 24, 8: 10, 4: 6,
+                                                    3: 8, 2: 9, 1: 6, 0: 8},
+                        PREFILL_CUT_NUM_MAX: {125: 330, 64: 120, 32: 100, 16: 24, 8: 10, 4: 6,
+                                                    3: 8, 2: 9, 1: 5, 0: 8},
+                        PREFILL_CUT_NUM_MIN: {125: 330, 64: 120, 32: 100, 16: 24, 8: 10, 4: 4,
+                                                    3: 6, 2: 5, 1: 5, 0: 8},
+                    },
+                    CloudCutModelType.DEEP_SEEK: {
+                        PREFILL_DEFAULT_CUT_MAP: {31.5: 80, 15.5: 30, 7.5: 50, 3.8: 30,
+                                                    3.3: 28, 1.8: 38, 0.8: 18, 0: 18},
+                        PREFILL_CUT_NUM_MAX: {31.5: 80, 15.5: 30, 7.5: 50, 3.8: 30, 3.3: 28, 1.8: 38, 0.8: 18, 0: 18},
+                        PREFILL_CUT_NUM_MIN: {31.5: 80, 15.5: 30, 7.5: 50, 3.8: 30, 3.3: 28, 1.8: 38, 0.8: 18, 0: 18},
+                    }
+                },
+                (CardType.ASCEND_910B4, MemoryType.MEM_64G, CardType.ASCEND_910B4): {
+                    CloudCutModelType.QWEN: {
+                        PREFILL_DEFAULT_CUT_MAP: {125: 330, 64: 120, 32: 100, 16: 24, 8: 10, 4: 6,
+                                                    3: 8, 2: 9, 1: 6, 0: 8},
+                        PREFILL_CUT_NUM_MAX: {125: 330, 64: 120, 32: 100, 16: 24, 8: 10, 4: 6,
+                                                    3: 8, 2: 9, 1: 5, 0: 8},
+                        PREFILL_CUT_NUM_MIN: {125: 330, 64: 120, 32: 100, 16: 24, 8: 10, 4: 6,
+                                                    3: 6, 2: 5, 1: 5, 0: 8},
+                    },
+                    CloudCutModelType.DEEP_SEEK: {
+                        PREFILL_DEFAULT_CUT_MAP: {31.5: 80, 15.5: 30, 7.5: 50, 3.8: 30,
+                                                    3.3: 28, 1.8: 38, 0.8: 18, 0: 18},
+                        PREFILL_CUT_NUM_MAX: {31.5: 80, 15.5: 30, 7.5: 50, 3.8: 30, 3.3: 28, 1.8: 38, 0.8: 18, 0: 18},
+                        PREFILL_CUT_NUM_MIN: {31.5: 80, 15.5: 30, 7.5: 50, 3.8: 30, 3.3: 28, 1.8: 38, 0.8: 18, 0: 18},
+                    }
+                },
+               
+            },
+            NodeMode.MULTI_NODE: {
+                (CardType.ASCEND_910B4, MemoryType.MEM_64G, CardType.ASCEND_910C): {
+                    CloudCutModelType.DEEP_SEEK: {
+                        PREFILL_DEFAULT_CUT_MAP: {31.5: 59, 15.5: 55, 7.5: 45,
+                                                    3.8: 23, 3.3: 20, 1.8: 20, 0.8: 21, 0: 21},
+                        PREFILL_CUT_NUM_MAX: {31.5: 59, 15.5: 55, 7.5: 45, 3.8: 23, 3.3: 20, 1.8: 20, 0.8: 21, 0: 21},
+                        PREFILL_CUT_NUM_MIN: {31.5: 59, 15.5: 55, 7.5: 45, 3.8: 23, 3.3: 20, 1.8: 20, 0.8: 21, 0: 21},
+                    }
+                }
+            }
+        }
+        merged_ = PolicyParserUtils.merge_nested_dicts(self.hierarchical_policy_config, \
+                                                       hierarchical_policy_config_edge_b4_64g)
+        self.hierarchical_policy_config = merged_.copy()
+

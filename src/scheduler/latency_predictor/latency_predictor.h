@@ -57,7 +57,11 @@ public:
 
     float PredictBatchExecTime(BatchStats &batchStats);
 
-    void AddPercentileData(SequenceGroupSPtr &seqGroup, std::shared_ptr<SchedulerConfig> &schedulerConfig);
+    // 在 AddPercentileData 中添加 numOutputTokens 参数，用于时延归一化
+    void AddPercentileData(
+        SequenceGroupSPtr& seqGroup,
+        std::shared_ptr<SchedulerConfig>& schedulerConfig,
+        uint32_t numOutputTokens = 1);
 
     double GetDecodeRecentAvgLatency(size_t forwardNum);
 

@@ -97,6 +97,8 @@ struct SequenceGroupMetaData {
     std::vector<BlockId> lwdCloudBlockIds_;
     
     std::optional<std::string> responseFormat_; // JSON 结构化输出约束
+
+    std::vector<TokenId> predictedTokenIds_; // PD分离/重计算场景下完整的已生成输出前缀，用于同步grammar等状态
 };
 
 struct SequenceGroupMetaDatas {

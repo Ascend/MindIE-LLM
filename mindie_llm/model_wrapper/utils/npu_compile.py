@@ -10,18 +10,13 @@
 # MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
 # See the Mulan PSL v2 for more details.
 
-from mindie_llm.modeling.backend_type import BackendType
+import torch
+import torch_npu
+
 from mindie_llm.utils.log.logging import logger
-from .env import ENV
 
 
 def set_npu_compile_mode():
-    if ENV.framework_backend.lower() == BackendType.MS:
-        logger.info("mindspore model. no need to set set_option ")
-        return
-
-    import torch
-    import torch_npu
     torch.npu.set_compile_mode(jit_compile=False)
     # pylint: disable=protected-access：
     soc_version = torch_npu._C._npu_get_soc_version()

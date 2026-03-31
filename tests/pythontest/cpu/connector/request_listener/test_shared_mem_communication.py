@@ -306,7 +306,7 @@ class TestSharedMemCommunication(unittest.TestCase):
         comm.start()
 
         self.assertEqual(mock_core_thread.call_count, 3)
-        for channel_name in SharedMemCommunication.CHANNELS_WITH_REQUEST_LISTENER:
+        for channel_name in SharedMemCommunication.CHANNEL_NAMES:
             mock_core_thread.assert_any_call(
                 target=comm._process_incoming_requests,
                 args=(channel_name,),
@@ -334,6 +334,20 @@ class TestSharedMemCommunication(unittest.TestCase):
 
             mock_send_response.assert_called_once_with(mock_response, is_transfer=True)
 
+    @patch("mindie_llm.connector.request_listener.shared_mem_communication.SharedMemoryChannel")
+    def test_execute_error_channel_initialization(self, mock_shared_memory_channel):
+        # Verify that the execute_error channel is initialized correctly
+        mock_channel_instance = MagicMock()
+        mock_shared_memory_channel.return_value = mock_channel_instance
+
+        shared_mem_comm = SharedMemCommunication(self.mock_config)
+
+        mock_shared_memory_channel.assert_called_with(
+            f"{self.mock_config.shm_name_prefix}_execute_error_response",
+            self.mock_config.local_rank % self.mock_config.npu_num_per_dp,
+        )
+        mock_channel_instance.open_error_response_channel.assert_called_once()
+        
     @patch("mindie_llm.connector.request_listener.shared_mem_communication.SharedMemoryChannel")
     def test_send_response_transfer(self, mock_channel_cls):
         mock_pd_link_channel = MagicMock()

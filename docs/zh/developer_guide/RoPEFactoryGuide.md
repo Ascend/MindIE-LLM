@@ -39,13 +39,12 @@ return self.attn(hidden_states,
                         sin=self.rope_emb.sin_indexed_cache)
 ```
 
-
 ### 2. 实现模型特定的 RoPE 类型 （以deepseekv3为例）
 
 #### 2.1 rope模块实现
+
 在模型目录下定义自己的rope实现（例如 `mindie_llm/runtime/layers/embedding/rotary_embedding/deepseek_v3_yarn_scaling_rope.py`）：
 > 可以选择继承mindie_llm/runtime/layers/embedding/rotary_embedding/base.py下的RotaryEmbedding
-
 > 或者继承mindie_llm/runtime/layers/embedding/rotary_embedding/yarn_scaling_rope.py 下的YarnScalingRotaryEmbedding用于外推
 
 ```python
@@ -198,6 +197,7 @@ def _create_deepseek_scaling_rope(
 ## 缓存机制
 
 `get_rope` 会自动缓存相同配置的 RoPE 实例。缓存键基于：
+
 - `head_size`
 - `rotary_dim` (由 `head_size * partial_rotary_factor` 计算)
 - `max_position`
@@ -223,5 +223,3 @@ def _create_deepseek_scaling_rope(
 3. **参数提取**：注册函数应该从 `rope_config` 中提取所需的参数，而不是期望所有参数都通过位置参数传递。
 
 4. **向后兼容**：现有的代码无需修改即可继续工作，如果新增模型需要新的rope，请单独实现自己的rope模块并注册使用，做增量修改，不要修改原有代码，否则须测试相关场景。
-
-

@@ -21,9 +21,12 @@ from ctypes import c_char_p
 from pathlib import Path
 
 from atb_llm.utils.log import logger
+from atb_llm.utils.initial import NPUSocInfo
 
 CLOUD = 'slave'
 EDGE = 'master'
+NPU_SMI_INFO_ACK = "npu_smi_info_ack"
+NPU_SMI_INFO_NOTIFY = "npu_smi_info_notify"
 
 LAYERWISE_DISAGGREGATED_TCP_BUFFER_SIZE = 1024 * 1024
 INSTALL_PATH = "MINDIE_LLM_HOME_PATH"
@@ -309,6 +312,8 @@ class EdgeCloudCtrlComm:
         self.comm_group_size = 1
 
         self.tls_config = tls_config
+        self.edge_npu_smi_info = None
+        self.cloud_npu_smi_info = None
 
     @staticmethod
     def shape_to_msg(shape):
@@ -463,3 +468,119 @@ class EdgeCloudCtrlComm:
         self.multi_nodes_ctrl_client.send("ok")
         logger.info(f"[layerwiseDisaggregated-{self.rank}] recv multi nodes decision {decision}.")
         return decision
+
+    def wait_recv(self, ctrl_comm_socket, wait_str):
+        for _ in range(1000):
+            res = ctrl_comm_socket.recv()
+            if res and res.startswith(wait_str):
+                return res
+            logger.info(f"[layerwiseDisaggregated-{self.rank}] control communication recv {res}.")
+            # 防止TCP粘包，时间间隔小一些
+            time.sleep(0.5)
+        logger.error(f"[layerwiseDisaggregated-{self.rank}] control communication recv {wait_str} timeout.")
+        return None
+
+    def npu_smi_info_sync_is_done(self):
+        if self.role == EDGE:
+            if self.rank != 0:
+                return True if self.edge_npu_smi_info is not None else False
+            else:
+                return True if self.edge_npu_smi_info is not None and self.cloud_npu_smi_info is not None else False
+        else:
+            if self.rank != 0:
+                return True if self.cloud_npu_smi_info is not None else False
+            else:
+                return True if self.edge_npu_smi_info is not None and self.cloud_npu_smi_info is not None else False
+
+    def npu_smi_info_sync_edge_to_cloud(self, npu_smi_info: dict):
+        if self.role == EDGE:
+            npu_smi_info.update({'communication_backend': NPUSocInfo().communication_backend.name})
+            logger.info(f"[layerwiseDisaggregated-{self.rank}] edge_npu_smi_info {npu_smi_info}.")
+
+            if self.prefill_client is not None:
+                msg = f"{NPU_SMI_INFO_NOTIFY}|{json.dumps(npu_smi_info)}"
+                self.prefill_client.send(msg)
+                logger.info(f"[layerwiseDisaggregated-{self.rank}] edge send edge_npu_smi_info notify to cloud.")
+                if self.wait_recv(self.prefill_client, NPU_SMI_INFO_ACK) is not None:
+                    logger.info(f"[layerwiseDisaggregated-{self.rank}] edge recv edge_npu_smi_info ack from cloud.")
+                    self.edge_npu_smi_info = npu_smi_info
+                else:
+                    logger.error(f"[layerwiseDisaggregated-{self.rank}] edge recv edge_npu_smi_info ack timeout.")
+            else:
+                self.edge_npu_smi_info = npu_smi_info
+        else:
+            if self.rank != 0:
+                return
+            if self.prefill_server is not None:
+                res = self.wait_recv(self.prefill_server, NPU_SMI_INFO_NOTIFY)
+                if res is None:
+                    logger.error(f"[layerwiseDisaggregated-{self.rank}] cloud recv edge_npu_smi_info notify timeout.")
+                    return
+                logger.info(f"[layerwiseDisaggregated-{self.rank}] cloud recv edge_npu_smi_info notify from edge.")
+                npu_smi_info_str = res.lstrip(NPU_SMI_INFO_NOTIFY + "|")
+
+                if self.multi_nodes_ctrl_server is not None and self.comm_group_size < 2:
+                    self.multi_nodes_ctrl_server.send(res)
+                    logger.info(f"[layerwiseDisaggregated-{self.rank}] cloud master "
+                                "send edge_npu_smi_info notify to cloud slave.")
+                    if self.wait_recv(self.multi_nodes_ctrl_server, NPU_SMI_INFO_ACK) is None:
+                        logger.error(f"[layerwiseDisaggregated-{self.rank}] cloud master "
+                                    "recv edge_npu_smi_info ack from cloud slave timeout.")
+                        return
+                    logger.info(f"[layerwiseDisaggregated-{self.rank}] cloud master "
+                                "recv edge_npu_smi_info ack from cloud slave.")
+
+                self.prefill_server.send(NPU_SMI_INFO_ACK)
+                logger.info(f"[layerwiseDisaggregated-{self.rank}] cloud send edge_npu_smi_info ack to edge.")
+                self.edge_npu_smi_info = json.loads(npu_smi_info_str)
+            else:
+                if self.multi_nodes_ctrl_client is not None:
+                    res = self.wait_recv(self.multi_nodes_ctrl_client, NPU_SMI_INFO_NOTIFY)
+                    if res is None:
+                        logger.error(f"[layerwiseDisaggregated-{self.rank}] cloud slave "
+                                    "recv edge_npu_smi_info notify from cloud master timeout.")
+                        return
+                    logger.info(f"[layerwiseDisaggregated-{self.rank}] cloud slave "
+                                "recv edge_npu_smi_info notify from cloud master.")
+                    npu_smi_info_str = res.lstrip(NPU_SMI_INFO_NOTIFY + "|")
+
+                    self.multi_nodes_ctrl_client.send(NPU_SMI_INFO_ACK)
+                    logger.info(f"[layerwiseDisaggregated-{self.rank}] cloud slave "
+                                "send edge_npu_smi_info ack to cloud master.")
+                    self.edge_npu_smi_info = json.loads(npu_smi_info_str)
+
+    def npu_smi_info_sync_cloud_to_edge(self, npu_smi_info: dict):
+        if self.role == CLOUD:
+            npu_smi_info.update({'communication_backend': NPUSocInfo().communication_backend.name})
+            logger.info(f"[layerwiseDisaggregated-{self.rank}] cloud_npu_smi_info {npu_smi_info}.")
+
+            # 云侧双机认为npuinfo完全一样，只需要双机主向边侧发送
+            if self.prefill_server is not None and (not self.multi_nodes_infer_enabled or self.multi_nodes_is_master):
+                msg = f"{NPU_SMI_INFO_NOTIFY}|{json.dumps(npu_smi_info)}"
+                self.prefill_server.send(msg)
+                logger.info(f"[layerwiseDisaggregated-{self.rank}] cloud send cloud_npu_smi_info notify to edge.")
+                if self.wait_recv(self.prefill_server, NPU_SMI_INFO_ACK) is not None:
+                    logger.info(f"[layerwiseDisaggregated-{self.rank}] cloud recv cloud_npu_smi_info ack to edge.")
+                    self.cloud_npu_smi_info = npu_smi_info
+                else:
+                    logger.error(f"[layerwiseDisaggregated-{self.rank}] cloud recv cloud_npu_smi_info ack timeout.")
+            else:
+                self.cloud_npu_smi_info = npu_smi_info
+        else:
+            if self.rank == 0 and self.prefill_client is not None:
+                res = self.wait_recv(self.prefill_client, NPU_SMI_INFO_NOTIFY)
+                if res is None:
+                    logger.error(f"[layerwiseDisaggregated-{self.rank}] edge recv cloud_npu_smi_info notify timeout.")
+                    return
+                logger.info(f"[layerwiseDisaggregated-{self.rank}] edge recv cloud_npu_smi_info notify from cloud.")
+                npu_smi_info_str = res.lstrip(NPU_SMI_INFO_NOTIFY + "|")
+
+                self.prefill_client.send(NPU_SMI_INFO_ACK)
+                logger.info(f"[layerwiseDisaggregated-{self.rank}] edge send cloud_npu_smi_info ack to cloud.")
+                self.cloud_npu_smi_info = json.loads(npu_smi_info_str)
+
+    def npu_smi_info_sync(self, npu_smi_info: dict):
+        self.npu_smi_info_sync_edge_to_cloud(npu_smi_info)
+        # 防止TCP粘包，设置2秒时间间隔
+        time.sleep(2)
+        self.npu_smi_info_sync_cloud_to_edge(npu_smi_info)

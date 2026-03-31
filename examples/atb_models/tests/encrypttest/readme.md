@@ -1,15 +1,20 @@
-# 免责声明！！！
+# 免责声明
 
-## 当前仅仅提供权重加解密的一个范例，不对安全性进行负责，用户需根据具体场景使用自己的加密脚本进行替换。
+## 当前仅仅提供权重加解密的一个范例，不对安全性进行负责，用户需根据具体场景使用自己的加密脚本进行替换
 
 # 模型加解密使用指导
+
 当前解密支持显存预分配权重加载方式解密，传统路线权重加载方式的解密仅作为示例。
+
 - `显存预分配权重加载方式（推荐使用）`：当前版本主要采用的加载方式。其解密支持服务化、逐Tensor加载权重等新特性。
 - `传统路线权重加载方式(仅作为历史版本示例)`：历史版本默认的权重加载方式，又称“C++组图”。解密不支持逐Tensor加载权重等新特性，不支持服务化。
 
 ## 显存预分配权重加载方式加解密使用指导
+
 ### 准备工作
+
 确认此目录`encrypttest`的路径与`${atb_models}`的相对位置与此仓库保持一致，即`${atb_models}/tests/encrypttest`。
+
 - 如下载本仓库并编译使用，默认路径即符合，无需其他工作。
 - 如使用MindIE自带镜像包，则`${atb_models}`默认路径为`/usr/local/Ascend/atb_models`，默认不包含此目录，需从网页下载此目录全部内容（`encrypttest`），并手动将目录放至符合`${atb_models}/tests/encrypttest/`
 
@@ -44,6 +49,7 @@ class CustomEncrypt(Encrypt):
         """
         raise NotImplementedError("Please implement your method to encrypt tesnors.")
 ```
+
 * 用户需要在`generate_keys`方法中自行实现安全生成秘钥的逻辑，并在`encrypt`方法中实现对传入的某个Tensor加密的逻辑。
   
 * 生成的加密后权重主目录需以“crypt”作为后缀。例如加密前的权重目录为“Qwen2.5-7B-Instruct”，则加密后的权重目录应为“Qwen2.5-7B-Instruct-crypt”。
@@ -55,6 +61,7 @@ class CustomEncrypt(Encrypt):
 ### 解密脚本介绍
 
 用户解密逻辑请使用本仓的接口，接口位置为`${atb_models}/tests/encrypttest/custom_crypt.py`中的`CustomEncrypt`类：
+
 ```python
 class CustomDecrypt(Decrypt):
 
@@ -108,7 +115,6 @@ python tests/encrypttest/encrypt_weights.py --model_weights_path /your/model/pat
 
 tips: 如果自己在上述加密脚本`custom_crypt.py`中自定义了加密方法`CustomEncrypt`，那么直接执行成功，否则需要用户输入“yes/y”来确定是否使用示例加密方法(`encrypt.py`中的`EncryptTools`)。
 
-
 ### 解密推理阶段
 
 使用脚本 `decrypt_code_padding_v2.py` 为整个推理流程增加解密代码。使用方法如下：
@@ -118,23 +124,25 @@ python3 decrypt_code_padding_v2.py
 ```
 
 完成上述操作之后，即可实现使用加密后的模型权重进行推理。当然，用户需实现：
+
 1. 上述解密脚本介绍的`CustomDecrypt`类中的方法。
 2. 加密后的权重后缀必须以“crypt”结尾。
 
-#### 加密权重“纯模型”推理示例：
+#### 加密权重“纯模型”推理示例
 
 ```bash
 # 使用多卡运行Paged Attention，设置模型权重路径，设置输出长度为2048个token
 cd ${atb_models}
 torchrun --nproc_per_node 2 --master_port 20038 -m examples.run_pa --model_path ${encrypt_weight_path} --max_output_length 2048
 ```
+
 其余参数的解释请参考 `run_pa` 的[介绍文档](https://gitcode.com/Ascend/MindIE-LLM/blob/master/examples/atb_models/examples/README.md)。
 
 #### 加密权重“服务化”推理示例
 
 “服务化”推理用户不感知解密过程。具体操作请参考昇腾社区MindIE服务化部分的[说明文档](https://www.hiascend.com/document/detail/zh/mindie/21RC1/mindieservice/servicedev/mindie_service0001.html)
 
-#### 使用下游问答数据集的精度测试例子。
+#### 使用下游问答数据集的精度测试例子
 
 使用下游数据集进行测试时，先下载好数据集。
 
@@ -147,8 +155,8 @@ bash run.sh pa_[data_type] [dataset] ([shots]) [batch_size] [model_name] ([is_ch
 bash run.sh pa_fp16 full_TruthfulQA 4 llama /your/model/path 8
 
 ```
-参数的解释请参考modeltest下的[介绍文档](https://gitcode.com/Ascend/MindIE-LLM/blob/master/examples/atb_models/tests/modeltest/README.md) 中的  精度测试（下游数据集）章节。
 
+参数的解释请参考modeltest下的[介绍文档](https://gitcode.com/Ascend/MindIE-LLM/blob/master/examples/atb_models/tests/modeltest/README.md) 中的  精度测试（下游数据集）章节。
 
 ## 传统路线权重加载方式加解密使用指导
 
@@ -177,7 +185,7 @@ class EncryptTools(Encrypt):
         输入是原始tensor，输出是加密tensor。
         保证加密前后，encrypted_tensor和tensor的shape一致。
         """
-	return encrypted_tensor
+    return encrypted_tensor
 ```
 
 本仓库给出脚本中的key生成只是一种使用范例，加密算法使用的AES-256，CTR模式。
@@ -205,7 +213,7 @@ class DecryptTools(Decrypt):
         输入是加密tensor，输出是解密tensor。 
         保证解密前后，encrypted_tensor和decrypted_tensor的shape一致。
         """
-	return decrypted_tensor
+    return decrypted_tensor
 ```
 
 本仓库给出脚本中的key只是一种使用范例，解密算法使用的AES-256，CTR模式。
@@ -233,7 +241,6 @@ python tests/encrypttest/encrypt_weights.py --model_weights_path /your/model/pat
 
 ### 解密推理阶段
 
-
 使用脚本 `decrypt_code_padding.sh` 给 `${atb_models}atb_llm/utils/` 路径下的 `weights.py` 文件增加解密代码。使用方法如下：
 
 ```bash
@@ -242,7 +249,7 @@ bash decrypt_code_padding.sh ${atb_models}/atb_llm/utils/weights.py
 
 完成上述操作之后，即可实现使用加密后的模型权重进行推理。同时解密脚本中含有针对权重文件的解密方法接口，用户可以传入加密权重文件路径将加密权重进行解密。当然，针对文件的具体解密算法，用户需重新实现DecryptTools类中的 `decrypt`方法。
 
-#### 纯推理 运行脚本示例：
+#### 纯推理 运行脚本示例
 
 ```bash
 # 使用多卡运行Paged Attention，设置模型权重路径，设置输出长度为2048个token
@@ -257,10 +264,11 @@ torchrun --nproc_per_node 2 --master_port 20038 -m examples.run_pa --model_path 
 
 其余参数的解释请参考 `run_pa` 的[介绍文档](https://gitcode.com/Ascend/MindIE-LLM/blob/master/examples/atb_models/examples/README.md)。
 
-#### 服务化 运行：
+#### 服务化 运行
+
 暂不支持服务化运行。
 
-#### 使用下游问答数据集的精度测试例子。
+#### 使用下游问答数据集的精度测试例子
 
 使用下游数据集进行测试时，先下载好数据集。
 

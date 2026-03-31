@@ -17,7 +17,7 @@
 #include "log.h"
 #include "config_manager_impl.h"
 #include "infer_tokenizer.h"
-#include "safe_io.h"
+#include "json_util.h"
 
 using ordered_json = nlohmann::ordered_json;
 

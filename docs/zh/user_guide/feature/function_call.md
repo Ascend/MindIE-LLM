@@ -17,14 +17,14 @@
 
 ## 限制与约束
 
--  Atlas 800I A2 推理服务器、Atlas 800I A3 超节点服务器和Atlas 300I Duo 推理卡支持此特性。
--  当前ChatGLM3-6B、Qwen3-32B、Qwen3-235B-A22B、Qwen3-30B-A3B、DeepSeek-R1-0528、Qwen2.5-Instruct和DeepSeek-V3.1系列模型支持此特性。
--  使用Function Call特性，DeepSeek-V3.1系列模型必须配置[参数说明](#table1)中参数，其余模型可以不配置。
--  当前仅支持OpenAI chat接口。
--  Function Call特性支持与量化、长序列、多机推理、PD分离、MoE、Multi-LoRA、SplitFuse、并行解码、专家并行、MTP、Prefix Cache、思考解析（DeepSeek-V3.1模型除外，DeepSeek-V3.1模型能力不支持一条请求同时使能Function Call和思考解析）、张量并行、MLA特性进行叠加，其中SplitFuse、并行解码、MTP特性暂不支持在流式推理下叠加Function call特性。
--  Function Call特性当前暂不支持include\_stop\_str\_in\_output、stop、best\_of、n、use\_beam\_search和logprobs后处理参数；当temperature设置较高（导致采样随机性较高），可能会影响触发Function Call的稳定性。
--  Function Call特性支持非流式推理，仅Qwen3-32B、Qwen3-235B-A22B、Qwen3-30B-A3B和DeepSeek-R1-0528模型的Function Call特性支持流式推理。
--  当请求报文中包含Function Call功能时，当前版本请求报文最大支持的JSON嵌套层次为10层。
+- Atlas 800I A2 推理服务器、Atlas 800I A3 超节点服务器和Atlas 300I Duo 推理卡支持此特性。
+- 当前ChatGLM3-6B、Qwen3-32B、Qwen3-235B-A22B、Qwen3-30B-A3B、DeepSeek-R1-0528、Qwen2.5-Instruct和DeepSeek-V3.1系列模型支持此特性。
+- 使用Function Call特性，DeepSeek-V3.1系列模型必须配置[参数说明](#table1)中参数，其余模型可以不配置。
+- 当前仅支持OpenAI chat接口。
+- Function Call特性支持与量化、长序列、多机推理、PD分离、MoE、Multi-LoRA、SplitFuse、并行解码、专家并行、MTP、Prefix Cache、思考解析（DeepSeek-V3.1模型除外，DeepSeek-V3.1模型能力不支持一条请求同时使能Function Call和思考解析）、张量并行、MLA特性进行叠加，其中SplitFuse、并行解码、MTP特性暂不支持在流式推理下叠加Function call特性。
+- Function Call特性当前暂不支持include\_stop\_str\_in\_output、stop、best\_of、n、use\_beam\_search和logprobs后处理参数；当temperature设置较高（导致采样随机性较高），可能会影响触发Function Call的稳定性。
+- Function Call特性支持非流式推理，仅Qwen3-32B、Qwen3-235B-A22B、Qwen3-30B-A3B和DeepSeek-R1-0528模型的Function Call特性支持流式推理。
+- 当请求报文中包含Function Call功能时，当前版本请求报文最大支持的JSON嵌套层次为10层。
 
 ## 参数说明
 
@@ -37,7 +37,6 @@
 |chat_template|string|.jinja格式的文件路径""|传入自定义的对话模板，替换模型默认的对话模板。<ul><li>默认值：""</li><li>DeepSeek系列模型，tokenizer_config.json中的默认chat_template不支持工具调用，可以使用该参数传入支持工具调用的chat_template。</li><li>DeepSeek系列、Qwen系列（大语言模型），ChatGLM系列，LLaMA系列模型支持使用该参数传入自定义模板。</li></ul>|
 |tool_call_options|
 |tool_call_parser|string|表2 已注册ToolsCallProcessor中的“可选注册名称”<br>""|使能Function Call时，选择工具的解析方式。<br><ul><li>默认值：""</li><li>当未配置或配置错误值时，将使用当前模型所对应的默认工具解析方式。</li><li>DeepSeek-V3.1模型使用Function Call时，必须配置为"deepseek_v31"，其余模型使用默认值。</li><li>与chat_template配合使用，根据chat_template中指定的Function Call调用格式选择相应的ToolsCallProcessor。|</li></ul>
-
 
 **表 2**  已注册ToolsCallProcessor   <a id="table2"></a>
 
@@ -53,14 +52,13 @@
 |ToolsCallProcessorQwen2_5|qwen2_5，qwen_2_5|适用于Qwen2.5的工具解析模块。|
 |ToolsCallProcessorQwen3|qwen3，qwen3_moe，hermes|Hermes工具解析方式，适用于Qwen3与Qwen3-moe系列。|
 
-
 ## 执行推理
 
 以使用DeepSeek-V3.1为例，介绍Function Call如何使用。
 
 1. 打开Server的config.json文件。
 
-    ```json
+    ```bash
     cd {MindIE安装目录}/latest/mindie-service/
     vi conf/config.json
     ```
@@ -102,14 +100,14 @@
     ```
 
     > [!NOTE]说明 
-    >-  DeepSeek-V3.1模型：“tool\_call\_parser”必须配置为“deepseek\_v31”，否则将默认使用deepseek\_v3的工具解析模块，与Deepeek-V3.1模型格式不匹配，无法正确解析。
-    >-   其余模型：步骤1和2非必要，会自动匹配对应模型的工具解析方式。若配置，需要将“deepseekv2”字段修改为对应模型的“model\_type”。
-    >-  chat\_template：传入后会覆盖模型tokenizer\_config.json中默认的chat\_template。对于DeepSeek V3.1，DeepSeek R1 0528与DeepSeek V3 0324模型，权重tokenizer\_config.json中默认的chat\_template不支持Function Call，需要传入支持Function Call的chat\_template。
-    >-  chat\_template的格式（空格与换行符等）可能会影响数据集与Funciton Call评分。
+    >- DeepSeek-V3.1模型：“tool\_call\_parser”必须配置为“deepseek\_v31”，否则将默认使用deepseek\_v3的工具解析模块，与Deepeek-V3.1模型格式不匹配，无法正确解析。
+    >- 其余模型：步骤1和2非必要，会自动匹配对应模型的工具解析方式。若配置，需要将“deepseekv2”字段修改为对应模型的“model\_type”。
+    >- chat\_template：传入后会覆盖模型tokenizer\_config.json中默认的chat\_template。对于DeepSeek V3.1，DeepSeek R1 0528与DeepSeek V3 0324模型，权重tokenizer\_config.json中默认的chat\_template不支持Function Call，需要传入支持Function Call的chat\_template。
+    >- chat\_template的格式（空格与换行符等）可能会影响数据集与Funciton Call评分。
 
 3. 启动服务。
 
-    ```
+    ```bash
     ./bin/mindieservice_daemon
     ```
 
@@ -117,7 +115,7 @@
 
     **请求样例：**
 
-    ```
+    ```json
     curl -H "Accept: application/json" -H "Content-type: application/json" --cacert ca.pem --cert client.pem  --key client.key.pem -X POST -d '{
         "model": "dsv31",
         "messages": [
@@ -159,7 +157,7 @@
 
     **响应样例：**
 
-    ```
+    ```json
     {
         "id": "chatcmpl-123",
         "object": "chat.completion",
@@ -197,7 +195,7 @@
 
     根据模型返回的tool\_calls调用相关的本地工具，使用assistant角色关联[4](#step4)中接口返回的tool\_calls和id，并使用tool角色关联工具执行的结果和[4](#step4)中接口返回的id，向大模型发送请求。
 
-    ```
+    ```json
     curl -H "Accept: application/json" -H "Content-type: application/json" --cacert ca.pem --cert client.pem  --key client.key.pem -X POST -d '{
         "model": "dsv31",
         "messages": [
@@ -229,4 +227,3 @@
         "max_tokens": 4096
     }' https://127.0.0.1:1025/v1/chat/completions
     ```
-

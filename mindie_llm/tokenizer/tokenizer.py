@@ -24,11 +24,10 @@ from urllib3.util import parse_url
 from urllib3.exceptions import LocationParseError
 
 from mindie_llm.modeling.model_wrapper import get_tokenizer_wrapper
+from .tokenizer_log import logger
 from . import io_utils
 from . import file_utils
 
-
-logger = file_utils.get_tokenizer_logger()
 
 _ALLOWED_MEDIA_DOMAINS_ENV = "ALLOWED_MEDIA_DOMAINS_ENV"
 _ALLOWED_LOCAL_MEDIA_PATH = "/data/multimodal_inputs/"
@@ -75,9 +74,13 @@ _MIME_TYPE2EXT = {
     "flac": ".flac"
 }
 
+pid = os.getpid()
+logger.info(f"tokenizer-{pid} import ok.")
+
 
 class IbisTokenizer:
     def __init__(self, path: str, bakend_type: str, trust_remote_code: bool, models_dict_str: str):
+        logger.info(f"tokenizer-{pid} init start.")
         try:
             parent_pid_cache_prefix = 'cache_' + str(os.getppid())
             self.cache_prefix = str(os.getpid()) + '_'
@@ -89,8 +92,10 @@ class IbisTokenizer:
                 self.release_thread = multiprocessing.Process(target=self.release_cache, args=(_DURATION,), daemon=True)
                 self.release_thread.start()
 
+            logger.info(f"tokenizer-{pid} init {bakend_type}")
             wrapper = get_tokenizer_wrapper(
                 path, bakend_type, trust_remote_code=trust_remote_code, models_dict=models_dict_str)
+            logger.info(f"tokenizer-{pid} init {bakend_type} ok")
             self.tokenizer = wrapper.tokenizer
             self.input_builder = wrapper.input_builder
             self.tokenize = wrapper.tokenize
@@ -101,6 +106,7 @@ class IbisTokenizer:
             raise RuntimeError("IbisTokenizer init failed!!!") from e
         self.media_cache_dirs = None
         self.timestamp = None
+        logger.info(f"tokenizer-{pid} init ok.")
 
     def __del__(self):
         cache_path = getattr(self, 'cache_path', None)
@@ -465,7 +471,7 @@ class IbisTokenizer:
                               "current_tool_arguments_sent": kwargs.get("current_tool_arguments_sent", False),
                               "current_tool_id": kwargs.get("current_tool_id", -1),
                               "reasoning_tokens": kwargs.get("reasoning_tokens", -1),
-                              "tools": tools
+                              "tools": tools, "req_end_flag": kwargs.get("req_end_flag", False),
                               })
             input_kwargs.update({"prev_decode_index": pre_index, "curr_decode_index": current_index})
             input_kwargs.update({"metadata": meta_data})

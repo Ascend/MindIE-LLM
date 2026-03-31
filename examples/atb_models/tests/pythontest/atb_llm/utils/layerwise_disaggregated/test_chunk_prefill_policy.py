@@ -30,3 +30,8 @@ class TestChunkPrefilPolicy(unittest.TestCase):
         
     def test_map_prefill_chunk_num(self):
         self.assertEqual(self.deepseek_policy.map_prefill_chunk_num(8192), 2)
+
+    def test_initialize(self):
+        self.deepseek_policy.initialize(False)
+        self.deepseek_policy.initialize_standard_card()
+        self.assertEqual(self.deepseek_policy.map_prefill_chunk_num(8192), 2)

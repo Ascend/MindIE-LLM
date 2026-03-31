@@ -258,8 +258,6 @@ class DecodingPolicy:
                                       prefill_head_indices=input_data.prefill_head_indices,
                                       is_prefill=input_data.is_prefill)
         logger.debug(f'update_infer_input new_model_inputs.input_ids: {new_model_inputs.input_ids}')
-        if ENV.framework_backend == BackendType.MS:
-            new_model_inputs.slots = new_model_inputs.slots.astype(np.int32)
         return new_model_inputs, decoding_ids, decoding_masks
 
     def truncate_long_tokens(self, cache_ids, input_metadata, sampling_output, next_tokens_indices):

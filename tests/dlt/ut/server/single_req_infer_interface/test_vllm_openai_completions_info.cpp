@@ -363,7 +363,7 @@ TEST_F(VllmOpenAiCompletionsInferTest, TestSetupInferParamsWithResponseFormat)
     })");
     EXPECT_FALSE(inferInterface->SetupInferParams(request, errorMsg));
 
-    // invalid response_format - json_schema.name contains invalid characters
+    // valid response_format - json_schema.name
     request = std::make_shared<Request>(RequestIdNew("mockRequest"));
     inferInterface->reqJsonBody_ = OrderedJson::parse(R"({
         "prompt": "mock test",
@@ -376,7 +376,7 @@ TEST_F(VllmOpenAiCompletionsInferTest, TestSetupInferParamsWithResponseFormat)
             }
         }
     })");
-    EXPECT_FALSE(inferInterface->SetupInferParams(request, errorMsg));
+    EXPECT_TRUE(inferInterface->SetupInferParams(request, errorMsg));
 
     // invalid response_format - json_schema.name is empty
     request = std::make_shared<Request>(RequestIdNew("mockRequest"));

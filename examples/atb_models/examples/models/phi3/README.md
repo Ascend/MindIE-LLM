@@ -6,12 +6,12 @@
 - 此代码仓中实现了一套基于NPU硬件的 Phi-3 推理模型。配合加速库使用，旨在NPU上获得极致的推理性能。
 
 # 特性矩阵
+
 - 此矩阵罗列了 Phi-3 模型支持的特性
 
 | 模型及参数量    | 800I A2 Tensor Parallelism | 300I DUO Tensor Parallelism | FP16 | BF16 | Flash Attention | Paged Attention | W8A8量化 | W8A16量化  | KV cache量化 | 稀疏量化 | MOE量化 | MindIE Service | TGI  | 长序列 |
 | --------------- | -------------------------- | --------------------------- | ---- | ---- | --------------- | --------------- | -------- | --------- | ------------ | -------- | ------- | ------ | ---- | ------ |
 | Phi-3-mini-128k | 支持world size 1,2,4,8           | 支持world size 1,2,4,8            | 是   | 否   | 否              | 是              | 否       | 否             | 否           | 否       | 否      | 否     | 否   | 否     |
-
 
 # 使用说明
 
@@ -19,6 +19,7 @@
 - trust_remote_code为可选参数代表是否信任本地的可执行文件：默认不执行。传入此参数，则信任本地可执行文件。
 
 ## 路径变量解释
+
 | 变量名  | 含义                                             |
 |--------|--------------------------------------------------|
 | working_dir | 加速库及模型库下载后放置的目录                  |
@@ -27,18 +28,24 @@
 | weight_path | 模型权重路径                            |
 
 ## 权重
+
 **权重下载**
+
 - [Phi-3-mini-128k-instruct](https://huggingface.co/microsoft/Phi-3-mini-128k-instruct/tree/bb5bf1e4001277a606e11debca0ef80323e5f824) 模型仓近期更新，需要下载 commit id 为 bb5bf1e4001277a606e11debca0ef80323e5f824 的权重（建议直接在 huggingface 先切换 commit id，再下载）。
 
 ## 推理
 
 ### 对话测试
+
 **运行Page Attention FP16**
+
 - 运行启动脚本
   - 在\${llm_path}目录下执行以下指令
+
     ```shell
     bash ${script_path}/run_pa.sh ${weight_path} -trust_remote_code
     ```
+
 - 环境变量说明
   - `export ASCEND_RT_VISIBLE_DEVICES=0`
     - 指定当前机器上可用的逻辑NPU核心，多个核心间使用逗号相连
@@ -51,6 +58,7 @@
     - 目的是为了避免同一台机器同时运行多个多卡模型时出现通信冲突
     - 设置时端口建议范围为：20000-20050
   - 以下环境变量与性能和内存优化相关，通常情况下无需修改
+
     ```shell
     export INF_NAN_MODE_ENABLE=0
     export ATB_OPERATION_EXECUTE_ASYNC=1
@@ -67,7 +75,9 @@
     ```
 
 ## 精度测试
+
 - 参考[此README文件](../../../tests/modeltest/README.md)
 
 ## 性能测试
+
 - 参考[此README文件](../../../tests/modeltest/README.md)

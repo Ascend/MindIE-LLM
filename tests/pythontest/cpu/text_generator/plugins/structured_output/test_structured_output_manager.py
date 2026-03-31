@@ -8,10 +8,16 @@
 # MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
 # See the Mulan PSL v2 for more details.
 import json
+import sys
 import unittest
+from pathlib import Path
 from unittest.mock import MagicMock, Mock, patch, PropertyMock
 
 import numpy as np
+
+PROJECT_ROOT = Path(__file__).resolve().parents[6]
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
 
 try:
     import torch
@@ -33,6 +39,7 @@ from mindie_llm.text_generator.plugins.structured_output.structured_output_manag
     GrammarBackend,
     StructuredOutputManager,
     CompiledGrammar,
+    parse_bitmask_allowed_tokens,
 )
 from mindie_llm.text_generator.plugins.structured_output.structured_output_grammar import (
     StructuredOutputRequest,
@@ -89,7 +96,7 @@ class TestStructuredOutputConfig(unittest.TestCase):
     def test_default_config(self):
         config = StructuredOutputConfig()
         self.assertEqual(config.backend, GuidedDecodingBackendType.XGRAMMAR)
-        self.assertTrue(config.xgrammar_any_whitespace)
+        self.assertFalse(config.xgrammar_any_whitespace)
         self.assertEqual(config.grammar_cache_size, 100)
         self.assertEqual(config.bitmask_prealloc_batch, 64)
 
@@ -533,9 +540,30 @@ class TestStructuredOutputManager(unittest.TestCase):
             output_type=StructuredOutputType.JSON_OBJECT,
             grammar_spec='{"type": "object"}'
         )
-        manager.grammar_init("req_001", request)
-        self.assertTrue(manager.has_structured_output("req_001"))
-        self.assertFalse(manager.has_structured_output("req_002"))
+        manager.grammar_init(901, request)
+        self.assertTrue(manager.has_structured_output(901))
+        self.assertFalse(manager.has_structured_output(902))
+
+    @patch('mindie_llm.text_generator.plugins.structured_output.structured_output_manager.GrammarBackend')
+    def test_has_any_structured_output(self, mock_backend_class):
+        mock_backend = MagicMock()
+        mock_compiled = MagicMock()
+        mock_grammar = MagicMock(spec=XgrammarGrammar)
+        mock_backend.compile_grammar.return_value = mock_compiled
+        mock_backend.create_grammar.return_value = mock_grammar
+        mock_backend_class.return_value = mock_backend
+        manager = StructuredOutputManager(
+            tokenizer=self.tokenizer,
+            vocab_size=self.vocab_size,
+            config=self.config
+        )
+        request = StructuredOutputRequest(
+            output_type=StructuredOutputType.JSON_OBJECT,
+            grammar_spec='{"type": "object"}'
+        )
+        manager.grammar_init(1, request)
+        self.assertTrue(manager.has_any_structured_output([1, 2]))
+        self.assertFalse(manager.has_any_structured_output([2, 3]))
 
     def test_shutdown(self):
         manager = StructuredOutputManager(
@@ -813,13 +841,14 @@ class TestStructuredOutputManager(unittest.TestCase):
 
     @patch('mindie_llm.text_generator.plugins.structured_output.structured_output_manager.logger')
     def test_should_advance_grammar_none_returns_false(self, mock_logger):
-        """should_advance 在 grammar 为 None 时记录 warning 并返回 False。"""
+        """should_advance 在 grammar 为 None 时静默返回 False。"""
         manager = StructuredOutputManager(
             tokenizer=self.tokenizer,
             vocab_size=self.vocab_size,
             config=self.config
         )
         self.assertFalse(manager.should_advance(999))
+        mock_logger.warning.assert_not_called()
 
     @patch('mindie_llm.text_generator.plugins.structured_output.structured_output_manager.GrammarBackend')
     def test_get_cache_key(self, mock_backend_class):
@@ -840,6 +869,425 @@ class TestStructuredOutputManager(unittest.TestCase):
         )
         self.assertNotEqual(key1, key3)
         self.assertIn(StructuredOutputType.JSON_SCHEMA.value, key3)
+
+
+class TestStructuredOutputManagerHelpers(unittest.TestCase):
+    """静态方法与回放辅助逻辑"""
+
+    def test_to_numpy_array_branches(self):
+        self.assertIsNone(StructuredOutputManager._to_numpy_array(None))
+        arr = np.array([1, 2])
+        self.assertIs(StructuredOutputManager._to_numpy_array(arr), arr)
+
+        class HasAsNumpy:
+            def asnumpy(self):
+                return np.array([3])
+
+        np.testing.assert_array_equal(
+            StructuredOutputManager._to_numpy_array(HasAsNumpy()), np.array([3]))
+
+        class HasDetachCpuNumpy:
+            def detach(self):
+                return self
+
+            def cpu(self):
+                return self
+
+            def numpy(self):
+                return np.array([4])
+
+        np.testing.assert_array_equal(
+            StructuredOutputManager._to_numpy_array(HasDetachCpuNumpy()), np.array([4]))
+
+        class Bare:
+            pass
+
+        with patch.object(np, 'asarray', side_effect=TypeError("no")):
+            self.assertIsNone(StructuredOutputManager._to_numpy_array(Bare()))
+
+    @patch('mindie_llm.text_generator.plugins.structured_output.structured_output_manager.logger')
+    def test_sanitize_replay_tokens_drops_negative(self, mock_logger):
+        self.assertEqual(StructuredOutputManager._sanitize_replay_tokens([]), [])
+        self.assertEqual(
+            StructuredOutputManager._sanitize_replay_tokens([-1, 2, 3], state_key=1, source="t"),
+            [2, 3])
+        self.assertTrue(mock_logger.debug.called)
+
+    def test_extract_replay_tokens_priority(self):
+        sm = MagicMock()
+        sm.output_token_ids = np.array([[10, -1], [20]], dtype=object)
+        self.assertEqual(StructuredOutputManager._extract_replay_tokens(sm, 0), [10])
+        sm2 = MagicMock()
+        sm2.output_token_ids = None
+        sm2.all_token_ids = np.array([[7, 8]])
+        self.assertEqual(StructuredOutputManager._extract_replay_tokens(sm2, 0), [7, 8])
+        self.assertEqual(StructuredOutputManager._extract_replay_tokens(sm2, 5), [])
+
+    @patch('mindie_llm.text_generator.plugins.structured_output.structured_output_manager.logger')
+    def test_resolve_replay_tokens_predicted_wins_and_diff_log(self, mock_logger):
+        tokenizer = FakeTokenizer()
+        manager = StructuredOutputManager(tokenizer=tokenizer, vocab_size=100, config=StructuredOutputConfig())
+        sm = MagicMock()
+        sm.output_token_ids = np.array([[9]])
+        pred, src = manager._resolve_replay_tokens([[1, 2]], 0, sm, state_key=1)
+        self.assertEqual(pred, [1, 2])
+        self.assertEqual(src, "predicted_token_ids")
+        mock_logger.info.assert_not_called()
+        pred2, src2 = manager._resolve_replay_tokens(None, 0, sm, state_key=1)
+        self.assertEqual(pred2, [9])
+        self.assertEqual(src2, "sampling_metadata")
+
+
+class TestStructuredOutputReplaySync(unittest.TestCase):
+    """replay_predicted_tokens_after_init / sync_states_for_decode / grammar 复用"""
+
+    def setUp(self):
+        self.tokenizer = FakeTokenizer()
+        self.vocab_size = 32000
+        self.config = StructuredOutputConfig(grammar_cache_size=10, bitmask_prealloc_batch=4)
+
+    @patch('mindie_llm.text_generator.plugins.structured_output.structured_output_manager.GrammarBackend')
+    def test_grammar_init_second_call_reuses_grammar(self, mock_backend_class):
+        mock_backend = MagicMock()
+        mock_compiled = MagicMock()
+        mock_grammar = MagicMock(spec=XgrammarGrammar)
+        mock_backend.compile_grammar.return_value = mock_compiled
+        mock_backend.create_grammar.return_value = mock_grammar
+        mock_backend_class.return_value = mock_backend
+        manager = StructuredOutputManager(
+            tokenizer=self.tokenizer, vocab_size=self.vocab_size, config=self.config)
+        req = StructuredOutputRequest(
+            output_type=StructuredOutputType.JSON_OBJECT,
+            grammar_spec='{"type": "object"}')
+        g1 = manager.grammar_init(7, req)
+        g2 = manager.grammar_init(7, req)
+        self.assertIs(g1, g2)
+        self.assertEqual(mock_backend.compile_grammar.call_count, 1)
+
+    @patch('mindie_llm.text_generator.plugins.structured_output.structured_output_manager.GrammarBackend')
+    def test_shutdown_clears_grammars_and_cache(self, mock_backend_class):
+        mock_backend = MagicMock()
+        mock_compiled = MagicMock()
+        mock_grammar = MagicMock(spec=XgrammarGrammar)
+        mock_backend.compile_grammar.return_value = mock_compiled
+        mock_backend.create_grammar.return_value = mock_grammar
+        mock_backend_class.return_value = mock_backend
+        manager = StructuredOutputManager(
+            tokenizer=self.tokenizer, vocab_size=self.vocab_size, config=self.config)
+        req = StructuredOutputRequest(
+            output_type=StructuredOutputType.JSON_OBJECT,
+            grammar_spec='{"type": "object"}')
+        manager.grammar_init(1, req)
+        self.assertGreater(len(manager._request_grammars), 0)
+        manager.shutdown()
+        self.assertEqual(len(manager._request_grammars), 0)
+        self.assertEqual(len(manager._grammar_cache), 0)
+
+    @patch('mindie_llm.text_generator.plugins.structured_output.structured_output_manager.GrammarBackend')
+    @patch('mindie_llm.text_generator.plugins.structured_output.structured_output_manager.logger')
+    def test_replay_predicted_tokens_after_init_branches(self, mock_logger, mock_backend_class):
+        mock_backend = MagicMock()
+        mock_compiled = MagicMock()
+        mock_grammar = MagicMock(spec=XgrammarGrammar)
+        mock_grammar.num_processed_tokens = 0
+        mock_backend.compile_grammar.return_value = mock_compiled
+        mock_backend.create_grammar.return_value = mock_grammar
+        mock_backend_class.return_value = mock_backend
+        manager = StructuredOutputManager(
+            tokenizer=self.tokenizer, vocab_size=self.vocab_size, config=self.config)
+        manager.replay_predicted_tokens_after_init([1], None)
+
+        req = StructuredOutputRequest(
+            output_type=StructuredOutputType.JSON_OBJECT,
+            grammar_spec='{"type": "object"}')
+        manager.grammar_init(1, req)
+        manager.replay_predicted_tokens_after_init([1], [[1, 2]])
+        manager._request_grammars.pop(1, None)
+        manager.replay_predicted_tokens_after_init([1], [[1]])
+
+    @patch('mindie_llm.text_generator.plugins.structured_output.structured_output_manager.GrammarBackend')
+    @patch('mindie_llm.text_generator.plugins.structured_output.structured_output_manager.logger')
+    def test_sync_states_for_decode_skips_none_format(self, mock_logger, mock_backend_class):
+        mock_backend = MagicMock()
+        mock_compiled = MagicMock()
+        mock_grammar = MagicMock(spec=XgrammarGrammar)
+        mock_backend.compile_grammar.return_value = mock_compiled
+        mock_backend.create_grammar.return_value = mock_grammar
+        mock_backend_class.return_value = mock_backend
+        manager = StructuredOutputManager(
+            tokenizer=self.tokenizer, vocab_size=self.vocab_size, config=self.config)
+        manager.sync_states_for_decode(
+            [1, 2], [None, None], None, MagicMock())
+
+    @patch('mindie_llm.text_generator.plugins.structured_output.structured_output_manager.GrammarBackend')
+    @patch('mindie_llm.text_generator.plugins.structured_output.structured_output_manager.logger')
+    def test_sync_states_grammar_no_replay_tokens(self, mock_logger, mock_backend_class):
+        mock_backend = MagicMock()
+        mock_compiled = MagicMock()
+        mock_grammar = MagicMock(spec=XgrammarGrammar)
+        mock_grammar.num_processed_tokens = 0
+        mock_backend.compile_grammar.return_value = mock_compiled
+        mock_backend.create_grammar.return_value = mock_grammar
+        mock_backend_class.return_value = mock_backend
+        manager = StructuredOutputManager(
+            tokenizer=self.tokenizer, vocab_size=self.vocab_size, config=self.config)
+        req = StructuredOutputRequest(
+            output_type=StructuredOutputType.JSON_OBJECT,
+            grammar_spec='{"type": "object"}')
+        manager.grammar_init(1, req)
+        sm = MagicMock()
+        sm.output_token_ids = None
+        sm.all_token_ids = None
+        manager.sync_states_for_decode(
+            [1], ['{"type": "json_object"}'], None, sm)
+
+    @patch('mindie_llm.text_generator.plugins.structured_output.structured_output_manager.GrammarBackend')
+    @patch('mindie_llm.text_generator.plugins.structured_output.structured_output_manager.logger')
+    def test_sync_states_already_synchronized(self, mock_logger, mock_backend_class):
+        mock_backend = MagicMock()
+        mock_compiled = MagicMock()
+        mock_grammar = MagicMock(spec=XgrammarGrammar)
+        mock_grammar.num_tried_tokens = 2
+        mock_grammar.num_processed_tokens = 2
+        mock_backend.compile_grammar.return_value = mock_compiled
+        mock_backend.create_grammar.return_value = mock_grammar
+        mock_backend_class.create_grammar.return_value = mock_grammar
+        mock_backend_class.return_value = mock_backend
+        manager = StructuredOutputManager(
+            tokenizer=self.tokenizer, vocab_size=self.vocab_size, config=self.config)
+        req = StructuredOutputRequest(
+            output_type=StructuredOutputType.JSON_OBJECT,
+            grammar_spec='{"type": "object"}')
+        manager.grammar_init(1, req)
+        sm = MagicMock()
+        sm.output_token_ids = np.array([[1, 2]])
+        manager.sync_states_for_decode(
+            [1], ['{"type": "json_object"}'], None, sm)
+
+    @patch('mindie_llm.text_generator.plugins.structured_output.structured_output_manager.GrammarBackend')
+    @patch('mindie_llm.text_generator.plugins.structured_output.structured_output_manager.logger')
+    def test_sync_states_incremental_advance(self, mock_logger, mock_backend_class):
+        mock_backend = MagicMock()
+        mock_compiled = MagicMock()
+        mock_grammar = MagicMock(spec=XgrammarGrammar)
+        mock_grammar.num_tried_tokens = 1
+        mock_grammar.num_processed_tokens = 1
+        mock_grammar.is_terminated.return_value = False
+
+        def accept_side_effect(_sk, toks):
+            mock_grammar.num_tried_tokens = 3
+            mock_grammar.num_processed_tokens = 3
+            return True
+
+        mock_grammar.accept_tokens.side_effect = accept_side_effect
+        mock_backend.compile_grammar.return_value = mock_compiled
+        mock_backend.create_grammar.return_value = mock_grammar
+        mock_backend_class.create_grammar.return_value = mock_grammar
+        mock_backend_class.return_value = mock_backend
+        manager = StructuredOutputManager(
+            tokenizer=self.tokenizer, vocab_size=self.vocab_size, config=self.config)
+        req = StructuredOutputRequest(
+            output_type=StructuredOutputType.JSON_OBJECT,
+            grammar_spec='{"type": "object"}')
+        manager.grammar_init(1, req)
+        sm = MagicMock()
+        sm.output_token_ids = np.array([[10, 20, 30]])
+        manager.sync_states_for_decode(
+            [1], ['{"type": "json_object"}'], None, sm)
+
+    @patch('mindie_llm.text_generator.plugins.structured_output.structured_output_manager.GrammarBackend')
+    @patch('mindie_llm.text_generator.plugins.structured_output.structured_output_manager.logger')
+    def test_sync_states_rebuild_calls_build_and_replay(self, mock_logger, mock_backend_class):
+        mock_backend = MagicMock()
+        mock_compiled = MagicMock()
+        mock_grammar = MagicMock(spec=XgrammarGrammar)
+        mock_grammar.num_tried_tokens = 0
+        mock_grammar.num_processed_tokens = 0
+        mock_grammar.is_terminated.return_value = False
+        mock_grammar.accept_tokens.return_value = True
+        mock_backend.compile_grammar.return_value = mock_compiled
+        mock_backend.create_grammar.return_value = mock_grammar
+        mock_backend_class.create_grammar.return_value = mock_grammar
+        mock_backend_class.return_value = mock_backend
+        manager = StructuredOutputManager(
+            tokenizer=self.tokenizer, vocab_size=self.vocab_size, config=self.config)
+        req = StructuredOutputRequest(
+            output_type=StructuredOutputType.JSON_OBJECT,
+            grammar_spec='{"type": "object"}')
+        manager.grammar_init(1, req)
+        sm = MagicMock()
+        sm.output_token_ids = np.array([[1, 2, 3]])
+        with patch.object(manager, '_build_and_replay_structured_output_state', return_value=2) as mock_rebuild:
+            manager.sync_states_for_decode(
+                [1], ['{"type": "json_object"}'], None, sm)
+            self.assertGreaterEqual(mock_rebuild.call_count, 1)
+            mock_rebuild.assert_any_call(1, '{"type": "json_object"}', [1, 2, 3])
+
+    @patch('mindie_llm.text_generator.plugins.structured_output.structured_output_manager.GrammarBackend')
+    def test_build_and_replay_full_accept(self, mock_backend_class):
+        mock_backend = MagicMock()
+        mock_compiled = MagicMock()
+        mock_grammar = MagicMock(spec=XgrammarGrammar)
+        mock_grammar.is_terminated.return_value = False
+        mock_grammar.accept_tokens.return_value = True
+        mock_backend.compile_grammar.return_value = mock_compiled
+        mock_backend.create_grammar.return_value = mock_grammar
+        mock_backend_class.return_value = mock_backend
+        manager = StructuredOutputManager(
+            tokenizer=self.tokenizer, vocab_size=self.vocab_size, config=self.config)
+        with patch.object(manager, '_init_grammar_from_response_format', return_value=True):
+            with patch.object(manager, 'accept_tokens', return_value=True):
+                n = manager._build_and_replay_structured_output_state(1, '{}', [1, 2])
+                self.assertEqual(n, 2)
+
+
+class TestStructuredOutputManagerCoverage(unittest.TestCase):
+    """补充覆盖率：静态函数与关键分支路径。"""
+
+    def setUp(self):
+        self.tokenizer = FakeTokenizer()
+        self.config = StructuredOutputConfig(grammar_cache_size=10, bitmask_prealloc_batch=4)
+        self.manager = StructuredOutputManager(
+            tokenizer=self.tokenizer,
+            vocab_size=128,
+            config=self.config,
+        )
+
+    def test_parse_bitmask_allowed_tokens_branches(self):
+        self.assertEqual(parse_bitmask_allowed_tokens(None, vocab_size=64), [])
+        self.assertEqual(parse_bitmask_allowed_tokens(np.array([], dtype=np.int32), vocab_size=64), [])
+        self.assertEqual(parse_bitmask_allowed_tokens(np.array([1, 2], dtype=np.int32), vocab_size=64), [])
+
+        bitmask = np.zeros((2, 2), dtype=np.int32)
+        bitmask[0, 0] = (1 << 0) | (1 << 5)          # token 0, 5
+        bitmask[1, 0] = (1 << 5)                     # token 5（重复）
+        bitmask[1, 1] = (1 << 1) | (1 << 5)          # token 33, 37
+        parsed = parse_bitmask_allowed_tokens(bitmask, vocab_size=34)
+        self.assertEqual(parsed, [0, 5, 33])         # 37 超 vocab 被过滤
+
+    def test_has_structured_response_formats_branches(self):
+        self.assertFalse(StructuredOutputManager.has_structured_response_formats(None))
+        self.assertFalse(StructuredOutputManager.has_structured_response_formats([None, None]))
+        self.assertTrue(StructuredOutputManager.has_structured_response_formats([None, "{}"]))
+        # 非可迭代对象触发 TypeError 分支：只要非 None 即返回 True
+        self.assertTrue(StructuredOutputManager.has_structured_response_formats(object()))
+
+    def test_compute_structured_output_accepted_guard_and_forward(self):
+        self.assertIsNone(self.manager.compute_structured_output_accepted(None, np.array([1])))
+        self.assertIsNone(self.manager.compute_structured_output_accepted(np.array([1]), None))
+        self.assertIsNone(self.manager.compute_structured_output_accepted(np.array([1]), np.array([1])))
+
+        self.manager._request_grammars[1] = MagicMock(spec=XgrammarGrammar)
+        with patch.object(
+            self.manager,
+            "update_states_after_sampling",
+            return_value=np.array([False], dtype=bool),
+        ) as mock_update:
+            result = self.manager.compute_structured_output_accepted(
+                cache_ids=np.array([1]),
+                token_ids=np.array([[9]]),
+            )
+            np.testing.assert_array_equal(result, np.array([False], dtype=bool))
+            mock_update.assert_called_once()
+
+    def test_build_and_assign_structured_guided_bitmask_prefill_replay(self):
+        input_metadata = MagicMock()
+        input_metadata.is_prefill = True
+        input_metadata.batch_predicted_token_ids = [[11, 12]]
+
+        sampling_metadata = MagicMock()
+        sampling_metadata.all_sequence_ids = [1001]
+        sampling_metadata.guided_bitmask = None
+
+        first_mask = np.array([[1, 2]], dtype=np.int32)
+        second_mask = np.array([[3, 4]], dtype=np.int32)
+        with patch.object(
+            self.manager,
+            "process_batch_for_generation",
+            side_effect=[first_mask, second_mask],
+        ) as mock_process:
+            with patch.object(self.manager, "replay_predicted_tokens_after_init") as mock_replay:
+                with patch.object(self.manager, "sync_states_for_decode") as mock_sync:
+                    self.manager.build_and_assign_structured_guided_bitmask(
+                        input_metadata=input_metadata,
+                        sampling_metadata=sampling_metadata,
+                        cache_ids=[1001],
+                        response_format_array=['{"type":"json_object"}'],
+                    )
+                    self.assertEqual(mock_process.call_count, 2)
+                    mock_replay.assert_called_once_with(
+                        cache_ids=[1001],
+                        predicted_token_ids=[[11, 12]],
+                    )
+                    mock_sync.assert_not_called()
+                    np.testing.assert_array_equal(sampling_metadata.guided_bitmask, second_mask)
+
+    def test_build_and_assign_structured_guided_bitmask_decode_sync_path(self):
+        input_metadata = MagicMock()
+        input_metadata.is_prefill = False
+        input_metadata.batch_predicted_token_ids = [[21]]
+
+        sampling_metadata = MagicMock()
+        sampling_metadata.all_sequence_ids = [7]
+        sampling_metadata.guided_bitmask = None
+
+        decode_mask = np.array([[9, 9]], dtype=np.int32)
+        with patch.object(self.manager, "sync_states_for_decode") as mock_sync:
+            with patch.object(
+                self.manager,
+                "process_batch_for_generation",
+                return_value=decode_mask,
+            ) as mock_process:
+                with patch.object(self.manager, "replay_predicted_tokens_after_init") as mock_replay:
+                    self.manager.build_and_assign_structured_guided_bitmask(
+                        input_metadata=input_metadata,
+                        sampling_metadata=sampling_metadata,
+                        cache_ids=[7],
+                        response_format_array=['{"type":"json_object"}'],
+                    )
+                    mock_sync.assert_called_once()
+                    mock_process.assert_called_once()
+                    mock_replay.assert_not_called()
+                    np.testing.assert_array_equal(sampling_metadata.guided_bitmask, decode_mask)
+
+    def test_build_and_replay_partial_accept_and_suffix_fallback(self):
+        # 分支1：完整重放失败，但 grammar 已接受部分 token，直接返回 partial_count
+        partial_grammar = MagicMock(spec=XgrammarGrammar)
+        partial_grammar.num_processed_tokens = 2
+        self.manager._request_grammars[1] = partial_grammar
+        with patch.object(self.manager, "_init_grammar_from_response_format", return_value=True):
+            with patch.object(self.manager, "accept_tokens", return_value=False):
+                with patch.object(self.manager, "clear_requests") as mock_clear:
+                    partial = self.manager._build_and_replay_structured_output_state(
+                        state_key=1,
+                        response_format='{"type":"json_object"}',
+                        replay_tokens=[9, 10, 11],
+                    )
+                    self.assertEqual(partial, 2)
+                    mock_clear.assert_not_called()
+
+        # 分支2：partial_count=0，进入 suffix search，后缀成功时返回后缀长度
+        suffix_grammar = MagicMock(spec=XgrammarGrammar)
+        suffix_grammar.num_processed_tokens = 0
+        self.manager._request_grammars[2] = suffix_grammar
+
+        def accept_side_effect(_state_key, tokens):
+            if tokens == [9, 10, 11, 12]:
+                return False
+            if tokens == [10, 11, 12]:
+                return False
+            return tokens == [11, 12]
+
+        with patch.object(self.manager, "_init_grammar_from_response_format", return_value=True):
+            with patch.object(self.manager, "accept_tokens", side_effect=accept_side_effect):
+                with patch.object(self.manager, "clear_requests") as mock_clear:
+                    suffix = self.manager._build_and_replay_structured_output_state(
+                        state_key=2,
+                        response_format='{"type":"json_object"}',
+                        replay_tokens=[9, 10, 11, 12],
+                    )
+                    self.assertEqual(suffix, 2)
+                    self.assertGreaterEqual(mock_clear.call_count, 1)
 
 
 if __name__ == '__main__':

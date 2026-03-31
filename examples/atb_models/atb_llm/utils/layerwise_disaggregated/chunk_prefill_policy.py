@@ -47,6 +47,12 @@ class ChunkPrefilPolicy():
         self.multi_nodes_enable = multi_nodes_enable
         self.__ajust_prefill_chunk_map_for_multi_nodes()
 
+    def initialize_standard_card(self):
+        self.prefill_chunk_map = {125: 33, 64: 20, 32: 10, 16: 4, 8: 2}
+        if self.model_type == CloudCutModelType.DEEP_SEEK:
+            self.prefill_chunk_map = {31.5: 20, 15.5: 5, 7.5: 2}
+
+
     def map_prefill_chunk_num(self, prefill_seq_len):
         tmp_k_len = round(prefill_seq_len / 1024)
         prefill_chunk_num = 2

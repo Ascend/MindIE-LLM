@@ -37,7 +37,7 @@ from mindie_llm.utils.decorators.time_decorator import timer
 from mindie_llm.utils.env import ENV
 from mindie_llm.utils.log import logger, HandlerType
 from mindie_llm.utils.prof.profiler import span_start, span_end, span_req, span_attr, count_block
-from mindie_llm.utils.log.error_code import ErrorCodeException, convert_exception_to_error_code
+from mindie_llm.utils.log.error_code import ErrorCodeException, convert_exception_to_error_code, is_force_stop_exception
 
 if TYPE_CHECKING:
     from mindie_llm.text_generator.utils import (
@@ -244,6 +244,10 @@ class PluginManager:
         except Exception as e:
             if self.is_inference_pause:
                 logger.info(f"Mocking response due to inference pause for trace_ids={trace_ids}.")
+                # Check for FORCE STOP exception and notify generator_backend if it's GeneratorTorch
+                if is_force_stop_exception(e):
+                    logger.info(f"FORCE STOP exception detected in plugin_manager.generate_token: {e}")
+                    self.generator_backend.notify_force_stop_exception()
                 return GenerationOutput.make_empty()
             logger.exception(
                 f"Error encountered in generate_token (trace_ids={trace_ids}). "
@@ -416,29 +420,23 @@ class PluginManager:
                 warmup=warmup,
                 hit_mask=hit_mask
             )
-        
-        # 生成结构化输出 bitmask (直接调用 StructuredOutputManager)
-        if self._structured_output_manager is not None and sampling_metadata is not None:
-            response_format_array = input_metadata.batch_response_format
-            all_sequence_ids = sampling_metadata.all_sequence_ids
-            
-            if response_format_array is not None and all_sequence_ids is not None:
-                num_with_constraint = sum(1 for rf in response_format_array if rf is not None)
-                if num_with_constraint > 0:
-                    bitmask = self._structured_output_manager.process_batch_for_generation(
-                        sequence_ids=list(all_sequence_ids),
-                        response_format_array=response_format_array,
-                    )
-                    if bitmask is not None:
-                        sampling_metadata.guided_bitmask = bitmask
-        
+
+        if not self.async_inference and self._structured_output_manager is not None:
+            response_format_array = (
+                input_metadata.batch_response_format
+                if input_metadata.is_prefill
+                else self.infer_context.get_response_format(cache_ids)
+            )
+            self._structured_output_manager.build_and_assign_structured_guided_bitmask(
+                input_metadata, sampling_metadata, cache_ids, response_format_array
+            )
+
         if sampling_metadata is not None and ENV.model_runner_exp and not sampling_metadata.is_prefill:
             for plugin in self.plugin_list:
                 plugin_instance = getattr(self, plugin, None)
                 method = getattr(plugin_instance, 'compose_model_inputs_exp', None)
                 if method is not None:
                     sampling_metadata = method(sampling_metadata)
-
         res = (cache_ids, model_inputs, sampling_metadata, trace_ids)
         return res
 
@@ -456,21 +454,26 @@ class PluginManager:
                 logits = logits.squeeze(1)
                 sampling_output.token_ids = logits.cpu().numpy()
 
+        is_structured_accepted = sampling_output.is_structured_accepted
         if not self.async_inference:
             self.plugin_verify_manager(sampling_output, cache_ids, result)
-        
-        # 更新结构化输出 FSM 状态（直接调用 StructuredOutputManager）
-        if self._structured_output_manager is not None and sampling_metadata is not None:
-            all_sequence_ids = sampling_metadata.all_sequence_ids
-            token_ids = sampling_output.token_ids
-            if all_sequence_ids is not None and token_ids is not None:
-                self._structured_output_manager.update_states_after_sampling(
-                    sequence_ids=list(all_sequence_ids),
-                    token_ids=token_ids,
+            if self._structured_output_manager is not None:
+                is_structured_accepted = (
+                    self._structured_output_manager.compute_structured_output_accepted(
+                        cache_ids=cache_ids,
+                        token_ids=sampling_output.token_ids,
+                    )
                 )
+            else:
+                is_structured_accepted = None
+        # 兜底：无结构化输出时（_compute_... 返回 None 或异步路径本批次无结构化请求），使用全 True 数组
+        if is_structured_accepted is None:
+            batch_size = len(cache_ids) if cache_ids is not None else 0
+            is_structured_accepted = np.ones(batch_size, dtype=bool)
 
         finish_reason, filtered_indices, truncation_indices = (
-            self.output_filter.filter_finished_sequences(cache_ids, input_metadata, sampling_output))
+            self.output_filter.filter_finished_sequences(
+                cache_ids, input_metadata, sampling_output, is_structured_accepted))
 
         # If best_of sampling or beam search is open, get new cache ids
         if sampling_metadata is not None:
@@ -492,9 +495,6 @@ class PluginManager:
             sequence_ids_to_clear = self.infer_context.clear_finished_context(finished_sequence_ids, finished_cache_ids)
             if has_sampling and finished_sequence_ids.size != 0:
                 self.sampler.clear_cache(finished_sequence_ids)
-                # 清理结构化输出 FSM 状态（直接调用 StructuredOutputManager）
-                if self._structured_output_manager is not None:
-                    self._structured_output_manager.clear_finished_requests(finished_sequence_ids)
             self.plugin_cache_clear_manager(cache_ids, finish_reason)
         self.infer_context.clear_aborted_context()
         token_indices = self.infer_context.get_output_len_count(cache_ids)
@@ -593,6 +593,21 @@ class PluginManager:
             prof = span_start("get_from_input_queue")
             model_input_wrapper: ModelInputWrapper = self.input_queue.get()
             span_end(prof)
+
+            if self._structured_output_manager is not None:
+                input_metadata_for_batch = model_input_wrapper.input_metadata
+                response_format_array = (
+                    input_metadata_for_batch.batch_response_format
+                    if input_metadata_for_batch.is_prefill
+                    else self.infer_context.get_response_format(model_input_wrapper.cache_ids)
+                )
+                self._structured_output_manager.build_and_assign_structured_guided_bitmask(
+                    input_metadata_for_batch,
+                    model_input_wrapper.sampling_metadata,
+                    model_input_wrapper.cache_ids,
+                    response_format_array,
+                )
+
             # Maintain backward compatibility with the previous implementation
             if ENV.model_runner_exp:
                 prof = span_start("fill_in_model_result")
@@ -618,12 +633,23 @@ class PluginManager:
                     model_input_wrapper.sampling_metadata,
                     model_input_wrapper.input_metadata
                 )
-                sampling_output = self.generator_backend.sample(draft_filtered_logits,
-                                                                model_input_wrapper.sampling_metadata)
+                sampling_output = self.generator_backend.sample(
+                    draft_filtered_logits, model_input_wrapper.sampling_metadata)
+                if self._structured_output_manager is not None:
+                    async_is_structured_accepted = (
+                        self._structured_output_manager.compute_structured_output_accepted(
+                            cache_ids=model_input_wrapper.cache_ids,
+                            token_ids=sampling_output.token_ids,
+                        )
+                    )
+                else:
+                    async_is_structured_accepted = None
+
                 if ENV.framework_backend == BackendType.ATB:
                     self.model_wrapper.model_runner.clear_internal_tensors()
                 span_end(prof)
                 logger.info("sample end", extra={"handler_ids": HandlerType.TOKEN})
+
                 if not self.is_inference_pause:
                     model_input_wrapper.postprocess_done.wait()
 
@@ -649,10 +675,16 @@ class PluginManager:
                     sampling_output=sampling_output,
                     trace_ids=model_input_wrapper.trace_ids,
                     current_dp_sequence_ids=model_input_wrapper.current_dp_sequence_ids,
-                    launch_done=launch_done
+                    launch_done=launch_done,
                 )
+                sampling_output.is_structured_accepted = async_is_structured_accepted
             except Exception as e:
                 trace_ids = getattr(model_input_wrapper, 'trace_ids', 'unknown')
+
+                # Check for FORCE STOP exception and notify generator_backend if it's GeneratorTorch
+                if is_force_stop_exception(e):
+                    logger.info(f"FORCE STOP exception detected in plugin_manager.forward_loop: {e}")
+                    self.generator_backend.notify_force_stop_exception()
 
                 error_code = convert_exception_to_error_code(str(e))
 
@@ -771,6 +803,7 @@ class PluginManager:
                 vocab_size=vocab_size,
                 config=config,
             )
+            self.infer_context.set_structured_output_manager(self._structured_output_manager)
             
         except ImportError as e:
             logger.warning(f"Failed to import structured output module: {e}")

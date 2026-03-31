@@ -84,7 +84,8 @@ message SamplingParams {
     TopLogprobs topLogprobs = 18;
     EnableThinking enableThinking = 19;
     ThinkingBudget thinkingBudget = 20;
-    IsThinking isThinking = 21;
+    optional string responseFormat = 21;
+    IsThinking isThinking = 22;
 }
 message Temperature {
     optional float value = 1;

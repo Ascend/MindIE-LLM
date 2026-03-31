@@ -210,6 +210,7 @@ void InferTokenizer::DecodeOneToken(std::vector<int64_t> &tokenIds, std::string 
             std::string toolCallsJson(header->toolCallsJson, header->toolCallsJsonSize);
             kwargs["tool_calls_json"] = toolCallsJson;
         }
+        kwargs["req_end_flag"] = header->requestEndFlag;
         pybind11::object text = autoTokenizer->attr("decode_one")(pythonList, kwargs);
 
         outputText = text.cast<std::string>().substr(0, GetMaxTextLength());

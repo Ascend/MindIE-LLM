@@ -19,10 +19,10 @@ import numpy as np
 from mindie_llm.text_generator.adapter.generator_torch import GeneratorTorch, reorder_array, reorder_tensor
 from mindie_llm.text_generator.adapter.generator_torch import check_model_config
 from mindie_llm.text_generator.utils.model_input import ModelInput
-from mindie_llm.text_generator.adapter.generator_torch import (
+from mindie_llm.text_generator.adapter.recovery_utils import (
     is_uce_error_addr_overlap_tensor_addr,
     get_tensor_address_range,
-    check_and_recover_uce_in_cache
+    check_and_recover_uce_in_cache,
 )
 
 MOCKED_INIT_METHOD = "mindie_llm.text_generator.adapter.generator_torch.GeneratorTorch.__init__"
@@ -1259,13 +1259,13 @@ class TestGeneratorTorch(unittest.TestCase):
         generator.npu_device_id = 0
 
         result, error_msg = generator._handle_uce_error()
-        self.assertEqual(result, 0)
+        self.assertEqual(result, 2)
         self.assertEqual(error_msg, "")
 
         addr = self.cache_pool.npu_cache[0][1].data_ptr()
         mock_get_uce_addr.return_value = [{"ptr": addr, "size": 12}]
         result, error_msg = generator._handle_uce_error()
-        self.assertEqual(result, 0)
+        self.assertEqual(result, 2)
         self.assertEqual(error_msg, "")
     
     @patch("torch_npu.npu._recovery.update_npu_tensor_to_safe")
@@ -1288,7 +1288,7 @@ class TestGeneratorTorch(unittest.TestCase):
         self.assertEqual(addr_end, 1040)
 
     @patch("torch_npu.npu._recovery.update_npu_tensor_to_safe")
-    @patch("mindie_llm.text_generator.adapter.generator_torch.get_tensor_address_range")
+    @patch("mindie_llm.text_generator.adapter.recovery_utils.get_tensor_address_range")
     def test_check_and_recover_uce_in_cache(self, mock_get_range, mock_update):
         # Mock tensor address range
         mock_get_range.return_value = (100, 200)

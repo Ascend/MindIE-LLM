@@ -52,7 +52,6 @@ class HandlingBackend(str, Enum):
     ATB = "atb"
     CPU = "cpu"
     PTA = "pta"
-    MS = "ms"
 
 
 @dataclass
@@ -207,38 +206,21 @@ class SamplerConfig:
     guided_decoding_backend: str = "xgrammar"  # 约束解码后端: "xgrammar"
 
     def __post_init__(self):
-        if self.backend_type == BackendType.MS:
-            self.handling_policy = {
-                "repetition_penalty": HandlingBackend.MS,
-                "frequency_penalty": HandlingBackend.MS,
-                "presence_penalty": HandlingBackend.MS,
-                "temperature": HandlingBackend.MS,
-                "top_k": HandlingBackend.MS,
-                "top_p": HandlingBackend.MS,
-                "guided_decoding": HandlingBackend.MS,
-            }
-            self.selection_policy = {
-                "greedy_search": HandlingBackend.MS,
-                "sampling": HandlingBackend.MS,
-                "top_k_top_p_sampling": HandlingBackend.MS,
-                "beam_search": HandlingBackend.MS,
-            }
-        else:
-            self.handling_policy = {
-                "repetition_penalty": HandlingBackend.PTA,
-                "frequency_penalty": HandlingBackend.PTA,
-                "presence_penalty": HandlingBackend.PTA,
-                "temperature": HandlingBackend.PTA,
-                "top_k": HandlingBackend.PTA,
-                "top_p": HandlingBackend.PTA,
-                "guided_decoding": HandlingBackend.PTA,
-            }
-            self.selection_policy = {
-                "greedy_search": HandlingBackend.PTA,
-                "sampling": HandlingBackend.PTA,
-                "top_k_top_p_sampling": HandlingBackend.CPU,
-                "beam_search": HandlingBackend.PTA,
-            }
+        self.handling_policy = {
+            "repetition_penalty": HandlingBackend.PTA,
+            "frequency_penalty": HandlingBackend.PTA,
+            "presence_penalty": HandlingBackend.PTA,
+            "temperature": HandlingBackend.PTA,
+            "top_k": HandlingBackend.PTA,
+            "top_p": HandlingBackend.PTA,
+            "guided_decoding": HandlingBackend.PTA,
+        }
+        self.selection_policy = {
+            "greedy_search": HandlingBackend.PTA,
+            "sampling": HandlingBackend.PTA,
+            "top_k_top_p_sampling": HandlingBackend.CPU,
+            "beam_search": HandlingBackend.PTA,
+        }
 
 
 @dataclass(slots=True)
@@ -343,4 +325,5 @@ class ResponseConfig(int, Enum):
     STOP_TOKEN_IDS = 3
     REACH_MAX_SEQ_LEN = 5
     REACH_MAX_OUTPUT_LEN = 6
+    REJECTED_STRUCTURED_OUTPUT = 7
     EXCEPTION_OOM = 9

@@ -33,13 +33,6 @@ class HandlerParams:
                                                   device=output_token_ids.device)
                 output_token_counts.scatter_add_(1, output_token_ids, torch.ones_like(output_token_ids))
                 self.output_token_counts = output_token_counts[:, :self.vocab_size]
-            elif self.backend_type == BackendType.MS:
-                import mindspore as ms
-                from mindspore import ops
-                output_token_counts = ops.zeros((self.batch_size, self.vocab_size + 1), dtype=ms.int32)
-                output_token_counts = ops.tensor_scatter_elements(output_token_counts, output_token_ids,
-                                                                  ops.ones_like(output_token_ids), 1)
-                self.output_token_counts = output_token_counts[:, :self.vocab_size]
 
     def clear_token_counts(self):
         self.output_token_counts = None

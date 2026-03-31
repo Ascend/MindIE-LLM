@@ -12,8 +12,8 @@
 
 ### 约束
 
--  使用ATB Models进行推理，模型初始化失败时，模型初始化过程中用户自定义修改导致的失败，需要手动结束进程。
--  使用ATB Models进行推理，权重路径及文件的权限需保证其他用户无写权限。
+- 使用ATB Models进行推理，模型初始化失败时，模型初始化过程中用户自定义修改导致的失败，需要手动结束进程。
+- 使用ATB Models进行推理，权重路径及文件的权限需保证其他用户无写权限。
 
 ### README文档解读
 
@@ -30,12 +30,11 @@
 |${ATB_SPEED_HOME_PATH}/examples/models/{模型名称}/README.md|为ATB Models每个模型各自的文档，<br>例如：${ATB_SPEED_HOME_PATH}/examples/models/llama/README.md中为LLaMA模型的文档，其中涵盖了LLaMA系列和LLaMA2系列模型的介绍和运行指导。|<ul><li>模型特性支持矩阵，即不同参数量的模型对各类硬件，各种量化方式，各种特性的支持情况。</li><li>模型开源权重下载地址。</li><li>模型量化权重生成介绍。</li><li>对话测试、精度测试和性能测试脚本执行方式。</li></ul>|
 |${ATB_SPEED_HOME_PATH}/examples/README.md|汇总了对于公共能力和接口的介绍。|<ul><li>bin格式的权重转safetensor格式脚本的介绍。</li><li>量化权重生成脚本的介绍。</li><li>Flash Attention和Paged Attention启动脚本参数介绍。</li><li>可选择性配置的环境变量介绍。</li><li>特殊场景注意事项。</li></ul>|
 
-
 ### 使用示例
 
 下面以LLaMA3-8B模型为例，展示对话推理以及性能测试的执行步骤。
 
-1.  配置环境变量。
+1. 配置环境变量。
 
     ```bash
     # 配置CANN环境，默认安装在/usr/local目录下
@@ -46,14 +45,14 @@
     source /usr/local/Ascend/atb-models/set_env.sh
     ```
 
-2.  准备模型权重：可从Hugging Face官网直接下载，将下载的权重保存在“/data/Llama-3-8b“。
-3.  执行如下命令，修改权重文件权限。
+2. 准备模型权重：可从Hugging Face官网直接下载，将下载的权重保存在“/data/Llama-3-8b“。
+3. 执行如下命令，修改权重文件权限。
 
     ```bash
     chmod -R 755 /data/Llama-3-8b
     ```
 
-4.  （可选）当前ATB Models推理仅支持加载safetensor格式的权重文件。若下载的权重文件是safetensor格式文件，则无需进行权重转换，若下载的权重文件是bin格式文件，则需要按照如下方式进行转换。
+4. （可选）当前ATB Models推理仅支持加载safetensor格式的权重文件。若下载的权重文件是safetensor格式文件，则无需进行权重转换，若下载的权重文件是bin格式文件，则需要按照如下方式进行转换。
 
     ```bash
     # 进入ATB Models 所在路径
@@ -64,7 +63,7 @@
 
     输出结果会保存在bin格式的权重文件同目录下。
 
-5.  测试对话推理。
+5. 测试对话推理。
 
     ```bash
     cd ${ATB_SPEED_HOME_PATH}
@@ -73,9 +72,9 @@
 
     如上命令调用的run\_pa.sh脚本是对run\_pa.py脚本的封装，默认推理内容为"What's deep learning?"，batch size为1，可以通过下方的步骤[6](#step6)修改推理内容。
 
-6.  <a name="step6"></a>自定义推理内容。
+6. <a name="step6"></a>自定义推理内容。
 
-    -  用户可以通过以下方式直接调用run\_pa.py脚本，通过传入参数的方式自定义推理内容及推理方式。
+    - 用户可以通过以下方式直接调用run\_pa.py脚本，通过传入参数的方式自定义推理内容及推理方式。
 
         例如：使用/data/Llama-3-8b路径下的权重，使用8卡推理"What's deep learning?"和"Hello World."，推理时batch size为2。
 
@@ -89,7 +88,7 @@
         > [!NOTE]说明
         > 环境变量说明请参见[环境变量说明](environment_variable.md)。
 
-    -  用户可以通过传入Token id的方式进行推理。
+    - 用户可以通过传入Token id的方式进行推理。
 
         新建一个py脚本（如test.py）用于生成Token id：
 
@@ -152,9 +151,7 @@
         |--max_loras|否|int|0|LoRA场景中，定义最多可存储的LoRA数量。动态LoRA场景下必须配置，静态LoRA场景中可以不配置。若传入数值过大，由于预留了过多权重空间，会出现out_of_memory报错信息，例如: "RuntimeError: NPU out of memory. Tried to allocate xxx GiB."|
         |--max_lora_rank|否|int|0|动态加载卸载LoRA场景中，定义最大LoRA秩。动态LoRA场景下必须配置，静态LoRA场景中可以不配置。若传入数值过大，由于预留了过多权重空间，会出现out_of_memory报错信息，例如: "RuntimeError: NPU out of memory. Tried to allocate xxx GiB."|
 
-
         > [!NOTE]说明
-
         > 此章节中的run\_pa.py脚本用于纯模型快速测试，脚本中未增加强校验，出现异常情况时，会直接抛出异常信息。例如：
         > - nput\_texts、input\_ids、input\_file、input\_dict参数包含推理内容，程序进行数据处理的时间和传入数据量成正比。同时这些输入会被转换成token id搬运至NPU，传入数据量过大可能会导致这些NPU tensor占用显存过大，而出现由out of memory导致的报错信息，例如："req: xx input length: xx is too long, max\_prefill\_tokens: xx"等报错信息。
         > - chat\_template参数可以使用两种形式输入：模板文本或模板文件的路径。当以模板文本输入时，若文本长度过大，可能会导致运行缓慢。
@@ -162,7 +159,7 @@
         > - 脚本会基于max\_position\_embeddings参数，申请旋转位置编码和attention mask等NPU tensor，若用户传入数值过大，会出现由out of memory导致的报错信息，例如："RuntimeError: NPU out of memory. Tried to allocate xxx GiB."。
         > - block\_size参数若小于张量并行场景下每张卡实际分到的注意力头个数，会出现由shape不匹配导致的报错（"Setup fail, enable log: export ASDOPS\_LOG\_LEVEL=ERROR, export ASDOPS\_LOG\_TO\_STDOUT=1 to find the first error. For more details, see the MindIE official document."），需开启日志查看详细信息。
 
-7.  测试性能。
+7. 测试性能。
 
     开启ATB\_LLM\_BENCHMARK\_ENABLE环境变量后，将统计模型首Token、增量Token及端到端推理时延。
 
@@ -177,16 +174,15 @@
     > [!NOTE]说明 
     > 性能测试后，可使用msprof工具，进行性能数据采集和性能数据分析，达到性能调优目的。msprof工具的使用可参见《性能调优工具》的“[msprof命令行工具](https://www.hiascend.com/document/detail/zh/mindstudio/700/T&ITools/Profiling/atlasprofiling_16_0010.html)”章节。
 
- 
 ## ATB Models服务化使用 
 
 ### 前提条件
 
 已在环境上安装CANN、PyTorch、Torch-NPU、ATB Models、MindIE LLM和MindIE Motor，详情请参见《MindIE安装指南》。
 
-## 使用实例
+### 使用实例
 
-1.  设置环境变量。
+1. 设置环境变量。
 
     若安装路径为默认路径，可以运行以下命令初始化各组件环境变量。
 
@@ -202,7 +198,7 @@
     source /usr/local/Ascend/mindie/latest/mindie-service/set_env.sh
     ```
 
-2.  启动服务化并发送请求。
+2. 启动服务化并发送请求。
 
     MindIE服务化使用方法请参考《MindIE Motor开发指南》中的“快速入门 \> [启动服务](https://gitcode.com/Ascend/MindIE-Motor/blob/dev/docs/zh/user_guide/quick_start.md)”章节。服务化参数配置请参考[配置参数说明（服务化）](service_parameter_configuration.md)。
 
@@ -221,103 +217,3 @@
     ```bash
     curl -H "Accept: application/json" -H "Content-type: application/json" -X POST --cacert {Server服务端证书的验签证书/根证书路径} --cert {客户端证书文件路径} --key {客户端证书私钥路径} -d '{"inputs": "hi","stream":false}' https://{ip}:{port}/generate
     ```
-
-## MindSpore Models服务化使用
-
-MindIE LLM不仅支持ATB Models，同时支持MindSpore作为框架后端，MindSpore Models覆盖MindFormers社区下的开源模型，模型列表和使用方式参考[MindSpore Transformers](https://gitee.com/mindspore/mindformers/tree/master/)。
-
-### 前提条件
-
--   已在环境上安装CANN，详情请参见《MindIE安装指南》。
--   已在环境上安装MindSpore和MindFormers，详情请参见[MindFormers官方安装指南](https://www.mindspore.cn/mindformers/docs/zh-CN/r1.5.0/quick_start/install.html)。
-
-### 权重转换
-
-执行推理前，需将权重格式转为MindFormers所使用的格式（ckpt格式）。MindFormers提供了统一的权重转换工具，请参考[权重格式转换](https://www.mindspore.cn/mindformers/docs/zh-CN/r1.5.0/function/weight_conversion.html)。
-
-以Qwen2.5-72B为例，转换后的模型权重目录结构如下：
-
-```text
-mf_model
-└── qwen2_5_72b
-├── config.json                 # 模型json配置文件
-├── vocab.json                  # 模型vocab文件，hf上对应模型下载
-├── merges.txt                  # 模型merges文件，hf上对应模型下载
-├── predict_qwen2_5_72b.yaml    # 模型yaml配置文件
-├── qwen2_5_tokenizer.py        # 模型tokenizer文件，从mindformers仓中research目录下找到对应模型复制
-└── qwen2_5_72b_ckpt_dir        # 模型分布式权重文件夹
-```
-
-权重转换之后，需要进行权重切分。请参考[MindFormer Qwen2.5](https://gitee.com/mindspore/mindformers/blob/r1.6.0/research/qwen2_5/README.md)的“多卡推理”进行权重切分，切分后生成“qwen2\_5\_72b\_ckpt\_dir”文件夹。
-
-predict\_qwen2\_5\_72b.yaml需要关注以下配置：
-
-```yaml
-load_checkpoint: '/mf_model/qwen2_5_72b/qwen2_5_72b_ckpt_dir' # 为存放模型分布式权重文件夹路径
-use_parallel: True
-auto_trans_ckpt: False    # 是否开启自动权重转换，离线切分设置为False
-parallel_config:
-  data_parallel: 1
-  model_parallel: 4       # 多卡推理配置模型切分，一般与使用卡数一致
-  pipeline_parallel: 1
-processor:
-  tokenizer:
-    vocab_file: "/mf_model/qwen2_5_72b/vocab.json"  # vocab文件路径
-    merges_file: "/mf_model/qwen2_5_72b/merges.txt"  # merges文件路径
-```
-
-模型的config.json文件可以使用save\_pretrained接口生成，示例如下：
-
-```python
-from mindformers import AutoConfig
-
-model_config = AutoConfig.from_pretrained("/mf_model/qwen2_5_72b/predict_qwen2_5_72b.yaml")
-model_config.save_pretrained(save_directory="./json/qwen2_5_72b/", save_json=True)
-```
-
-### 使用实例
-
-运行MindSpore Models需配合服务化使用。
-
-1. 设置环境变量。
-
-    若安装路径为默认路径，可以运行以下命令初始化各组件环境变量。
-
-    ```bash
-    # Ascend
-    source /usr/local/Ascend/cann/set_env.sh
-    # MindIE
-    source /usr/local/Ascend/mindie/latest/mindie-llm/set_env.sh
-    source /usr/local/Ascend/mindie/latest/mindie-service/set_env.sh
-    # MindSpore
-    export LCAL_IF_PORT=8129
-    # 组网配置
-    export MS_SCHED_HOST=127.0.0.1  # scheduler节点ip地址
-    export MS_SCHED_PORT=8090  # scheduler节点服务端口
-    ```
-
-    > [!NOTE]说明
-    > 若机器上有其他卡已启动MindIE，需要注意MS\_SCHED\_PORT参数是否冲突。若日志打印中该参数报错，替换为其他端口号重新尝试即可。
-
-2.  启动服务化并发送请求。
-
-    MindIE服务化使用方法请参考《MindIE Motor开发指南》中的“快速入门 \> [启动服务](https://gitcode.com/Ascend/MindIE-Motor/blob/dev/docs/zh/user_guide/quick_start.md)”章节，服务化参数配置请参考[配置参数说明（服务化）](service_parameter_configuration.md)。
-
-    若要启用MindSpore Models作为模型后端，服务化配置中需将ModelDeployConfig.ModelConfig.backendType字段设置为"ms"。
-
-    ```bash
-    vim /usr/local/Ascend/mindie/latest/mindie-service/conf/config.json
-    # 修改ModelDeployConfig.ModelConfig.backendType
-    "backendType": "ms"
-    ```
-
-    服务化API接口请参考《MindIE LLM开发指南》中的**服务化接口**章节。
-
-    用户可使用HTTPS客户端（Linux curl命令，Postman工具等）发送HTTPS请求，此处以Linux curl命令为例进行说明。重开一个窗口，使用以下命令发送请求。
-
-    ```bash
-    curl -H "Accept: application/json" -H "Content-type: application/json" -X POST --cacert {Server服务端证书的验签证书/根证书路径} --cert {客户端证书文件路径} --key {客户端证书私钥路径} -d '{"inputs": "I love Beijing, because","stream": false}' https://{ip}:{port}/generate
-    ```
-    
-    > [!NOTE]说明
-    > MindSpore场景下，请求体中的seed字段限制在\[0, 2^32\)范围内，若超过则按照默认值seed = 0设置。

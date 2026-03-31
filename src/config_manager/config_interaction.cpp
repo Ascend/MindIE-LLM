@@ -46,6 +46,22 @@ bool ConfigInteraction::UpdatePluginEnabledStatus(const std::vector<ModelDeployC
     return true;
 }
 
+bool ConfigInteraction::UpdateMtpEnabledStatus(const std::vector<ModelDeployConfig> &modelDeployConfigs,
+    ServerConfigManager &serverConfigManager)
+{
+    bool originalMtpEnabled = serverConfigManager.GetParam().mtpEnabled;
+    bool newMtpEnabled = false;
+
+    if (!modelDeployConfigs.empty()) {
+        newMtpEnabled = CheckMtpEnabled(modelDeployConfigs);
+    }
+
+    if (originalMtpEnabled != newMtpEnabled) {
+        serverConfigManager.SetMtpEnabled(newMtpEnabled);
+    }
+    return true;
+}
+
 bool ConfigInteraction::UpdateDeepseekEnabledStatus(const std::vector<ModelDeployConfig> &modelDeployConfigs,
     ServerConfigManager &serverConfigManager)
 {
@@ -88,6 +104,26 @@ bool ConfigInteraction::CheckPluginEnabled(const std::vector<ModelDeployConfig> 
     return false;
 }
 
+bool ConfigInteraction::CheckMtpEnabled(const std::vector<ModelDeployConfig> &modelDeployConfigs)
+{
+    if (modelDeployConfigs.empty()) {
+        return false;
+    }
+
+    for (size_t i = 0; i < modelDeployConfigs.size(); ++i) {
+        const auto &model = modelDeployConfigs[i];
+
+        auto it = model.modelConfig.find("plugin_params");
+        if (it != model.modelConfig.end()) {
+            const std::string &pluginParams = it->second;
+            if (HasMtpInPluginParams(pluginParams)) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
 bool ConfigInteraction::CheckModelTypeDeepseek(const std::vector<ModelDeployConfig> &modelDeployConfigs)
 {
     for (size_t i = 0; i < modelDeployConfigs.size(); ++i) {
@@ -118,6 +154,15 @@ bool ConfigInteraction::HasPluginEnabled(const std::string &pluginParams)
     std::regex pluginRegex(pattern);
     bool result = std::regex_search(pluginParams, pluginRegex);
     return result;
+}
+
+bool ConfigInteraction::HasMtpInPluginParams(const std::string &pluginParams)
+{
+    if (pluginParams.empty()) {
+        return false;
+    }
+    static const std::regex mtpRegex(R"x("plugin_type"\s*:\s*"[^"]*(?:mtp)")x");
+    return std::regex_search(pluginParams, mtpRegex);
 }
 
 std::string ConfigInteraction::GetCombinedRegexPattern()

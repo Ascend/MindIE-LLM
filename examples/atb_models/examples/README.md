@@ -3,6 +3,7 @@
 此README公共脚本及其使用方式进行介绍
 
 ## 路径变量解释
+
 | 变量名  | 含义                                             |
 |--------|--------------------------------------------------|
 | working_dir | 加速库及模型库下载后放置目录                  |
@@ -13,31 +14,39 @@
 | cur_dir | 运行指令或执行脚本时的路径（当前目录）              |
 
 ## 权重
+
 ### 权重设置
+
 - `${weight_path}/config.json`文件中需设置`torch_dtype`、`kv_quant`、`quantize`和`quantization_config`类型来标识权重的量化类型和浮点精度
   - 若`torch_dtype`、`kv_quant`、`quantize`和`quantization_config`字段不存在，需新增
 
 - 浮点精度配置
+
   | 浮点精度        | torch_dtype |
   |----------------|-------------|
   | FP16           | "float16"   |
   | BF16           | "bfloat16"  |
+
   - 此字段必须配置
 
 - 线性层量化类型配置
+
   | 线性层量化类型  | quantize |
   |----------------|----------|
   | W8A8           | "w8a8"   |
   | W8A8S          | "w8a8s"  |
   | W8A8SC         | "w8a8sc" |
   | W8A16          | "w8a16"  | 
+
   - 若模型涉及线性层量化，则需配置此字段
 
 - quantization_config为json结构体，其中包含了其余量化信息
   - "kv_quant_type"字段中包含KV Cache量化类型配置
+
     | KV Cache量化类型 | kv_quant_type |
     |-----------------|----------|
     | 进行KV Cache量化 | "C8"   |
+
     - 若模型涉及KV Cache量化，则需配置此字段
   - "group_size"字段配置per group量化中的group大小
     - 默认group_size为64
@@ -46,6 +55,7 @@
 
 - 示例
   - LLaMa模型的权重使用BF16精度，非量化
+
     ```json
     {
       "architectures": [
@@ -56,7 +66,9 @@
       ...
     }
     ```
+
   - LLaMa模型的权重使用FP16精度，W8A16量化
+
     ```json
     {
       "architectures": [
@@ -70,34 +82,46 @@
     ```
 
 ### 权重转换
+>
 > **说明：**
 > 当前仅支持加载safetensor格式的权重文件
+>
 > - 若当前环境不存在模型权重，请至hugging face官网下载，模型下载链接见各模型README文件
 > - 若下载的权重文件中已有safetensor格式的文件，则无需进行权重转换
 > - 若环境中仅有bin格式的权重文件，请按照如下方式进行转换
+>
 - 脚本：`${llm_path}/examples/convert/convert_weights.py`
 - 功能：基于bin格式权重，生成safetensor格式权重，输出结果保存在bin权重同目录下
 - 参数说明
+
   | 参数名称    | 是否为必选 | 类型    | 默认值 | 描述         |
   |------------|-----------|---------|-------|--------------|
   | model_path | 是        | string  |        | 模型权重路径 |
+
 - 示例
+
     ```shell
     cd ${llm_path}
     python examples/convert/convert_weights.py --model_path ${weight_path}
     ```
+
   - 注意：必须先进入`${llm_path}`路径下执行以上命令，否则由于脚本中存在相对路径，会导致module not found的问题
 
 #### 训练权重转换
+>
 > 若需要将Megatron训练后权重转换为safetensors格式
+
 - 请移步ModelLink仓库的[权重转换](https://gitee.com/ascend/ModelLink/blob/master/examples/README.md)第2.2章节，按照ModelLink开发指南先将训练后权重格式转换为bin格式的权重文件，再进行上一步safetensors权重转换
 
 ### 权重切分
+>
 > **说明：**
 > 当前仅支持加载safetensor格式的权重文件
+
 - 脚本：`${llm_path}/examples/convert/weight_sharder/weight_sharder.py`
 - 功能：基于safetensor格式权重，根据并行策略切分权重并完成分片存储，输出结果保存在指定目录下
 - 参数说明
+
   | 参数名称        | 是否为必选 | 类型    | 默认值 | 描述           |
   |----------------|-----------|---------|--------|---------------|
   | model_path     | 是        | string  |        | 原始模型权重路径|
@@ -111,17 +135,22 @@
 
 - 示例
 在双机场景下，按照dp=2，tp=8，moe_tp=4，moe_ep=4的并行策略切分权重
+
     ```shell
     torchrun --nnodes=2 --nproc_per_node 8 --node_rank=0 --master_addr={master ip} --master_port {master_port} -m examples.convert.weight_sharder.weight_sharder --model_path ${weight_path} --dp 2 --tp 8 --moe_tp 4 --moe_ep 4 --save_directory ${save_path}
     torchrun --nnodes=2 --nproc_per_node 8 --node_rank=1 --master_addr={master ip} --master_port {master_port} -m examples.convert.weight_sharder.weight_sharder --model_path ${weight_path} --dp 2 --tp 8 --moe_tp 4 --moe_ep 4 --save_directory ${save_path}
     ```
 
 ### 权重量化
+
 权重量化依赖msModelSlim工具，下载及安装方式见[README](https://gitcode.com/ascend/msit/blob/master/msmodelslim/README.md)
+
 #### 量化脚本
+
 - 脚本：`${llm_path}/examples/convert/model_slim/quantifier.py`
 - 功能：基于浮点权重进行量化，生成量化权重
 - 参数说明
+
   | 参数名称              | 是否为必选 | 类型                  | 默认值            | <div style="width:1000px">描述</div> |
   |----------------------|-----------|-----------------------|------------------|--------------------------------------|
   | model_path           | 是        | string                |                  | 模型权重路径 |
@@ -158,9 +187,11 @@
   | trust_remote_code    | 否        | bool                  | store_true       | 为可选参数代表是否信任模型权重路径下的自定义代码文件：默认不执行。传入此参数，则信任本地自定义代码文件。 |
   | use_fa_quant         | 否        | bool                  | False             | 是否使用FA3量化。True: 使用FA3量化类型；False: 不使用FA3量化类型。 |
   | fa_amp               | 否        | int                   | 0       | FA3量化场景下的自动回退的layer数量。数据取值范围是大于等于0，并且小于等于模型layer数量，如果超出模型的layer数量将会取模型的最大layer数量为回退层数。 |
+
 - 使用示例见模型Readme文件
 
 #### NPU量化
+
 - 环境要求
   - 硬件环境：Atlas 800I A2或Atlas 300I DUO环境
   - Pytorch、PTA配套在2.1版本及以上
@@ -173,16 +204,20 @@
 - 量化脚本具体参数配置和运行指令见各模型README文件
 
 ### 稀疏量化权重多卡切分及压缩脚本
+
 - 脚本：`${llm_path}/examples/convert/model_slim/sparse_compressor.py`
 - 功能：加载权重并进行多卡切分，在切分后的权重上执行压缩算法
 - 运行前请参考[msmodelslim](https://gitcode.com/Ascend/msit/blob/master/msmodelslim/docs/%E5%AE%89%E8%A3%85%E6%8C%87%E5%8D%97.md)安装msModelSlim量化工具
 
 - 调用方法
+
   ```shell
   torchrun --nproc_per_node {TP数} -m examples.convert.model_slim.sparse_compressor --model_path ${w8a8s_weight_path} --save_directory ${w8a8sc_weight_path}
   ```
+
   - TP数为张量并行个数，需和权重运行时的张量并行个数保持一致
 - 参数说明
+
   | 参数名称              | 是否为必选 | 类型    | 默认值 | 描述                        |
   |----------------------|-----------|---------|-------|-----------------------------|
   | model_path           | 是        | string  |       | 模型权重路径                 |
@@ -190,9 +225,11 @@
   | multiprocess_num     | 否        | int     | 8     | 压缩算法使用的线程数          |
   | save_split_w8a8s_dir | 否        | string  | None  | 切分但未经压缩的量化权重保存路径 |
   | trust_remote_code    | 否        | bool    | store_true       | 为可选参数代表是否信任模型权重路径下的自定义代码文件：默认不执行。传入此参数，则信任本地自定义代码文件。 |
+
 - 压缩算法与硬件强相关，当前仅Atlas 300I DUO卡支持稀疏量化
 
 ## 部分环境变量介绍
+
   - `ASCEND_RT_VISIBLE_DEVICES`
     - 指定当前机器上可用的逻辑NPU核心，多个核心间使用逗号相连
     - 核心编号需要通过 npu-smi info 指令查阅
@@ -241,10 +278,13 @@
     - 设置为1开启，设置为0不开启；默认不开启`
 
 ## 启动脚本
+
 ### run_fa.py脚本参数介绍
+
 - 脚本：`${llm_path}/examples/run_fa.py`
 - 功能：Flash Attention场景下模型推理的启动脚本
 - 参数说明
+
   | 参数名称                 | 是否为必选 | 类型                   | 默认值                     | <div style="width:1000px">描述</div> |
   |-------------------------|-----------|----------------------|----------------------------|--------------------------------------|
   | model_path              | 是        | string                |                            | 模型权重路径 |
@@ -265,20 +305,24 @@
   | results_save_path       | 否        | string                | None                       | 推理结果保存路径，需同步传入inputs_embeds_dir参数，否则不生效 |
   | enable_atb_torch        | 否        | bool                  | store_true                 | 是否使用Python组图。默认使用C++组图，若传入此参数，则使用Python组图。|
   | trust_remote_code       | 否        | bool                  | store_true       | 为可选参数代表是否信任模型权重路径下的自定义代码文件：默认不执行。传入此参数，则信任本地自定义代码文件。 |
+
 - 说明
   - `input_text`参数包含推理内容，程序进行数据处理的时间和传入数据量成正比。同时这些输入会被转换成token id搬运至NPU，传入数据量过大可能会导致这些NPU tensor占用显存过大，而出现由out of memory导致的报错信息。
   - 脚本会基于`max_input_length`、`max_output_length`、`num_beam`等参数申请推理输入及KV Cache，若用户传入数值过大，会出现由out of memory导致的报错信息，例如："RuntimeError: NPU out of memory. Tried to allocate xxx GiB."。
   - 脚本会基于`max_position_embeddings`参数，申请旋转位置编码和attention mask等NPU tensor，若用户传入数值过大，会出现由out of memory导致的报错信息，例如："RuntimeError: NPU out of memory. Tried to allocate xxx GiB."。
 - 示例
+
   ```shell
   # 使用多卡运行Flash Attention，设置模型权重路径，设置输出长度为2048个token
   torchrun --nproc_per_node 2 --master_port 20038 -m examples.run_fa --model_path ${weight_path} --max_output_length 2048
   ```
 
 ### run_pa.py脚本参数介绍
+
 - 脚本：`${llm_path}/examples/run_pa.py`
 - 功能：Paged Attention场景下模型推理的启动脚本
 - 参数说明
+
   | 参数名称                 | 是否为必选 | 类型                  | 默认值                     | <div style="width:1000px">描述</div> |
   |-------------------------|-----------|-----------------------|----------------------------|--------------------------------------|
   | model_path              | 是        | string                |                            | 模型权重路径 |
@@ -314,17 +358,20 @@
   | max_loras               | 否        | int                   | 0                          | LoRA场景中，定义最多可存储的LoRA数量。默认值为0，静态LoRA场景中可以不配置，动态LoRA场景下必须配置。若传入数值过大，由于预留了过多权重空间，会出现out_of_memory导致的报错信息，例如: "RuntimeError: NPU out of memory. Tried to allocate xxx GiB." |
   | max_lora_rank           | 否        | int                   | 0                          | 动态加载卸载LoRA场景中，定义最大LoRA秩。默认值为0，静态LoRA场景中可以不配置，动态LoRA场景下必须配置。若传入数值过大，由于预留了过多权重空间，会出现out_of_memory导致的报错信息，例如: "RuntimeError: NPU out of memory. Tried to allocate xxx GiB." |
   | distributed_enable      | 否        | bool                  | store_true                 | 是否开启分布式。默认不开启 |
+
 - 示例
+
   ```shell
   # 使用多卡运行Paged Attention，设置模型权重路径，设置输出长度为2048个token
   torchrun --nproc_per_node 2 --master_port 20038 -m examples.run_pa --model_path ${weight_path} --max_output_length 2048
   ```
 
-
 ### models/clip_score_base_runner.py脚本参数介绍
+
 - 脚本：`${llm_path}/examples/models/clip_score_base_runner.py`
 - 功能：获得模型的clip_score
 - 参数说明
+
 | 参数名称                 | 是否为必选  | 类型                  | 默认值                       | <div style="width:1000px">描述</div> |
   |-----------------------|-----------|----------------------|-----------------------------|--------------------------------------|
   | device                | 是        | string                |                            | 指定devicee_id | 
@@ -332,7 +379,9 @@
   | model_weights_path    | 是        | string                |                            | 权重路径 |
   | image_info            | 是        | string                |                            | predict_result.json的路径 |
   | dataset_path          | 是        | string                |                            | 数据集路径 |
+
 - 示例
+
 ```shell
 python clip_score_base_runner.py \
 --device_ids "0" \
@@ -343,15 +392,18 @@ python clip_score_base_runner.py \
 ```
 
 ### models/coco_base_runner.py文件介绍
+
 - 文件：`${llm_path}/examples/models/coco_base_runner.py`
 - 功能：获得模型的COCO数据集上的精度。使用时，需要继承CocoBaseRunner基类之后实现prepare和process两个方法。
 - 示例：可参考`${llm_path}/examples/models/llava/precision/run_coco.py`
 
-
 ### 特殊场景说明
+
 - 单机多用户场景
   - 300I DUO 和 800I A2 上，单机多用户场景下，由于通信算子之间采用共享内存进行通信，每个用户需要配置如下环境变量，进行共享内存的区分；
+
     ```shell
     export ATB_SHARE_MEMORY_NAME_SUFFIX="user1"
     ```
+
   - 单机多用户场景：如300I DUO上有4张卡，每张卡单独跑一个模型推理任务，需要根据不同任务设置上述环境变量来区分，如`user1`、`user2`

@@ -75,11 +75,11 @@ torchrun --nproc_per_node 8 --master_port 20030 -m examples.run_pa \
 以LLaMA3.1 70B模型为例，简单介绍Multi LoRA如何使用。
 
 1. 打开Server的`config.json`文件。
-
-```bash
-cd {MindIE安装目录}/latest/mindie-service/
-vi conf/config.json
-```
+  
+    ```bash
+    cd {MindIE安装目录}/latest/mindie-service/
+    vi conf/config.json
+    ```
 
 2. 配置服务化参数。在Server的`config.json`文件添加`maxLoras`、`maxLoraRank`以及`LoraModules`字段（以下加粗部分），参数字段说明请参见表 **Multi-LoRA特性补充参数：ModelDeployConfig中的参数**，服务化参数说明请参见5.2-配置参数说明（服务化）章节，参数配置示例如下。
 
@@ -130,69 +130,68 @@ vi conf/config.json
             }]
         }
     }
-}
-```
+    ```
 
 3. 启动服务。
 
-```bash
-./bin/mindieservice_daemon
-```
+    ```bash
+    ./bin/mindieservice_daemon
+    ```
 
 4. 动态加载、卸载或查询LoRA。
 
-- **加载请求**：
+   - **加载请求**：
 
-```bash
-curl -X POST http://127.0.0.2:1026/v1/load_lora_adapter \
-  -H "Content-Type: application/json" \
-  -d '{
-        "lora_name": "adapter2",
-        "lora_path": "/data/lora_model_weights/llama3.1-70b-lora"
-      }'
-```
+     ```bash
+     curl -X POST http://127.0.0.2:1026/v1/load_lora_adapter \
+       -H "Content-Type: application/json" \
+       -d '{
+             "lora_name": "adapter2",
+             "lora_path": "/data/lora_model_weights/llama3.1-70b-lora"
+           }'
+     ```
 
-- **卸载请求**：
+   - **卸载请求**：
 
-```bash
-curl -X POST 127.0.0.2:1026/v1/unload_lora_adapter \
-  -d '{
-        "lora_name": "adapter2"
-      }'
-```
+     ```bash
+     curl -X POST 127.0.0.2:1026/v1/unload_lora_adapter \
+       -d '{
+             "lora_name": "adapter2"
+           }'
+     ```
 
-- **查询请求**：
+   - **查询请求**：
 
-```bash
-curl http://127.0.0.1:1025/v1/models
-```
+     ```bash
+     curl http://127.0.0.1:1025/v1/models
+     ```
 
 5. 使用以下指令发送请求。
 
 其中`"model"`参数可以设置为基础模型名称（`config.json`配置文件中`"ModelConfig"`字段下的`"modelName"`参数的值）或LoRA ID（`config.json`配置文件中`"LoraModules"`字段下`"name"`参数的值）。当`"model"`参数为基础模型名称时，不使用Lora权重进行推理。当`"model"`参数为LoRA ID时，启用基础模型权重和指定的LoRA权重进行推理。
 
-```bash
-curl https://127.0.0.1:1025/generate \
-  -H "Content-Type: application/json" \
-  --cacert ca.pem --cert client.pem --key client.key.pem \
-  -X POST \
-  -d '{
-        "model": "${基础模型名称}",
-        "prompt": "Taxation in Puerto Rico -- The Commonwealth government has its own tax laws and Puerto Ricans are also required to pay some US federal taxes, although most residents do not have to pay the federal personal income tax. In 2009, Puerto Rico paid $3.742 billion into the US Treasury. Residents of Puerto Rico pay into Social Security, and are thus eligible for Social Security benefits upon retirement. However, they are excluded from the Supplemental Security Income.\nQuestion: is federal income tax the same as social security?\nAnswer:",
-        "max_tokens": 20,
-        "temperature": 0
-      }'
-```
+    ```bash
+     curl https://127.0.0.1:1025/generate \
+      -H "Content-Type: application/json" \
+      --cacert ca.pem --cert client.pem --key client.key.pem \
+      -X POST \
+      -d '{
+            "model": "${基础模型名称}",
+            "prompt": "Taxation in Puerto Rico -- The Commonwealth government has its own tax laws and Puerto Ricans are also required to pay some US federal taxes, although most residents do not have to pay the federal personal income tax. In 2009, Puerto Rico paid $3.742 billion into the US Treasury. Residents of Puerto Rico pay into Social Security, and are thus eligible for Social Security benefits upon retirement. However, they are excluded from the Supplemental Security Income.\nQuestion: is federal income tax the same as social security?\nAnswer:",
+            "max_tokens": 20,
+            "temperature": 0
+          }'
+    ```
 
-```bash
-curl https://127.0.0.1:1025/generate \
-  -H "Content-Type: application/json" \
-  --cacert ca.pem --cert client.pem --key client.key.pem \
-  -X POST \
-  -d '{
-        "model": "adapter1",
-        "prompt": "Taxation in Puerto Rico -- The Commonwealth government has its own tax laws and Puerto Ricans are also required to pay some US federal taxes, although most residents do not have to pay the federal personal income tax. In 2009, Puerto Rico paid $3.742 billion into the US Treasury. Residents of Puerto Rico pay into Social Security, and are thus eligible for Social Security benefits upon retirement. However, they are excluded from the Supplemental Security Income.\nQuestion: is federal income tax the same as social security?\nAnswer:",
-        "max_tokens": 20,
-        "temperature": 0
-      }'
-```
+    ```bash
+    curl https://127.0.0.1:1025/generate \
+      -H "Content-Type: application/json" \
+      --cacert ca.pem --cert client.pem --key client.key.pem \
+      -X POST \
+      -d '{
+            "model": "adapter1",
+            "prompt": "Taxation in Puerto Rico -- The Commonwealth government has its own tax laws and Puerto Ricans are also required to pay some US federal taxes, although most residents do not have to pay the federal personal income tax. In 2009, Puerto Rico paid $3.742 billion into the US Treasury. Residents of Puerto Rico pay into Social Security, and are thus eligible for Social Security benefits upon retirement. However, they are excluded from the Supplemental Security Income.\nQuestion: is federal income tax the same as social security?\nAnswer:",
+            "max_tokens": 20,
+            "temperature": 0
+          }'
+    ```

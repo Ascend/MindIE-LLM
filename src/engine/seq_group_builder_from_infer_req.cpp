@@ -127,6 +127,7 @@ void SeqGroupBuilderFromInferReq::InitSeqGrpFromInferRequest(RequestSPtr request
     seqGroup->pInstanceId = request->pInstanceId.has_value() ? request->pInstanceId.value() : 0;
     seqGroup->dpInstanceId_ = request->dpInstanceIds.empty() ? 0 : request->dpInstanceIds[0];
     seqGroup->pBlockTable = request->srcBlockTable;
+    seqGroup->prefillReplayTokenIds_ = request->prefillReplayTokenIds;
     seqGroup->isThinking_ = request->isThinking;
     seqGroup->skipSpecialTokens_ = request->skipSpecialTokens;
     seqGroup->ignoreEos_ = request->ignoreEos;
@@ -146,7 +147,9 @@ void SeqGroupBuilderFromInferReq::InitSeqGrpFromInferRequest(RequestSPtr request
             seqGroup->firstSeq->SetExtraHash(hv);
         }
     }
-
+    if (seqGroup->isThinking_) {
+        seqGroup->thinkingTokens = 1;
+    }
     uint32_t inputTokenNum = static_cast<uint32_t>(seqGroup->seqs_.at(0)->data_.promptTokenIds.size());
     seqGroup->maxIterTimes_ =
         std::min(schedulerConfigSptr->maxSeqLen - inputTokenNum, schedulerConfigSptr->maxIterTimes);

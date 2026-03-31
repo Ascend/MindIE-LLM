@@ -26,9 +26,6 @@ def get_generator_backend(model_config):
         else:
             from .generator_torch import GeneratorTorch
             generator_cls = GeneratorTorch
-    elif backend_type == BackendType.MS:
-        from .generator_ms import GeneratorMS
-        generator_cls = GeneratorMS
     else:
         message = ('Unsupported backend type. The `backend_type` field only supports either "atb" or "ms". If you are '
                    'using a service framework, please modify its configuration file to ensure the `backend_type` '

@@ -5,6 +5,7 @@
 - 此代码仓中实现了一套基于 NPU 硬件的 MiniCpm 模型。配合加速库使用，旨在 NPU 上获得极致的推理性能。
 
 # 特性矩阵
+
 - 矩此阵罗列了各MiniCpm模型支持的特性
 
 | 模型及参数量              | 800I A2 Tensor Parallelism | 300I DUO Tensor Parallelism | FP16 | BF16 | Flash Attention | Paged Attention | W8A8量化 | W8A16量化 | W4A16量化 | KV cache量化 | 稀疏量化 | MindIE | TGI | 长序列   |
@@ -30,7 +31,6 @@
 - [MiniCPM-1B-sft-bf16](https://huggingface.co/openbmb/MiniCPM-1B-sft-bf16)
 - [MiniCPM-2B-sft-bf16](https://huggingface.co/openbmb/MiniCPM-2B-sft-bf16)
 
-
 **基础环境变量**
 
 - 参考[此 README 文件](../../../../../../master/examples/atb_models/README.md)
@@ -43,9 +43,11 @@
 
 - 运行启动脚本（MiniCpm_1B transformers 版本需求：4.36.0.dev0 | MiniCpm_8x22B transformers 版本需求：4.39.0）
   - 在\${llm_path}目录下执行以下指令
+
     ```shell
     bash ${script_path}/run_pa.sh ${weight_path}
     ```
+
 - 启动脚本中可设置自定义问题，具体在 input_text 后面修改即可 (默认问题为"Who is the CEO of Google?")
 - 启动脚本中可设置自定义输出长度，具体在 max_output_length 后面修改即可（默认长度为 10）
 - 若当前所用权重版本为"chat"版本，请将"--is_chat_model"赋值给 extra_param；若当前所用权重版本为"base"版本，可以将空字符串赋值给 extra_param（默认为 chat_model）
@@ -61,6 +63,7 @@
     - 目的是为了避免同一台机器同时运行多个多卡模型时出现通信冲突
     - 设置时端口建议范围为：20000-20050
   - 以下环境变量与性能和内存优化相关，通常情况下无需修改
+
     ```shell
     export INF_NAN_MODE_ENABLE=0
     export ATB_OPERATION_EXECUTE_ASYNC=1
@@ -74,6 +77,7 @@
 
 - 参考[此 README 文件](../../../../../../master/examples/atb_models/tests/modeltest/README.md)
   - 示例 
+
     ```shell
     cd ${llm_path}/tests/modeltest
     export ASCEND_RT_VISIBLE_DEVICES=0
@@ -81,7 +85,9 @@
     bash run.sh pa_fp16 full_CEval 5 1 minicpm ${minicpm权重路径} 1
     bash run.sh pa_fp16 full_GSM8K 1 minicpm ${minicpm权重路径} 1
     ```
+
   - 如果基于310B示例如下
+
     ```shell
     export MAX_COMPILE_CORE_NUMBER=1
     export TE_PARALLEL_COMPILER=1
@@ -101,6 +107,7 @@
 ## 性能测试
 
 - 参考[此 README 文件](../../../../../../master/examples/atb_models/tests/modeltest/README.md)
+
     ```shell
     cd ${llm_path}/tests/modeltest
     export ASCEND_RT_VISIBLE_DEVICES=0

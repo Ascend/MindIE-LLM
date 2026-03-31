@@ -155,13 +155,6 @@ class TestSampler(unittest.TestCase):
                 return torch.tensor(data_, device=self.device)
 
             self.to_tensor = to_tensor_torch
-        elif self.backend_type == BackendType.MS:
-            import mindspore as ms
-
-            def to_tensor_ms(data_):
-                return ms.Tensor(data_) if data_.size > 0 else None
-
-            self.to_tensor = to_tensor_ms
         else:
             raise ValueError('No such backend type.')
 

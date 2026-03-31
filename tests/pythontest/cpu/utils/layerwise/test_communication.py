@@ -8,7 +8,7 @@
 # MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
 # See the Mulan PSL v2 for more details.
 import unittest
-from unittest.mock import Mock, MagicMock
+from unittest.mock import Mock, MagicMock, patch
 from mindie_llm.model_wrapper.utils.config import BaseConfig
 from mindie_llm.utils.layerwise.communication import LwdCommunicationManager
 
@@ -276,6 +276,119 @@ class TestEdgeCloudComm(unittest.TestCase):
         result = router.lwd_ranktable_parse_check_proc(lwd_rank_table)
         self.assertTrue(result)
 
+    def test_lwd_ranktable_parse_check_proc_for_device(self):
+        router = LwdCommunicationManager()
+        router.config.npu_edge_num = 2
+
+        lwd_rank_table = {
+            "server_count": "2",
+            "server_list": [
+                {
+                    "server_id": "172.16.0.1",
+                    "container_ip": "172.16.0.1",
+                    "host_ip": "172.16.0.1",
+                    "device": [
+                        {
+                            "rank_id": "0",
+                            "device_id": "0",
+                            "device_ip": "192.168.1.2",
+                            "device_port": "16666",
+                            "host_port": "60002"
+                        },
+                        {
+                            "rank_id": "1",
+                            "device_id": "1",
+                            "device_ip": "192.168.1.3",
+                            "device_port": "16666",
+                            "host_port": "60002"
+                        },
+                        {
+                            "rank_id": "2",
+                            "device_id": "2",
+                            "device_ip": "192.168.1.4",
+                            "device_port": "16666",
+                            "host_port": "60002"
+                        },
+                        {
+                            "rank_id": "3",
+                            "device_id": "3",
+                            "device_ip": "192.168.1.5",
+                            "device_port": "16666",
+                            "host_port": "60002"
+                        },
+                        {
+                            "rank_id": "4",
+                            "device_id": "4",
+                            "device_ip": "192.168.1.6",
+                            "device_port": "16666",
+                            "host_port": "60002"
+                        },
+                        {
+                            "rank_id": "5",
+                            "device_id": "5",
+                            "device_ip": "192.168.1.7",
+                            "device_port": "16666",
+                            "host_port": "60002"
+                        },
+                        {
+                            "rank_id": "6",
+                            "device_id": "6",
+                            "device_ip": "192.168.1.8",
+                            "device_port": "16666",
+                            "host_port": "60002"
+                        },
+                        {
+                            "rank_id": "7",
+                            "device_id": "7",
+                            "device_ip": "192.168.1.9",
+                            "device_port": "16666",
+                            "host_port": "60002"
+                        }
+                    ]
+                },
+                {
+                    "server_id": "172.16.0.2",
+                    "container_ip": "172.16.0.2",
+                    "host_ip": "172.16.0.2",
+                    "device": [
+                        {
+                            "rank_id": "8",
+                            "device_id": "0",
+                            "device_ip": "192.168.2.2",
+                            "device_port": "16666",
+                            "net_position": "host",
+                            "net_protocol": "rdam",
+                            "host_port": "60002"
+                        },
+                        {
+                            "rank_id": "9",
+                            "device_id": "1",
+                            "device_ip": "192.168.2.2",
+                            "device_port": "16666",
+                            "net_position": "host",
+                            "net_protocol": "rdam",
+                            "host_port": "60002"
+                        }
+                    ]
+                }
+            ]
+        }
+
+        router.config.role_type = 'master'
+        result = router.lwd_ranktable_parse_check_proc(lwd_rank_table)
+        self.assertTrue(result)
+        self.assertTrue(router.config.npu_net_host)
+
+        del lwd_rank_table["server_list"][1]["device"][0]["net_position"]
+        result = router.lwd_ranktable_parse_check_proc(lwd_rank_table)
+        self.assertFalse(result)
+
+        router.config.npu_net_host = False
+        del lwd_rank_table["server_list"][1]["device"][1]["net_position"]
+        result = router.lwd_ranktable_parse_check_proc(lwd_rank_table)
+        self.assertTrue(result)
+        self.assertFalse(router.config.npu_net_host)
+
     def test_communication_config_verify(self):
         router = LwdCommunicationManager()
 
@@ -362,6 +475,41 @@ class TestEdgeCloudComm(unittest.TestCase):
         router.generator.model_wrapper.model_runner.data_comm = MagicMock()
         result = router.communication_init()
         self.assertTrue(result)
+
+    @patch("mindie_llm.runtime.utils.npu.device_utils.acl.rt.get_mem_info")
+    def test_ctrl_comm_sync_npu_smi_info(self, mock_get_mem_info):
+        router = LwdCommunicationManager()
+        mock_get_mem_info.return_value = (5000, 20000, 0)
+
+        router.config.npu_smi_info_sync = False
+        result = router.ctrl_comm_sync_npu_smi_info()
+        self.assertTrue(result)
+
+        router.config.npu_smi_info_sync = True
+        router.ctrl_comm = MagicMock()
+        router.ctrl_comm.npu_smi_info_sync_is_done.return_value = True
+        result = router.ctrl_comm_sync_npu_smi_info()
+        self.assertTrue(result)
+
+        router.ctrl_comm.npu_smi_info_sync_is_done.return_value = False
+        result = router.ctrl_comm_sync_npu_smi_info()
+        self.assertFalse(result)
+
+    def test_peer_npu_smi_info(self):
+        router = LwdCommunicationManager()
+        router.ctrl_comm = MagicMock()
+        npu_smi_info = {'hbm_capacity': 65452113920, 'soc_name': 'Ascend910B3'}
+
+        router.config.role_type = 'master'
+        router.set_peer_npu_smi_info(npu_smi_info)
+        npu_smi_info_read = router.get_peer_npu_smi_info()
+        self.assertEqual(npu_smi_info_read, router.ctrl_comm.cloud_npu_smi_info)
+
+        router.config.role_type = 'slave'
+        router.set_peer_npu_smi_info(npu_smi_info)
+        npu_smi_info_read = router.get_peer_npu_smi_info()
+        self.assertEqual(npu_smi_info_read, router.ctrl_comm.edge_npu_smi_info)
+
 
 if __name__ == '__main__':
     unittest.main()

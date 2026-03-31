@@ -8,10 +8,16 @@
 # MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
 # See the Mulan PSL v2 for more details.
 import json
+import sys
 import unittest
+from pathlib import Path
 from unittest.mock import MagicMock, Mock, patch
 
 import numpy as np
+
+PROJECT_ROOT = Path(__file__).resolve().parents[6]
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
 
 # 检测 xgrammar 是否可用
 try:

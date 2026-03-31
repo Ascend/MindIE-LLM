@@ -28,8 +28,8 @@ protected:
         MOCKER_CPP(&SharedMemory::Create, bool (*)(const std::string &, uint32_t)).stubs().will(returnValue(true));
 
         prefix_ = "/gtest_ipc_" + std::to_string(reinterpret_cast<std::uintptr_t>(this));
-        readerCount_ = 2;
-        iPCCommunicator_ = std::make_unique<IPCCommunicator>(prefix_, readerCount_);
+        semConfig_ = SemaphoreConfig{2, 2};
+        iPCCommunicator_ = std::make_unique<IPCCommunicator>(prefix_, semConfig_);
     }
     void TearDown() override
     {
@@ -43,7 +43,7 @@ protected:
 
     std::shared_ptr<IPCCommunicator> iPCCommunicator_;
     std::string prefix_;
-    uint32_t readerCount_;
+    SemaphoreConfig semConfig_;
     bool didSetup_ = false;
 };
 

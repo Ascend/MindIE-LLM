@@ -4,6 +4,7 @@
 - 此代码仓中实现了一套基于 NPU 硬件的 ERNIE 4.5 MoE 模型。
 
 # 特性矩阵
+
 - 矩此阵罗列了ERNIE MoE模型支持的特性
 
 | 模型及参数量 | 800I A2 Tensor Parallelism | 300I DUO Tensor Parallelism | FP16 | BF16 | Flash Attention | Paged Attention | W8A8动态量化 | W8A16量化  | KV cache量化 | 稀疏量化 | MindIE Service | TGI | 长序列   |
@@ -31,7 +32,6 @@
 - [ERNIE-4.5-21B-A3B-PT](https://huggingface.co/baidu/ERNIE-4.5-21B-A3B-PT)
 - [ERNIE-4.5-300B-A47B-PT](https://huggingface.co/baidu/ERNIE-4.5-300B-A47B-PT)
 
-
 **基础环境变量**
 
 - 参考[此 README 文件](../../../README.md)
@@ -39,7 +39,9 @@
 - 建议设置 export PYTORCH_NPU_ALLOC_CONF="expandable_segments:True" 选择workspace优化算法
 
 **Chat template**
+
 - 若要启用chat template，需要在`tokenizer_config.json`中增加`"chat_template"`字段，官方提供的chat template在`chat_template.jinja`文件中
+
 ```json
 {
   "chat_template": "{%- if not add_generation_prompt is defined -%}{%- set add_generation_prompt = true -%}{%- endif -%}{%- if not cls_token is defined -%}{%- set cls_token = \"<|begin_of_sentence|>\" -%}{%- endif -%}{%- if not sep_token is defined -%}{%- set sep_token = \"<|end_of_sentence|>\" -%}{%- endif -%}{{- cls_token -}}{%- for message in messages -%}{%- if message[\"role\"] == \"user\" -%}{{- \"User: \" + message[\"content\"] + \" \" -}}{%- elif message[\"role\"] == \"assistant\" -%}{{- \"Assistant: \" + message[\"content\"] + sep_token -}}{%- elif message[\"role\"] == \"system\" -%}{{- message[\"content\"] + \" \" -}}{%- endif -%}{%- endfor -%}{%- if add_generation_prompt -%}{{- \"Assistant: \" -}}{%- endif -%}"
@@ -54,9 +56,11 @@
 
 - 运行启动脚本（transformers 版本需求：>=4.54.0）
   - 在\${llm_path}目录下执行以下指令
+
     ```shell
     bash ${script_path}/run_pa.sh ${weight_path}
     ```
+
   - trust_remote_code为可选参数代表是否信任本地的可执行文件：默认不执行。传入此参数，则信任本地可执行文件。
 - 启动脚本中可设置自定义问题，具体在 input_text 后面修改即可 (默认问题为"What's Deep Learning?")
 - 启动脚本中可设置自定义输出长度，具体在 max_output_length 后面修改即可（默认长度为 20）
@@ -72,6 +76,7 @@
     - 目的是为了避免同一台机器同时运行多个多卡模型时出现通信冲突
     - 设置时端口建议范围为：20000-20050
   - 以下环境变量与性能和内存优化相关，通常情况下无需修改
+
     ```shell
     export INF_NAN_MODE_ENABLE=0
     export ATB_OPERATION_EXECUTE_ASYNC=1
@@ -85,6 +90,7 @@
 
 - 参考[此 README 文件](../../../tests/modeltest/README.md)
   - 示例 
+
     ```shell
     cd ${llm_path}/tests/modeltest
     bash run.sh pa_fp16 full_BoolQ 1 ernie_moe ${ERNIE-4.5-21B-A3B权重路径} 4
@@ -94,6 +100,7 @@
 
 - 参考[此 README 文件](../../../tests/modeltest/README.md)
   - 示例
+
     ```shell
     cd ${llm_path}/tests/modeltest
     bash run.sh pa_fp16 performance [[2048,2048],[1024,1024],[512,512],[256,256]] 1 ernie_moe ${ERNIE-4.5-21B-A3B权重路径} 4

@@ -35,7 +35,7 @@ torchrun --nnodes=2 --nproc_per_node 8 --node_rank=1 --master_addr="主节点IP"
 
 切分后的权重目录结构：
 
-```
+```text
 ├── config.json
 ├── configuration.json
 ├── generation_config.json
@@ -76,6 +76,7 @@ torchrun --nnodes=2 --nproc_per_node 8 --node_rank=1 --master_addr="主节点IP"
 ```
 
 > [!NOTE]说明 
+>
 >- 切分后模型权重按照model层、norm模块、attention模块、dense模块以及moe模块分目录存储。
 >- 切分后新增model\_sharded\_metadata.json文件，用于索引切分策略和切分文件。
 
@@ -112,4 +113,3 @@ torchrun --nnodes=2 --nproc_per_node 8 --node_rank=1 --master_addr="主节点IP"
        ]
     },
     ```
-

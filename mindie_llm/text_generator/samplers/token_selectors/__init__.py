@@ -20,9 +20,6 @@ def get_selector_registry(handling_backend):
     elif handling_backend == HandlingBackend.PTA:
         from .pta_selectors import PTA_SELECTOR_REGISTRY
         return PTA_SELECTOR_REGISTRY
-    elif handling_backend == HandlingBackend.MS:
-        from .ms_selectors import MS_SELECTOR_REGISTRY
-        return MS_SELECTOR_REGISTRY
     else:
         raise NotImplementedError(
             f'{handling_backend} not implemented, supported backends `atb/cpu/pta/ms`')

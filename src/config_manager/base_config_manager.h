@@ -113,6 +113,8 @@ public:
     
     void SetPluginEnabled(bool enabled);
 
+    void SetMtpEnabled(bool enabled);
+
     void SetDeepseekEnabled(bool enabled);
 
     // dump超时参数动态调整相关接口

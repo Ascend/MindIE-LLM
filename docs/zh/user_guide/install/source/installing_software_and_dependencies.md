@@ -10,23 +10,23 @@
 
 宿主机已经安装过NPU驱动和固件。如未安装，请参见《CANN 软件安装指南》中的“[选择安装场景](https://www.hiascend.com/document/detail/zh/canncommercial/850/softwareinst/instg/instg_0000.html?Mode=PmIns&InstallType=local&OS=openEuler)”章节（商用版）或“[选择安装场景](https://www.hiascend.com/document/detail/zh/CANNCommunityEdition/850/softwareinst/instg/instg_0000.html?Mode=PmIns&InstallType=local&OS=openEuler)”章节（社区版），按如下方式选择安装场景，按“**安装NPU驱动和固件**”章节进行安装。
 
--   安装方式：选择“在物理机上安装”。
--   操作系统：选择使用的操作系统，MindIE支持的操作系统请参考[硬件配套和支持的操作系统](../installation_introduction.md)。
--   业务场景：选择“训练&推理&开发调试”。
+- 安装方式：选择“在物理机上安装”。
+- 操作系统：选择使用的操作系统，MindIE支持的操作系统请参考[硬件配套和支持的操作系统](../installation_introduction.md)。
+- 业务场景：选择“训练&推理&开发调试”。
 
 ### 安装
 
 请参见《CANN 软件安装指南》中的“[选择安装场景](https://www.hiascend.com/document/detail/zh/canncommercial/850/softwareinst/instg/instg_0000.html?Mode=PmIns&InstallType=local&OS=openEuler)”章节（商用版）或“[选择安装场景](https://www.hiascend.com/document/detail/zh/CANNCommunityEdition/850/softwareinst/instg/instg_0000.html?Mode=PmIns&InstallType=local&OS=openEuler)”章节（社区版），并按如下方式选择安装场景，选择完成后单击“开始阅读”，按“**安装CANN（物理机场景） \> 安装CANN软件包**”章节进行安装。
 
--   安装方式：选择“在物理机上安装”。
--   操作系统：选择使用的操作系统，MindIE支持的操作系统请参考[硬件配套和支持的操作系统](../installation_introduction.md)。
--   业务场景：选择“训练&推理&开发调试”。
+- 安装方式：选择“在物理机上安装”。
+- 操作系统：选择使用的操作系统，MindIE支持的操作系统请参考[硬件配套和支持的操作系统](../installation_introduction.md)。
+- 业务场景：选择“训练&推理&开发调试”。
   
 ## 安装Pytorch和Torch NPU
 
--   如果是操作系统是ubuntu 22.04，请安装torch_npu 2.1.0；如果操作系统是ubuntu 24.04 LTS，请安装torch_npu 2.6.0。
--   请参见《Ascend Extension for PyTorch 软件安装指南》中的“[安装PyTorch](https://www.hiascend.com/document/detail/zh/Pytorch/730/configandinstg/instg/docs/zh/installation_guide/installation_via_binary_package.md)”章节安装PyTorch框架。
--   请参见《Ascend Extension for PyTorch 软件安装指南》中的“（可选）安装扩展模块”章节安装torch\_npu插件。
+- 如果是操作系统是ubuntu 22.04，请安装torch_npu 2.1.0；如果操作系统是ubuntu 24.04 LTS，请安装torch_npu 2.6.0。
+- 请参见《Ascend Extension for PyTorch 软件安装指南》中的“[安装PyTorch](https://www.hiascend.com/document/detail/zh/Pytorch/730/configandinstg/instg/docs/zh/installation_guide/installation_via_binary_package.md)”章节安装PyTorch框架。
+- 请参见《Ascend Extension for PyTorch 软件安装指南》中的“（可选）安装扩展模块”章节安装torch\_npu插件。
 
 MindIE中各组件依赖PyTorch框架和torch\_npu插件，依赖情况如下表所示，请用户依据实际使用需求安装。
 
@@ -42,7 +42,7 @@ MindIE中各组件依赖PyTorch框架和torch\_npu插件，依赖情况如下表
 
 在ATB Models whl包所在根目录，执行如下命令安装：
 
-```
+```bash
 pip install atb_llm-<*version>*-cp*xxx*-cp*xxx*-linux_<*arch>*.whl
 ```
 
@@ -55,15 +55,15 @@ pip install atb_llm-<*version>*-cp*xxx*-cp*xxx*-linux_<*arch>*.whl
 
 ## 安装步骤
 
-1.  首先使用以下命令单独安装tritonclient\[all\]依赖。
+1. 首先使用以下命令单独安装tritonclient\[all\]依赖。
 
-    ```
+    ```bash
     pip3 install tritonclient[all]
     ```
 
-2.  请用户自行准备依赖安装文件requirements.txt，样例如下所示。
+2. 请用户自行准备依赖安装文件requirements.txt，样例如下所示。
 
-    ```
+    ```text
     gevent==22.10.2
     python-rapidjson>=1.6
     geventhttpclient==2.0.11
@@ -92,8 +92,8 @@ pip install atb_llm-<*version>*-cp*xxx*-cp*xxx*-linux_<*arch>*.whl
     uvicorn==0.34.3
     ```
 
-3.  执行以下命令进行安装。如下命令如果使用非root用户安装，需要在安装命令后加上**--user**，安装命令需在`requirements.txt`所在目录执行。
+3. 执行以下命令进行安装。如下命令如果使用非root用户安装，需要在安装命令后加上**--user**，安装命令需在`requirements.txt`所在目录执行。
 
-    ```
+    ```bash
     pip3 install -r requirements.txt
     ```

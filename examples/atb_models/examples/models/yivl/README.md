@@ -15,7 +15,9 @@ Yi-VL模型支持的特性
 |-------------|----------------------------|-----------------------------|------|------------------|-----------------|-----|-----|
 |  Yi-VL-6B   | 支持world size 1,2,4,8     | 支持world size 1,2,4,8        | √   |  √                   | √              | 文本、图片           | 文本、图片
 |  Yi-VL-6B   | 支持world size 4,8     | 支持world size 4,8        | √   |  √                   |√              | 文本、图片           | 文本、图片
+
 - 注：Yi-VL系列服务化暂不支持OpenAI格式请求
+
 # 使用说明
 
 ## 路径变量解释
@@ -40,7 +42,6 @@ Yi-VL模型支持的特性
 - [Yi-VL-6B](https://huggingface.co/01-ai/Yi-VL-6B)
 - [Yi-VL-34B](https://huggingface.co/01-ai/Yi-VL-34B)
 
-
 **基础环境变量**
 
 - 参考[此README文件](../../../README.md)
@@ -55,9 +56,11 @@ Yi-VL模型支持的特性
 
 - 运行启动脚本
   - 在\${llm_path}目录下执行以下指令
+
     ```shell
     bash ${script_path}/run_pa.sh --run (--trust_remote_code) ${weight_path} ${image_path} ${max_batch_size} ${max_input_length} ${max_output_length}
     ```
+
   - trust_remote_code为可选参数代表是否信任本地的可执行文件：默认不执行。传入此参数，则信任本地可执行文件。
 - 环境变量说明
   - `export ASCEND_RT_VISIBLE_DEVICES=0,1,2,3,4,5,6,7`
@@ -70,6 +73,7 @@ Yi-VL模型支持的特性
     - 目的是为了避免同一台机器同时运行多个多卡模型时出现通信冲突
     - 设置时端口建议范围为：20000-20050
   - 以下环境变量与性能和内存优化相关，通常情况下无需修改
+
     ```shell
     export INF_NAN_MODE_ENABLE=0
     export ATB_OPERATION_EXECUTE_ASYNC=1
@@ -84,14 +88,18 @@ Yi-VL模型支持的特性
 
 - 主要流程参考此[此README文件](../qwen2_vl/README.md)的`TextVQA`章节，
 - 模型配置文件`${llm_path}/tests/modeltest/modeltest/config/model/yivl.yaml`设置如下
+
 1. `model_path`的值修改为模型权重的绝对路径
 2. `mm_model.warm_up_image_path`修改为用于warm_up的图像绝对路径
+
 - 运行测试命令为
+
   ```shell
   bash mm_run.sh textvqa yivl
   ```
 
 ### CocoTest
+
 #### 方案
 
 使用同样的一组图片，分别在 GPU 和 NPU 上执行推理，得到两组图片描述。 再使用 open_clip 模型作为裁判，对两组结果分别进行评分，得分高者精度更优。
@@ -102,17 +110,21 @@ Yi-VL模型支持的特性
    下载[测试图片（CoCotest 数据集）](https://cocodataset.org/#download)并随机抽取其中100张图片放入{image_path}目录下
 
 2. GPU上，下载01-AI提供的[工程](https://github.com/01-ai/Yi/tree/main/VL/llava), 在`{llm_path}/examples/models/`目录下，运行如下脚本，得到gpu推理结果，存储在`{script_path}/coco_predict.json`文件
+
     ``` shell
     python coco_base_runner.py --model_path ${weight_path} --image_path ${image_path}
     ```
 
 3. NPU 上,在\${script_path}目录下执行以下指令：
+
    ```bash
    bash ${script_path}/run_pa.sh --precision (--trust_remote_code) ${weight_path} ${image_path} ${max_batch_size} ${max_input_length} ${max_output_length}
    ```
+
    运行完成后会在{script_path}生成predict_result.json文件存储npu的推理结果
 
 4. 对结果进行评分：分别使用GPU和NPU推理得到的两组图片描述(`coco_predict.json`, `predict_result.json`)作为输入,执行如下脚本脚本输出评分结果
+
     ```shell
     python {llm_path}/example/models/clip_score_base_runner.py \ 
     --model_name ViT-H-14
@@ -129,6 +141,7 @@ Yi-VL模型支持的特性
 - 在 `${image_path}` 下仅存放**1张**图片
     
 - 以下命令运行 `run_pa.sh`，会自动输出batchsize为1-10时，输出token长度为256时的吞吐。
+
   ```shell
   bash ${script_path}/run_pa.sh --performance (--trust_remote_code) ${weight_path} ${image_path} ${max_batch_size} ${max_input_length} ${max_output_length}
   ```
@@ -136,4 +149,5 @@ Yi-VL模型支持的特性
 - 测试结果保存在`{script_path}`路径下。
 
 ## FAQ
+
 - 更多环境变量见[此README文件](../../README.md)

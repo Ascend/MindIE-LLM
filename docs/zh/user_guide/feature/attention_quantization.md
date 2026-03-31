@@ -5,6 +5,7 @@
 此量化方式将q，k，v量化为8bit，通过减少KV Cache的显存占用，优化decode阶段attention算子的速度，提升吞吐。
 
 > [!NOTE]说明 
+>
 >- 仅Atlas 800I A2 推理服务器支持Attention量化。
 >- 仅支持W8A8配合使用。
 >- 仅支持LLaMA3.1-70B。
@@ -72,7 +73,6 @@ Attention量化搭配W8A8量化后权重目录结构：
 |v_scale|float16|[kv_head_num, head_dim]|
 |v_offset|float16|[kv_head_num, head_dim]|
 
-
 **表 2**  bfloat16权重量化后dtype及shape信息（假设原始权重的shape为\[n, k\]）
 
 |Tensor信息|dtype|shape|
@@ -83,4 +83,3 @@ Attention量化搭配W8A8量化后权重目录结构：
 |k_offset|bfloat16|[kv_head_num, head_dim]|
 |v_scale|bfloat16|[kv_head_num, head_dim]|
 |v_offset|bfloat16|[kv_head_num, head_dim]|
-

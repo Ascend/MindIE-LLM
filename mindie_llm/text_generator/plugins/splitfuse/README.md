@@ -1,10 +1,13 @@
 # Splitfuse运行方法
 
 ## 1. 当前支持模型
+
 llama3.1-70B
 
 ## 2. 使用run_generator.py运行
+
 ### 2.1 执行脚本代码示例
+
     export PYTHONPATH=/LLM代码路径/examples/atb_models/:$PYTHONPATH
     export PYTHONPATH=/LLM代码路径/:$PYTHONPATH
 
@@ -39,6 +42,7 @@ llama3.1-70B
     --split_chunk_tokens 10
 
 ### 2.2 运行
+
 1. 编译：代码根目录下执行 bash scripts/build.sh
 2. source output/set_env.sh
 3. 执行2.1中的脚本。
@@ -46,7 +50,9 @@ llama3.1-70B
 ## 3. 连接服务化执行
 
 ### 3.1 对话验证 mindieservice_daemon
+
 #### 3.1.1 config文件配置
+
 此处只呈现启动Splitfuse需要额外配置的字段
 
 "ModelDeployConfig"中的"ModelParam"下添加：
@@ -67,5 +73,6 @@ llama3.1-70B
 policyType: 可配置0，4，5，6，7<br>
 
 #### 3.1.2 执行
+
 1. 执行./mindieservice_daemon
 2. 执行对话请求即可运行<br>

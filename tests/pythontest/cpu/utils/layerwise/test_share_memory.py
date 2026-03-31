@@ -70,6 +70,14 @@ class TestSharedMemoryManager(unittest.TestCase):
         list_7c = self.share_mem_manager.read_list_memory(7)
         self.assertIsNone(list_7c)
 
+    def test_share_mem_write_read_dict(self):
+        npu_smi_info = {'hbm_capacity': 65452113920, 'soc_name': 'Ascend910B3'}
+        self.share_mem_manager.write_dict_memory(npu_smi_info)
+
+        npu_smi_info_read = self.share_mem_manager.read_dict_memory(1)
+        self.assertEqual(npu_smi_info_read, npu_smi_info)
+        npu_smi_info_read = self.share_mem_manager.read_dict_memory(1)
+        self.assertIsNone(npu_smi_info_read)
 
 if __name__ == "__main__":
     unittest.main()

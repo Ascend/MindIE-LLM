@@ -78,3 +78,13 @@ def convert_exception_to_error_code(exception_str: str):
         if exception_key in exception_str:
             return error_code
     return None
+
+
+def is_force_stop_exception(exception: Exception) -> bool:
+    '''Check if the exception is a FORCE STOP exception.'''
+    if not isinstance(exception, RuntimeError):
+        return False
+    exception_str = str(exception).upper()
+    if "FORCE STOP" in exception_str:
+        return True
+    return False

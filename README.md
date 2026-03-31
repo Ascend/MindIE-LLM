@@ -1,6 +1,5 @@
 # MindIE LLM
 
-
 ## 📢 Latest News
 
 - [2025/12] MindIE LLM 正式宣布开源并面向公众开放！ [会议日历](https://meeting.ascend.osinfra.cn/?sig=sig-MindIE-LLM)
@@ -18,7 +17,7 @@
 
 ## 🔍 目录结构
 
-``` 
+``` text
  ├── mindie_llm                                     # Python 推理框架主模块 
  │   ├── connector                                  # 请求接入层 
  │   ├── text_generator                             # 核心推理引擎 
@@ -42,12 +41,12 @@
  ├── README.md    
                               
  ```
+
 ## 📢 版本说明
 
 | MindIE 软件版本&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;| CANN 版本兼容性&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|
 |:----------------------------|:----------------------------|
 | 2.3.0 | 8.5.0 |
-
 
 ## ⚡️ 环境部署
 
@@ -73,25 +72,23 @@
 3. 解决现有问题：通过查看仓库的Issues列表可以发现需要处理的问题信息，可以尝试解决其中的某个问题。
 4. 如何提出新功能：请使用Issues的Feature标签进行标记，我们会定期处理和确认开发。
 5. 开始贡献：
-    <br>a. Fork本项目的仓库。
-    <br>b. Clone到本地。
-    <br>c. 创建开发分支。
-    <br>d. 本地自测，提交前请通过所有的单元测试，包括为您要解决的问题新增的单元测试。
-    <br>e. 提交代码。
-    <br>f. 新建Pull Request。
-    <br>g. 代码检视，您需要根据评审意见修改代码，并重新提交更新。此流程可能涉及多轮迭代。
-    <br>h. 当您的PR获取足够数量的检视者批准后，Committer会进行最终审核。
-    <br>i. 审核和测试通过后，CI会将您的PR合并入到项目的主干分支。
+ <br>a. Fork本项目的仓库。
+ <br>b. Clone到本地。
+ <br>c. 创建开发分支。
+ <br>d. 本地自测，提交前请通过所有的单元测试，包括为您要解决的问题新增的单元测试。
+ <br>e. 提交代码。
+ <br>f. 新建Pull Request。
+ <br>g. 代码检视，您需要根据评审意见修改代码，并重新提交更新。此流程可能涉及多轮迭代。
+ <br>h. 当您的PR获取足够数量的检视者批准后，Committer会进行最终审核。
+ <br>i. 审核和测试通过后，CI会将您的PR合并入到项目的主干分支。
 
 更多贡献相关文档请参见[贡献指南](contributing.md)。
-
 
 ## 📝免责声明
 
 版权所有© 2025-2026 MindIE Project.
 
 您对 "本文档" 的复制、使用、修改及分发受知识共享（Creative Commons，CC）署名 —— 相同方式共享 4.0 国际公共许可协议（以下简称 "CC BY-SA 4.0"）的约束。为了方便用户理解，您可以通过访问 [https://creativecommons.org/licenses/by-sa/4.0/](https://creativecommons.org/licenses/by-sa/4.0/) 了解 CC BY-SA 4.0 的概要（但不是替代）。关于 CC BY-SA 4.0 的完整协议内容，您可以访问如下网址获取：[https://creativecommons.org/licenses/by-sa/4.0/legalcode](https://creativecommons.org/licenses/by-sa/4.0/legalcode)。
-
 
 ## 🌟 相关信息
 

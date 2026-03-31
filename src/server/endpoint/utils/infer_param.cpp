@@ -177,14 +177,6 @@ bool InferParam::ValidateFeatureBeamSearch(const ValidationContext &ctx, std::st
 
 bool InferParam::ValidateFeatureOverlay(const ValidationContext &ctx, std::string &error) const noexcept
 {
-    auto forbidWhen = [&error](bool cond, const char *msg) {
-        if (cond) {
-            error = msg;
-            return true;
-        }
-        return false;
-    };
-
     if (!ctx.endpoint.useLogprobs && (ctx.reqLogprobs || ctx.reqTopLogprobsSet)) {
         error = "logprobs/top_logprobs are not supported by this endpoint";
         return false;
@@ -193,44 +185,78 @@ bool InferParam::ValidateFeatureOverlay(const ValidationContext &ctx, std::strin
         error = "function/tool calls are not supported by this endpoint";
         return false;
     }
+    return ValidateAsyncSchedulingConstraints(ctx, error) &&
+           ValidatePluginConstraints(ctx, error) &&
+           ValidateMtpConstraints(ctx, error) &&
+           ValidateDeepseekConstraints(ctx, error);
+}
 
-    // 环境变量，当异步推理环境变量开启不支持bestof n, beamsearch
-    const char *mindieAsyncSchedulingEnable = std::getenv("MINDIE_ASYNC_SCHEDULING_ENABLE");
-    bool asyncEnvVariable = mindieAsyncSchedulingEnable != nullptr && std::string(mindieAsyncSchedulingEnable) == "1";
-    if (asyncEnvVariable) {
-        if (forbidWhen(ctx.reqUseBeamSearch,
-            "use_beam_search is not supported while MINDIE_ASYNC_SCHEDULING_ENABLE is on")) {
-            return false;
-        }
-        if (forbidWhen(ctx.reqN != 1, "n must be 1 while MINDIE_ASYNC_SCHEDULING_ENABLE is on")) {
-            return false;
-        }
-        if (forbidWhen(ctx.reqBestOf != 1, "best_of must be 1 while MINDIE_ASYNC_SCHEDULING_ENABLE is on")) {
-            return false;
-        }
+bool InferParam::ValidateAsyncSchedulingConstraints(const ValidationContext &ctx,
+    std::string &error) const noexcept
+{
+    const char *env = std::getenv("MINDIE_ASYNC_SCHEDULING_ENABLE");
+    if (env == nullptr || std::string(env) != "1") {
+        return true;
     }
-
-    // 插件启用时的限制规则
-    if (ctx.pluginEnabled) {
-        if (forbidWhen(ctx.reqUseBeamSearch, "beam search cannot be used with plugins")) {
-            return false;
-        }
-        if (forbidWhen(ctx.reqLogprobs || ctx.reqTopLogprobsSet, "logprobs cannot be used with plugins")) {
-            return false;
-        }
-        if (forbidWhen(ctx.reqBestOf > 1 || ctx.reqN > 1, "best_of/n > 1 cannot be used with plugins")) {
-            return false;
-        }
+    if (ctx.reqUseBeamSearch) {
+        error = "use_beam_search is not supported while MINDIE_ASYNC_SCHEDULING_ENABLE is on";
+        return false;
     }
+    if (ctx.reqN != 1) {
+        error = "n must be 1 while MINDIE_ASYNC_SCHEDULING_ENABLE is on";
+        return false;
+    }
+    if (ctx.reqBestOf != 1) {
+        error = "best_of must be 1 while MINDIE_ASYNC_SCHEDULING_ENABLE is on";
+        return false;
+    }
+    return true;
+}
 
-    // 插件启用时的限制规则
-    if (ctx.deepseekEnabled) {
-        if (forbidWhen(ctx.reqUseBeamSearch, "beam search cannot be used with deepseek")) {
-            return false;
-        }
-        if (forbidWhen(ctx.reqBestOf > 1 || ctx.reqN > 1, "best_of/n > 1 cannot be used with deepseek")) {
-            return false;
-        }
+bool InferParam::ValidatePluginConstraints(const ValidationContext &ctx, std::string &error) const noexcept
+{
+    if (!ctx.pluginEnabled) {
+        return true;
+    }
+    if (ctx.reqUseBeamSearch) {
+        error = "beam search cannot be used with plugins";
+        return false;
+    }
+    if (ctx.reqLogprobs || ctx.reqTopLogprobsSet) {
+        error = "logprobs cannot be used with plugins";
+        return false;
+    }
+    if (ctx.reqBestOf > 1 || ctx.reqN > 1) {
+        error = "best_of/n > 1 cannot be used with plugins";
+        return false;
+    }
+    return true;
+}
+
+bool InferParam::ValidateMtpConstraints(const ValidationContext &ctx, std::string &error) const noexcept
+{
+    if (!ctx.mtpEnabled) {
+        return true;
+    }
+    if (ctx.reqStructuredOutput) {
+        error = "structured output (response_format) cannot be used with mtp";
+        return false;
+    }
+    return true;
+}
+
+bool InferParam::ValidateDeepseekConstraints(const ValidationContext &ctx, std::string &error) const noexcept
+{
+    if (!ctx.deepseekEnabled) {
+        return true;
+    }
+    if (ctx.reqUseBeamSearch) {
+        error = "beam search cannot be used with deepseek";
+        return false;
+    }
+    if (ctx.reqBestOf > 1 || ctx.reqN > 1) {
+        error = "best_of/n > 1 cannot be used with deepseek";
+        return false;
     }
     return true;
 }
@@ -523,7 +549,7 @@ bool AssignMaxTokens(const OrderedJson &jsonObj, InferParamSPtr param, std::stri
     return true;
 }
 
-bool AssignThinkingConfig(const OrderedJson &jsonObj, RequestSPtr tmpReq, std::string &error)
+bool AssignThinkingConfig(const OrderedJson &jsonObj, RequestSPtr tmpReq, InferParamSPtr param, std::string &error)
 {
     const std::string chatKwargsKey = "chat_template_kwargs";
     const std::string enableThinkingKey = "enable_thinking";
@@ -558,6 +584,7 @@ bool AssignThinkingConfig(const OrderedJson &jsonObj, RequestSPtr tmpReq, std::s
         }
         if (checkFirst.isPresent && kwargs[enableThinkingKey]) {
             tmpReq->thinkingBudget = value;
+            param->thinkingBudget = value;
         }
     }
     return true;
@@ -857,13 +884,6 @@ bool ValidateJsonSchemaName(const OrderedJson &jsonSchema, std::string &error) n
     if (schemaName.empty() || schemaName.length() > maxNameLength) {
         error = "Parameter response_format.json_schema.name must be 1-64 characters";
         return false;
-    }
-    // Validate name contains only a-zA-Z0-9, hyphen, and underscore
-    for (char c : schemaName) {
-        if (!std::isalnum(static_cast<unsigned char>(c)) && c != '-' && c != '_') {
-            error = "Parameter response_format.json_schema.name must contain only 0-9, a-z, A-Z, -, _";
-            return false;
-        }
     }
     return true;
 }

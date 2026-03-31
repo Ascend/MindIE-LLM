@@ -54,18 +54,11 @@ class MemoryDecodingPlugin(Plugin):
         return out_tensor
 
     def set_atten_mask_ms(self, model_inputs, kv_dtype):
-        if ENV.framework_backend == BackendType.MS:
-            seqlen = int(model_inputs.max_seq_len)
-            bias_cache = np.tril(np.ones((seqlen, seqlen), dtype=np.float32)).astype(np.bool_)
-            bias_cache = ~bias_cache
-            atten_mask = np.where(bias_cache, np.finfo(np.float32).min, np.zeros((seqlen, seqlen)))
-
-        else:
-            kv_device = self.model_wrapper.device
-            atten_mask = self.model_wrapper.model_runner.attn_mask.get_attn_mask(model_inputs.max_seq_len,
-                                                                                       kv_dtype, kv_device)
-            if atten_mask[0][1] > 0:
-                atten_mask = atten_mask * -10000.0
+        kv_device = self.model_wrapper.device
+        atten_mask = self.model_wrapper.model_runner.attn_mask.get_attn_mask(model_inputs.max_seq_len,
+                                                                                    kv_dtype, kv_device)
+        if atten_mask[0][1] > 0:
+            atten_mask = atten_mask * -10000.0
         return atten_mask
 
     def calc_decoding_info(self, input_metadata, model_inputs, cache_ids, q_lens, decoding_masks):
@@ -86,11 +79,7 @@ class MemoryDecodingPlugin(Plugin):
                 if req_mask is None:
                     req_mask = atten_mask[start:end, :]
                 else:
-                    if ENV.framework_backend == BackendType.MS:
-                        # mindspore 场景使用numpy效率更高
-                        req_mask = np.concatenate((req_mask, atten_mask[start:end]), 0)
-                    else:
-                        req_mask = op.cat((req_mask, atten_mask[start:end]), 0)
+                    req_mask = op.cat((req_mask, atten_mask[start:end]), 0)
                 start_row += q_lens[i]
             decoding_masks = req_mask
         res = (model_inputs, decoding_ids, decoding_masks, q_lens)

@@ -18,6 +18,7 @@ from typing import Optional, List, Dict, Any
 from mindie_llm.model_wrapper.utils.config import DmiConfig
 from mindie_llm.utils.log.logging import logger
 from mindie_llm.utils.file_utils import safe_open
+from mindie_llm.runtime.utils.npu.device_utils import get_npu_hbm_info, get_npu_node_info
 
 ROLE_MASTER = 'master'
 ROLE_SLAVE = 'slave'
@@ -44,6 +45,7 @@ class LwdCommConfig:
     multi_nodes_is_master: bool = False
     comm_group_size: int = 1    # 通信域划分数量, 包括按dp和cp进行划分, 两者不兼容开启
     npu_net_host: bool = False
+    npu_smi_info_sync: bool = False
 
 
 class LwdCommunicationManager:
@@ -197,6 +199,41 @@ class LwdCommunicationManager:
                 return False
         return True
 
+    def need_sync_npu_smi_info(self) -> bool:
+        return self.config.npu_smi_info_sync
+
+    def get_peer_npu_smi_info(self):
+        if self.config.role_type == ROLE_MASTER:
+            return self.ctrl_comm.cloud_npu_smi_info
+        else:
+            return self.ctrl_comm.edge_npu_smi_info
+
+    def set_peer_npu_smi_info(self, npu_smi_info):
+        if self.config.role_type == ROLE_MASTER:
+            self.ctrl_comm.cloud_npu_smi_info = npu_smi_info
+        else:
+            self.ctrl_comm.edge_npu_smi_info = npu_smi_info
+
+    def ctrl_comm_sync_npu_smi_info(self) -> bool:
+        if not self.config.npu_smi_info_sync:
+            return True
+
+        hbm_capacity = get_npu_hbm_info().get_hbm_capacity()
+        soc_name = get_npu_node_info().soc_name
+        npu_smi_info = {
+            "hbm_capacity": hbm_capacity,
+            "soc_name": soc_name
+        }
+        self.ctrl_comm.npu_smi_info_sync(npu_smi_info)
+        if not self.ctrl_comm.npu_smi_info_sync_is_done():
+            logger.error("[layerwiseDisaggregated] npu-smi information synchronize incomplete")
+            return False
+
+        logger.info(f"[layerwiseDisaggregated] rank {self.config.rank} edge_npu_smi_info"
+                    f" {self.ctrl_comm.edge_npu_smi_info} cloud_npu_smi_info {self.ctrl_comm.cloud_npu_smi_info}")
+
+        return True
+
     def communication_init(self) -> bool:
         self.ctrl_comm = self.generator.model_wrapper.model_runner.ctrl_comm
         self.data_comm = self.generator.model_wrapper.model_runner.data_comm
@@ -225,6 +262,9 @@ class LwdCommunicationManager:
         if not self.ctrl_comm.is_edge_cloud_ctrl_comm_success():
             logger.error("[layerwiseDisaggregated] The tcp connection of LayerwiseDisaggregated is fail, " \
                         f"ip={self.config.edge_ip_address} port={self.config.tcp_comm_cloud_ip_port}.")
+            return False
+
+        if not self.ctrl_comm_sync_npu_smi_info():
             return False
 
         if not self.data_comm.init_finish:
@@ -282,9 +322,21 @@ class LwdCommunicationManager:
                 logger.error("[layerwiseDisaggregated] The lwd_rank_table_file is missing configuration item (device).")
                 return False
             device_num_list.append(len(server[DEVICE]))
-            para_net_pos = server.get("para_net_position")
-            if para_net_pos == HOST:
+            server_para_net_pos = server.get("para_net_position")
+            if server_para_net_pos == HOST:
                 self.config.npu_net_host = True if self.config.role_type == ROLE_MASTER else False
+                self.config.npu_smi_info_sync = True
+            device_net_pos_set = set()
+            for device in server[DEVICE]:
+                device_net_pos = device.get("net_position")
+                device_net_pos_set.add(device_net_pos)
+                if device_net_pos == HOST:
+                    self.config.npu_net_host = True if self.config.role_type == ROLE_MASTER else False
+                    self.config.npu_smi_info_sync = True
+            if len(device_net_pos_set) != 1:
+                logger.error("[layerwiseDisaggregated] The configuration of net_position for device " \
+                            "in lwd_rank_table_file is incorrect.")
+                return False
 
         if device_num_list[-1] != self.config.npu_edge_num:
             logger.error("[layerwiseDisaggregated] The master configuration in the lwd_rank_table_file " \

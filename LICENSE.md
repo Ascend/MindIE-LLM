@@ -1,4 +1,4 @@
-## 木兰宽松许可证， 第2版<a name="section172581412918"></a>
+# 木兰宽松许可证， 第2版<a name="section172581412918"></a>
 
 2020年1月  [http://license.coscl.org.cn/MulanPSL2](http://license.coscl.org.cn/MulanPSL2)
 
@@ -52,7 +52,7 @@
 2,&emsp;  请您在软件包的一级目录下创建以“LICENSE”为名的文件，将整个许可证文本放入该文件中；<br>
 3,&emsp;  请将如下声明文本放入每个源文件的头部注释中。
 
-```
+```text
 Copyright (c) Huawei Technologies Co., Ltd. [Year of First Publication]-[Year of Latest Update]. All Rights Reserved.
 MindIE is licensed under Mulan PSL v2.
 You can use this software according to the terms and conditions of the Mulan PSL v2.
@@ -122,8 +122,7 @@ To apply the Mulan PSL v2 to your work, for easy identification by recipients, y
 &emsp;&emsp;ii. Create a file named "LICENSE" which contains the whole context of this License in the first directory of your software package;<br>
 &emsp;&emsp;iii. Attach the statement to the appropriate annotated syntax at the beginning of each source file.
 
-
-```
+```text
 Copyright (c) Huawei Technologies Co., Ltd. [Year of First Publication]-[Year of Latest Update]. All Rights Reserved.
 MindIE is licensed under Mulan PSL v2.
 You can use this software according to the terms and conditions of the Mulan PSL v2.

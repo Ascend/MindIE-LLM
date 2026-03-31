@@ -18,8 +18,6 @@
 | internlm2.5-7B   | 支持world size 1,2,4,8   | 支持world size 2,4,8 | √    | ×   | ×               | √               | ×        | ×                | ×            | ×                          | ×    | √      | ×    | √    |
 | internlm2.5-20B   | 支持world size 2,4,8    | 支持world size 2,4,8 | √    | ×   | ×               | √               | ×        | ×                | ×            | ×                          | ×    | ×      | ×    | ×    |
 
-
-
 # Paged Attention 推理使用说明
 
 ## 路径变量解释
@@ -33,16 +31,19 @@
 | chat | 是否启用对话模式                                                                                                            
 
 ## 权重
+
 **权重下载**
+
 - [internlm2.5-1.8B](https://huggingface.co/internlm/internlm2_5-1_8b-chat/tree/main)
 - [internlm2.5-7B](https://huggingface.co/internlm/internlm2_5-7b-chat/tree/main)
 - [internlm2.5-20B](https://huggingface.co/internlm/internlm2_5-20b-chat/tree/main)
 
-
 **权重转换**
+
 - Paged Attention 场景下需要.safetensors 格式的权重，如果没有，参考[此README文件](../../README.md)转换
 
 **量化权重生成**
+
  ```shell
      - 下载msmodelslim量化工具
      - 下载地址为https://gitcode.com/ascend/msit/tree/master/msmodelslim
@@ -52,18 +53,22 @@
      # 指定当前机器上可用的逻辑NPU核心 通过修改convert_quant_weight.sh文件中export ASCEND_RT_VISIBLE_DEVICES值 指定使用卡号及数量 
      vi examples/models/internlm/convert_quant_weight.sh
  ```
+
 - 基于原始的FP16的权重，生成量化权重
 - W8A8量化权重请使用以下指令生成
+
  ```shell
     - bash examples/models/internlm/convert_quant_weight.sh -src {浮点权重路径} -dst {W8A8量化权重路径} -type w8a8
  ```
 
 - W8A16量化权重请使用以下指令生成
+
  ```shell
     - bash examples/models/internlm/convert_quant_weight.sh -src {浮点权重路径} -dst {W8A16量化权重路径} -type w8a16
  ```
 
 - W8A8C8量化权重请使用以下指令生成
+
  ```shell
     - bash examples/models/internlm/convert_quant_weight.sh -src {浮点权重路径} -dst {W8A8C8量化权重路径} -type w8a8c8
  ```
@@ -72,8 +77,10 @@
     - 暂不支持
 
 **基础环境变量**
+
 - 参考[此README文件](../../../README.md)
 - 检查python依赖库中transformers版本的配置，Internlm3要求transformers库版本为4.47.1及以上。
+
   ```shell
   pip show transformers
   # 请将transformers更新至对应版本
@@ -86,13 +93,17 @@
 ## 推理
 
 ### 对话测试
+
 **运行Flash Attention FP16**
+
 - 其余Internlm模型参考以下运行方式
     - 运行启动脚本
         - 在\${llm_path}目录下执行以下指令
+
           ```shell
           bash ${script_path}/run_fa.sh ${weight_path}
           ```
+
     - 环境变量说明
         - `export ASCEND_RT_VISIBLE_DEVICES=0,1,2,3,4,5,6,7`
             - 指定当前机器上可用的逻辑NPU核心，多个核心间使用逗号相连
@@ -105,6 +116,7 @@
             - 目的是为了避免同一台机器同时运行多个多卡模型时出现通信冲突
             - 设置时端口建议范围为：20000-20050
         - 以下环境变量与性能和内存优化相关，通常情况下无需修改
+
           ```shell
           export INF_NAN_MODE_ENABLE=0
           export ATB_OPERATION_EXECUTE_ASYNC=1
@@ -119,14 +131,18 @@
           ```
 
 **运行Flash Attention BF16**
+
 - 暂不支持
 
 **运行Paged Attention FP16**
+
 - 运行启动脚本
     - 在\${llm_path}目录下执行以下指令
+
       ```shell
       bash ${script_path}/run_pa.sh ${weight_path} chat
       ```
+
 - 环境变量说明
     - `export ASCEND_RT_VISIBLE_DEVICES=0,1,2,3,4,5,6,7`
         - 指定当前机器上可用的逻辑NPU核心，多个核心间使用逗号相连
@@ -139,6 +155,7 @@
         - 目的是为了避免同一台机器同时运行多个多卡模型时出现通信冲突
         - 设置时端口建议范围为：20000-20050
     - 以下环境变量与性能和内存优化相关，通常情况下无需修改
+
       ```shell
       export INF_NAN_MODE_ENABLE=0
       export ATB_OPERATION_EXECUTE_ASYNC=1
@@ -147,19 +164,25 @@
       ```
 
 **运行Paged Attention BF16**
+
 - 暂不支持
 
 **运行Paged Attention W8A8**
+
 - bash ${script_path}/run_pa.sh ${weight_path} chat
 
 **运行Paged Attention W8A16**
+
 - bash ${script_path}/run_pa.sh ${weight_path} chat
 
 **运行KV cache量化**
+
 - bash ${script_path}/run_pa.sh ${weight_path} chat
 
 **200K长序列**
+
 - 修改模型权重下的config.json
+
     ```json
     internlm2-7B改为
     "rope_scaling": {
@@ -173,11 +196,13 @@
         "type": "dynamic"
     },
     ```
+
 - 修改run_pa.py文件 `parse_arguments()`函数的参数，max_input_length必须大于文本token数。因为分词原因，文本长度不等于文本token数，通常文本字符数大于文本token数。
 -     --input_texts
       --input_file
       --max_input_length
       --max_output_length
+
     ```python
 
     parser.add_argument(
@@ -193,33 +218,38 @@
     parser.add_argument('--max_input_length', type=int, default=210000)
     parser.add_argument('--max_output_length', type=int, default=256)
     ```
+
 - 输入32K/64K/128K/192K长序列
     - 使用 --input_texts 参数或者 --input_file 参数。
   * `--input_texts`
     * 必须为 str 或 List[str]格式的对话数据
-    ```
+
+    ```text
     """
     这里是10万字的小说内容   \n总结以上文本内容。
     """
     ```
+
   * `--input_file` (推荐)
     * 目前仅支持jsonl格式文件，每一行必须为List[Dict]格式的按时间顺序排序对话数据
     * 每个Dict字典中需要至少包含"role"和"content"两个字段
-    ```
+
+    ```json
     [{"role": "user", "content": "这里是10万字的小说内容   \n总结以上文本内容。"}]
     ```
+
 - 运行启动脚本
     - 在\${llm_path}目录下执行以下指令(后面加一个chat参数)
+
       ```shell
       bash ${script_path}/run_pa.sh ${weight_path} chat
       ```
-
-
 
 ## 精度测试
 
 - 参考[此README文件](../../../tests/modeltest/README.md)
     - 示例
+
       ```shell
       cd ${llm_path}/tests/modeltest
       export ASCEND_RT_VISIBLE_DEVICES=0,1,2,3,4,5,6,7
@@ -234,6 +264,7 @@
 
 - 参考[此README文件](../../../tests/modeltest/README.md)
     - 示例
+
       ```shell
       cd ${llm_path}/tests/modeltest
       export ASCEND_RT_VISIBLE_DEVICES=0,1,2,3,4,5,6,7
@@ -244,6 +275,7 @@
       ```
 
 ## FAQ
+
 - 更多环境变量见[此README文件](../../README.md)
 - 对话测试实际执行的Python文件为`${llm_path}/examples/run_fa.py`和`${llm_path}/examples/run_pa.py`；这两个文件的参数说明见[此README文件](../../README.md)
 - 如果模型生成了 `[UNUSED_TOKEN_146]`、`[UNUSED_TOKEN_145]`等特殊字符，升级transformers版本到4.37.1以上。`</s>`是大模型常用结束词，`[UNUSED_TOKEN_146]`是旧版结束词，`<|im_end|>`是新版结束词。

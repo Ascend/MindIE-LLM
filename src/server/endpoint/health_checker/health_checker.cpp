@@ -131,6 +131,11 @@ bool HealthChecker::Start()
     }
 }
 
+bool HealthChecker::IsEnabled() const noexcept
+{
+    return mRunning.load();
+}
+
 void HealthChecker::Stop()
 {
     if (mRunning.load()) {
@@ -237,21 +242,42 @@ void HealthChecker::PerformPeriodicHealthCheck()
     }
 }
 
+void HealthChecker::SetSendingDecodeMessageStatus(bool sendingDecodeMessageStatus) noexcept
+{
+    mSendingDecodeMessage.store(sendingDecodeMessageStatus);
+}
+
 void HealthChecker::HandleHealthStatus()
 {
     // NORMAL、ABNORMAL和BUSY可以互相转换，无需检查状态转移
     ServiceStatus status = CheckSimulateTask();
     std::string errCode;
+    const bool isSendingDecode = mSendingDecodeMessage.load();
+
     if (status == SERVICE_ABNORMAL) {
-        errCode = GenerateHealthCheckerErrCode(ERROR, SUBMODLE_FEATURE_SECURE, STATUS_WARNING);
+        if (isSendingDecode) {
+            ULOG_WARN(SUBMODLE_NAME_HEALTHCHECKER,
+                GenerateHealthCheckerErrCode(WARNING, SUBMODLE_FEATURE_SECURE, CHECK_ERROR),
+                "P node is sending a request to D. gRPC may block."
+                "Simulate health check does not mark the service as abnormal.");
+        } else {
+            errCode = GenerateHealthCheckerErrCode(ERROR, SUBMODLE_FEATURE_SECURE, STATUS_WARNING);
+        }
     } else if (status == SERVICE_NORMAL || status == SERVICE_BUSY) {
-        // normal和busy都当正常，统一上报071120
+        // normal 和 busy 都当正常，统一上报 071120
         errCode = GenerateHealthCheckerErrCode(INFO, SUBMODLE_FEATURE_SECURE, SIMULATE_NORMAL);
     }
+
     if (!errCode.empty()) {
         ErrorQueue::GetInstance().EnqueueErrorMessage(errCode, SUBMODLE_NAME_HEALTHCHECKER);
     }
-    mServiceStatus.store(status);
+
+    if (status == SERVICE_ABNORMAL && isSendingDecode) {
+        mServiceStatus.store(SERVICE_NORMAL);
+    } else {
+        mServiceStatus.store(status);
+    }
+
     ULOG_INFO(SUBMODLE_NAME_HEALTHCHECKER, "HealthChecker: The simulate infer health check result is "
         << StatusToString(status));
 }
@@ -552,6 +578,17 @@ SimulateResult HealthChecker::RunHttpTimedHealthCheck(uint32_t waitTime)
     }
 
     return result;
+}
+
+SendingDecodeMessageScope::SendingDecodeMessageScope(HealthChecker &checker) noexcept
+    : checker_(checker)
+{
+    checker_.SetSendingDecodeMessageStatus(true);
+}
+
+SendingDecodeMessageScope::~SendingDecodeMessageScope() noexcept
+{
+    checker_.SetSendingDecodeMessageStatus(false);
 }
 
 } // namespace mindie_llm

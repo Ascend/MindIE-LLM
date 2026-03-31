@@ -4,7 +4,7 @@
 
 ## 准备软件包
 
-容器或裸机方式需要准备的软件包如下：
+容器或裸机方式需要准备的软件包如如下：
 
 |软件类型|软件包名称|软件说明|获取链接|
 |--|--|--|--|
@@ -16,10 +16,11 @@
 |CANN|Ascend-cann-<*chip_type>*-ops_<*version>*_linux-<*arch>*.run|CANN二进制算子包（ops）。<br> 安装ops前，需已安装同一版本胡Toolkit软件包，请选择运行设备对应的ops软件包。|[获取链接](https://www.hiascend.com/developer/download/community/result?module=ie%2Bpt%2Bcann)|
 |CANN|Ascend-cann-nnal_<*version>*_linux-<*arch>*.run|CANN神经网络加速库（NNAL）。|[获取链接](https://www.hiascend.com/developer/download/community/result?module=ie%2Bpt%2Bcann)|
 |Ascend Extension for PyTorch|torch_npu-<*torch_version>*.post<*post_id>*-cp*xxx*-cp*xxx*-manylinux_<*arch>*.whl|torch_npu插件whl包。|[获取链接](https://www.hiascend.com/developer/download/community/result?module=ie%2Bpt%2Bcann)<br>在PyTorch栏单击对应版本后方“获取源码”按钮，跳转至PyTorch的gitcode仓库发布页，然后在页面下方获取对应版本的torch_npu。|
-|Ascend Extension for PyTorch|apex-<*apex_version>*_ascend-cp*xxx*-cp*xxx*-*<arch>*.whl|APEX模块的whl包。|请参见《Ascend Extension for PyTorch 软件安装指南》中的“[安装APEX模块](https://www.hiascend.com/document/detail/zh/Pytorch/730/configandinstg/instg/docs/installing_apex.md)”章节，根据Python3.10版本自行编译。|
+|Ascend Extension for PyTorch|apex-<*apex_version>*_ascend-cp*xxx*-cp*xxx*-<*arch*>.whl|APEX模块的whl包。|请参见《Ascend Extension for PyTorch 软件安装指南》中的“[安装APEX模块](https://www.hiascend.com/document/detail/zh/Pytorch/730/configandinstg/instg/docs/installing_apex.md)”章节，根据Python3.10版本自行编译。|
 |Ascend Extension for PyTorch|torch-<*torch_version>*+cpu-cp*xxx*-cp*xxx*-linux_<*arch>*.whl|PyTorch框架whl包。推荐使用2.1.0版本。|请从《Ascend Extension for PyTorch 软件安装指南》中的“[安装PyTorch](https://www.hiascend.com/document/detail/zh/Pytorch/720/configandinstg/instg/insg_0004.html)”章节获取。|
 
 > [!NOTE]说明
+>
 > - <*version>*、<*torch_version*>和<*apex_version*>表示软件版本号
 > - <*arch*>表示CPU架构
 > - <*chip_type*>表示处理器类型
@@ -28,7 +29,6 @@
 为了防止软件包在传递过程或存储期间被恶意篡改，下载软件包时需下载对应的数字签名文件用于完整性验证。
 
 请单击[PGP数字签名工具包](https://support.huawei.com/enterprise/zh/tool/pgp-verify-TL1000000054)获取工具包，将工具包解压后，请参考文件夹中的《OpenPGP签名验证指南》，对下载的软件包进行PGP数字签名校验。如果校验失败，请不要使用该软件包，访问[支持与服务](https://www.hiascend.com/support)在论坛求助或提交技术工单。
-
 
 ## 准备依赖
 
@@ -41,7 +41,7 @@ MindIE所需依赖如[表1](#table1)所示。
 
 |软件|版本要求|变更记录|
 |--|--|--|
-|glibc|<li>Ascend-mindie*_<version>*_linux-*<arch>*_abi0.run配套的glibc版本需大于或等于2.34。<li>Ascend-mindie*_<version>*_linux-*<arch>*_abi1.run配套的glibc版本需大于或等于2.38。|Mind 2.1.RC1版本修改|
+|glibc|<li>Ascend-mindie\_<*version*>\_linux-\<*arch*>\_abi0.run配套的glibc版本需大于或等于2.34。</li><li>Ascend-mindie_<*version*>_linux-<*arch*>_abi1.run配套的glibc版本需大于或等于2.38。</li>|Mind 2.1.RC1版本修改|
 |gcc、g++|大于或等于11.4.0，请用户自行安装。|Mind 1.0版本新增|
 |Python|3.10.*x*、3.11.*x*|Mind 1.0版本新增|
 |gevent|22.10.2|Mind 1.0版本新增|

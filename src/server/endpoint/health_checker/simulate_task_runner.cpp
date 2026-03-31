@@ -16,7 +16,8 @@
 
 namespace mindie_llm {
 
-constexpr int POLLING_INTERVAL_MS = 100;
+constexpr int POLLING_INTERVAL_MS = 1000;
+constexpr int NPU_CHECK_TIMEOUT_S = 6;
 
 SimulateTaskRunner::SimulateTaskRunner()
 {
@@ -233,13 +234,6 @@ void SimulateTaskRunner::TaskLoop()
         ULOG_DEBUG(SUBMODLE_NAME_HEALTHCHECKER,
             "SimulateTaskRunner: Completed. status=" << static_cast<int>(result.status)
             << ", message=" << result.message);
-
-        for (uint32_t i = 0; i < intervalSeconds_ && !stopRequested_.load(); ++i) {
-            std::this_thread::sleep_for(std::chrono::seconds(1));
-            if (paused_.load()) {
-                break;
-            }
-        }
     }
 
     ULOG_INFO(SUBMODLE_NAME_HEALTHCHECKER, "SimulateTaskRunner: Task loop exited.");
@@ -273,7 +267,7 @@ void SimulateTaskRunner::TriggerNpuCheck()
 void SimulateTaskRunner::WaitForNpuCheckComplete()
 {
     if (npuUtil_.load() < 0) {
-        auto lastTimePoint = std::chrono::steady_clock::now() + std::chrono::seconds(1);
+        auto lastTimePoint = std::chrono::steady_clock::now() + std::chrono::seconds(NPU_CHECK_TIMEOUT_S);
         std::unique_lock<std::mutex> locker(npuResultMutex_);
         npuResultCv_.wait_until(locker, lastTimePoint);
     }
@@ -313,7 +307,7 @@ void SimulateTaskRunner::CheckAicoreUtilization()
     int firstNpuId = *(npuDeviceCardIds_.begin());
     unsigned int maxUtil = 0;
     unsigned int utilizationRate = 0;
-    constexpr int nSamples = 4;
+    constexpr int nSamples = 5;
 
     auto getUtilizationFunc = dcmiWrapper.GetFunction<int(*)(int, int, int, unsigned int*)>(
         "dcmi_get_device_utilization_rate");
@@ -336,9 +330,7 @@ void SimulateTaskRunner::CheckAicoreUtilization()
             break;
         }
         maxUtil = std::max(maxUtil, utilizationRate);
-        if (i < nSamples - 1) {
-            std::this_thread::sleep_for(std::chrono::milliseconds(POLLING_INTERVAL_MS));
-        }
+        std::this_thread::sleep_for(std::chrono::milliseconds(POLLING_INTERVAL_MS));
     }
 
     npuUtil_.store(static_cast<int>(maxUtil));

@@ -110,6 +110,7 @@ MindIE LLM 支持的特性包括基础特性、量化特性、长序列特性、
 - ❔ = 待定
 
 > [!NOTE]说明
+>
 > - 对于 ❌ 或 ❔ 标注的情况，可以关联 [issues](https://gitcode.com/Ascend/MindIE-LLM/issues) 跟踪。
 > - 这里仅列举主流模型 DeepSeek 和 Qwen。
 
@@ -138,6 +139,7 @@ MindIE LLM 支持的特性包括基础特性、量化特性、长序列特性、
 | 思考解析 | ✅ |✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ | ✅ | ✅ | ✅ | ✅ | ✅ |
 
 > [!NOTE]说明
+>
 >- 对于 DeepSeek 模型，最大支持 Context Parallel + Sequence Parallel + prefix cache + KV Cache 池化 + MTP + 异步调度 + FA3 量化叠加，并支持 7 种特性自由组合。短序列（上下文长度短于16k）通常无需开启 Context Parallel 和 Sequence Parallel，长序列（上下文长度 128k）不能叠加 MTP 特性。
 
 ## Qwen 模型

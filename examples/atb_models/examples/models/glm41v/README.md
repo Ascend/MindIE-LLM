@@ -5,6 +5,7 @@
 - 支持GLM-4.1V-9B-Thinking模型的多模态推理
 
 # 特性矩阵
+
 - 此矩阵罗列了GLM-4.1V-9B-Thinking模型支持的特性
 
 | 模型及参数量 | 800I A2 Tensor Parallelism | 300I DUO Tensor Parallelism | FP16 | BF16 | MindIE Service | 纯模型支持模态 | 服务化支持模态 | W8A8量化 | W8A8SC量化 | Micro batch | 并行解码 |
@@ -31,6 +32,7 @@
 
 -注意：
 max_input_length长度设置可参考模型权重路径下config.json里的max_position_embeddings参数值
+
 ## 权重
 
 **权重下载**
@@ -39,8 +41,8 @@ max_input_length长度设置可参考模型权重路径下config.json里的max_p
 -注意：
 开源权重于2025-10-25日更新了config.json格式，需使用2025-10-25日后的权重版本。
 
-
 **权重量化**
+
 - 参考[msit](https://gitcode.com/Ascend/msit/blob/master/msmodelslim/example/multimodal_vlm/GLM-4.1V/README.md)
 - 800I A2支持w8a8量化，命令如下  
     python quant_glm4_1v.py --model_path {浮点权重路径} --save_directory {量化权重保存路径} --calib_images {校准图片路径} --w_bit 8 --a_bit 8 --device_type npu --anti_method m2 --torch_dtype bf16 --trust_remote_code True  
@@ -71,9 +73,11 @@ max_input_length长度设置可参考模型权重路径下config.json里的max_p
 
 - 运行启动脚本
   - 在\${llm_path}目录下执行以下指令
+
     ```shell
     bash ${script_path}/run_pa.sh --trust_remote_code --model_path ${weight_path} --image_path ${image_path} ${max_batch_size} ${max_input_length} ${max_output_length}
     ```
+
 - 环境变量说明
   - `export ASCEND_RT_VISIBLE_DEVICES=0,1`
     - 指定当前机器上可用的逻辑NPU核心，多个核心间使用逗号相连
@@ -85,6 +89,7 @@ max_input_length长度设置可参考模型权重路径下config.json里的max_p
     - 目的是为了避免同一台机器同时运行多个多卡模型时出现通信冲突
     - 设置时端口建议范围为：20000-20050
   - 以下环境变量与性能和内存优化相关，通常情况下无需修改
+
     ```shell
     export INF_NAN_MODE_ENABLE=0
     export ATB_OPERATION_EXECUTE_ASYNC=1
@@ -160,7 +165,9 @@ curl 127.0.0.1:1040/generate -d '{
 "model": "glm4v"
 }'
 ```
+
 或
+
 ```shell
 curl 127.0.0.1:1040/generate -d '{
 "prompt": [
@@ -198,11 +205,13 @@ curl 127.0.0.1:1040/v1/chat/completions -d ' {
 ```
 
 ## Aisbench精度测试
+
 - 首先按照[服务化推理](#服务化推理)，启动服务端进程
 
 - 参考[Aisbench/benchmark](https://github.com/AISBench/benchmark/)安装精度性能评测工具
 - 参考[开源数据集](https://github.com/AISBench/benchmark/blob/master/ais_bench/benchmark/configs/datasets/textvqa/README.md)下载Textvqa数据集
 - 配置测试任务
+
 ```python
 ...
 models = [
@@ -228,14 +237,18 @@ models = [
     )
 ]
 ```
+
 执行命令开始精度测试
+
 ```shell
 ais_bench --models vllm_api_general_chat --datasets glm4v_textvqa_gen_base64 --mode all --debug
 ```
 
 ## Aisbench性能测试
+
 - 首先按照[服务化推理](#服务化推理)，启动服务端进程
 - 配置测试任务(mm_custom_gen)
+
 ```python
 ...
 mm_custom_reader_cfg = dict(
@@ -274,7 +287,9 @@ mm_custom_datasets = [
     )
 ]
 ```
+
 执行命令开始性能测试
+
 ```shell
 ais_bench --models vllm_api_stream_chat --datasets mm_custom_gen --mode perf --debug
 ```

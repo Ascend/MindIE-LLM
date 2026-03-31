@@ -224,29 +224,9 @@ class GeneratorAclGraph(GeneratorBackend):
     def update_cache_after_switch_pd_role(self):
         self.cache_pool.allocate_npu_cache()
 
-    def execute_recover_command(self, command: str) -> dict:
-        '''
-        Execute recover related command.
-        Args:
-            command (str): recover command, including "CMD_PAUSE_ENGINE".
-        Returns:    
-            Tuple[int, str]: (return code, error message). return code: 1 for success, 0 for failure.
-        '''
-        error_msg = ""
-        # Recover command execution result, 0 for success, 1 for failure.
-        command_result = 1
-        try:
-            if (command == "CMD_PAUSE_ENGINE"):
-                command_result = torch_npu.npu.stop_device(self.npu_device_id)
-            elif (command == "CMD_REINIT_NPU"):
-                torch_npu.npu.restart_device(self.npu_device_id)
-                command_result = 0
-        except Exception as e:
-            error_msg = f"Execute recover command {command} failed, exception msg: {e}"
-            logger.error(error_msg, ErrorCode.TEXT_GENERATOR_INTERNAL_ERROR)
-            error_msg = str(e)
-        ret_dict = {"command_result": command_result, "error_msg": error_msg, "npu_device_id": self.npu_device_id}
-        return ret_dict
+    def _execute_cmd_reinit_npu(self):
+        torch_npu.npu.restart_device(self.npu_device_id)
+        torch_npu.distributed.reinit_process_group(rebuild_link=False)
 
     def _warm_up(self, model_inputs: ModelInput, **kwargs) -> None:
         # NOTE: To ensure compatibility with atb graph, the current warmup procedure is:

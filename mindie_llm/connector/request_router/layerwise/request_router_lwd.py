@@ -115,6 +115,24 @@ class RequestRouterLwd(RequestRouter):
     def initialize_diff(self, model_config, models_config_dict):
         pass
 
+    def process_sync_npu_smi_info(self, edge_cloud_comm):
+        if not edge_cloud_comm.need_sync_npu_smi_info():
+            return
+
+        if self.rank == MASTER_ID:
+            self.mem_manager.write_dict_memory(edge_cloud_comm.get_peer_npu_smi_info())
+        else:
+            while True:
+                npu_smi_info = self.mem_manager.read_dict_memory(self.rank)
+                if npu_smi_info is not None:
+                    edge_cloud_comm.set_peer_npu_smi_info(npu_smi_info)
+                    logger.info(f"[layerwiseDisaggregated] rank {self.rank} "
+                                f"edge_npu_smi_info {self.ctrl_comm.edge_npu_smi_info} "
+                                f"cloud_npu_smi_info {self.ctrl_comm.cloud_npu_smi_info}")
+                    break
+                else:
+                    time.sleep(0.5)
+
     def initialize(self, request_config):
         model_config = self.get_config_dict(request_config)
         config = self.get_model_impl_config(model_config)
@@ -150,11 +168,18 @@ class RequestRouterLwd(RequestRouter):
         is_producer = True if self.rank == MASTER_ID else False
         card_num = len(npu_device_ids)
         self.mem_manager.initialize(is_producer, card_num - 1)
+        self.process_sync_npu_smi_info(edge_cloud_comm)
 
         model_runner_config = self.router_impl.generator.model_wrapper.model_runner.config
         self.moe_quantize = getattr(model_runner_config, 'moe_quantize', None)
         self.prefill_chunk_instance = self.router_impl.generator.model_wrapper.model_runner.chunk_prefill_manager
         self.prefill_chunk_instance.initialize(self.lwd_multi_nodes_enable)
+
+        #standard card
+        edge_is_standard_card = self.ctrl_comm.edge_npu_smi_info.get("communication_backend") == 'hccl' if \
+            self.ctrl_comm is not None and self.ctrl_comm.edge_npu_smi_info is not None else False
+        if edge_is_standard_card:
+            self.prefill_chunk_instance.initialize_standard_card()
 
         logger.info(f"[layerwiseDisaggregated] mem_manager initliaze ok rank:{self.rank}, is_producer:{is_producer}, "
             f"card_num:{card_num} lwd_multi_nodes_enable:{self.lwd_multi_nodes_enable}")

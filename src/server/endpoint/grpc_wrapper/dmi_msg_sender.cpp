@@ -17,6 +17,7 @@
 #include <grpcpp/create_channel.h>
 
 #include "log.h"
+#include "health_checker/health_checker.h"
 #include "dmi_msg_sender.h"
 
 namespace mindie_llm {
@@ -52,6 +53,11 @@ namespace mindie_llm {
         bool DecodeRequestSender::SendDecodeRequestMsg(const prefillAndDecodeCommunication::DecodeParameters &message,
             const std::string& reqId, std::string& errMsg)
         {
+            std::unique_ptr<SendingDecodeMessageScope> sendingDecodeScope;
+            if (HealthChecker::GetInstance().IsEnabled()) {
+                sendingDecodeScope =
+                    std::make_unique<SendingDecodeMessageScope>(HealthChecker::GetInstance());
+            }
             {
                 std::unique_lock <std::mutex> lock(lock_);
                 // 每次发送时配置为 "Wait-for-Ready"

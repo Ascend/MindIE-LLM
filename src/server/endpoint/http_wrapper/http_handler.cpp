@@ -45,7 +45,7 @@
 #include "log.h"
 #include "check_utils.h"
 #include "config_manager_impl.h"
-#include "safe_io.h"
+#include "json_util.h"
 #include "http_handler.h"
 
 using namespace std;

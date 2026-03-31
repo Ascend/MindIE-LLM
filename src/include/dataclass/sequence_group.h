@@ -106,6 +106,9 @@ struct SequenceGroup {
 
     std::optional<std::string> loraId_;
 
+    // D 侧维护的已输出 token 前缀，初始化为 P 节点 prefill 已输出 token，随后持续追加 decode 新 token。
+    std::vector<TokenId> prefillReplayTokenIds_{};
+
     WaveId waveId_{-1}; // -1 means not set
 
     size_t rankId_ = 0;
