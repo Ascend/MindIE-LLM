@@ -112,7 +112,7 @@ private:
     Status FinalizeLlmEngine() const;
 
 private:
-    Status ProccessReqInputIds(RequestSPtr &request) const;
+    Status ProcessReqInputIds(RequestSPtr &request) const;
 
     Role GetRoleFromString(std::string &pdRole) const;
 

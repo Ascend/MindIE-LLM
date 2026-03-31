@@ -289,7 +289,10 @@ void ModelExecOutputHandler::HandleParallelSampling(const model_execute_data::Co
 
     SequenceGroupSPtr rootSeqGrp = FindRootSequenceGroup(output, liveInferContext);
     if (rootSeqGrp == nullptr) {
-        throw std::runtime_error("No root seqId exists in the LiveInferContext.");
+        for (const model_execute_data::SequenceOutput &sample : output.samples()) {
+            execExceptionSeqIds_.PushBack(sample.seq_id());
+        }
+        return;
     }
     // 创建新生成的序列的 SequenceGroup
     for (const model_execute_data::SequenceOutput &sample : output.samples()) {

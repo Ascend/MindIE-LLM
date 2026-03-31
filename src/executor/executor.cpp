@@ -13,6 +13,8 @@
 #include <cstring>
 #include <csignal>
 #include <vector>
+#include <sys/wait.h>
+#include <unistd.h>
 #include "log.h"
 #include "string_utils.h"
 #include "math_utils.h"
@@ -473,8 +475,32 @@ bool Executor::ExecutorInstanceFinalize()
         MINDIE_LLM_LOG_ERROR("Failed to send finialize message.");
         return false;
     }
-    communicator_->CleanUp();
+    for (pid_t pid : childPids_) {
+        if (pid <= 0) continue;
+
+        if (kill(pid, SIGTERM) == 0) {
+            MINDIE_LLM_LOG_INFO("Sent SIGTERM to child process " << pid);
+        } else {
+            MINDIE_LLM_LOG_ERROR("Failed to send SIGTERM to " << pid);
+            continue;
+        }
+
+        constexpr int maxWaitMs = 500;
+        constexpr int checkIntervalMs = 50;
+        constexpr int checkIntervalUs = checkIntervalMs * 1000; // 50ms
+        constexpr int maxIterations = maxWaitMs / checkIntervalMs;
+        for (int i = 0; i < maxIterations; ++i) {
+            if (waitpid(pid, nullptr, WNOHANG) > 0) {
+                break;
+            }
+            usleep(checkIntervalUs);
+        }
+    }
+
+    // 清空 PID 列表
+    childPids_.clear();
     JoinPipeThreads(); // Ensure all pipe threads are joined before finalizing
+    communicator_->CleanUp();
     MINDIE_LLM_LOG_DEBUG("Executor finalized and resources cleaned up.");
     return true;
 }
@@ -665,7 +691,8 @@ bool Executor::AsyncResponseHandler(ExecuteResponse &response)
     } else if (executeType == KV_TRANSFER) { // Handle KV cache transfer message.
         HandleKVTransferResponse(response);
     } else {
-        MINDIE_LLM_LOG_ERROR("Receive wrong message type: " << executeType);
+        MINDIE_LLM_LOG_ERROR("Receive wrong message type: " << executeType
+                             << ". You can ignore this warning if you are shutting down engine.");
         return false;
     }
     return true;
@@ -842,6 +869,9 @@ bool Executor::ExecuteCommand(const std::vector<std::string> &command)
         
         return false;
     } else {
+        if (pid > 0) {
+            childPids_.push_back(pid);
+        }
         close(pipefd[1]);
 
         FILE* pipe = fdopen(pipefd[0], "r");

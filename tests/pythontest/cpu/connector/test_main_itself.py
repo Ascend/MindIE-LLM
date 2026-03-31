@@ -106,7 +106,7 @@ class TestMainFunctions(unittest.TestCase):
     def test_register_signal(self, mock_signal):
         agent = MagicMock()
         main_module.register_signal(agent)
-        self.assertEqual(mock_signal.call_count, 4)
+        self.assertEqual(mock_signal.call_count, 2)
 
     @patch('mindie_llm.connector.main.check_config')
     @patch('mindie_llm.connector.main.parse_from_cmd')

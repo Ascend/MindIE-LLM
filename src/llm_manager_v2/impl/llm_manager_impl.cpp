@@ -231,6 +231,7 @@ constexpr int CONTROL_STEP_SLEEP = 1;
 constexpr int RUNTIME_STEP_SLEEP = 50;
 constexpr int RESPONSE_FLAG3 = 3;
 const std::string ENV_NPU_DEVICE_IDS = "NPU_DEVICE_IDS";
+static std::once_flag pool_init_flag;
 LlmManagerImpl::LlmManagerImpl(const std::string &llmConfigPath, GetRequestsCallbackV2 getRequests,
                                SendResponsesCallbackV2 handleResponse, ControlSignalCallbackV2 controlCallback,
                                LlmManagerStatsCallback statusCallback,
@@ -245,6 +246,19 @@ LlmManagerImpl::LlmManagerImpl(const std::string &llmConfigPath, GetRequestsCall
     ipInfo_ = ipInfo;
     // llmConfigPath comes from ENV or CMD args
     llmConfigPath_ = llmConfigPath;
+
+    if (!mindie_llm::Log::GetInstance(LoggerType::MINDIE_LLM)) {
+        std::call_once(pool_init_flag, []() {
+            spdlog::init_thread_pool(LOGGER_QUEUE_SIZE, LOGGER_THREAD_NUM);
+        });
+        mindie_llm::Log::CreateInstance(LoggerType::MINDIE_LLM);
+    }
+
+    // for engine mode, we need to create configmanager and log instance
+    if (!mindie_llm::ConfigManager::CreateInstance(llmConfigPath_)) {
+        MINDIE_LLM_LOG_ERROR("Failed to create ConfigManager in LlmManagerImpl");
+    }
+    
     if (ipInfo.count("infer_mode") > 0 && ipInfo["infer_mode"] == "dmi") {
         isDmiInfer_ = true;
     }
@@ -1327,10 +1341,10 @@ Status LlmManagerImpl::Init(uint32_t modelInstanceId, std::set<size_t> npuDevice
 
     std::vector<ModelDeployConfig> modelParamVec;
     try {
-        modelParamVec = GetModelDeployConfig();
+        modelParamVec = mindie_llm::ConfigManager::GetInstance().GetModelDeployConfig();
     } catch (const std::exception &e) {
         MINDIE_LLM_LOG_ERROR("Config manager init exception: " << e.what());
-        return Status(Error::Code::ERROR, "Get configManagerInstance failed.");
+        return Status(Error::Code::ERROR, "Get configManagerInstance failed. modelParamVec get failed.");
     }
     if (!InitEngineConfig(engineConfig_, modelParamVec, npuDeviceIds, modelInstanceId, extendInfo)) {
         return Status(Error::Code::ERROR, "llmmanager init InitEngineConfig failed.");
@@ -1338,7 +1352,6 @@ Status LlmManagerImpl::Init(uint32_t modelInstanceId, std::set<size_t> npuDevice
     multiNodesInferEnabled_ = engineConfig_.multiNodesInferEnabled;
     isMaster_ = engineConfig_.isMaster;
     
-    auto &configManager = mindie_llm::ConfigManager::GetInstance();
     if (!LlmSetModelConfig(engineConfig_, modelConfigs_, ipInfo_, isDmiInfer_)) {
         MINDIE_LLM_LOG_ERROR("Malloc modelBackends_ failed.");
         return Status(Error::Code::ERROR, "Engine init model failed: new modelBackends_ failed");
@@ -1356,6 +1369,7 @@ Status LlmManagerImpl::Init(uint32_t modelInstanceId, std::set<size_t> npuDevice
 
     if (engineConfig_.layerwiseDisaggregated) {
         executorNum = 1;
+        auto &configManager = mindie_llm::ConfigManager::GetInstance();
         if (configManager.IsLwdMultiNodesEnable() && configManager.GetLwdRoleType() == "master") {
             executorNum = std::stoul(it->second);   // 多机场景 = dp数
         }
@@ -1455,7 +1469,7 @@ Status LlmManagerImpl::ProcessRequests()
 
 Status LlmManagerImpl::ForwardRequest(RequestSPtr request)
 {
-    Status ret = ProccessReqInputIds(request);
+    Status ret = ProcessReqInputIds(request);
     if (!ret.IsOk()) {
         return ret;
     }
@@ -1532,7 +1546,7 @@ static Status CheckReqInputIds(RequestSPtr &request, const uint32_t vocabSize)
     return Status(Error::Code::OK, "Success");
 }
 
-Status LlmManagerImpl::ProccessReqInputIds(RequestSPtr &request) const
+Status LlmManagerImpl::ProcessReqInputIds(RequestSPtr &request) const
 {
     if (!request) {
         MINDIE_LLM_LOG_ERROR("CheckReqInputIds: request is nullptr.");

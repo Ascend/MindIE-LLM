@@ -175,14 +175,15 @@ void PostProcessingManager::Init()
 
 PostProcessingManager::~PostProcessingManager()
 {
-    MINDIE_LLM_LOG_INFO("Destroy post processing manager");
+    // spdlog thread pool has been destroyed. Use std::cout.
+    std::cout << "Destroy post processing manager" << std::endl;
     if (m_pool != nullptr) {
         delete m_pool;
         m_pool = nullptr;
     }
     aclError ret = aclrtResetDevice(deviceId);
     if (ret != ACL_SUCCESS) {
-        MINDIE_LLM_LOG_ERROR("Device resetting failed with error number " << ret);
+        std::cerr << "Device resetting failed with error number " << ret << std::endl;
     }
     aclFinalize();
 }

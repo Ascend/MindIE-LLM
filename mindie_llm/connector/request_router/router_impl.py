@@ -474,7 +474,6 @@ class RouterImpl:
 
     def finalize(self):
         self.metrics.output()
-        send_model_execute_response(ExecuteResponse(msg_type=ExecuteType.MODEL_FINALIZE))
 
     def _execute_empty_batch(self, execute_request):
         lwd_exe_stage = lwd_metadata_manager.get_metadata() if self.layerwise_disaggregated else None

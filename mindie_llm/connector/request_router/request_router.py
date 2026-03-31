@@ -78,6 +78,7 @@ class RequestRouter:
     @staticmethod
     def get_model_impl_config(model_config):
         infer_mode = model_config.get("infer_mode", "standard")
+        config = None
         if infer_mode == "standard":
             # standard是pd混部场景的部署型态
             config = BaseConfig(model_config)
@@ -124,6 +125,7 @@ class RequestRouter:
                 elif execute_type == ExecuteType.MODEL_FINALIZE:
                     self.router_impl.finalize()
                     logger.info("[python thread: infer] model finalized.")
+                    break
                 elif execute_type == ExecuteType.TEXT_GENERATOR_CLEANUP:
                     self.router_impl.seq_ctrl(execute_request)
                 elif execute_request.execute_type == ExecuteType.RECOVER_COMMAND_EXEC:
@@ -143,6 +145,8 @@ class RequestRouter:
             execute_request: ExecuteRequest = self.pdlink_queue.get()
             if execute_request.execute_type == ExecuteType.PD_LINK:
                 self.router_impl.pd_role(execute_request)
+            elif execute_request.execute_type == ExecuteType.MODEL_FINALIZE:
+                break
             else:
                 logger.error(
                     f"[MIE04E13030A] Unknown link type {execute_request.execute_type}, "
@@ -157,6 +161,8 @@ class RequestRouter:
                 self.router_impl.transfer_data(execute_request)
             elif execute_type == ExecuteType.CLEAR_COMMAND_EXEC:
                 self.router_impl.recover_command_exec(execute_request)
+            elif execute_type == ExecuteType.MODEL_FINALIZE:
+                break
             else:
                 logger.error(f"[MIE04E13030A] Unknown transfer type {execute_type}, \
                     Expected transfer_data type is {ExecuteType.KV_TRANSFER}")
@@ -174,6 +180,8 @@ class RequestRouter:
             elif execute_type == ExecuteType.PAUSE_COMMAND_EXEC or execute_type == ExecuteType.PAUSE_COMMAND_EXEC_ROCE:
                 self.router_impl.is_inference_pause = True
                 self.router_impl.recover_command_exec(execute_request)
+            elif execute_type == ExecuteType.MODEL_FINALIZE:
+                break
             else:
                 logger.error(f"[MIE04E13030A] Unknown command type {execute_type}, \
                     Expected command type is {ExecuteType.LORA_OPERATION}")
@@ -182,8 +190,11 @@ class RequestRouter:
     def do_query(self):
         while True:
             execute_request: ExecuteRequest = self.query_queue.get()
-            if execute_request.execute_type == ExecuteType.PD_LINK_STATUS_QUERY:
+            execute_type = execute_request.execute_type
+            if execute_type == ExecuteType.PD_LINK_STATUS_QUERY:
                 self.router_impl.query_link_status(execute_request)
+            elif execute_type == ExecuteType.MODEL_FINALIZE:
+                break
             else:
                 logger.error(
                     f"[MIE04E13030A] Unknown query type {execute_request.execute_type}, "
@@ -206,6 +217,12 @@ class RequestRouter:
             self.command_queue.put(execute_request)
         # 新增：查询请求分发到 query_queue
         elif execute_request.execute_type == ExecuteType.PD_LINK_STATUS_QUERY:
+            self.query_queue.put(execute_request)
+        elif execute_request.execute_type == ExecuteType.MODEL_FINALIZE:
+            self.inference_queue.put(execute_request)
+            self.pdlink_queue.put(execute_request)
+            self.transfer_queue.put(execute_request)
+            self.command_queue.put(execute_request)
             self.query_queue.put(execute_request)
         else:
             self.inference_queue.put(execute_request)

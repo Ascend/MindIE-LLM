@@ -572,7 +572,6 @@ class TestRouterImpl(unittest.TestCase):
         self.router.finalize()
         # 验证mock调用
         self.router.metrics.output.assert_called_once()
-        mock_send.assert_called_once()
 
     @patch('mindie_llm.connector.request_router.router_impl.ExecuteResponseBuilder')
     @patch('mindie_llm.connector.request_router.router_impl.send_transfer_response')

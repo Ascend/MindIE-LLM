@@ -21,7 +21,7 @@ from mindie_llm.text_generator.plugins.prefix_cache.prefix_cache_preprocess impo
 
 
 @ddt
-class TestSplitFusePreprocess(unittest.TestCase):
+class TestPrefixCachePreprocess(unittest.TestCase):
     
     def test_init(self):
         infer_context = MagicMock()        

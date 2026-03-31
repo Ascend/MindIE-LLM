@@ -40,6 +40,7 @@ static constexpr int EP_STOP_WAIT_TIME = 5000;
 static constexpr auto COMMAND_ARGS_KEY_CONFIG_PATH = "configFilePath";
 static constexpr auto COMMAND_ARGS_KEY_EXPERT_PARALLEL = "expertParallel";
 static constexpr int COMMAND_ARGS_MAX_NUM = 256;
+static constexpr int SUB_PROCESS_WAIT_TIME = 15;
 static pid_t g_mainPid = 0;
 std::atomic<bool> g_isKillingAll(false);
 
@@ -157,8 +158,10 @@ void KillProcessGroup()
     if (!g_isKillingAll.compare_exchange_strong(expected, true)) {
         return;  // Is killing all processes
     }
-
-    std::cerr << "Daemon is killing, please wait about 15 seconds..." << std::endl;
+    
+    std::cerr << "Daemon is killing, please wait about "
+              << SUB_PROCESS_WAIT_TIME
+              << " seconds..." << std::endl;
 
     ULOG_AUDIT("system", MINDIE_SERVER, "stop endpoint", "success");
     ULOG_AUDIT("system", MINDIE_SERVER, "stop mindie server", "success");
@@ -177,7 +180,7 @@ void KillProcessGroup()
     kill(getppid(), SIGCHLD);
 
     // Wait a bit for graceful shutdown
-    WaitForSubProcessExit(pids, 10);
+    WaitForSubProcessExit(pids, SUB_PROCESS_WAIT_TIME);
 
     // Force kill remaining
     for (const auto& pid: pids) {
@@ -338,6 +341,7 @@ void RunEP(std::unordered_map<std::string, std::string> commandLineArgsMap)
                 g_processExit = false;
             }
         }
+        ep.Stop();
         KillProcessGroup();
     }
 }

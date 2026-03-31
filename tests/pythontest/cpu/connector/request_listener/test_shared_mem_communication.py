@@ -117,6 +117,37 @@ class TestSharedMemoryChannel(unittest.TestCase):
         )
         shm_name = f"{self.name_prefix}_response"
         mock_shm.assert_called_once_with(shm_name)
+    
+    @patch("mindie_llm.connector.request_listener.shared_mem_communication.logger")
+    def test_close_channel_with_exceptions(self, mock_logger):
+        # 设置初始状态，模拟已有资源
+        mock_consumer_semaphore = MagicMock()
+        mock_producer_semaphore = MagicMock()
+        mock_shared_memory = MagicMock()
+        
+        self.channel.consumer_semaphore = mock_consumer_semaphore
+        self.channel.producer_semaphore = mock_producer_semaphore
+        self.channel.shared_memory = mock_shared_memory
+        
+        # 模拟关闭时出现异常
+        mock_consumer_semaphore.release.side_effect = Exception("Release error")
+        mock_producer_semaphore.close.side_effect = Exception("Close error")
+        mock_shared_memory.close.side_effect = Exception("SHM close error")
+
+        # 调用被测方法
+        self.channel.close_channel()
+        
+        # 验证即使出现异常，资源也被设置为 None
+        self.assertIsNone(self.channel.consumer_semaphore)
+        self.assertIsNone(self.channel.producer_semaphore)
+        self.assertIsNone(self.channel.shared_memory)
+        
+        # 验证记录了正确的警告日志
+        mock_logger.warning.assert_has_calls([
+            call("Failed to close consumer semaphore: Release error"),
+            call("Failed to close producer semaphore: Close error"),
+            call("Failed to close shared memory: SHM close error")
+        ])
 
     @patch("mindie_llm.connector.request_listener.shared_mem_communication.span_end")
     def test_receive_message_empty_buffer(self, mock_span_end):
@@ -316,6 +347,51 @@ class TestSharedMemCommunication(unittest.TestCase):
         self.assertEqual(mock_thread_instance.start.call_count, 3)
         self.assertEqual(mock_thread_instance.join.call_count, 3)
         self.assertTrue(comm._is_running)
+    
+    @patch("mindie_llm.connector.request_listener.shared_mem_communication.SharedMemoryChannel")
+    def test_send_response_init_results(self, mock_channel_cls):
+        """测试 response.HasField("init_results") 分支"""
+        # 设置 mock 类的常量值
+        mock_channel_cls.MODEL_INIT_RESP_SIZE = 1024 * 512  # 假设的实际值
+        
+        mock_execute_channel = MagicMock()
+        comm = SharedMemCommunication(self.mock_config)
+        comm._channels["execute"]["response"] = mock_execute_channel
+        comm.config.local_rank = 2
+        comm.config.npu_num_per_dp = 4
+        
+        mock_response = MagicMock(spec=ExecuteResponse)
+        mock_response.HasField.side_effect = lambda x: x == "init_results"
+        
+        comm.send_response(mock_response)
+        
+        # 使用 mock 类上设置的值来计算期望的 offset
+        expected_offset = (2 % 4) * mock_channel_cls.MODEL_INIT_RESP_SIZE
+        mock_execute_channel.send_message.assert_called_once_with(
+            mock_response, buffer_offset=expected_offset
+        )
+
+    @patch("mindie_llm.connector.request_listener.shared_mem_communication.SharedMemoryChannel")
+    def test_send_response_recover_command(self, mock_channel_cls):
+        """测试 is_recover_command=True 分支"""
+        # 设置 mock 类的常量值
+        mock_channel_cls.RECOVER_COMMAND_RESP_SIZE = 1024 * 512 # 假设的实际值
+        
+        mock_shared_sync_link_channel = MagicMock()
+        comm = SharedMemCommunication(self.mock_config)
+        comm._channels["shared_sync_link"]["response"] = mock_shared_sync_link_channel
+        comm.config.local_rank = 1
+        comm.config.npu_num_per_dp = 4
+        
+        mock_response = MagicMock(spec=ExecuteResponse)
+        mock_response.HasField.return_value = False
+        
+        comm.send_response(mock_response, is_recover_command=True)
+        
+        expected_offset = (1 % 4) * mock_channel_cls.RECOVER_COMMAND_RESP_SIZE
+        mock_shared_sync_link_channel.send_message.assert_called_once_with(
+            mock_response, buffer_offset=expected_offset
+        )
 
     @patch("mindie_llm.connector.request_listener.shared_mem_communication.posix_ipc.Semaphore")
     @patch("mindie_llm.connector.request_listener.shared_mem_communication.shm.SharedMemory")

@@ -129,21 +129,15 @@ def main() -> int:
     return 0
 
 
-def register_signal(request_listener):
+def register_signal(request_listener: RequestListener):
     def handler_signal(signum, frame):
         logger.info(f"Python process get signal:{signum}")
-        if signum == signal.SIGINT or signum == signal.SIGTERM:
+        if signum == signal.SIGTERM:
             request_listener.stop()
 
-    # 注册SIGINT信号(Ctrl+C)
-    signal.signal(signal.SIGINT, handler_signal)
     # kill命令
     signal.signal(signal.SIGTERM, handler_signal)
-    # 非法内存访问
-    signal.signal(signal.SIGSEGV, handler_signal)
-    # 算术错误（如除零）
-    signal.signal(signal.SIGFPE, handler_signal)
-
+    signal.signal(signal.SIGINT, handler_signal)
 
 if __name__ == "__main__":
     sys.exit(main())

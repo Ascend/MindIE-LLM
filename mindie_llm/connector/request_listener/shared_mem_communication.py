@@ -78,6 +78,33 @@ class SharedMemoryChannel:
 
         logger.debug(f"Open shared memory:{self.name_prefix}_{role}")
         self.shared_memory = shm.SharedMemory(f"{self.name_prefix}_{role}")
+    
+    def close_channel(self):
+        if self.consumer_semaphore is not None:
+            try:
+                self.consumer_semaphore.release()
+                self.consumer_semaphore.close()
+            except Exception as e:
+                logger.warning(f"Failed to close consumer semaphore: {e}")
+            finally:
+                self.consumer_semaphore = None
+
+        if self.producer_semaphore is not None:
+            try:
+                self.producer_semaphore.release()
+                self.producer_semaphore.close()
+            except Exception as e:
+                logger.warning(f"Failed to close producer semaphore: {e}")
+            finally:
+                self.producer_semaphore = None
+        
+        if self.shared_memory is not None:
+            try:
+                self.shared_memory.close()
+            except Exception as e:
+                logger.warning(f"Failed to close shared memory: {e}")
+            finally:
+                self.shared_memory = None
 
     def open_error_response_channel(self):
         sem_producer_name = f"{self.name_prefix}_produce_0"
@@ -309,12 +336,19 @@ class SharedMemCommunication:
         self._is_running = False
         if self.config.layerwise_disaggregated == "true":
             self.request_router.final_cleanup()
+        for channel_name in self.CHANNEL_NAMES:
+            for role in ["request", "response"]:
+                channel: SharedMemoryChannel = self._channels[channel_name][role]
+                try:
+                    channel.close_channel()
+                except Exception as e:
+                    logger.warning(f"Failed to close {role} channel for {channel_name}: {e}")
 
     def is_running(self) -> bool:
         return self._is_running
 
     def _process_incoming_requests(self, channel_name: str):
-        channel = self._channels[channel_name]["request"]
+        channel: SharedMemoryChannel = self._channels[channel_name]["request"]
         while self._is_running:
             request = channel.receive_message(ExecuteRequest)
             self._apply_config_to_request(request)
@@ -326,6 +360,10 @@ class SharedMemCommunication:
                 ExecuteType.TEXT_GENERATOR_CLEANUP,
             ]:
                 AdaptiveGarbageCollector.get_instance().request_counter_increase()
+            
+            if request.execute_type == ExecuteType.MODEL_FINALIZE:
+                self._is_running = False
+                break
 
     def _apply_config_to_request(self, request: ExecuteRequest):
         if request.execute_type == MODEL_INIT:

@@ -137,6 +137,7 @@ private:
     std::vector<std::thread> pipeThreads_;
     LoraOperationResponse loraOperationResponse_;
     ThinkingConfig thinkingConfig_;
+    std::vector<pid_t> childPids_;
 };
 } // namespace mindie_llm
 #endif
