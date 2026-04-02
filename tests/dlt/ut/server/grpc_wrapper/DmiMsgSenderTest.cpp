@@ -16,8 +16,6 @@
 #include "dmi_msg_sender.h"
 #include <grpcpp/channel.h>
 #include <grpcpp/create_channel.h>
-#include "health_checker.h"
-#include "config/config_manager.h"
 
 using namespace prefillAndDecodeCommunication;
 
@@ -36,24 +34,10 @@ bool operator!=(const Status& lhs, const Status& rhs)
 
 namespace mindie_llm {
 
-bool operator==(const ServerConfig& lhs, const ServerConfig& rhs)
-{
-    return lhs.inferMode == rhs.inferMode &&
-           lhs.npuUsageThreshold == rhs.npuUsageThreshold;
-}
-
-const ServerConfig& GetServerConfig();
-
 class DmiMsgSenderTest : public testing::Test {
 protected:
     void SetUp() override
     {
-        ServerConfig serverConfig;
-        serverConfig.inferMode = "standard";
-        serverConfig.npuUsageThreshold = 0;
-        MOCKER_CPP(GetServerConfig, const ServerConfig& (*)())
-            .stubs()
-            .will(returnValue(serverConfig));
     }
 
     void TearDown() override
@@ -151,7 +135,7 @@ TEST_F(DmiMsgSenderTest, KvReleaseSender_Success)
     MOCKER_CPP(&PrefillService::Stub::ReleaseKVCacheChannel, grpc::Status (*)(
                 grpc::ClientContext*, const RequestId&, google::protobuf::Empty*))
                 .stubs().will(returnValue(grpc::Status::OK));
-    prefillAndDecodeCommunication::RequestId request;
+    RequestId request;
     EXPECT_TRUE(sender.SendKvReleaseMsg(request));
 }
 
@@ -161,7 +145,8 @@ TEST_F(DmiMsgSenderTest, KvReleaseSender_StubNull)
     MOCKER_CPP(&PrefillService::Stub::ReleaseKVCacheChannel, grpc::Status (*)(
                 grpc::ClientContext*, const RequestId&, google::protobuf::Empty*))
                 .stubs().will(returnValue(grpc::Status::OK));
-    prefillAndDecodeCommunication::RequestId request;
+    RequestId request;
+    std::string reqId = "req-";
     EXPECT_FALSE(sender.SendKvReleaseMsg(request));
 }
 
@@ -173,7 +158,7 @@ TEST_F(DmiMsgSenderTest, KvReleaseSender_DecodeRequestChannelError)
     MOCKER_CPP(&PrefillService::Stub::ReleaseKVCacheChannel, grpc::Status (*)(
                 grpc::ClientContext*, const RequestId&, google::protobuf::Empty*))
                 .stubs().will(returnValue(grpc::Status::CANCELLED));
-    prefillAndDecodeCommunication::RequestId request;
+    RequestId request;
     EXPECT_FALSE(sender.SendKvReleaseMsg(request));
 }
 
