@@ -21,32 +21,17 @@ from PIL import Image
 
 from atb_llm.utils import file_utils
 from atb_llm.utils.log import logger
-from atb_llm.utils.media_limits import (
-    get_max_audio_file_size_bytes,
-    get_max_image_file_size_bytes,
-    get_max_image_pixels,
-    get_max_video_file_size_bytes,
-)
 
 MAX_PATH_LENGTH = 4096
+MAX_IMAGE_PIXELS = 10000 * 10000
+MAX_IMAGE_FILE_SIZE = 20 * 1024 * 1024
+MAX_VIDEO_FILE_SIZE = 512 * 1024 * 1024
+MAX_AUDIO_FILE_SIZE = 20 * 1024 * 1024
 
 MAX_FILE_SIZE_KEY = "max_file_size"
 MAX_PATH_LENGTH_KEY = "max_path_length"
 CHECK_LINK_KEY = "check_link"
 
-
-def __getattr__(name: str):
-    # Keep legacy module constants available for tests and callers while
-    # resolving their values dynamically from the current runtime limits.
-    if name == "MAX_IMAGE_PIXELS":
-        return get_max_image_pixels()
-    if name == "MAX_IMAGE_FILE_SIZE":
-        return get_max_image_file_size_bytes()
-    if name == "MAX_VIDEO_FILE_SIZE":
-        return get_max_video_file_size_bytes()
-    if name == "MAX_AUDIO_FILE_SIZE":
-        return get_max_audio_file_size_bytes()
-    raise AttributeError(f"module '{__name__}' has no attribute '{name}'")
 
 
 @dataclass
@@ -187,7 +172,7 @@ def safe_open_audio(audio_cls, audio_path: str, mode='r', is_exist_ok=True, **kw
     :return:
     """
     max_path_length = kwargs.get('max_path_length', MAX_PATH_LENGTH)
-    max_file_size = kwargs.get('max_file_size', get_max_audio_file_size_bytes())
+    max_file_size = kwargs.get('max_file_size', MAX_AUDIO_FILE_SIZE)
     check_link = kwargs.get('check_link', True)
 
     audio_path = file_utils.standardize_path(audio_path, max_path_length, check_link)
@@ -208,11 +193,11 @@ def safe_open_image(image_cls, file_path: str, mode='r', is_exist_ok=True, **kwa
     if not (isinstance(image_cls, types.ModuleType) and image_cls.__name__ == "PIL.Image"):
         raise ValueError("Unsupported image loader type."
                          " Please use PIL.Image or implement a similar class with size validation to ensure security.")
-    Image.MAX_IMAGE_PIXELS = kwargs.get("max_image_pixels", get_max_image_pixels())
+    Image.MAX_IMAGE_PIXELS = kwargs.get("max_image_pixels", MAX_IMAGE_PIXELS)
     warnings.simplefilter("error", Image.DecompressionBombWarning)
 
     max_path_length = kwargs.get('max_path_length', MAX_PATH_LENGTH)
-    max_file_size = kwargs.get('max_file_size', get_max_image_file_size_bytes())
+    max_file_size = kwargs.get('max_file_size', MAX_IMAGE_FILE_SIZE)
     check_link = kwargs.get('check_link', True)
 
     file_path = file_utils.standardize_path(file_path, max_path_length, check_link)
@@ -239,7 +224,7 @@ def check_video_path(file_path: str, mode='r', is_exist_ok=True, **kwargs):
     :return:
     """
     max_path_length = kwargs.get('max_path_length', MAX_PATH_LENGTH)
-    max_file_size = kwargs.get('max_file_size', get_max_video_file_size_bytes())
+    max_file_size = kwargs.get('max_file_size', MAX_VIDEO_FILE_SIZE)
     check_link = kwargs.get('check_link', True)
 
     file_path = file_utils.standardize_path(file_path, max_path_length, check_link)
@@ -261,7 +246,7 @@ def validate_image_loader(target_func: Callable, kwargs: dict) -> None:
             "Unsupported image loader type. "
             "Please use PIL.Image or implement a similar class with size validation to ensure security.")
     # Dealing with Decompression Bomb by setting MAX_IMAGE_PIXELS of Image
-    Image.MAX_IMAGE_PIXELS = kwargs.pop("max_image_pixels", get_max_image_pixels())
+    Image.MAX_IMAGE_PIXELS = kwargs.pop("max_image_pixels", MAX_IMAGE_PIXELS)
     # Upgrade the level of DecompressionBombWarning from warning to error
     warnings.simplefilter("error", Image.DecompressionBombWarning)
 
@@ -281,11 +266,11 @@ def safe_load_multimodal_source(target_func: Callable, file_path: str, mode: str
     # Determine the multimodal source type and set corresponding maximum file size
     if is_image(file_path):
         validate_image_loader(target_func, kwargs)
-        max_file_size = kwargs.pop(MAX_FILE_SIZE_KEY, get_max_image_file_size_bytes())
+        max_file_size = kwargs.pop(MAX_FILE_SIZE_KEY, MAX_IMAGE_FILE_SIZE)
     elif is_video(file_path):
-        max_file_size = kwargs.pop(MAX_FILE_SIZE_KEY, get_max_video_file_size_bytes())
+        max_file_size = kwargs.pop(MAX_FILE_SIZE_KEY, MAX_VIDEO_FILE_SIZE)
     elif is_audio(file_path):
-        max_file_size = kwargs.pop(MAX_FILE_SIZE_KEY, get_max_audio_file_size_bytes())
+        max_file_size = kwargs.pop(MAX_FILE_SIZE_KEY, MAX_AUDIO_FILE_SIZE)
     else:
         raise ValueError("Multimodal source type should be among image, video and audio. "
                          "Or the format of this modality is temporarily not supported.")

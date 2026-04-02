@@ -40,14 +40,6 @@
         "openAiSupport" : "vllm",
         "tokenTimeout" : 600,
         "e2eTimeout" : 600,
-        "maxRequestLength" : 40,
-        "MultimodalConfig" : {
-            "maxImageFileSizeMB" : 20,
-            "maxAudioFileSizeMB" : 20,
-            "maxVideoFileSizeMB" : 512,
-            "maxTotalMediaSizeMB" : 1000,
-            "maxImagePixels" : 100000000
-        },
         "distDPServerEnabled":false,
         "layerwiseDisaggregated" : false,
         "layerwiseDisaggregatedRoleType" : "",

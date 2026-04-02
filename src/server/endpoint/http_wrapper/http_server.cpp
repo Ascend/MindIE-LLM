@@ -190,14 +190,11 @@ void HttpServerInitHttpLibConfig(HttpsServerHelper &server, uint32_t workThreadN
         return threadPool;
     };
     // 设置最大请求体长度
-    const uint32_t maxInputLenMB = GetServerConfig().maxRequestLength;
     server.set_payload_max_length(GetMaxInputLen());
-    server.set_error_handler([maxInputLenMB](const httplib::Request &req, httplib::Response &res) {
+    server.set_error_handler([](const httplib::Request &req, httplib::Response &res) {
         (void)req;
         if (res.status == httplib::StatusCode::PayloadTooLarge_413) {
-            std::string response = "{\"message\":\"Request body too large. Maximum allowed size is " +
-                std::to_string(maxInputLenMB) + "MB.\"}";
-            res.set_content(response, "application/json");
+            res.set_content("Request body too large. Maximum allowed size is 512MB.", "application/json");
         }
     });
     // 设置等待时间

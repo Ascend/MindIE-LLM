@@ -27,12 +27,6 @@ from mindie_llm.modeling.model_wrapper import get_tokenizer_wrapper
 from .tokenizer_log import logger
 from . import io_utils
 from . import file_utils
-from .media_limits import (
-    get_max_audio_file_size_bytes,
-    get_max_image_file_size_bytes,
-    get_max_total_media_size_bytes,
-    get_max_video_file_size_bytes,
-)
 
 
 _ALLOWED_MEDIA_DOMAINS_ENV = "ALLOWED_MEDIA_DOMAINS_ENV"
@@ -41,6 +35,10 @@ once_flag = threading.Event()
 
 _DURATION = 30  # check undeleted cache dir pre 30 seconds
 _DELET_DURATION = 2 ** 16  # delete dirs in the cache that are older than 2**16 seconds, which is equal to e2eTimeout
+_SINGLE_IMAGE_LIMIT = 20 * 1024 * 1024  # 20 MB
+_SINGLE_AUDIO_LIMIT = 20 * 1024 * 1024  # 20 MB
+_SINGLE_VIDEO_LIMIT = 512 * 1024 * 1024  # 512 MB
+_MEDIA_SIZE_LIMIT = 1000 * 1024 * 1024 # 1 GB
 _URL_LENGTH_LIMIT = 4096
 
 _TEXT_KEY = "text"
@@ -58,6 +56,13 @@ _MEDIA_TYPE = {
     _INPUT_AUDIO_KEY: ['.mp3', '.wav', '.flac'],
 }
 
+_SIZE_LIMITS = {
+    _IMAGE_KEY: _SINGLE_IMAGE_LIMIT,
+    _AUDIO_KEY: _SINGLE_AUDIO_LIMIT,
+    _VIDEO_KEY: _SINGLE_VIDEO_LIMIT,
+    _INPUT_AUDIO_KEY: _SINGLE_AUDIO_LIMIT,
+}
+
 _MIME_TYPE2EXT = {
     "jpeg": ".jpg",
     "png": ".png",
@@ -71,16 +76,6 @@ _MIME_TYPE2EXT = {
 
 pid = os.getpid()
 logger.info(f"tokenizer-{pid} import ok.")
-
-
-def _get_size_limits() -> dict[str, int]:
-    audio_limit = get_max_audio_file_size_bytes()
-    return {
-        _IMAGE_KEY: get_max_image_file_size_bytes(),
-        _AUDIO_KEY: audio_limit,
-        _VIDEO_KEY: get_max_video_file_size_bytes(),
-        _INPUT_AUDIO_KEY: audio_limit,
-    }
 
 
 class IbisTokenizer:
@@ -166,7 +161,7 @@ class IbisTokenizer:
             logger.error(f"Failed to parse URL: {media_url}")
             raise ValueError(f"Invalid URL: {media_url}") from e
 
-        limit_params = (_get_size_limits(), total_start_time)
+        limit_params = (_SIZE_LIMITS, total_start_time)
         media_content, media_size = io_utils.fetch_media_url(media_url, input_type, ext, limit_params, _MEDIA_TYPE)
         if input_type == _IMAGE_KEY:
             image_count = len(os.listdir(cache_dir))
@@ -191,14 +186,13 @@ class IbisTokenizer:
             logger.error(msg)
             raise ValueError(msg)
         
-        size_limits = _get_size_limits()
         file_utils.check_path_permission(media_url, mode=0o640)
         media_size = os.path.getsize(media_url)
-        if media_size > size_limits.get(input_type):
+        if media_size > _SIZE_LIMITS.get(input_type):
             logger.error(f'The size of {input_type} cannot exceed '
-                         f'{size_limits.get(input_type) / (1024 * 1024)} MB')
+                         f'{_SIZE_LIMITS.get(input_type) / (1024 * 1024)} MB')
             raise ValueError(f'The size of {input_type} cannot exceed '
-                             f'{size_limits.get(input_type) / (1024 * 1024)} MB')
+                             f'{_SIZE_LIMITS.get(input_type) / (1024 * 1024)} MB')
         io_utils.copy_media(media_url, cache_dir, ext)
         return media_size
 
@@ -310,9 +304,8 @@ class IbisTokenizer:
             total_start_time = time.time()
             for elem in elem_list:
                 media_size += self._download(elem, total_start_time)
-                total_media_limit = get_max_total_media_size_bytes()
-                if media_size > total_media_limit:
-                    err_str = f'The total media input cannot exceed {total_media_limit / (1024 * 1024)} MB.'
+                if media_size > _MEDIA_SIZE_LIMIT:
+                    err_str = f'The total media input cannot exceed {_MEDIA_SIZE_LIMIT / (1024 * 1024)} MB.'
                     logger.error(err_str)
                     raise ValueError(err_str)
 
@@ -650,12 +643,11 @@ class IbisTokenizer:
 
         data_content = io_utils.decode_base64_content(base64_data)
         media_size = len(data_content)
-        size_limits = _get_size_limits()
-        if media_size > size_limits.get(input_type):
+        if media_size > _SIZE_LIMITS.get(input_type):
             logger.error(f'The size of {input_type} cannot exceed '
-                         f'{size_limits.get(input_type) / (1024 * 1024)} MB')
+                         f'{_SIZE_LIMITS.get(input_type) / (1024 * 1024)} MB')
             raise ValueError(f'The size of {input_type} cannot exceed '
-                            f'{size_limits.get(input_type) / (1024 * 1024)} MB')
+                            f'{_SIZE_LIMITS.get(input_type) / (1024 * 1024)} MB')
         cache_dir = file_utils.standardize_path(cache_dir)
         file_utils.check_path_permission(cache_dir)
         data_count = len(os.listdir(cache_dir))
