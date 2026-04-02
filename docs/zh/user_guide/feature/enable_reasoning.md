@@ -67,7 +67,6 @@
     > [!NOTE]说明
     >- Qwen3-30B-A3B模型："qwen3"字段应修改为"qwen3\_moe"。
     >- DeepSeek-R1模型："qwen3"字段应修改为"deepseekv2"，并将DeepSeek-R1权重文件中的"model\_type"字段修改为"deepseek\_v3"
-    >- DeepSeek-V3.2 模型：`"qwen3"` 字段应修改为 `"deepseek_v32"`
 
 3. 启动服务。具体请参考《MindIE Motor开发指南》中的“快速入门 \> [启动服务](https://gitcode.com/Ascend/MindIE-Motor/blob/dev/docs/zh/user_guide/quick_start.md)”章节。
 4. 发送请求。参数说明见《MindIE Motor开发指南》中的“集群管理组件 \> 调度器（Coordinator） \> RESTful接口API \> 用户侧接口 \> OpenAI推理接口”章节。
