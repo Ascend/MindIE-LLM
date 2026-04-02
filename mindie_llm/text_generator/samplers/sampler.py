@@ -19,6 +19,7 @@ from .token_selectors import get_selector_registry
 from ..utils.config import SamplerConfig, HandlingBackend
 from ..utils.sampling_output import SamplingOutput
 from ..utils.sampling_metadata import SamplingMetadata
+from ...utils.log.logging import logger
 
 
 class SelectorType(IntEnum):
@@ -83,8 +84,19 @@ class Sampler:
             self.switch_handlers(sampling_metadata)
             self.switch_selector(sampling_metadata)
 
-        batch_logits = self.handlers(batch_logits, sampling_metadata)
-        output = self.selector(batch_logits, sampling_metadata)
+        if self.backend_type == HandlingBackend.MS:
+            from mindspore.common.api import _pynative_executor as ms_pyexecutor
+            ms_pyexecutor.set_async_for_graph(True)
+            batch_logits = self.handlers(batch_logits, sampling_metadata)
+            if sampling_metadata is None or sampling_metadata.do_sample_array is None:
+                output = self.selectors[0](batch_logits, sampling_metadata)
+            else:
+                output = self.selectors[1](batch_logits, sampling_metadata)
+            ms_pyexecutor.sync()
+            ms_pyexecutor.set_async_for_graph(False)
+        else:
+            batch_logits = self.handlers(batch_logits, sampling_metadata)
+            output = self.selector(batch_logits, sampling_metadata)
 
         self.handler_params.clear_token_counts()
         output.token_ids = output.token_ids.astype(np.int64)

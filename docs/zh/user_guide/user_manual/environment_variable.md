@@ -67,6 +67,7 @@ MindIE\_LLM相关环境变量请参考**表3**。
 |MINDIE_LLM_BENCHMARK_ENABLE|是否开启MindIE LLM模块的Benchmark功能，开启后将会输出性能数据到指定文件路径。|0：不开启<br>1：开启|0|
 |MINDIE_LLM_BENCHMARK_FILEPATH|指定MindIE LLM模块的Benchmark功能输出的性能数据文件路径。|N/A|"{MINDIE_LLM_HOME_PATH}/logs/benchmark.jsonl"|
 |MINDIE_LLM_BENCHMARK_RESERVING_RATIO|当性能数据文件超过最大文件大小限制时，旧数据会被新数据覆盖。此环境变量指定保留旧数据的比例，默认为0.1。|[0.0, 1.0]|0.1|
+|MINDIE_LLM_FRAMEWORK_BACKEND|MindIE LLM框架后端类型，当前可选值为"atb"（ATB，默认值）和"ms"（MindSpore）。|ATB<br>MS（不区分大小写）|ATB|
 |NPU_DEVICE_IDS|使用的NPU卡号。|[0,卡号]<br>例：[0, 1, 2,...]|N/A|
 |NPU_MEMORY_FRACTION|NPU显存利用率，代表总显存分配给模型权重、kvcache和work space的比例。不包含HCCL和PTA申请的空间。建议将该值设置为可拉起服务的最小值。具体方法是：按照默认配置启动服务，若无法拉起服务，则上调参数至可拉起为止；若拉起服务成功，则下调该参数至刚好拉起服务为止。总之，在服务能正常拉起的前提下，更低的值可以保障更高的服务系统稳定性。|(0.0, 1.0]Kimi K2模型，推荐设置为0.9。|在ATB Models中默认值为1.0在MindIE LLM中默认值为0.8|
 |PERFORMANCE_PREFIX_TREE_ENABLE|memory_decoding并行解码高性能前缀树实现开关。|0：不开启<br>1：开启|0|

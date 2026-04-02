@@ -423,7 +423,15 @@ class BatchContext:
         def torch_to_tensor(data):
             return torch.tensor(data, device=self.device)
 
-        self.to_tensor = torch_to_tensor
+        def mindspore_to_tensor(data):
+            import mindspore as ms
+
+            return ms.Tensor(data) if data.size > 0 else None
+
+        if context_params.generator_backend_type != BackendType.MS:
+            self.to_tensor = torch_to_tensor
+        else:
+            self.to_tensor = mindspore_to_tensor
 
         self.position_ids_gen_func = position_ids_gen_func
         self.tokenizer = tokenizer

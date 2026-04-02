@@ -32,6 +32,7 @@ npu/hal
 
 from typing import TypeAlias
 
+from mindie_llm.utils.tensor.ms_tensor import MindSporeBackend
 from mindie_llm.utils.tensor.torch_tensor import TorchBackend
 from mindie_llm.utils.tensor.llm_tensor import LLMBackend
 from mindie_llm.utils.env import ENV
@@ -39,7 +40,7 @@ from mindie_llm.modeling.backend_type import BackendType
 
 
 def _set_tensor_backend() -> LLMBackend:
-    _backend = TorchBackend()
+    _backend = MindSporeBackend() if ENV.framework_backend == BackendType.MS else TorchBackend()
     return _backend
 
 

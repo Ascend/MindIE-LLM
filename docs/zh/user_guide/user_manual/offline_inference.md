@@ -221,3 +221,103 @@
     ```bash
     curl -H "Accept: application/json" -H "Content-type: application/json" -X POST --cacert {Server服务端证书的验签证书/根证书路径} --cert {客户端证书文件路径} --key {客户端证书私钥路径} -d '{"inputs": "hi","stream":false}' https://{ip}:{port}/generate
     ```
+
+## MindSpore Models服务化使用
+
+MindIE LLM不仅支持ATB Models，同时支持MindSpore作为框架后端，MindSpore Models覆盖MindFormers社区下的开源模型，模型列表和使用方式参考[MindSpore Transformers](https://gitee.com/mindspore/mindformers/tree/master/)。
+
+### 前提条件
+
+-   已在环境上安装CANN，详情请参见《MindIE安装指南》。
+-   已在环境上安装MindSpore和MindFormers，详情请参见[MindFormers官方安装指南](https://www.mindspore.cn/mindformers/docs/zh-CN/r1.5.0/quick_start/install.html)。
+
+### 权重转换
+
+执行推理前，需将权重格式转为MindFormers所使用的格式（ckpt格式）。MindFormers提供了统一的权重转换工具，请参考[权重格式转换](https://www.mindspore.cn/mindformers/docs/zh-CN/r1.5.0/function/weight_conversion.html)。
+
+以Qwen2.5-72B为例，转换后的模型权重目录结构如下：
+
+```text
+mf_model
+└── qwen2_5_72b
+├── config.json                 # 模型json配置文件
+├── vocab.json                  # 模型vocab文件，hf上对应模型下载
+├── merges.txt                  # 模型merges文件，hf上对应模型下载
+├── predict_qwen2_5_72b.yaml    # 模型yaml配置文件
+├── qwen2_5_tokenizer.py        # 模型tokenizer文件，从mindformers仓中research目录下找到对应模型复制
+└── qwen2_5_72b_ckpt_dir        # 模型分布式权重文件夹
+```
+
+权重转换之后，需要进行权重切分。请参考[MindFormer Qwen2.5](https://gitee.com/mindspore/mindformers/blob/r1.6.0/research/qwen2_5/README.md)的“多卡推理”进行权重切分，切分后生成“qwen2\_5\_72b\_ckpt\_dir”文件夹。
+
+predict\_qwen2\_5\_72b.yaml需要关注以下配置：
+
+```yaml
+load_checkpoint: '/mf_model/qwen2_5_72b/qwen2_5_72b_ckpt_dir' # 为存放模型分布式权重文件夹路径
+use_parallel: True
+auto_trans_ckpt: False    # 是否开启自动权重转换，离线切分设置为False
+parallel_config:
+  data_parallel: 1
+  model_parallel: 4       # 多卡推理配置模型切分，一般与使用卡数一致
+  pipeline_parallel: 1
+processor:
+  tokenizer:
+    vocab_file: "/mf_model/qwen2_5_72b/vocab.json"  # vocab文件路径
+    merges_file: "/mf_model/qwen2_5_72b/merges.txt"  # merges文件路径
+```
+
+模型的config.json文件可以使用save\_pretrained接口生成，示例如下：
+
+```python
+from mindformers import AutoConfig
+
+model_config = AutoConfig.from_pretrained("/mf_model/qwen2_5_72b/predict_qwen2_5_72b.yaml")
+model_config.save_pretrained(save_directory="./json/qwen2_5_72b/", save_json=True)
+```
+
+### 使用实例
+
+运行MindSpore Models需配合服务化使用。
+
+1. 设置环境变量。
+
+    若安装路径为默认路径，可以运行以下命令初始化各组件环境变量。
+
+    ```bash
+    # Ascend
+    source /usr/local/Ascend/cann/set_env.sh
+    # MindIE
+    source /usr/local/Ascend/mindie/latest/mindie-llm/set_env.sh
+    source /usr/local/Ascend/mindie/latest/mindie-service/set_env.sh
+    # MindSpore
+    export LCAL_IF_PORT=8129
+    # 组网配置
+    export MS_SCHED_HOST=127.0.0.1  # scheduler节点ip地址
+    export MS_SCHED_PORT=8090  # scheduler节点服务端口
+    ```
+
+    > [!NOTE]说明
+    > 若机器上有其他卡已启动MindIE，需要注意MS\_SCHED\_PORT参数是否冲突。若日志打印中该参数报错，替换为其他端口号重新尝试即可。
+
+2.  启动服务化并发送请求。
+
+    MindIE服务化使用方法请参考《MindIE Motor开发指南》中的“快速入门 \> [启动服务](https://gitcode.com/Ascend/MindIE-Motor/blob/dev/docs/zh/user_guide/quick_start.md)”章节，服务化参数配置请参考[配置参数说明（服务化）](service_parameter_configuration.md)。
+
+    若要启用MindSpore Models作为模型后端，服务化配置中需将ModelDeployConfig.ModelConfig.backendType字段设置为"ms"。
+
+    ```bash
+    vim /usr/local/Ascend/mindie/latest/mindie-service/conf/config.json
+    # 修改ModelDeployConfig.ModelConfig.backendType
+    "backendType": "ms"
+    ```
+
+    服务化API接口请参考《MindIE LLM开发指南》中的**服务化接口**章节。
+
+    用户可使用HTTPS客户端（Linux curl命令，Postman工具等）发送HTTPS请求，此处以Linux curl命令为例进行说明。重开一个窗口，使用以下命令发送请求。
+
+    ```bash
+    curl -H "Accept: application/json" -H "Content-type: application/json" -X POST --cacert {Server服务端证书的验签证书/根证书路径} --cert {客户端证书文件路径} --key {客户端证书私钥路径} -d '{"inputs": "I love Beijing, because","stream": false}' https://{ip}:{port}/generate
+    ```
+    
+    > [!NOTE]说明
+    > MindSpore场景下，请求体中的seed字段限制在\[0, 2^32\)范围内，若超过则按照默认值seed = 0设置。
