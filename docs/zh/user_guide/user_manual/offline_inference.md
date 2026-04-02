@@ -12,8 +12,8 @@
 
 ### 约束
 
-- 使用ATB Models进行推理，模型初始化失败时，模型初始化过程中用户自定义修改导致的失败，需要手动结束进程。
-- 使用ATB Models进行推理，权重路径及文件的权限需保证其他用户无写权限。
+-  使用ATB Models进行推理，模型初始化失败时，模型初始化过程中用户自定义修改导致的失败，需要手动结束进程。
+-  使用ATB Models进行推理，权重路径及文件的权限需保证其他用户无写权限。
 
 ### README文档解读
 
@@ -30,11 +30,12 @@
 |${ATB_SPEED_HOME_PATH}/examples/models/{模型名称}/README.md|为ATB Models每个模型各自的文档，<br>例如：${ATB_SPEED_HOME_PATH}/examples/models/llama/README.md中为LLaMA模型的文档，其中涵盖了LLaMA系列和LLaMA2系列模型的介绍和运行指导。|<ul><li>模型特性支持矩阵，即不同参数量的模型对各类硬件，各种量化方式，各种特性的支持情况。</li><li>模型开源权重下载地址。</li><li>模型量化权重生成介绍。</li><li>对话测试、精度测试和性能测试脚本执行方式。</li></ul>|
 |${ATB_SPEED_HOME_PATH}/examples/README.md|汇总了对于公共能力和接口的介绍。|<ul><li>bin格式的权重转safetensor格式脚本的介绍。</li><li>量化权重生成脚本的介绍。</li><li>Flash Attention和Paged Attention启动脚本参数介绍。</li><li>可选择性配置的环境变量介绍。</li><li>特殊场景注意事项。</li></ul>|
 
+
 ### 使用示例
 
 下面以LLaMA3-8B模型为例，展示对话推理以及性能测试的执行步骤。
 
-1. 配置环境变量。
+1.  配置环境变量。
 
     ```bash
     # 配置CANN环境，默认安装在/usr/local目录下
@@ -45,14 +46,14 @@
     source /usr/local/Ascend/atb-models/set_env.sh
     ```
 
-2. 准备模型权重：可从Hugging Face官网直接下载，将下载的权重保存在“/data/Llama-3-8b“。
-3. 执行如下命令，修改权重文件权限。
+2.  准备模型权重：可从Hugging Face官网直接下载，将下载的权重保存在“/data/Llama-3-8b“。
+3.  执行如下命令，修改权重文件权限。
 
     ```bash
     chmod -R 755 /data/Llama-3-8b
     ```
 
-4. （可选）当前ATB Models推理仅支持加载safetensor格式的权重文件。若下载的权重文件是safetensor格式文件，则无需进行权重转换，若下载的权重文件是bin格式文件，则需要按照如下方式进行转换。
+4.  （可选）当前ATB Models推理仅支持加载safetensor格式的权重文件。若下载的权重文件是safetensor格式文件，则无需进行权重转换，若下载的权重文件是bin格式文件，则需要按照如下方式进行转换。
 
     ```bash
     # 进入ATB Models 所在路径
@@ -63,7 +64,7 @@
 
     输出结果会保存在bin格式的权重文件同目录下。
 
-5. 测试对话推理。
+5.  测试对话推理。
 
     ```bash
     cd ${ATB_SPEED_HOME_PATH}
@@ -72,9 +73,9 @@
 
     如上命令调用的run\_pa.sh脚本是对run\_pa.py脚本的封装，默认推理内容为"What's deep learning?"，batch size为1，可以通过下方的步骤[6](#step6)修改推理内容。
 
-6. <a name="step6"></a>自定义推理内容。
+6.  <a name="step6"></a>自定义推理内容。
 
-    - 用户可以通过以下方式直接调用run\_pa.py脚本，通过传入参数的方式自定义推理内容及推理方式。
+    -  用户可以通过以下方式直接调用run\_pa.py脚本，通过传入参数的方式自定义推理内容及推理方式。
 
         例如：使用/data/Llama-3-8b路径下的权重，使用8卡推理"What's deep learning?"和"Hello World."，推理时batch size为2。
 
@@ -88,7 +89,7 @@
         > [!NOTE]说明
         > 环境变量说明请参见[环境变量说明](environment_variable.md)。
 
-    - 用户可以通过传入Token id的方式进行推理。
+    -  用户可以通过传入Token id的方式进行推理。
 
         新建一个py脚本（如test.py）用于生成Token id：
 
@@ -151,7 +152,9 @@
         |--max_loras|否|int|0|LoRA场景中，定义最多可存储的LoRA数量。动态LoRA场景下必须配置，静态LoRA场景中可以不配置。若传入数值过大，由于预留了过多权重空间，会出现out_of_memory报错信息，例如: "RuntimeError: NPU out of memory. Tried to allocate xxx GiB."|
         |--max_lora_rank|否|int|0|动态加载卸载LoRA场景中，定义最大LoRA秩。动态LoRA场景下必须配置，静态LoRA场景中可以不配置。若传入数值过大，由于预留了过多权重空间，会出现out_of_memory报错信息，例如: "RuntimeError: NPU out of memory. Tried to allocate xxx GiB."|
 
+
         > [!NOTE]说明
+
         > 此章节中的run\_pa.py脚本用于纯模型快速测试，脚本中未增加强校验，出现异常情况时，会直接抛出异常信息。例如：
         > - nput\_texts、input\_ids、input\_file、input\_dict参数包含推理内容，程序进行数据处理的时间和传入数据量成正比。同时这些输入会被转换成token id搬运至NPU，传入数据量过大可能会导致这些NPU tensor占用显存过大，而出现由out of memory导致的报错信息，例如："req: xx input length: xx is too long, max\_prefill\_tokens: xx"等报错信息。
         > - chat\_template参数可以使用两种形式输入：模板文本或模板文件的路径。当以模板文本输入时，若文本长度过大，可能会导致运行缓慢。
@@ -159,7 +162,7 @@
         > - 脚本会基于max\_position\_embeddings参数，申请旋转位置编码和attention mask等NPU tensor，若用户传入数值过大，会出现由out of memory导致的报错信息，例如："RuntimeError: NPU out of memory. Tried to allocate xxx GiB."。
         > - block\_size参数若小于张量并行场景下每张卡实际分到的注意力头个数，会出现由shape不匹配导致的报错（"Setup fail, enable log: export ASDOPS\_LOG\_LEVEL=ERROR, export ASDOPS\_LOG\_TO\_STDOUT=1 to find the first error. For more details, see the MindIE official document."），需开启日志查看详细信息。
 
-7. 测试性能。
+7.  测试性能。
 
     开启ATB\_LLM\_BENCHMARK\_ENABLE环境变量后，将统计模型首Token、增量Token及端到端推理时延。
 
@@ -174,15 +177,16 @@
     > [!NOTE]说明 
     > 性能测试后，可使用msprof工具，进行性能数据采集和性能数据分析，达到性能调优目的。msprof工具的使用可参见《性能调优工具》的“[msprof命令行工具](https://www.hiascend.com/document/detail/zh/mindstudio/700/T&ITools/Profiling/atlasprofiling_16_0010.html)”章节。
 
+ 
 ## ATB Models服务化使用 
 
 ### 前提条件
 
 已在环境上安装CANN、PyTorch、Torch-NPU、ATB Models、MindIE LLM和MindIE Motor，详情请参见《MindIE安装指南》。
 
-### 使用实例
+## 使用实例
 
-1. 设置环境变量。
+1.  设置环境变量。
 
     若安装路径为默认路径，可以运行以下命令初始化各组件环境变量。
 
@@ -198,7 +202,7 @@
     source /usr/local/Ascend/mindie/latest/mindie-service/set_env.sh
     ```
 
-2. 启动服务化并发送请求。
+2.  启动服务化并发送请求。
 
     MindIE服务化使用方法请参考《MindIE Motor开发指南》中的“快速入门 \> [启动服务](https://gitcode.com/Ascend/MindIE-Motor/blob/dev/docs/zh/user_guide/quick_start.md)”章节。服务化参数配置请参考[配置参数说明（服务化）](service_parameter_configuration.md)。
 

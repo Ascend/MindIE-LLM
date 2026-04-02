@@ -3,7 +3,6 @@
 > ⚠️ 本模型仓库已迁移至 `atb_models/examples/models/embedding`，请参考新仓库的[README](../../embedding/README.md)
 
 # 特性矩阵
-
 - 此矩阵罗列了各bge-large-zh模型支持的特性
 
 | 模型及参数量       | 800I A2 Tensor Parallelism | 300I DUO Tensor Parallelism | FP16 | BF16 | Flash Attention | Paged Attention | W8A8量化 | W8A16量化 | KV cache量化 | 稀疏量化 | MOE量化 | MindIE Service | TGI | 长序列 |
@@ -140,7 +139,6 @@ git checkout master
 可在以下方法中任选一种获取开源模型权重
 
 - 使用命令行获取
-
   - ```shell
     mkdir ${weight_path}
     cd ${script_path}
@@ -149,7 +147,6 @@ git checkout master
     git clone https://huggingface.co/BAAI/bge-large-zh-v1.5
     mv bge-large-zh-v1.5 ${weight_path}
     ```
-
 - 访问[模型页面](https://huggingface.co/BAAI/bge-large-zh-v1.5/tree/main)获取
   - 下载 `HuggingFace` 原始模型所有文件至 `${weight_path}` 目录
 
