@@ -464,13 +464,9 @@ bool SingleReqInferInterfaceBase::GenerateInferRequest(std::string &msg) noexcep
     if (inputParam->maxNewTokens > 0) {
         int maxOutputLen = inputParam->maxNewTokens - static_cast<int>(inputParam->outputLenOffset);
         if (maxOutputLen < 0) {
-            if (inputParam->thinkingBudget.has_value() && inputParam->thinkingBudget.value() > 0) {
-                maxOutputLen = 0;
-            } else {
-                msg = "MaxNewTokens is less than already generated tokens. The requestId is " + std::string(requestId_);
-                MINDIE_LLM_LOG_ERROR(msg);
-                return false;
-            }
+            msg = "MaxNewTokens is less than already generated tokens. The requestId is " + std::string(requestId_);
+            MINDIE_LLM_LOG_ERROR(msg);
+            return false;
         }
         request_->maxOutputLen = static_cast<uint64_t>(maxOutputLen);
     }
