@@ -672,11 +672,6 @@ void ServerConfigManager::SetPluginEnabled(bool enabled)
     serverConfig_.pluginEnabled = enabled;
 }
 
-void ServerConfigManager::SetMtpEnabled(bool enabled)
-{
-    serverConfig_.mtpEnabled = enabled;
-}
-
 void ServerConfigManager::SetDeepseekEnabled(bool enabled)
 {
     serverConfig_.deepseekEnabled = enabled;

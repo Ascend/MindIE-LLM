@@ -23,7 +23,6 @@ __all__ = [
     "StructuredOutputType",
     # Utils
     "apply_token_bitmask_inplace",
-    "parse_bitmask_allowed_tokens",
 ]
 
 from .structured_output_grammar import (
@@ -39,5 +38,4 @@ from .structured_output_manager import (
     GuidedDecodingBackendType,
     StructuredOutputConfig,
     StructuredOutputManager,
-    parse_bitmask_allowed_tokens,
 )
