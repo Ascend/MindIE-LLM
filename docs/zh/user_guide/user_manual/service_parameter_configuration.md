@@ -152,7 +152,6 @@
 |maxPreemptCount|uint32_t|[0, maxBatchSize]，当取值大于0时，cpuMemSize取值不可为0。|必填，默认值：0。<br>每一批次最大可抢占请求的上限，即限制一轮调度最多抢占请求的数量，最大上限为maxBatchSize，取值大于0则表示开启可抢占功能。|
 |maxQueueDelayMicroseconds|uint32_t|[500, 1000000]|必填，默认值：5000。<br>在队列中的请求数量达到最大maxBatchSize、maxPrefillBatchSize或maxPrefillTokens前，请求在队列中的最大等待时间，单位：us。<br>只要等待时间达到该值，即使请求数量未达到最大maxBatchSize、maxPrefillBatchSize或maxPrefillTokens，也要进行下一次推理。|
 |maxFirstTokenWaitTime|uint32_t|[0, 3600000]|选填，默认值：2500，单位：ms。<br>请求到达后的最长排队时间。达到该等待时间后，将允许本轮调度抢占请求，缩短首token时延。<br>PD分离场景下该字段配置不生效。|
-|maxBeamWidth|uint32_t|[1, 8192], 且必须小于或等于maxBatchSize参数的取值。|选填，默认值：128。<br>Beam search支持的最大采样并行数。<br>请求中携带的n的参数值不能超过maxBeamWidth的值。|
 
 ## LogConfig参数说明
 
