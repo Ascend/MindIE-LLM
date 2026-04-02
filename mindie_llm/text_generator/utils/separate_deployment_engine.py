@@ -759,17 +759,13 @@ class SeparateDeploymentWorker:
         """
         填充窗口线程:持续从link_queue获取任务尝试，创建链接并填充到窗口
         """
-        time_wait = False
         while True:
             # 检查窗口是否已满
             with self.window_cond:
                 if len(self.window) >= self.window_size:
-                    time_wait = True
-
-            if time_wait:  # 窗口满时短暂休眠
-                time_wait = False
-                time.sleep(0.1)
-                continue
+                    time.sleep(0.1)  # 窗口满时短暂休眠
+                    continue
+            
             # 从队列获取任务
             link_item = None
             with self.link_queue_cond:
