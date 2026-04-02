@@ -358,13 +358,6 @@ static void InitbackendConfig(EngineConfig &engineConfig, const BackendConfig &b
     engineConfig.lwdMultiNodesEnable = backendConfig.lwdMultiNodesEnable;
 }
 
-static bool CheckJsonDepthCallback(int depth, Json::parse_event_t ev, [[maybe_unused]] Json& obj)
-{
-    return CheckJsonDepthWithLogger(depth, ev, [depth]() {
-        MINDIE_LLM_LOG_INFO("Failed to parse json: depth is " << depth <<  ", limit is " << GetJsonDepthLimit());
-    });
-}
-
 static void UpdateFromEnv(std::set<size_t> &npuDeviceIds, uint32_t modelInstanceId)
 {
     auto envPtr = std::getenv(ENV_NPU_DEVICE_IDS.c_str());

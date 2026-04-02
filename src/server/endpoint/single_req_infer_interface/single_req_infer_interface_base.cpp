@@ -25,9 +25,8 @@
 #include "random_generator.h"
 #include "parameters_checker.h"
 #include "config_manager_impl.h"
-#include "json_util.h"
+#include "safe_io.h"
 #include "safe_path.h"
-
 using OrderedJson = nlohmann::ordered_json;
 
 namespace mindie_llm {
@@ -1083,7 +1082,7 @@ bool SingleReqInferInterfaceBase::DecodeSingleToken(std::vector<int64_t> &tokenI
         return false;
     }
     try {
-        Json resultJson = Json::parse(inferResult, CheckJsonDepthCallback);
+        Json resultJson = Json::parse(inferResult, CheckJsonDepthCallbackUlog);
         if (JsonParse::JsonContainItemWithType(resultJson, "content", Json::value_t::string, err) &&
             !resultJson["content"].get<std::string>().empty()) {
             output = resultJson["content"];

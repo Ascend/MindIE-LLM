@@ -20,6 +20,7 @@
 #include "common_util.h"
 #include "base64_util.h"
 #include "config_manager_impl.h"
+#include "safe_io.h"
 
 using OrderedJson = nlohmann::ordered_json;
 

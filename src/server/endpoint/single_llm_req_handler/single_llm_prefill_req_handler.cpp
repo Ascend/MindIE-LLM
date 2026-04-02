@@ -25,7 +25,7 @@
 #include "env_util.h"
 #include "dmi_role.h"
 #include "config_manager_impl.h"
-#include "json_util.h"
+#include "safe_io.h"
 
 using namespace prefillAndDecodeCommunication;
 using OrderedJson = nlohmann::ordered_json;

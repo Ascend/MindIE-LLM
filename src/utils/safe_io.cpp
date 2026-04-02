@@ -69,10 +69,31 @@ bool CheckJsonDepthWithLogger(int depth, Json::parse_event_t ev, std::function<v
     return true;
 }
 
-bool CheckJsonDepthCallbackNoLogger(int depth, Json::parse_event_t ev, [[maybe_unused]] Json& obj)
+bool CheckJsonDepthCallbackNoLogger(int depth, Json::parse_event_t ev, Json& obj)
 {
-    return CheckJsonDepthWithLogger(depth, ev, [depth]() {
-        std::cerr << "Failed to parse json: depth is " << depth <<  ", limit is " << GetJsonDepthLimit();
+    return CheckJsonDepthWithLogger(depth, ev, [depth, &obj]() {
+        std::cerr << "Failed to parse json: depth is " << depth <<  ", object is " << sizeof(obj);
+    });
+}
+
+bool CheckJsonDepthCallback(int depth, Json::parse_event_t ev, Json& obj)
+{
+    return CheckJsonDepthWithLogger(depth, ev, [depth, &obj]() {
+        std::cerr << "Failed to parse json: depth is " << depth <<  ", object is " << sizeof(obj);
+    });
+}
+
+bool CheckJsonDepthCallbackUlog(int depth, Json::parse_event_t ev, Json& obj)
+{
+    return CheckJsonDepthWithLogger(depth, ev, [depth, &obj]() {
+        std::cerr << "Failed to parse json: depth is " << depth <<  ", object is " << sizeof(obj);
+    });
+}
+
+bool CheckOrderedJsonDepthCallback(int depth, OrderedJson::parse_event_t ev, OrderedJson& obj)
+{
+    return CheckJsonDepthWithLogger(depth, ev, [depth, &obj]() {
+        std::cerr << "Failed to parse json: depth is " << depth <<  ", object is " << sizeof(obj);
     });
 }
 
