@@ -37,7 +37,7 @@ from mindie_llm.utils.decorators.time_decorator import timer
 from mindie_llm.utils.env import ENV
 from mindie_llm.utils.log import logger, HandlerType
 from mindie_llm.utils.prof.profiler import span_start, span_end, span_req, span_attr, count_block
-from mindie_llm.utils.log.error_code import ErrorCodeException, convert_exception_to_error_code, is_force_stop_exception
+from mindie_llm.utils.log.error_code import ErrorCodeException, convert_exception_to_error_code
 
 if TYPE_CHECKING:
     from mindie_llm.text_generator.utils import (
@@ -244,10 +244,6 @@ class PluginManager:
         except Exception as e:
             if self.is_inference_pause:
                 logger.info(f"Mocking response due to inference pause for trace_ids={trace_ids}.")
-                # Check for FORCE STOP exception and notify generator_backend if it's GeneratorTorch
-                if is_force_stop_exception(e):
-                    logger.info(f"FORCE STOP exception detected in plugin_manager.generate_token: {e}")
-                    self.generator_backend.notify_force_stop_exception()
                 return GenerationOutput.make_empty()
             logger.exception(
                 f"Error encountered in generate_token (trace_ids={trace_ids}). "
@@ -657,11 +653,6 @@ class PluginManager:
                 )
             except Exception as e:
                 trace_ids = getattr(model_input_wrapper, 'trace_ids', 'unknown')
-
-                # Check for FORCE STOP exception and notify generator_backend if it's GeneratorTorch
-                if is_force_stop_exception(e):
-                    logger.info(f"FORCE STOP exception detected in plugin_manager.forward_loop: {e}")
-                    self.generator_backend.notify_force_stop_exception()
 
                 error_code = convert_exception_to_error_code(str(e))
 
