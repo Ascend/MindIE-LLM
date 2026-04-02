@@ -25,6 +25,7 @@
 #include "memory_utils.h"
 #include "config_manager_impl.h"
 #include "safe_io.h"
+#include "safe_envvar.h"
 
 using json = nlohmann::json;
 
@@ -37,6 +38,76 @@ static constexpr time_t DECODE_WAIT_TIME = 60;  // Decode等待时长
 static constexpr time_t WAIT_TIME = 60;         // Encode等待时长
 static constexpr time_t MIN_WAIT_TIME = 5;
 static constexpr time_t MAX_WAIT_TIME = 300;
+
+static void InitMultimodalLimitEnv()
+{
+    const auto &serverConfig = ConfigManager::GetInstance().GetServerConfig();
+    const auto &multimodalConfig = serverConfig.multimodalConfig;
+    ULOG_INFO(SUBMODLE_NAME_TOKENIZER, "Init multimodal env from config: image="
+        << multimodalConfig.maxImageFileSizeMB << "MB, audio="
+        << multimodalConfig.maxAudioFileSizeMB << "MB, video="
+        << multimodalConfig.maxVideoFileSizeMB << "MB, total="
+        << multimodalConfig.maxTotalMediaSizeMB << "MB, pixels="
+        << multimodalConfig.maxImagePixels);
+
+    auto setResult = EnvVar::GetInstance().Set(MINDIE_LLM_MAX_IMAGE_FILE_SIZE_MB,
+        std::to_string(multimodalConfig.maxImageFileSizeMB));
+    if (!setResult.IsOk()) {
+        ULOG_ERROR(SUBMODLE_NAME_TOKENIZER, GenerateTokenizerErrCode(ERROR, SUBMODLE_FEATURE_TOKENIZER,
+            INIT_ERROR), "Failed to set env MINDIE_LLM_MAX_IMAGE_FILE_SIZE_MB: " << setResult.message());
+    }
+
+    setResult = EnvVar::GetInstance().Set(MINDIE_LLM_MAX_AUDIO_FILE_SIZE_MB,
+        std::to_string(multimodalConfig.maxAudioFileSizeMB));
+    if (!setResult.IsOk()) {
+        ULOG_ERROR(SUBMODLE_NAME_TOKENIZER, GenerateTokenizerErrCode(ERROR, SUBMODLE_FEATURE_TOKENIZER,
+            INIT_ERROR), "Failed to set env MINDIE_LLM_MAX_AUDIO_FILE_SIZE_MB: " << setResult.message());
+    }
+
+    setResult = EnvVar::GetInstance().Set(MINDIE_LLM_MAX_VIDEO_FILE_SIZE_MB,
+        std::to_string(multimodalConfig.maxVideoFileSizeMB));
+    if (!setResult.IsOk()) {
+        ULOG_ERROR(SUBMODLE_NAME_TOKENIZER, GenerateTokenizerErrCode(ERROR, SUBMODLE_FEATURE_TOKENIZER,
+            INIT_ERROR), "Failed to set env MINDIE_LLM_MAX_VIDEO_FILE_SIZE_MB: " << setResult.message());
+    }
+
+    setResult = EnvVar::GetInstance().Set(MINDIE_LLM_MAX_TOTAL_MEDIA_SIZE_MB,
+        std::to_string(multimodalConfig.maxTotalMediaSizeMB));
+    if (!setResult.IsOk()) {
+        ULOG_ERROR(SUBMODLE_NAME_TOKENIZER, GenerateTokenizerErrCode(ERROR, SUBMODLE_FEATURE_TOKENIZER,
+            INIT_ERROR), "Failed to set env MINDIE_LLM_MAX_TOTAL_MEDIA_SIZE_MB: " << setResult.message());
+    }
+
+    setResult = EnvVar::GetInstance().Set(MINDIE_LLM_MAX_IMAGE_PIXELS,
+        std::to_string(multimodalConfig.maxImagePixels));
+    if (!setResult.IsOk()) {
+        ULOG_ERROR(SUBMODLE_NAME_TOKENIZER, GenerateTokenizerErrCode(ERROR, SUBMODLE_FEATURE_TOKENIZER,
+            INIT_ERROR), "Failed to set env MINDIE_LLM_MAX_IMAGE_PIXELS: " << setResult.message());
+    }
+}
+
+static void SyncPythonMultimodalLimitEnv()
+{
+    const auto &multimodalConfig = ConfigManager::GetInstance().GetServerConfig().multimodalConfig;
+    pybind11::module_ osModule = pybind11::module_::import("os");
+    pybind11::object environ = osModule.attr("environ");
+    pybind11::object setItem = environ.attr("__setitem__");
+    pybind11::object putenv = osModule.attr("putenv");
+
+    const std::vector<std::pair<const char *, std::string>> envItems = {
+        {MINDIE_LLM_MAX_IMAGE_FILE_SIZE_MB, std::to_string(multimodalConfig.maxImageFileSizeMB)},
+        {MINDIE_LLM_MAX_AUDIO_FILE_SIZE_MB, std::to_string(multimodalConfig.maxAudioFileSizeMB)},
+        {MINDIE_LLM_MAX_VIDEO_FILE_SIZE_MB, std::to_string(multimodalConfig.maxVideoFileSizeMB)},
+        {MINDIE_LLM_MAX_TOTAL_MEDIA_SIZE_MB, std::to_string(multimodalConfig.maxTotalMediaSizeMB)},
+        {MINDIE_LLM_MAX_IMAGE_PIXELS, std::to_string(multimodalConfig.maxImagePixels)}
+    };
+
+    for (const auto &envItem : envItems) {
+        setItem(envItem.first, envItem.second);
+        putenv(envItem.first, envItem.second);
+    }
+    ULOG_INFO(SUBMODLE_NAME_TOKENIZER, "Synchronized multimodal limits into Python os.environ.");
+}
 
 static std::string GetModelConfigString()
 {
@@ -416,6 +487,7 @@ bool TokenizerProcessPool::InitTokenizerPool()
     backendType_ = modelDeployParam[0].backendType;
     trustRemoteCode_ = modelDeployParam[0].trustRemoteCode;
     tokenizerNumber_ = GetBackendConfig().tokenizerProcessNumber;
+    InitMultimodalLimitEnv();
     return InitSharedMemory(parentPid) && InitProcesses();
 }
 
@@ -1025,6 +1097,7 @@ bool TokenizerProcessPool::InitSubProcessTokenizer(const std::shared_ptr<ShareTo
     }
     try {
         header->sems.step = detail::E_SEM_STEP_BIND_START;
+        SyncPythonMultimodalLimitEnv();
         pybind11::module module = pybind11::module_::import("mindie_llm.tokenizer");
         if (!pybind11::hasattr(module, "IbisTokenizer")) {
             header->sems.step = detail::E_SEM_STEP_BIND_NO_IBIS;

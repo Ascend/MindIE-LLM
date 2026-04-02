@@ -39,6 +39,14 @@ struct KvPoolConfig {
     std::string configPath;
 };
 
+struct MultimodalConfig {
+    uint32_t maxImageFileSizeMB = 20U;
+    uint32_t maxAudioFileSizeMB = 20U;
+    uint32_t maxVideoFileSizeMB = 512U;
+    uint32_t maxTotalMediaSizeMB = 1000U;
+    uint32_t maxImagePixels = 10000U * 10000U;
+};
+
 struct ServerConfig {
     // 以下为endpoint相关内容
     std::string ipAddress = "127.0.0.1";
@@ -63,6 +71,7 @@ struct ServerConfig {
     uint64_t tokenTimeout = 600;
     uint64_t e2eTimeout = 600;
     uint32_t maxRequestLength = 40U;
+    MultimodalConfig multimodalConfig{};
     // pd分离
     int32_t interCommPort = 1211;
     bool interCommTLSEnabled = true;
