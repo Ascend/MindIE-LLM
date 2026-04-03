@@ -143,6 +143,10 @@ function fn_run_pythontest()
  	    wait $pid
  	done   
 
+    export MINDIE_LLM_FRAMEWORK_BACKEND='ms'
+    pytest ${PROJECT_DIR}/tests/pythontest/mindspore --cov=${PROJECT_DIR}/mindie_llm --cov-branch --cov-append \
+    --cov-report xml:coverage.xml --cov-report html --continue-on-collection-errors --forked
+
     # 提取每个文件的行覆盖率
     grep -o '<class name="[^"]*" filename="[^"]*" complexity="[^"]*" line-rate="[^"]*" branch-rate="[^"]*">' coverage.xml |
     while read -r line; do

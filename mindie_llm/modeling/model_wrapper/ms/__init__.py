@@ -7,17 +7,3 @@
 # EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
 # MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
 # See the Mulan PSL v2 for more details.
-from enum import Enum
-
-
-class BackendType(str, Enum):
-    ATB = 'atb'
-    MS = 'ms'
-    TORCH = 'torch'
-
-    @classmethod
-    def from_string(cls, value: str, default: "BackendType" = None) -> "BackendType":
-        try:
-            return cls(value)
-        except ValueError:
-            return default if default is not None else cls.TORCH

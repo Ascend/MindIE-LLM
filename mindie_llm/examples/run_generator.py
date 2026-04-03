@@ -76,7 +76,9 @@ class GeneratorRunner:
         npu_id = kwargs.get('npu_id')
         self.npu_id = npu_id if npu_id is not None else self.local_rank
 
-        self.backend_type = BackendType.ATB
+        backend_type = kwargs.get('backend_type', 'atb')
+        self.backend_type = BackendType.MS if backend_type and backend_type.lower() == BackendType.MS \
+            else BackendType.ATB
         self.load_tokenizer = kwargs.get('load_tokenizer')
         self.plugin_params = kwargs.get('plugin_params')
 
@@ -237,7 +239,7 @@ class GeneratorRunner:
                 input_texts = inputs
             elif isinstance(inputs[0], backend.Tensor):
                 input_ids = inputs
-                print_log(self.rank, logger.info, "input is torch tensor")
+                print_log(self.rank, logger.info, "input is mindspore tensor or torch tensor")
             elif isinstance(inputs[0], list) and inputs[0]:
                 if isinstance(inputs[0][0], int):
                     input_ids = inputs

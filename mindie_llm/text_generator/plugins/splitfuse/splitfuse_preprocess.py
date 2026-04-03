@@ -20,6 +20,8 @@ class SplitFusePreprocess:
         self.infer_context = infer_context
         self.model_wrapper = model_wrapper
         self.kvcache_settings = kvcache_settings
+        if ENV.framework_backend == BackendType.MS:
+            self.model_wrapper.device = None
         self.device = self.model_wrapper.device
         self.is_300i = False
         if ENV.framework_backend == BackendType.ATB:
@@ -34,6 +36,8 @@ class SplitFusePreprocess:
         hit_mask=None
     ):
         req_mask = None
+        if ENV.framework_backend == BackendType.MS:
+            return req_mask
         if input_metadata.is_prefill:
             kv_device = self.model_wrapper.device
             if self.is_300i:
