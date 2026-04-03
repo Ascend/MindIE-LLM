@@ -465,7 +465,7 @@ class IbisTokenizer:
                               "current_tool_arguments_sent": kwargs.get("current_tool_arguments_sent", False),
                               "current_tool_id": kwargs.get("current_tool_id", -1),
                               "reasoning_tokens": kwargs.get("reasoning_tokens", -1),
-                              "tools": tools, "req_end_flag": kwargs.get("req_end_flag", False),
+                              "tools": tools
                               })
             input_kwargs.update({"prev_decode_index": pre_index, "curr_decode_index": current_index})
             input_kwargs.update({"metadata": meta_data})
