@@ -25,7 +25,6 @@ from urllib3.util import parse_url
 
 from .tokenizer_log import logger
 from . import file_utils
-from .media_limits import get_max_image_file_size_bytes, get_max_image_file_size_mb
 
 
 _CHUNK_SIZE = 1024 * 1024
@@ -121,9 +120,9 @@ def fetch_media_url(image_url, input_type: str, ext: str, limit_params: tuple,
 
 
 def save_image(image_byte_data, image_save_path):
-    single_image_limit = get_max_image_file_size_bytes()
+    single_image_limit = 20 * 1024 * 1024  # 20 MB
     if len(image_byte_data) > single_image_limit:
-        raise ValueError(f'The size of image cannot exceed {get_max_image_file_size_mb()}MB')
+        raise ValueError('The size of image cannot exceed 20MB')
     try:
         # Image.open will check whether the binary content is a valid picture content.
         # verify() can check the integrity of content.

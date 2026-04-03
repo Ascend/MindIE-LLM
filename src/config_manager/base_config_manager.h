@@ -153,10 +153,6 @@ private:
 
     void InitLayerwiseDisaggregatedConfigFromJson(Json &serveJsonData);
 
-    void LoadMultimodalConfig(Json &serverParamsJsonData);
-
-    void InitOptionalHttpsConfig(Json &serverParamsJsonData);
-
     void LoadOptionalParameters(Json& serverParamsJsonData);
     
     std::string GetIPAddress(Json &serveJsonData);

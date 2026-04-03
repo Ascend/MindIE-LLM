@@ -55,7 +55,6 @@ static std::vector<ParamSpec> g_serverParamsConstraint = {
     {"tokenTimeout", "int32_t", true},
     {"e2eTimeout", "int32_t", true},
     {"maxRequestLength", "uint32_t", false},
-    {"MultimodalConfig", "object", false},
     {"distDPServerEnabled", "bool", false},
     {"maxJsonDepth", "uint32_t", false},
     {"layerwiseDisaggregated", "bool", false},
@@ -64,11 +63,6 @@ static std::vector<ParamSpec> g_serverParamsConstraint = {
     {"layerwiseDisaggregatedSlaveIpAddress", "array", false},
     {"layerwiseDisaggregatedDataPort", "int32_t", false},
     {"layerwiseDisaggregatedCrtlPort", "array", false}};
-
-namespace {
-constexpr uint32_t MAX_MEDIA_FILE_SIZE_MB = 2048U;
-constexpr uint32_t MAX_IMAGE_PIXELS = 400000000U;
-}
 
 void ServerConfigManager::InitHttpsConfigFromJson(Json &serveJsonData, bool loadManagementSSL)
 {
@@ -337,7 +331,6 @@ void ServerConfigManager::LoadOptionalParameters(Json& serverParamsJsonData)
             JSON_DEPTH_LIMIT_MAX, JSON_DEPTH_LIMIT_MIN, "serverConfig.maxJsonDepth"));
         SetJsonDepthLimit(static_cast<int>(serverConfig_.maxJsonDepth));
     }
-    LoadMultimodalConfig(serverParamsJsonData);
     if (serverParamsJsonData.contains("HealthCheckConfig") &&
         serverParamsJsonData["HealthCheckConfig"].contains("npuUsageThreshold")) {
         serverConfig_.npuUsageThreshold = serverParamsJsonData["HealthCheckConfig"]["npuUsageThreshold"];
@@ -358,68 +351,23 @@ void ServerConfigManager::LoadOptionalParameters(Json& serverParamsJsonData)
     if (serverConfig_.interCommTLSEnabled) {
         InitDMIHttpsConfigFromJson(serverParamsJsonData);
     }
-    InitOptionalHttpsConfig(serverParamsJsonData);
+    if (serverConfig_.httpsEnabled) {
+        bool checkManagement = true;
+        if (serverConfig_.managementIpAddress == serverConfig_.ipAddress &&
+            serverConfig_.managementPort == serverConfig_.port &&
+            serverConfig_.managementPort == serverConfig_.metricsPort) {
+            checkManagement = false;
+        }
+        try {
+            InitHttpsConfigFromJson(serverParamsJsonData, checkManagement);
+        } catch (const nlohmann::json::type_error &e) {
+            std::cout << "JSON type error: " << "[ServerConfigManager::InitFromJson] " << e.what() << std::endl;
+            initFlag = false;
+            return;
+        }
+    }
     serverConfig_.openAiSupportedvLLM = !(serverParamsJsonData.contains("openAiSupport") &&
         std::string(serverParamsJsonData["openAiSupport"]) != "vllm");
-}
-
-void ServerConfigManager::LoadMultimodalConfig(Json &serverParamsJsonData)
-{
-    if (!serverParamsJsonData.contains("MultimodalConfig")) {
-        return;
-    }
-
-    auto &multimodalConfig = serverParamsJsonData["MultimodalConfig"];
-    if (multimodalConfig.contains("maxImageFileSizeMB")) {
-        serverConfig_.multimodalConfig.maxImageFileSizeMB = multimodalConfig["maxImageFileSizeMB"];
-        CHECK_CONFIG_VALIDATION(initFlag, ParamChecker::CheckMaxMinValue<uint32_t>(
-            serverConfig_.multimodalConfig.maxImageFileSizeMB, 100U, 1U,
-            "serverConfig.MultimodalConfig.maxImageFileSizeMB"));
-    }
-    if (multimodalConfig.contains("maxAudioFileSizeMB")) {
-        serverConfig_.multimodalConfig.maxAudioFileSizeMB = multimodalConfig["maxAudioFileSizeMB"];
-        CHECK_CONFIG_VALIDATION(initFlag, ParamChecker::CheckMaxMinValue<uint32_t>(
-            serverConfig_.multimodalConfig.maxAudioFileSizeMB, 100U, 1U,
-            "serverConfig.MultimodalConfig.maxAudioFileSizeMB"));
-    }
-    if (multimodalConfig.contains("maxVideoFileSizeMB")) {
-        serverConfig_.multimodalConfig.maxVideoFileSizeMB = multimodalConfig["maxVideoFileSizeMB"];
-        CHECK_CONFIG_VALIDATION(initFlag, ParamChecker::CheckMaxMinValue<uint32_t>(
-            serverConfig_.multimodalConfig.maxVideoFileSizeMB, MAX_MEDIA_FILE_SIZE_MB, 1U,
-            "serverConfig.MultimodalConfig.maxVideoFileSizeMB"));
-    }
-    if (multimodalConfig.contains("maxTotalMediaSizeMB")) {
-        serverConfig_.multimodalConfig.maxTotalMediaSizeMB = multimodalConfig["maxTotalMediaSizeMB"];
-        CHECK_CONFIG_VALIDATION(initFlag, ParamChecker::CheckMaxMinValue<uint32_t>(
-            serverConfig_.multimodalConfig.maxTotalMediaSizeMB, MAX_MEDIA_FILE_SIZE_MB, 1U,
-            "serverConfig.MultimodalConfig.maxTotalMediaSizeMB"));
-    }
-    if (multimodalConfig.contains("maxImagePixels")) {
-        serverConfig_.multimodalConfig.maxImagePixels = multimodalConfig["maxImagePixels"];
-        CHECK_CONFIG_VALIDATION(initFlag, ParamChecker::CheckMaxMinValue<uint32_t>(
-            serverConfig_.multimodalConfig.maxImagePixels, MAX_IMAGE_PIXELS, 1U,
-            "serverConfig.MultimodalConfig.maxImagePixels"));
-    }
-}
-
-void ServerConfigManager::InitOptionalHttpsConfig(Json &serverParamsJsonData)
-{
-    if (!serverConfig_.httpsEnabled) {
-        return;
-    }
-
-    bool checkManagement = true;
-    if (serverConfig_.managementIpAddress == serverConfig_.ipAddress &&
-        serverConfig_.managementPort == serverConfig_.port &&
-        serverConfig_.managementPort == serverConfig_.metricsPort) {
-        checkManagement = false;
-    }
-    try {
-        InitHttpsConfigFromJson(serverParamsJsonData, checkManagement);
-    } catch (const nlohmann::json::type_error &e) {
-        std::cout << "JSON type error: " << "[ServerConfigManager::InitFromJson] " << e.what() << std::endl;
-        initFlag = false;
-    }
 }
 
 bool ServerConfigManager::CheckParam()
@@ -443,12 +391,6 @@ bool ServerConfigManager::CheckParam()
     CHECK_CONFIG_VALIDATION(initFlag, ParamChecker::CheckMaxMinValue<int32_t>(
                                           serverConfig_.e2eTimeout, 65535U, 1U,
                                           "serverConfig.e2eTimeout")); // 65535: Max end-to-end inference timeout
-    CHECK_CONFIG_VALIDATION(initFlag,
-        serverConfig_.multimodalConfig.maxTotalMediaSizeMB >= serverConfig_.multimodalConfig.maxImageFileSizeMB);
-    CHECK_CONFIG_VALIDATION(initFlag,
-        serverConfig_.multimodalConfig.maxTotalMediaSizeMB >= serverConfig_.multimodalConfig.maxAudioFileSizeMB);
-    CHECK_CONFIG_VALIDATION(initFlag,
-        serverConfig_.multimodalConfig.maxTotalMediaSizeMB >= serverConfig_.multimodalConfig.maxVideoFileSizeMB);
     if (serverConfig_.httpsEnabled) {
         bool checkManagement = true;
         if (serverConfig_.managementIpAddress == serverConfig_.ipAddress &&
