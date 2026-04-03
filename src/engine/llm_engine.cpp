@@ -26,7 +26,7 @@
 #include "policy/stage_policy/stage_policy.h"
 #include "policy/stage_policy/edge_cloud_policy.h"
 #include "policy/dynamic_batch_recorder.h"
-#include "error_queue.h"
+
 using namespace std;
 using namespace std::chrono;
 
@@ -416,9 +416,13 @@ void LlmEngine::SchedulerThreadEntry(size_t localDPRank)
     while (!stop_) {
         // 暂停调度组batch
         if (isPauseScheduling_.load(std::memory_order_relaxed)) {
-            enginePerDP->scheduler->StopRunningRequest();
+            for (auto& engine : enginePerDPs_) {
+                if (engine && engine->scheduler) {
+                    engine->scheduler->StopRunningRequest();
+                }
+            }
+
             AbortParallelSeqGroups(localDPRank);
-            enginePerDP->scheduler->CollectAndClearAbortedParallelSeqGroups();
             std::this_thread::sleep_for(milliseconds(DEFAULT_SLEEP_TIME_BETWEEN_TWO_ITER));
             continue;
         }
@@ -515,12 +519,6 @@ void LlmEngine::SchedulerThreadEntry(size_t localDPRank)
         // 6. batch下发给Executor执行
         // 如果单dp下自身batch不空， 或者多dp下其他dp的batch不空（集中式）
         auto responseHandler = [this, enginePerDP](ModelBatchResultSPtr output) {
-            if (output->has_err_msg() && output->err_msg() != "") {
-                MINDIE_LLM_LOG_ERROR("Error code from executor: " << output->err_msg());
-                ErrorQueue::GetInstance().EnqueueErrorMessage(output->err_msg(), "LlmEngine");
-                PauseScheduling();
-                return;
-            }
             enginePerDP->modelExecOutputHandler->Entry4Executor(output);
         };
 

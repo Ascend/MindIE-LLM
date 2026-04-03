@@ -79,6 +79,13 @@ void ModelExecOutputHandler::Entry4Executor(ModelBatchResultSPtr &modelBatchResu
         throw std::runtime_error("modelBatchResult is nullptr.");
     }
 
+    if (modelBatchResult->has_err_msg() && modelBatchResult->err_msg() != "") {
+        MINDIE_LLM_LOG_ERROR("Error code from executor: " << modelBatchResult->err_msg());
+        ErrorQueue::GetInstance().EnqueueErrorMessage(
+            modelBatchResult->err_msg(), "LlmEngine");
+        return;
+    }
+
     if (modelBatchResult->outputs_size() == 0) {
         // dummy请求需要减去调度计数
         asyncBatchNum_.fetch_sub(1);
