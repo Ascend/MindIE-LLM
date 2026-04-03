@@ -521,7 +521,6 @@ void LlmEngine::SchedulerThreadEntry(size_t localDPRank)
         auto responseHandler = [this, enginePerDP](ModelBatchResultSPtr output) {
             enginePerDP->modelExecOutputHandler->Entry4Executor(output);
         };
-
         if (!scheduleOut.IsEmpty() || (isCentralizedThreadCCReady_ && seqGroupMetadata.maxBatchSize > 0)) {
             for (const auto& scheduledSeqGroup : scheduleOut.scheduledSeqGroups_) {
                 if (scheduledSeqGroup->seqGroup_->IsSimulateRequest()) {
@@ -563,6 +562,9 @@ void LlmEngine::SchedulerThreadEntry(size_t localDPRank)
             enginePerDP->scheduler->PrepareNextSchedule(scheduleOut.scheduledSeqGroups_);
             enginePerDP->modelExecOutputHandler->GetAsyncBatchNum().fetch_add(1);
 
+            // PD分离场景，Recompute的请求需要上送Recompute Response到coordinator，从P节点重新调度
+            SendRecomputeResponse(scheduleOut.recomputeSeqIds_, localDPRank);
+
             // 边云协同场景，记录batch下发的类型
             layerwiseMixin_.LwdPrepareBatch(schedulerConfig_->layerwiseDisaggregated, scheduleOut);
             layerwiseMixin_.LwdEngineAddBatchCnt(schedulerConfig_->layerwiseDisaggregated,
@@ -582,11 +584,6 @@ void LlmEngine::SchedulerThreadEntry(size_t localDPRank)
             enginePerDP->scheduler->MarkLastScheduleEmpty();
             // 供当前线程判断是否调度为空，让出cpu时间
             enginePerDP->lastScheduleEmpty = true;
-        }
-
-        if (scheduleOut.recomputeSeqIds_.size() > 0) {
-            // PD分离场景，Recompute的请求需要上送Recompute Response到coordinator，从P节点重新调度
-            SendRecomputeResponse(scheduleOut.recomputeSeqIds_, localDPRank);
         }
         // 调度下发完成，connector/TG开始执行
 
