@@ -687,7 +687,7 @@ class Generator(PDInterface):
             npu_mem = self._validate_warmup_memory(warmup_params, npu_mem)
             print_log(self.rank, logger.info,
                       f'Requested memory: {ENV.memory_fraction} (util), {gb(requested_memory):.2f} GiB'
-                      f'npu_mem: {Npu_mem} GiB')
+                      f'npu_mem: {npu_mem} GiB')
         return npu_mem
 
     def swap(self, block_operation: Any) -> None:
