@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
  * MindIE is licensed under Mulan PSL v2.
  * You can use this software according to the terms and conditions of the Mulan PSL v2.
@@ -144,7 +144,8 @@ void ModelExecOutputHandler::Entry4Executor(ModelBatchResultSPtr &modelBatchResu
     layerwiseMixin_.LwdHandlerSubBatchCnt(schedulerConfig_->layerwiseDisaggregated, stagePolicy_, lwdCurrBatchType);
 
     // 更新batch统计信息（结束时间）
-    if (schedulerConfig_->stageSelectPolicy == static_cast<uint32_t>(StagePolicyType::LATENCY_FIRST)) {
+    if (schedulerConfig_->stageSelectPolicy == static_cast<uint32_t>(StagePolicyType::LATENCY_FIRST) ||
+        schedulerConfig_->dynamicBatchSizeEnable) {
         // Use DynamicBatchRecorder to get predictor for this DP rank
         auto &recorder = DynamicBatchRecorder::GetInstance(localDPRank_);
         auto predictor = recorder.GetLatencyPredictor();
@@ -462,14 +463,10 @@ ResponseSPtr ModelExecOutputHandler::ConvertSequenceGroupOutputToResponse(
     if (bufferResponseConfig_.bufferResponseEnabled) {
         bufferedResponser_.RecordArriveTime(seqGroup->metrics_.inferReqId_, seqGroup->arriveTime);
     }
-    if (schedulerConfig_->dynamicBatchSizeEnable) {
-        // 从 output.samples(0) 获取 numOutputTokens，用于时延归一化
-        uint32_t numOutputTokens = 1;  // 默认值为 1（单 token 场景）
-        if (output.samples_size() > 0) {
-            numOutputTokens = static_cast<uint32_t>(output.samples(0).num_speculative_tokens());
-        }
-        // 以下函数可能存在并发问题，需确保 AddPercentileData() 线程安全
-        latencypredictor_->AddPercentileData(seqGroup, schedulerConfig_, numOutputTokens);
+    if (schedulerConfig_->stageSelectPolicy == static_cast<uint32_t>(StagePolicyType::LATENCY_FIRST) ||
+        schedulerConfig_->dynamicBatchSizeEnable) {
+        // 以下函数可能存在并发问题，需确保AddPercentileData()线程安全
+        latencypredictor_->AddPercentileData(seqGroup, schedulerConfig_);
     }
     // 用 CompletionSequenceGroupOutput 的内容设置 response 的各个字段
     AddOutputsToResponse(response, output);

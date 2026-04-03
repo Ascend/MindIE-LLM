@@ -32,6 +32,7 @@ void LatencyPredictor::UpdateBatchStats()
     } else if (batchStatsPtr->forwardMode == ForwardMode::DECODE) {
         decodeRegression_.AddDataPoint(batchStatsPtr->numBatchedTokens, batchStatsPtr->kvCacheBlockNum,
                                        batchStatsPtr->batchSpendTimeFloat);
+        decodeLatency_.AddDataPoint(batchStatsPtr->batchSpendTimeFloat);
     }
     batchId_.fetch_sub(1);
     MINDIE_LLM_LOG_DEBUG("UpdateBatchStats batch info: forwardMode: "
@@ -50,17 +51,14 @@ float LatencyPredictor::PredictBatchExecTime(BatchStats &batchStats)
     }
 }
 
-void LatencyPredictor::AddPercentileData(
-    SequenceGroupSPtr &seqGroup,
-    std::shared_ptr<SchedulerConfig> &schedulerConfig,
-    uint32_t numOutputTokens)
+void LatencyPredictor::AddPercentileData(SequenceGroupSPtr &seqGroup, std::shared_ptr<SchedulerConfig> &schedulerConfig)
 {
     // avoid nullptr
     if (seqGroup == nullptr) {
         return;
     }
 
-    // avoid intermediate prefill chunk
+    // // avoid intermediate prefill chunk
     if (schedulerConfig->enableChunkedPrefill) {
         return;
     }
@@ -74,13 +72,7 @@ void LatencyPredictor::AddPercentileData(
         prefillLatency_.AddDataPoint(latencyMs);
     } else {
         latencyMs = std::chrono::duration_cast<std::chrono::milliseconds>(now - seqGroup->lastCompletionTime).count();
-        // 多 token 场景：直接除法归一化（非多 token 场景 numOutputTokens=1，除以 1 不变）
-        // 避免除零：确保 numOutputTokens >= 1
-        uint32_t numTokens = (numOutputTokens > 0) ? numOutputTokens : 1;
-        float normalizedTime = static_cast<float>(latencyMs) / numTokens;
-        for (uint32_t i = 0; i < numTokens; ++i) {
-            decodeLatency_.AddDataPoint(normalizedTime);
-        }
+        decodeLatency_.AddDataPoint(latencyMs);
     }
     seqGroup->lastCompletionTime = now;
 }
