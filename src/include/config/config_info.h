@@ -52,7 +52,6 @@ struct ServerConfig {
     bool httpsEnabled = true;
     bool fullTextEnabled = false;
     bool pluginEnabled = false;
-    bool mtpEnabled = false;
     bool deepseekEnabled = false;
     std::string tlsCert;
     std::string tlsCrlPath;

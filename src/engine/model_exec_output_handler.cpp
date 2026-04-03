@@ -263,7 +263,7 @@ void ModelExecOutputHandler::HandleGreedySampling(const model_execute_data::Sequ
         }
         tokenIdx++;
 
-        // <seqid, tokenid> 入队用于更新占位符，后续会进入 predictedTokensBySeqId_ / predicted_token_ids
+        // <seqid, tokenid> 入队用于更新占位符
         if (output_token != PLACEHOLDER_TOKEN) {
             seqIdToOutputTokenQueue_.PushBack(std::pair<SequenceId, TokenId>{sample.seq_id(), output_token});
             if (seqGrp != nullptr && seqGrp->enableThinking_ && seqGrp->thinkingBudget_ > 0) {

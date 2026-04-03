@@ -325,5 +325,4 @@ class ResponseConfig(int, Enum):
     STOP_TOKEN_IDS = 3
     REACH_MAX_SEQ_LEN = 5
     REACH_MAX_OUTPUT_LEN = 6
-    REJECTED_STRUCTURED_OUTPUT = 7
     EXCEPTION_OOM = 9

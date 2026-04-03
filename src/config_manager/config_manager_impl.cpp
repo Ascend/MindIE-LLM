@@ -415,7 +415,6 @@ void ConfigManager::Impl::ExecuteConfigInteractions()
         
         // 执行插件状态检查并更新pluginEnabled字段
         ConfigInteraction::UpdatePluginEnabledStatus(modelDeployConfigs, *serverConfig_);
-        ConfigInteraction::UpdateMtpEnabledStatus(modelDeployConfigs, *serverConfig_);
         ConfigInteraction::UpdateDeepseekEnabledStatus(modelDeployConfigs, *serverConfig_);
         
         std::cout << "[ConfigManager::ExecuteConfigInteractions] Configuration interactions completed successfully" << std::endl;

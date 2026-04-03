@@ -202,12 +202,6 @@ class Sampler:
                 discarded_group_indices.append((discarded_idx, discarded_idx + num_sequences))
                 discarded_idx += num_sequences
 
-        retained_cache_ids = (
-            sampling_metadata.cache_ids[split_mask] if sampling_metadata.cache_ids is not None else None
-        )
-        discarded_cache_ids = (
-            sampling_metadata.cache_ids[~split_mask] if sampling_metadata.cache_ids is not None else None
-        )
         retained_sampling_metadata = SamplingMetadata(
             batch_sequence_ids=retained_batch_sequence_ids,
             reserved_sequence_ids=retained_reserved_sequence_ids,
@@ -216,8 +210,7 @@ class Sampler:
             all_sequence_ids=sampling_metadata.all_sequence_ids[split_mask],
             parent_sequence_ids=sampling_metadata.parent_sequence_ids[split_mask],
             group_indices=retained_group_indices,
-            to_tensor=sampling_metadata.to_tensor,
-            cache_ids=retained_cache_ids,
+            to_tensor=sampling_metadata.to_tensor
         )
         discarded_sampling_metadata = SamplingMetadata(
             batch_sequence_ids=discarded_batch_sequence_ids,
@@ -227,8 +220,7 @@ class Sampler:
             all_sequence_ids=sampling_metadata.all_sequence_ids[~split_mask],
             parent_sequence_ids=sampling_metadata.parent_sequence_ids[~split_mask],
             group_indices=discarded_group_indices,
-            to_tensor=sampling_metadata.to_tensor,
-            cache_ids=discarded_cache_ids,
+            to_tensor=sampling_metadata.to_tensor
         )
 
         attribute_keys = ['repetition_penalty', 'frequency_penalty', 'presence_penalty', 'temperature', 'top_k_array',
@@ -251,20 +243,6 @@ class Sampler:
             associated_attribute = getattr(discarded_sampling_metadata, associated_key)
             if associated_attribute is not None:
                 setattr(discarded_sampling_metadata, attribute_key, max(associated_attribute))
-
-        if sampling_metadata.guided_bitmask is not None:
-            gb = sampling_metadata.guided_bitmask
-            row_mask = np.asarray(split_mask, dtype=bool)
-            if gb.shape[0] != row_mask.size:
-                logger.warning(
-                    "[StructuredOutput][BitmaskFlow] split_sampling_metadata: guided_bitmask rows=%s "
-                    "!= split_mask len=%s, skip slicing guided_bitmask",
-                    gb.shape[0],
-                    row_mask.size,
-                )
-            else:
-                retained_sampling_metadata.guided_bitmask = gb[row_mask]
-                discarded_sampling_metadata.guided_bitmask = gb[~row_mask]
 
         return retained_sampling_metadata, discarded_sampling_metadata, retained_indices
 

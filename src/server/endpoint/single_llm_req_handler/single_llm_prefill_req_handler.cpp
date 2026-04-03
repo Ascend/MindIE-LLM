@@ -543,9 +543,6 @@ void SingleLLMPrefillReqHandler::BuildSamplingParametersNext(DecodeParameters& p
     if (inferParam_->enableThinking.has_value()) {
         params.mutable_samplingparams()->mutable_enablethinking()->set_value(inferParam_->enableThinking.value());
     }
-    if (request_->responseFormat.has_value()) {
-        params.mutable_samplingparams()->set_responseformat(request_->responseFormat.value());
-    }
     if (request_->thinkingBudget.has_value()) {
         params.mutable_samplingparams()->mutable_thinkingbudget()->set_value(request_->thinkingBudget.value());
     }
