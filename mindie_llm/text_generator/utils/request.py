@@ -94,13 +94,12 @@ class Request:
         cls,
         input_len: int,
         max_output_len: int,
-        vocab_size: int,
         max_placeholder_num: int = 1,
         warmup_topk_size: int = 1000,
         enable_warmup_sampling: bool = True
     ):
         req_id = next(Request.counter)
-        input_ids = np.random.randint(low=0, high=vocab_size, size=input_len, dtype=np.int64)
+        input_ids = np.ones(input_len, dtype=np.int64)
         sampling_params_ins = np.array([(1.1, 0.1, 0.1, 0.9, warmup_topk_size, 0.8, True, False)], SAMPLING_DTYPE)
         if not enable_warmup_sampling:
             sampling_params_ins = np.array([(1.0, 0.0, 0.0, 1.0, warmup_topk_size, 1.0, False, False)], SAMPLING_DTYPE)

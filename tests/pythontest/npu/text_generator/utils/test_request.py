@@ -46,9 +46,10 @@ class TestRequest(unittest.TestCase):
         # 测试 from_warmup 类方法
         input_len = 5
         max_output_len = 10
-        warmup_request = Request.from_warmup(input_len, max_output_len, 130000)
+        warmup_request = Request.from_warmup(input_len, max_output_len)
         
         self.assertEqual(warmup_request.req_id, 0)
+        self.assertEqual(warmup_request.input_ids.tolist(), [1, 1, 1, 1, 1])
         self.assertEqual(warmup_request.max_new_tokens, 10)
         self.assertEqual(warmup_request.input_length, input_len)
 
@@ -101,7 +102,7 @@ class TestRequest(unittest.TestCase):
         self.assertTrue(np.array_equal(request.block_tables, gold_block_table))
 
     def test_update_with_chunkprefill_features(self):
-        request = Request.from_warmup(100, 1, 130000)
+        request = Request.from_warmup(100, 1)
         
         request.update_with_features(
             is_mix_model=True,
