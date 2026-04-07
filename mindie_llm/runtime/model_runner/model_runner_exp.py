@@ -130,7 +130,8 @@ class ModelRunnerExp:
             raise ValueError(f"max_seq_len must be specified and greater than 0, but got {self._max_seq_len}")
         if self._block_size <= 0:
             raise ValueError(f"block_size must be greater than 0, but got {self._block_size}")
-        self._max_block_per_seq = (self._max_seq_len + self._block_size - 1) // self._block_size
+        # Reserve 5 extra blocks for DP, asynchronous scheduling and MTP
+        self._max_block_per_seq = (self._max_seq_len + self._block_size - 1) // self._block_size + 5
         self.is_draft_model = kwargs.get("is_draft_model", False)
         self.soc_info = get_npu_node_info()
 
