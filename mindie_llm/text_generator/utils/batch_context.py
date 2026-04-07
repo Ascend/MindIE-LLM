@@ -1071,6 +1071,9 @@ class BatchContext:
         """
         logger.debug(sampling_param_msg)
 
+        if metadata.batch_seeds is not None:
+            metadata.batch_seeds[np.vectorize(lambda x: x is None)(metadata.batch_seeds)] = 0
+
         # 刷新采样参数和top_tokens的cache
         count = 0
         for idx, cache_id in enumerate(context_handles):
@@ -1079,7 +1082,16 @@ class BatchContext:
                     prefill_req_idx[count]]
                 self.all_ndarray_context.num_top_tokens[cache_id] = num_top_tokens[
                     prefill_req_idx[count]]
+                if metadata.batch_seeds is not None:
+                    self.all_ndarray_context.seeds[cache_id] = metadata.batch_seeds[prefill_req_idx[count]]
                 count += 1
+
+        if self.context_params.generator_backend_type == BackendType.TORCH:
+            for cache_id in context_handles:
+                if cache_id not in self.all_dict_context.random_number_generators:
+                    gen = torch.Generator(device=self.device)
+                    gen.manual_seed(int(self.all_ndarray_context.seeds[cache_id]))
+                    self.all_dict_context.random_number_generators[cache_id] = gen
 
         # 如果是beamsearch场景需要计算beamsize偏移量
         all_idx = set(range(len(metadata.batch_sampling_params)))
@@ -1109,6 +1121,10 @@ class BatchContext:
             is_seq_prefill=metadata.batch_is_prefill,
             is_mix=metadata.is_mix,
             cache_ids=context_handles,
+            random_number_generators=[
+                self.all_dict_context.random_number_generators.get(idx, None)
+                for idx in context_handles
+            ]
         )
         return sampling_metadata
 

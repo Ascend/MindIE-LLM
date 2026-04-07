@@ -776,6 +776,46 @@ class TestPluginManagerPrepareMasks(unittest.TestCase):
         if 'hit_sequence_ids_mask' in result:
             self.assertTrue(result['hit_sequence_ids_mask'][0])  # 第一个元素应该命中
 
+    def test_prepare_masks_for_filling_dp_filtered_prefill_mask(self):
+        """测试_prepare_masks_for_filling - DP过滤后的prefill mask不会越界"""
+        model_inputs = Mock()
+        current_dp_sequence_ids = np.array([], dtype=np.int64)
+        input_metadata = Mock()
+        input_metadata.batch_is_prefill = np.array([True])
+        input_metadata.batch_last_prompt = None
+        input_metadata.all_sequence_ids = np.array([1], dtype=np.int64)
+        input_metadata.is_prefill = True
+
+        result = self.plugin_manager._prepare_masks_for_filling(
+            model_inputs,
+            current_dp_sequence_ids,
+            input_metadata,
+            np.array([], dtype=bool)
+        )
+
+        self.assertEqual(result, {})
+
+    def test_prepare_masks_for_filling_mix_model_dp_filtered_token_num(self):
+        """测试_prepare_masks_for_filling - mix模型使用DP过滤后的token_num_per_seq"""
+        self.plugin_manager.is_mix_model = True
+        model_inputs = Mock()
+        current_dp_sequence_ids = np.array([2, 3], dtype=np.int64)
+        input_metadata = Mock()
+        input_metadata.batch_is_prefill = np.array([False, False, False, False])
+        input_metadata.batch_last_prompt = None
+        input_metadata.all_sequence_ids = np.array([1, 2, 3, 4], dtype=np.int64)
+        input_metadata.is_prefill = False
+
+        result = self.plugin_manager._prepare_masks_for_filling(
+            model_inputs,
+            current_dp_sequence_ids,
+            input_metadata,
+            np.array([False, False]),
+            np.array([1, 1], dtype=np.int64)
+        )
+
+        np.testing.assert_array_equal(result['hit_mask_per_token'].cpu().numpy(), np.array([True, True]))
+
 
 class TestPluginManagerGetTokenNumPerSeq(unittest.TestCase):
     """测试_get_token_num_per_seq方法"""

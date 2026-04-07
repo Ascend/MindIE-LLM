@@ -334,13 +334,28 @@ class PluginManager:
             if self.generator_backend.dp > 1:
                 cur_dp_rank_id_per_token_mask = model_input.dp_rank_ids == self.generator_backend.mapping.attn_dp.rank
                 current_dp_sequence_ids = input_metadata.all_sequence_ids[cur_dp_rank_id_per_token_mask]
+                current_dp_batch_is_prefill = (
+                    input_metadata.batch_is_prefill[cur_dp_rank_id_per_token_mask]
+                    if input_metadata.batch_is_prefill is not None else None
+                )
+                current_dp_token_num_per_seq = (
+                    self._get_token_num_per_seq(input_metadata)[cur_dp_rank_id_per_token_mask]
+                    if self.is_mix_model else None
+                )
             else:
                 current_dp_sequence_ids = input_metadata.all_sequence_ids
+                current_dp_batch_is_prefill = input_metadata.batch_is_prefill
+                current_dp_token_num_per_seq = (
+                    self._get_token_num_per_seq(input_metadata)
+                    if self.is_mix_model else None
+                )
 
             filling_masks = self._prepare_masks_for_filling(
                 model_input,
                 current_dp_sequence_ids,
-                input_metadata)
+                input_metadata,
+                current_dp_batch_is_prefill,
+                current_dp_token_num_per_seq)
 
             postprocess_done = threading.Event()
             model_input_wrapper = ModelInputWrapper(
@@ -863,7 +878,14 @@ class PluginManager:
             logger.warning(f"Failed to initialize structured output manager: {e}")
             self._structured_output_enabled = False
 
-    def _prepare_masks_for_filling(self, model_inputs, current_dp_sequence_ids, input_metadata):
+    def _prepare_masks_for_filling(
+        self,
+        model_inputs,
+        current_dp_sequence_ids,
+        input_metadata,
+        current_dp_batch_is_prefill=None,
+        current_dp_token_num_per_seq=None
+    ):
         if input_metadata.batch_is_prefill is None and input_metadata.is_prefill:
             # Under forced preemption, prefill batch must not be hit.
             return {}
@@ -879,14 +901,16 @@ class PluginManager:
         else:
             masks = {}
             hit_sequence_ids_mask = np.isin(current_dp_sequence_ids, self.last_sequence_ids)
-            if input_metadata.batch_is_prefill is not None:
-                hit_sequence_ids_mask[input_metadata.batch_is_prefill] = False
+            if current_dp_batch_is_prefill is not None:
+                hit_sequence_ids_mask[current_dp_batch_is_prefill] = False
             elif input_metadata.is_prefill:
                 hit_sequence_ids_mask[:] = False
             if hit_sequence_ids_mask.any():
                 hit_sequence_ids = current_dp_sequence_ids[hit_sequence_ids_mask]
                 if self.is_mix_model:
-                    token_num_per_seq = self._get_token_num_per_seq(input_metadata)
+                    token_num_per_seq = current_dp_token_num_per_seq
+                    if token_num_per_seq is None:
+                        token_num_per_seq = self._get_token_num_per_seq(input_metadata)
                     repeating_indices = np.repeat(np.arange(len(token_num_per_seq)), token_num_per_seq)
                     hit_mask_per_token = hit_sequence_ids_mask[repeating_indices]
                     masks['hit_mask_per_token'] = self.generator_backend.to_tensor(hit_mask_per_token)
