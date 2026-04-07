@@ -17,7 +17,7 @@ MindIE镜像获取请参见[镜像安装方式](../user_guide/install/source/ima
 
 ## 编译安装
 
-1. 安装Python工具。MindIE-LLM 支持 **Python == 3.11**。
+1. 安装Python工具。MindIE-LLM 支持 **Python == 3.10** 或 **Python == 3.11**。
 
     ```bash
     pip install --upgrade pip
@@ -42,7 +42,9 @@ MindIE镜像获取请参见[镜像安装方式](../user_guide/install/source/ima
 
     ```bash
     TORCH_PATH=$(python3 -c "import torch, os; print(os.path.dirname(torch.__file__))")
+    TORCH_NPU_PATH=$(python3 -c "import torch_npu, os; print(os.path.dirname(torch_npu.__file__))")
     export LD_LIBRARY_PATH=${TORCH_PATH}/lib:${TORCH_PATH}/../torch.libs:$LD_LIBRARY_PATH
+    export PYTORCH_NPU_INSTALL_PATH=${TORCH_NPU_PATH}
     ```
 
     可选：指定生成 `.whl` 包的版本号：
@@ -71,7 +73,8 @@ MindIE镜像获取请参见[镜像安装方式](../user_guide/install/source/ima
     umask $old_umask
     ```
 
-7. 编译ATB_Models的 `.whl` 包。
+7. 编译ATB_Models的 `.whl` 包。（注意：使用 Python 3.10 时需配套 torch 2.9.0 + torch_npu 2.9.0,
+并确保 _bz2 模块正常，缺失会导致编译失败）
 
     ```bash
     cd example/atb_models
