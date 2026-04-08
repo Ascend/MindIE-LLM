@@ -757,6 +757,8 @@ class PluginManager:
 
                 if self.is_inference_pause or self.error_code_collected_in_async is not None:
                     logger.info(f"Mocking response due to inference pause for trace_ids={trace_ids}.")
+                    if self.error_code_collected_in_async and launch_done is not None:
+                        launch_done.set()
                     model_output_wrapper = ModelOutputWrapper(
                         cache_ids=model_input_wrapper.cache_ids,
                         input_metadata=model_input_wrapper.input_metadata,
