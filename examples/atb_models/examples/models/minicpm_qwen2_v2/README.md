@@ -6,7 +6,6 @@
 # 使用说明
 
 ## 特性矩阵
-
 | 模型及参数量                     | 800I A2 Tensor Parallelism | 300I DUO Tensor Parallelism | FP16 | 800I A2 BF16 | MindIE Service | 纯模型支持模态 | 服务化支持模态    |
 |----------------------------|------------|---------------------------|------|------------|----------------|---------|------------|
 | MiniCPM-V-2_6, 8B | 支持 TP 1、2、4、8      | 支持 TP 1、2           | √    | √          | √              | 文本、图片、视频   | 单轮对话/多轮对话 | 
@@ -25,8 +24,10 @@
 | max_input_length  | 多模态模型的最大embedding长度。 |
 | max_output_length | 生成的最大token数                                                                                                                                                    |
 
-## 推理
 
+
+
+## 推理
 **权重下载**
 
 - [MiniCPM-V-2_6](https://huggingface.co/openbmb/MiniCPM-V-2_6/tree/main)
@@ -36,10 +37,8 @@
 将权重目录中的resampler.py拷贝到${llm_path}/examples/atb_models/atb_llm/models/minicpm_qwen2_v2目录下
 
 **基础环境变量**
-
 - 1.Toolkit, MindIE/ATB, ATB-SPEED等，参考[此README文件](../../../README.md)
 - 2.Python其他第三方库依赖，参考[requirements_minicpm_qwen2_v2.txt](../../../requirements/models/requirements_minicpm_qwen2_v2.txt)
-
   ```shell
   pip install -r ${llm_path}/requirements/models/requirements_minicpm_qwen2_v2.txt
   ```
@@ -48,16 +47,13 @@
 
 - 运行启动脚本
   - 在\${llm_path}目录下执行以下命令
-
     ```shell
     bash ${script_path}/run_pa.sh --run --trust_remote_code ${weight_path} ${image_path}
     ```
-
 - 环境变量说明
   - `export ASCEND_RT_VISIBLE_DEVICES=0`
 
   - 以下环境变量与性能和内存优化相关，通常情况下无需修改
-
     ```shell
     export INF_NAN_MODE_ENABLE=0
     export ATB_OPERATION_EXECUTE_ASYNC=1
@@ -67,6 +63,7 @@
     ```
 
 ## 服务化推理
+
 
 - 打开配置文件
 
@@ -173,14 +170,12 @@ curl 127.0.0.1:1040/v1/chat/completions -d ' {
 }'
 ```
 
-## benchmark精度测试方案
 
+##  benchmark精度测试方案
 - 首先按照[服务化推理](#服务化推理)，拉起服务化
 
 ### TextVQA
-
 - 另起一个新的容器端口，运行如下benchmark命令
-
 ```shell
 # 输出benchmark运行日志
 export MINDIE_LOG_TO_STDOUT="benchmark:1; client:1" 
@@ -205,9 +200,7 @@ benchmark \
 ```
 
 ### VideoBench
-
 - 另起一个新的容器端口，运行如下benchmark命令
-
 ```shell
 # 输出benchmark运行日志
 export MINDIE_LOG_TO_STDOUT="benchmark:1; client:1" 
@@ -231,10 +224,8 @@ benchmark \
 --SavePath ${日志输出路径}
 ```
 
-## 性能测试方案
-
+##  性能测试方案
 - 另起一个新的容器端口，运行如下benchmark命令
-
 ```shell
 # 输出benchmark运行日志
 export MINDIE_LOG_TO_STDOUT="benchmark:1; client:1" 

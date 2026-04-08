@@ -20,6 +20,7 @@
 #include "common_util.h"
 #include "base64_util.h"
 #include "config_manager_impl.h"
+#include "safe_io.h"
 
 using OrderedJson = nlohmann::ordered_json;
 
@@ -45,7 +46,7 @@ bool SingleReqVllmOpenAiInferInterface::SetupInferParams(RequestSPtr tmpReq, std
           AssignTopK(reqJsonBody_, tmpReq, msg, false, true) &&
           AssignTopP(reqJsonBody_, tmpReq, msg) &&
           AssignSeed(reqJsonBody_, tmpReq, msg) &&
-          AssignThinkingConfig(reqJsonBody_, tmpReq, inputParam, msg) &&
+          AssignThinkingConfig(reqJsonBody_, tmpReq, msg) &&
           AssignRepetitionPenalty(reqJsonBody_, tmpReq, msg, MAX_OPENAI_REPETITION_PENALTY) &&
           AssignFrequencyPenalty(reqJsonBody_, tmpReq, msg) &&
           AssignPresencePenalty(reqJsonBody_, tmpReq, msg) &&
@@ -1290,7 +1291,6 @@ std::string SingleReqVllmOpenAiInferInterface::BuildVllmOpenAIReComputeBody(cons
     if (request_->topLogprobs.has_value()) {
         newReqJsonObj["top_logprobs"] = request_->topLogprobs.value();
     }
-    BuildResponseFormat(newReqJsonObj);
     return newReqJsonObj.dump();
 }
 
@@ -1314,16 +1314,6 @@ void SingleReqVllmOpenAiInferInterface::BuildThinkingConfig(nlohmann::ordered_js
     }
     if (request_->thinkingBudget.has_value()) {
         newReqJsonObj["chat_template_kwargs"]["thinking_budget"] = request_->thinkingBudget.value();
-    }
-}
-
-void SingleReqVllmOpenAiInferInterface::BuildResponseFormat(nlohmann::ordered_json& newReqJsonObj)
-{
-    if (request_->responseFormat.has_value()) {
-        auto responseFormatJson = nlohmann::json::parse(request_->responseFormat.value(), nullptr, false);
-        if (!responseFormatJson.is_discarded()) {
-            newReqJsonObj["response_format"] = responseFormatJson;
-        }
     }
 }
 

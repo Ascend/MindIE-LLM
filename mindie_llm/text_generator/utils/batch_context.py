@@ -9,7 +9,7 @@
 # See the Mulan PSL v2 for more details.
 import array
 from copy import deepcopy
-from typing import Any, Optional, Union, Tuple, Iterable, List, Callable
+from typing import Union, Tuple, Iterable, List, Callable
 from functools import partial
 import math
 import torch
@@ -39,7 +39,6 @@ class DictContext:
         "output_texts",
         "trace_ids",
         "lora_adapter_id",
-        "response_format",
         "random_number_generators"
     ]
 
@@ -49,7 +48,6 @@ class DictContext:
         self.output_texts = {}
         self.trace_ids = {}
         self.lora_adapter_id = {}
-        self.response_format = {}
         self.random_number_generators = {}
 
     def add_context(self, context_handles, metadata: InputMetadata, **kwargs):
@@ -79,7 +77,6 @@ class DictContext:
             self.string_stopping_criteria[child_idx] = self.string_stopping_criteria.get(parent_idx)
             self.lora_adapter_id[child_idx] = self.lora_adapter_id.get(parent_idx)
             self.trace_ids[child_idx] = self.trace_ids.get(parent_idx)
-            self.response_format[child_idx] = self.response_format.get(parent_idx)
 
     def clear_context(self, context_handles: Union[Iterable[int], npt.NDArray[np.int32]]):
         for context_handle in context_handles:
@@ -97,8 +94,6 @@ class DictContext:
             del self.trace_ids[context_handle]
         if context_handle in self.lora_adapter_id:
             del self.lora_adapter_id[context_handle]
-        if context_handle in self.response_format:
-            del self.response_format[context_handle]
 
     def reset_all_context(self):
         self.output_texts.clear()
@@ -106,10 +101,6 @@ class DictContext:
         self.string_stopping_criteria.clear()
         self.lora_adapter_id.clear()
         self.trace_ids.clear()
-        self.response_format.clear()
-
-    def get_response_format(self, context_handles):
-        return [self.response_format.get(context_handle) for context_handle in context_handles]
 
     def append_and_return_output_text(self, context_handle, new_token):
         self.output_texts[context_handle] += new_token
@@ -388,7 +379,6 @@ class BatchContext:
         "device",
         "to_tensor",
         "position_ids_gen_func",
-        "structured_output_manager",
         "tokenizer",
         "tokenizer_sliding_window_size"
     ]
@@ -433,10 +423,17 @@ class BatchContext:
         def torch_to_tensor(data):
             return torch.tensor(data, device=self.device)
 
-        self.to_tensor = torch_to_tensor
+        def mindspore_to_tensor(data):
+            import mindspore as ms
+
+            return ms.Tensor(data) if data.size > 0 else None
+
+        if context_params.generator_backend_type != BackendType.MS:
+            self.to_tensor = torch_to_tensor
+        else:
+            self.to_tensor = mindspore_to_tensor
 
         self.position_ids_gen_func = position_ids_gen_func
-        self.structured_output_manager = None
         self.tokenizer = tokenizer
         self.tokenizer_sliding_window_size = tokenizer_sliding_window_size
 
@@ -523,9 +520,6 @@ class BatchContext:
         if max_id > vocab_size:
             raise ValueError(f"The max of token_ids ({max_id}) is > vocab_size ({vocab_size}).")
 
-    def set_structured_output_manager(self, structured_output_manager: Optional[Any]) -> None:
-        self.structured_output_manager = structured_output_manager
-
     def allocate_context_slot(self, sequence_id) -> int:
         """originally append_cache and InputManager.get_cache_id, return context_handle"""
         context_slot = self.all_ndarray_context.allocate_slot()
@@ -573,15 +567,10 @@ class BatchContext:
         filtered_sequence_ids = np.asarray(filtered_sequence_ids, dtype=np.int_)
         return filtered_sequence_ids, filtered_context_handles
 
-    def clear_context_by_handles(
-        self,
-        context_handles: npt.NDArray[np.int32],
-    ):
+    def clear_context_by_handles(self, context_handles: npt.NDArray[np.int32]):
         """originally clear_cache_by_ids"""
         if len(context_handles) == 0:
             return
-        if self.structured_output_manager is not None:
-            self.structured_output_manager.clear_finished_requests(context_handles)
         self.all_ndarray_context.clear_context(context_handles)
         self.all_dict_context.clear_context(context_handles)
 
@@ -665,12 +654,6 @@ class BatchContext:
                             continue
                         self.all_dict_context.output_texts[idx] = ""
                         self.all_dict_context.stopping_criteria[idx] = make_mixed_eos(stop_token_ids)
-
-            if input_metadata.batch_response_format:
-                for i, idx in enumerate(context_handles):
-                    rf = input_metadata.batch_response_format[i]
-                    if rf is not None:
-                        self.all_dict_context.response_format[idx] = rf
 
             if input_metadata.adapter_ids:
                 for i, idx in enumerate(context_handles):
@@ -965,7 +948,6 @@ class BatchContext:
                 batch_use_beam_search=metadata.batch_use_beam_search,
                 batch_output_lengths=self.all_ndarray_context.output_len_count[context_handles],
                 batch_cumulative_logprobs=self.all_ndarray_context.cumulative_logprobs[context_handles],
-                cache_ids=context_handles,
                 random_number_generators=[
                     self.all_dict_context.random_number_generators.get(idx, None)
                     for idx in context_handles
@@ -987,7 +969,6 @@ class BatchContext:
                 batch_use_beam_search=self.all_ndarray_context.use_beam_search[context_handles],
                 batch_output_lengths=self.all_ndarray_context.output_len_count[context_handles],
                 batch_cumulative_logprobs=self.all_ndarray_context.cumulative_logprobs[context_handles],
-                cache_ids=context_handles,
                 random_number_generators=[
                     self.all_dict_context.random_number_generators.get(idx, None)
                     for idx in context_handles
@@ -1107,8 +1088,7 @@ class BatchContext:
             batch_cumulative_logprobs=self.all_ndarray_context.cumulative_logprobs[context_handles],
             to_tensor=self.to_tensor,
             is_seq_prefill=metadata.batch_is_prefill,
-            is_mix=metadata.is_mix,
-            cache_ids=context_handles,
+            is_mix=metadata.is_mix
         )
         return sampling_metadata
 

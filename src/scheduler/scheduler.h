@@ -102,8 +102,6 @@ public:
     // output token of chunked prefill requests needs to be discard
     bool isDiscardOutputToken(LiveInferContextSPtr &contextSPtr, SequenceId seqId);
 
-    void AddGeneratedToken(LiveInferContextSPtr &contextSPtr, SequenceId seqId, TokenId token);
-
     std::vector<SequenceGroupSPtr> &GetAbortedParallelSeqGroups() override;
 
     void CollectAndClearAbortedParallelSeqGroups() override;

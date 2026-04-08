@@ -121,27 +121,21 @@ function fn_run_pythontest()
     export LD_LIBRARY_PATH=${PROJECT_DIR}/third_party/output/libboundscheck/lib:${LD_LIBRARY_PATH}
 
     devices=("cpu" "npu")
-    pids=()
 
     for device in "${devices[@]}"; do
-        (
-            pytest ${PROJECT_DIR}/tests/pythontest/$device --cov=${PROJECT_DIR}/mindie_llm --cov-branch --cov-append \
-            --cov-report xml:coverage.xml --cov-report html --continue-on-collection-errors --forked \
-            --ignore=${PROJECT_DIR}/tests/pythontest/npu/llm_manager \
-            --ignore=${PROJECT_DIR}/tests/pythontest/npu/text_generator/test_plugins/test_plugin_manager_edge.py \
-            --ignore=${PROJECT_DIR}/tests/pythontest/npu/text_generator/separate_deployment_engine/test_generator_pd_separate.py \
-            --ignore=${PROJECT_DIR}/tests/pythontest/npu/text_generator/separate_deployment_engine/test_separate_deployment_engine.py \
-            --ignore=${PROJECT_DIR}/tests/pythontest/npu/test_block_copy.py \
-            --ignore=${PROJECT_DIR}/tests/pythontest/cpu/runtime ;
-
-        ) &
- 	    pids+=($!)
+        pytest ${PROJECT_DIR}/tests/pythontest/$device --cov=${PROJECT_DIR}/mindie_llm --cov-branch --cov-append \
+        --cov-report xml:coverage.xml --cov-report html --continue-on-collection-errors --forked \
+        --ignore=${PROJECT_DIR}/tests/pythontest/npu/llm_manager \
+        --ignore=${PROJECT_DIR}/tests/pythontest/npu/text_generator/test_plugins/test_plugin_manager_edge.py \
+        --ignore=${PROJECT_DIR}/tests/pythontest/npu/text_generator/separate_deployment_engine/test_generator_pd_separate.py \
+        --ignore=${PROJECT_DIR}/tests/pythontest/npu/text_generator/separate_deployment_engine/test_separate_deployment_engine.py \
+        --ignore=${PROJECT_DIR}/tests/pythontest/npu/test_block_copy.py \
+        --ignore=${PROJECT_DIR}/tests/pythontest/cpu/runtime ;
     done
 
-    # 等待所有设备测试完成
- 	for pid in "${pids[@]}"; do
- 	    wait $pid
- 	done   
+    export MINDIE_LLM_FRAMEWORK_BACKEND='ms'
+    pytest ${PROJECT_DIR}/tests/pythontest/mindspore --cov=${PROJECT_DIR}/mindie_llm --cov-branch --cov-append \
+    --cov-report xml:coverage.xml --cov-report html --continue-on-collection-errors --forked
 
     # 提取每个文件的行覆盖率
     grep -o '<class name="[^"]*" filename="[^"]*" complexity="[^"]*" line-rate="[^"]*" branch-rate="[^"]*">' coverage.xml |

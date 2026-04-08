@@ -62,7 +62,7 @@ private:
     bool LwdGRPCCommunicatorInit(std::unordered_map<std::string, std::string> &config,
                                 uint32_t grpcCommunicatorNum);
     std::unique_ptr<IPCCommunicator> InitSingleIPCCommunicator(const std::string &sharedMemName,
-                                                              const SemaphoreConfig &semConfig,
+                                                              uint32_t localWorldSize,
                                                               const ShmSizeConfig &shmSizeConfig) const;
 
     bool RegisterAndStartIPCHandler(std::shared_ptr<IPCCommunicator> ipcCommunicator, ResponseHandler handler) const;
@@ -91,6 +91,8 @@ private:
     std::shared_ptr<IPCCommunicator> ipcCommunicatorKVTransfer_;
     std::shared_ptr<IPCCommunicator> ipcCommunicatorExecuteError_;
 
+    void HandleExecuteErrorResponse(ResponseHandler handler) const;
+    std::atomic<bool> executeErrorRecvActive_{false};
     std::unique_ptr<std::thread> handleExecuteErrorThread_{nullptr};
 };
 

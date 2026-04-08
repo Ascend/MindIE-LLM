@@ -26,7 +26,7 @@
 #include "policy/stage_policy/stage_policy.h"
 #include "policy/stage_policy/edge_cloud_policy.h"
 #include "policy/dynamic_batch_recorder.h"
-#include "error_queue.h"
+
 using namespace std;
 using namespace std::chrono;
 
@@ -416,9 +416,13 @@ void LlmEngine::SchedulerThreadEntry(size_t localDPRank)
     while (!stop_) {
         // 暂停调度组batch
         if (isPauseScheduling_.load(std::memory_order_relaxed)) {
-            enginePerDP->scheduler->StopRunningRequest();
+            for (auto& engine : enginePerDPs_) {
+                if (engine && engine->scheduler) {
+                    engine->scheduler->StopRunningRequest();
+                }
+            }
+
             AbortParallelSeqGroups(localDPRank);
-            enginePerDP->scheduler->CollectAndClearAbortedParallelSeqGroups();
             std::this_thread::sleep_for(milliseconds(DEFAULT_SLEEP_TIME_BETWEEN_TWO_ITER));
             continue;
         }
@@ -515,15 +519,8 @@ void LlmEngine::SchedulerThreadEntry(size_t localDPRank)
         // 6. batch下发给Executor执行
         // 如果单dp下自身batch不空， 或者多dp下其他dp的batch不空（集中式）
         auto responseHandler = [this, enginePerDP](ModelBatchResultSPtr output) {
-            if (output->has_err_msg() && output->err_msg() != "") {
-                MINDIE_LLM_LOG_ERROR("Error code from executor: " << output->err_msg());
-                ErrorQueue::GetInstance().EnqueueErrorMessage(output->err_msg(), "LlmEngine");
-                PauseScheduling();
-                return;
-            }
             enginePerDP->modelExecOutputHandler->Entry4Executor(output);
         };
-
         if (!scheduleOut.IsEmpty() || (isCentralizedThreadCCReady_ && seqGroupMetadata.maxBatchSize > 0)) {
             for (const auto& scheduledSeqGroup : scheduleOut.scheduledSeqGroups_) {
                 if (scheduledSeqGroup->seqGroup_->IsSimulateRequest()) {
@@ -548,7 +545,7 @@ void LlmEngine::SchedulerThreadEntry(size_t localDPRank)
             if (schedulerConfig_->stageSelectPolicy == static_cast<uint32_t>(StagePolicyType::LATENCY_FIRST) ||
                 schedulerConfig_->dynamicBatchSizeEnable) {
                 auto batchExecuteStartTime = std::chrono::high_resolution_clock::now();
-                SetupLatencyPredictor(batchExecuteStartTime, localDPRank);
+                SetupLatencyPredictor(batchExecuteStartTime, dpRankId_);
             }
 
             DistDecodeAcquireDummyQuota(false, enginePerDP);
@@ -564,6 +561,9 @@ void LlmEngine::SchedulerThreadEntry(size_t localDPRank)
 
             enginePerDP->scheduler->PrepareNextSchedule(scheduleOut.scheduledSeqGroups_);
             enginePerDP->modelExecOutputHandler->GetAsyncBatchNum().fetch_add(1);
+
+            // PD分离场景，Recompute的请求需要上送Recompute Response到coordinator，从P节点重新调度
+            SendRecomputeResponse(scheduleOut.recomputeSeqIds_, localDPRank);
 
             // 边云协同场景，记录batch下发的类型
             layerwiseMixin_.LwdPrepareBatch(schedulerConfig_->layerwiseDisaggregated, scheduleOut);
@@ -584,11 +584,6 @@ void LlmEngine::SchedulerThreadEntry(size_t localDPRank)
             enginePerDP->scheduler->MarkLastScheduleEmpty();
             // 供当前线程判断是否调度为空，让出cpu时间
             enginePerDP->lastScheduleEmpty = true;
-        }
-
-        if (scheduleOut.recomputeSeqIds_.size() > 0) {
-            // PD分离场景，Recompute的请求需要上送Recompute Response到coordinator，从P节点重新调度
-            SendRecomputeResponse(scheduleOut.recomputeSeqIds_, localDPRank);
         }
         // 调度下发完成，connector/TG开始执行
 
@@ -911,9 +906,9 @@ void LlmEngine::ExecuteRecoverCommand(RecoverCommandInfo &commandInfo)
 
 void LlmEngine::SetupLatencyPredictor(
     const std::chrono::high_resolution_clock::time_point& batchExecuteStartTime,
-    int localDPRank)
+    int dpRankId)
 {
-    auto& recorder = DynamicBatchRecorder::GetInstance(static_cast<size_t>(localDPRank));
+    auto& recorder = DynamicBatchRecorder::GetInstance(static_cast<size_t>(dpRankId));
     auto predictor = recorder.GetLatencyPredictor();
     if (predictor != nullptr) {
         predictor->SetBatchExecuteStartTime(batchExecuteStartTime);

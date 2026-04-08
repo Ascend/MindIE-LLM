@@ -15,7 +15,7 @@
 #include "parse_protocol.h"
 #include "grpc_communication_mng.h"
 #include "log.h"
-#include "json_util.h"
+#include "safe_io.h"
 
 using OrderedJson = nlohmann::ordered_json;
 constexpr uint32_t MAX_INSTANCE_PER_POD = 64; // max instances per pod

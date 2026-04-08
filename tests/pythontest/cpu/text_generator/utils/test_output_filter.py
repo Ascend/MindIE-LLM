@@ -211,8 +211,7 @@ class TestOutputFilter(unittest.TestCase):
         end_reason, filter_ids_arr, trunc_indices = self.output_filter.filter_finished_sequences(
             cache_ids=np.array([10, 20]),
             metadata=metadata,
-            sampling_output=sampling_output,
-            is_structured_accepted=np.ones(2, dtype=bool),
+            sampling_output=sampling_output
         )
 
         actual_call = self.output_filter.filter_by_eos.call_args

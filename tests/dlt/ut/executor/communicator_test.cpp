@@ -131,6 +131,7 @@ TEST_F(CommunicatorTest, LaunchIPCHandleResponseThreads_MasterNode_RegisterAndSt
     MOCKER_CPP(&IPCCommunicator::RegisterResponseHandler, bool (*)(ResponseHandler)).stubs().will(returnValue(true));
     MOCKER_CPP(&IPCCommunicator::StartHandleResponseThread, bool (*)()).stubs().will(returnValue(true));
     MOCKER_CPP(&IPCCommunicator::CleanUp, void (*)()).stubs();
+    MOCKER_CPP(&IPCCommunicator::TryReceiveExecuteResponse, bool (*)(ExecuteResponse &)).stubs().will(returnValue(false));
 
     InitCommunicator(true, true);
     ASSERT_TRUE(communicator_->InitIPCCommunicators("prefix", 2));
@@ -148,6 +149,7 @@ TEST_F(CommunicatorTest, LaunchIPCHandleResponseThreads_SlaveNode_UsesInternalHa
     MOCKER_CPP(&IPCCommunicator::RegisterResponseHandler, bool (*)(ResponseHandler)).stubs().will(returnValue(true));
     MOCKER_CPP(&IPCCommunicator::StartHandleResponseThread, bool (*)()).stubs().will(returnValue(true));
     MOCKER_CPP(&IPCCommunicator::CleanUp, void (*)()).stubs();
+    MOCKER_CPP(&IPCCommunicator::TryReceiveExecuteResponse, bool (*)(ExecuteResponse &)).stubs().will(returnValue(false));
 
     InitCommunicator(true, false);
     ASSERT_TRUE(communicator_->InitIPCCommunicators("prefix", 2));

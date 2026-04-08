@@ -55,7 +55,6 @@ struct InferParam {
     nlohmann::ordered_json toolChoiceObject;
     bool useToolsCall = false;
     std::optional<bool> enableThinking;
-    std::optional<uint32_t> thinkingBudget;
     bool isChatReq = false;
     std::string adapterId;
     std::string model_;
@@ -79,7 +78,6 @@ struct InferParam {
         FeatureSupport endpoint;
         // 服务/模型级能力（从配置/插件解析）
         bool pluginEnabled = false;
-        bool mtpEnabled = false;
         bool deepseekEnabled = false;
         // 运行形态
         bool streamMode = false;
@@ -98,8 +96,7 @@ struct InferParam {
         uint32_t reqBestOf = 1;
         uint32_t reqN = 1;
         float reqTemperature = 0.0f;
-        bool reqStructuredOutput = false;
-
+        
         std::string ToString() const
         {
             std::ostringstream oss;
@@ -111,7 +108,6 @@ struct InferParam {
             oss << "    useFunctionCall: " << (endpoint.useFunctionCall ? "true" : "false") << "\n";
             oss << "  },\n";
             oss << "  pluginEnabled: " << (pluginEnabled ? "true" : "false") << ",\n";
-            oss << "  mtpEnabled: " << (mtpEnabled ? "true" : "false") << ",\n";
             oss << "  streamMode: " << (streamMode ? "true" : "false") << ",\n";
             oss << "  isDmiMode: " << (isDmiMode ? "true" : "false") << ",\n";
             oss << "  enableThinking: " << (enableThinking ? "true" : "false") << ",\n";
@@ -125,8 +121,7 @@ struct InferParam {
             oss << "  reqIncludeStopStrInOutput: " << (reqIncludeStopStrInOutput ? "true" : "false") << ",\n";
             oss << "  reqBestOf: " << reqBestOf << ",\n";
             oss << "  reqN: " << reqN << ",\n";
-            oss << "  reqTemperature: " << reqTemperature << ",\n";
-            oss << "  reqStructuredOutput: " << (reqStructuredOutput ? "true" : "false") << "\n";
+            oss << "  reqTemperature: " << reqTemperature << "\n";
             oss << "}";
             return oss.str();
         }
@@ -142,10 +137,6 @@ private:
     bool ValidateFeatureBeamSearch(const ValidationContext &ctx, std::string &error) const noexcept;
     bool ValidateFeatureBeamSearchEnable(const ValidationContext &ctx, std::string &error) const noexcept;
     bool ValidateFeatureOverlay(const ValidationContext &ctx, std::string &error) const noexcept;
-    bool ValidateAsyncSchedulingConstraints(const ValidationContext &ctx, std::string &error) const noexcept;
-    bool ValidatePluginConstraints(const ValidationContext &ctx, std::string &error) const noexcept;
-    bool ValidateMtpConstraints(const ValidationContext &ctx, std::string &error) const noexcept;
-    bool ValidateDeepseekConstraints(const ValidationContext &ctx, std::string &error) const noexcept;
 };
 
 using InferParamSPtr = std::shared_ptr<InferParam>;
@@ -171,7 +162,7 @@ bool AssignIncludeStopStrInOutput(const OrderedJson &jsonObj, RequestSPtr tmpReq
 bool AssignTemperature(const OrderedJson &jsonObj, RequestSPtr tmpReq, std::string &error, bool allowLowerBound = false,
                        double maxValue = MAX_TEMPERATURE) noexcept;
 bool AssignMaxTokens(const OrderedJson &jsonObj, InferParamSPtr param, std::string &error);
-bool AssignThinkingConfig(const OrderedJson &jsonObj, RequestSPtr tmpReq, InferParamSPtr param, std::string &error);
+bool AssignThinkingConfig(const OrderedJson &jsonObj, RequestSPtr tmpReq, std::string &error);
 bool AssignTopK(const OrderedJson &jsonObj, RequestSPtr tmpReq, std::string &error, bool allowLowerBound = false,
                 bool allowNegativeOne = false) noexcept;
 bool AssignTopP(const OrderedJson &jsonObj, RequestSPtr tmpReq, std::string &error,

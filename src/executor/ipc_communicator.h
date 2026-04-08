@@ -32,15 +32,12 @@ struct IPCSharedMemory {
     std::vector<sem_t *> semProduceVec;
     std::vector<std::string> semConsumeNameVec;
     std::vector<sem_t *> semConsumeVec;
-
-    IPCSharedMemory() = default;
-
     IPCSharedMemory(IPCSharedMemoryType iPCSharedMemoryType, std::string prefix, uint32_t semNum);
 };
 
 class IPCCommunicator {
 public:
-    IPCCommunicator(std::string prefixName, const SemaphoreConfig &semConfig);
+    IPCCommunicator(std::string prefixName, uint32_t workerNum);
     ~IPCCommunicator() = default;
 
     bool SetupChannel(const ShmSizeConfig &shmSizeConfig);
@@ -56,6 +53,8 @@ public:
     bool ReceiveRecoverCommandResponses(std::vector<ExecuteResponse> &responses);
 
     bool ReceiveResponse(ExecuteResponse &response);
+
+    bool TryReceiveExecuteResponse(ExecuteResponse &response);
 
     void CleanUp();
 
@@ -76,7 +75,7 @@ private:
 
     IPCSharedMemory requestSharedMemory_;
     IPCSharedMemory responseSharedMemory_;
-    uint32_t responseWorkerNum_;
+    uint32_t workerNum_;
 
     bool recvChannelActive_ = false;
     std::unique_ptr<std::thread> handleResponseThread_ = nullptr;

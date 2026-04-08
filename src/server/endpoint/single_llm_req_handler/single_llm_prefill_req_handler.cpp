@@ -25,7 +25,7 @@
 #include "env_util.h"
 #include "dmi_role.h"
 #include "config_manager_impl.h"
-#include "json_util.h"
+#include "safe_io.h"
 
 using namespace prefillAndDecodeCommunication;
 using OrderedJson = nlohmann::ordered_json;
@@ -542,9 +542,6 @@ void SingleLLMPrefillReqHandler::BuildSamplingParametersNext(DecodeParameters& p
     }
     if (inferParam_->enableThinking.has_value()) {
         params.mutable_samplingparams()->mutable_enablethinking()->set_value(inferParam_->enableThinking.value());
-    }
-    if (request_->responseFormat.has_value()) {
-        params.mutable_samplingparams()->set_responseformat(request_->responseFormat.value());
     }
     if (request_->thinkingBudget.has_value()) {
         params.mutable_samplingparams()->mutable_thinkingbudget()->set_value(request_->thinkingBudget.value());

@@ -387,9 +387,6 @@ class SamplingMetadata:
     # 形状: [batch_size, vocab_size // 32]，int32 数组
     guided_bitmask: Optional[np.ndarray] = None
 
-    # KV / batch context 句柄，与 all_sequence_ids 一一对应（由 batch_context.build_sampling_meta 填入）
-    cache_ids: Optional[np.ndarray] = None
-
     @classmethod
     def from_numpy(
         cls,
@@ -415,7 +412,6 @@ class SamplingMetadata:
         all_sequence_ids: Optional[np.ndarray] = None,
         is_seq_prefill: Optional[np.ndarray] = None,
         is_mix: bool = False,
-        cache_ids: Optional[np.ndarray] = None,
         random_number_generators: Optional[List[backend.Generator]] = None
     ) -> 'SamplingMetadata':
         batch_size = len(batch_sequence_ids)
@@ -431,12 +427,6 @@ class SamplingMetadata:
             all_sequence_ids = np.concatenate(batch_sequence_ids)
         validate_1d_batch('all_sequence_ids', all_sequence_ids)
         num_seqs = len(all_sequence_ids)
-        if cache_ids is not None:
-            validate_1d_batch('cache_ids', cache_ids)
-            if len(cache_ids) != num_seqs:
-                raise InconsistencyError(
-                    'cache_ids', 'length of `cache_ids`', 'length of `all_sequence_ids`'
-                )
 
         repetition_penalty_key = 'repetition_penalty'
         frequency_penalty_key = 'frequency_penalty'
@@ -591,7 +581,6 @@ class SamplingMetadata:
             cumulative_logprobs=sampling_params.get('cumulative_logprobs'),
             is_seq_prefill=is_seq_prefill,
             is_mix=is_mix,
-            cache_ids=cache_ids,
             random_number_generators=random_number_generators
         )
         return sampling_metadata
@@ -628,7 +617,6 @@ class SamplingMetadata:
             to_tensor=to_tensor,
             is_seq_prefill=kwargs.get('is_seq_prefill'),
             is_mix=kwargs.get('is_mix'),
-            cache_ids=kwargs.get('cache_ids'),
             random_number_generators=kwargs.get('random_number_generators')
         )
         return sampling_metadata
