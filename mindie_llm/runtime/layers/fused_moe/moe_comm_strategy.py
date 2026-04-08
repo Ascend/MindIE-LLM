@@ -90,7 +90,7 @@ class FusedMC2Strategy(MoECommStrategyBase):
             return False
         # Check num tokens for fused_mc2 operator limitation
         num_tokens_per_device = cal_num_tokens_per_device(parallel_mgr, forward_ctx)
-        if num_tokens_per_device >= MAX_FUSED_MC2_OPERATOR_CAPACITY:
+        if num_tokens_per_device > MAX_FUSED_MC2_OPERATOR_CAPACITY:
             err_msg = (
                 f"num_tokens_per_device({num_tokens_per_device}) is larger than "
                 f"MAX_FUSED_MC2_OPERATOR_CAPACITY({MAX_FUSED_MC2_OPERATOR_CAPACITY}),"
