@@ -76,7 +76,7 @@ MindIE镜像获取请参见[镜像安装方式](../user_guide/install/source/ima
 7. 编译ATB_Models的 `.whl` 包。
 
     ```bash
-    cd example/atb_models
+    cd examples/atb_models
     pip wheel . --no-build-isolation -v
     ```
     > **注意**：使用 Python 3.10 环境编译，需配套 torch 2.9.0 版本 + torch_npu 2.9.0 版本,
