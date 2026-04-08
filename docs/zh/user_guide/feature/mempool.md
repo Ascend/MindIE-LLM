@@ -103,6 +103,12 @@ export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/lib/python3.11/site-packages/
 export ASCEND_BUFFER_POOL=4:8
 ```
 
+池化场景，建议开启jemalloc优化：
+
+```bash
+export LD_PRELOAD="path_to_file/libjemalloc.so:$LD_PRELOAD"
+```
+
 配置说明可参考Mooncake官方Ascend Direct Transport Important Notes。
 
 </details>
@@ -110,10 +116,12 @@ export ASCEND_BUFFER_POOL=4:8
 ## 限制与约束
 
 异步写特性当前仅支持Qwen稠密模型（非MOE）和DeepSeek模型（V3/V3.1/R1）。当异步写特性开启时，支持与以下特性叠加组合，叠加其他特性或模型可能导致不可预期的报错：
+
 - Qwen稠密：异步调度、Prefix Cache、Function Call、思考解析、Yarn
 - DeepSeek V3/V3.1/R1：异步推理、Prefix Cache、Context Parallel、Sequence Parallel
 
 已确定不支持与以下特性叠加：
+
 - SplitFuse、Micro Batch、Multi-Lora
 
 ## 声明
