@@ -59,7 +59,7 @@ repos:
       - id: clang-format
         files: \.(c|h|cpp|hpp|cc|hh|cxx|hxx)$
         types_or: [c, c++]
-        args: [--style=google, --verbose, -i] 
+        args: ["--style={BasedOnStyle: google, IndentWidth: 4}"]
         exclude: ^build/|^tests/third_party/ 
         
   # markdownlint：Markdown 格式检查（仅CI手动执行）
