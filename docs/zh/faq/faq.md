@@ -1289,3 +1289,52 @@ MatMul：
 ```bash
 export ATB_MATMUL_SHUFFLE_K_ENABLE=0
 ```
+
+## Gloo连接失败报错：ERROR failed to connect. error=SO_ERROR: Connection refused
+
+### 问题描述
+
+启动MindIE LLM服务时，出现Gloo连接错误，日志显示类似信息：
+
+```text
+ERROR failed to connect, willRetry=1, retry=2, retryLimit=3, rank=1, size=2, local=[127.0.0.1]:123, remote=[127.0.0.1]:345, error=SO_ERROR: Connection refused
+```
+
+### 原因分析
+
+该错误通常出现在**多机部署场景**下，核心原因是Gloo组件自动选择了错误的网络接口（网卡），导致节点间通信失败。
+
+### 解决方案
+
+通过环境变量显式指定Gloo使用的网络接口：
+
+1. **查看可用网卡**：
+   在每个节点执行以下命令查看网卡名称：
+
+   ```bash
+   # Linux系统
+   ip addr
+   # 或
+   ifconfig
+   ```
+
+   常见网卡命名格式：`enp*`、`ens*`、`eth*`等
+
+2. **设置环境变量**：
+   在启动服务前，为每个节点设置`GLOO_SOCKET_IFNAME`环境变量：
+
+   ```bash
+   export GLOO_SOCKET_IFNAME=<网卡名称>  # 例如：export GLOO_SOCKET_IFNAME=enp1s0
+   ```
+
+3. **容器部署注意事项**：
+   - 使用Docker时，需将容器网络模式设置为`host`模式
+   - 每个机器的网卡名称可能不同，需分别配置为本机的网卡名称
+
+4. **Kubernetes部署注意事项**：
+   - Kubernetes集群中，网卡名称通常映射为`eth0`
+   - 大EP部署时，可以在`boot_helper/boot.sh`脚本中配置环境变量
+
+### 验证
+
+设置完成后重新启动服务，检查是否仍出现Gloo连接错误。
