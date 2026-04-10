@@ -24,9 +24,8 @@
   
 ## 安装Pytorch和Torch NPU
 
-- 如果是操作系统是ubuntu 22.04，请安装torch_npu 2.1.0；如果操作系统是ubuntu 24.04 LTS，请安装torch_npu 2.6.0。
-- 请参见《Ascend Extension for PyTorch 软件安装指南》中的“[安装PyTorch](https://www.hiascend.com/document/detail/zh/Pytorch/730/configandinstg/instg/docs/zh/installation_guide/installation_via_binary_package.md)”章节安装PyTorch框架。
-- 请参见《Ascend Extension for PyTorch 软件安装指南》中的“（可选）安装扩展模块”章节安装torch\_npu插件。
+- 如果是操作系统是ubuntu 22.04，请安装torch_npu 2.1.0；如果操作系统是ubuntu 24.04 LTS，请安装torch_npu 2.9.0。
+- 请参见《Ascend Extension for PyTorch 软件安装指南》中的“[安装PyTorch](https://www.hiascend.com/document/detail/zh/Pytorch/730/configandinstg/instg/docs/zh/installation_guide/installation_via_binary_package.md)”章节安装PyTorch框架和torch_npu插件。
 
 MindIE中各组件依赖PyTorch框架和torch\_npu插件，依赖情况如下表所示，请用户依据实际使用需求安装。
 

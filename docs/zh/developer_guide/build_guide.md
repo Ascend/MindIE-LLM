@@ -79,14 +79,15 @@ MindIE镜像获取请参见[镜像安装方式](../user_guide/install/source/ima
     cd examples/atb_models
     pip wheel . --no-build-isolation -v
     ```
+
     > **注意**：使用 Python 3.10 环境编译，需配套 torch 2.9.0 版本 + torch_npu 2.9.0 版本,
-否则会导致 _bz2 模块缺失，从而导致编译失败。
+否则会导致 \_bz2 模块缺失，从而导致编译失败。
 
 8. 安装 ATB_Models。
-   
-   ```bash
-   pip install atb_llm*.whl
-   ```
+
+    ```bash
+    pip install atb_llm*.whl
+    ```
 
 ## 升级
 
