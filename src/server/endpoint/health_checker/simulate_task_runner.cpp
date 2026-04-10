@@ -22,6 +22,8 @@ constexpr int POLLING_INTERVAL_MS = 1000;
 constexpr int NPU_SAMPLES = 3;
 constexpr int NPU_WINDOW_MS = 5000;
 constexpr int NPU_CHECK_COMPLETE_WAIT_SECONDS = 10;
+constexpr int SIMULATE_SKIP_AICORE_PERCENT = 50;
+constexpr int SIMULATE_SKIP_EVERY_N_LOOPS = 18; // 18 X 5S = 1.5min，一分半内至少执行一次虚推
 
 
 SimulateTaskRunner::SimulateTaskRunner()
@@ -30,7 +32,7 @@ SimulateTaskRunner::SimulateTaskRunner()
 }
 
 bool SimulateTaskRunner::Init(std::shared_ptr<ISimulateExecutor> executor,
-                              const std::set<int>& npuDeviceCardIds, int npuThreshold,
+                              const std::vector<std::pair<int, int>>& npuDeviceCardIds, int npuThreshold,
                               RunMode runMode, int chipPerCard)
 {
     if (isValid_) {
@@ -66,8 +68,8 @@ bool SimulateTaskRunner::Init(std::shared_ptr<ISimulateExecutor> executor,
     isValid_ = true;
 
     ULOG_INFO(SUBMODLE_NAME_HEALTHCHECKER, "SimulateTaskRunner::Init: Initialized with "
-        << npuDeviceCardIds_.size() << " NPU device(s), runMode="
-        << static_cast<int>(runMode_) << ", chipPerCard=" << chipPerCard_);
+        << npuDeviceCardIds_.size() << " NPU DCMI target(s), runMode="
+        << static_cast<int>(runMode_) << ", chipPerCard(config)=" << chipPerCard_);
     return true;
 }
 
@@ -97,6 +99,8 @@ void SimulateTaskRunner::Start(uint32_t intervalSeconds)
     npuCheckStopRequested_.store(false);
     running_.store(true);
     paused_.store(false);
+    lastAicoreUtil_ = -1;
+    loopsSinceSimulate_ = 0;
 
     // 更新初始状态
     {
@@ -199,6 +203,8 @@ void SimulateTaskRunner::Resume()
     }
 
     paused_.store(false);
+    lastAicoreUtil_ = -1;
+    loopsSinceSimulate_ = 0;
 
     {
         std::unique_lock<std::shared_mutex> lock(statusMutex_);
@@ -231,11 +237,18 @@ void SimulateTaskRunner::TaskLoop()
             WaitForNpuCheckComplete();
             continue;
         }
+        if (!ShouldRunSimulate()) {
+            WaitForNpuCheckComplete();
+            lastAicoreUtil_ = GetNpuUtilization();
+            SimulateResult skipResult;
+            skipResult.status = SimulateResult::Status::SUCCESS;
+            skipResult.message = "Simulate skipped";
+            UpdateHealthStatus(skipResult);
+            continue;
+        }
 
         SimulateResult result = executor_->RunSimulateOnce();
         WaitForNpuCheckComplete();
-
-        // 超时时结合 NPU 利用率判断：高利用率视为繁忙而非故障
         if (result.status == SimulateResult::Status::TIMEOUT) {
             int npuUtil = GetNpuUtilization();
             if (npuUtil > npuThreshold_) {
@@ -252,13 +265,29 @@ void SimulateTaskRunner::TaskLoop()
         }
 
         UpdateHealthStatus(result);
-
+        lastAicoreUtil_ = GetNpuUtilization();
         ULOG_DEBUG(SUBMODLE_NAME_HEALTHCHECKER,
             "SimulateTaskRunner: Completed. status=" << static_cast<int>(result.status)
             << ", message=" << result.message);
     }
-
     ULOG_INFO(SUBMODLE_NAME_HEALTHCHECKER, "SimulateTaskRunner: Task loop exited.");
+}
+
+bool SimulateTaskRunner::ShouldRunSimulate()
+{
+    if (lastAicoreUtil_ < SIMULATE_SKIP_AICORE_PERCENT) {
+        loopsSinceSimulate_ = 0;
+        return true;
+    }
+    
+    if (lastAicoreUtil_ >= SIMULATE_SKIP_AICORE_PERCENT) {
+        if (++loopsSinceSimulate_ < SIMULATE_SKIP_EVERY_N_LOOPS) {
+            return false;
+        }
+        loopsSinceSimulate_ = 0;
+    }
+    
+    return true;
 }
 
 void SimulateTaskRunner::UpdateHealthStatus(const SimulateResult& result)
@@ -338,27 +367,25 @@ void SimulateTaskRunner::CheckAicoreUtilization()
         return;
     }
 
-    // Keep one NPU check window around 5s: scan twice and compensate sleep.
+    // Keep one NPU check window around 5s: scan and compensate sleep.
     const int perSampleTargetMs = std::max(POLLING_INTERVAL_MS, NPU_WINDOW_MS / sampleCount);
     for (int i = 0; i < sampleCount; i++) {
         const auto roundStart = std::chrono::steady_clock::now();
-        for (int npuCardId : npuDeviceCardIds_) {
-            unsigned int maxUtilThisCard = 0;
-            for (int chipIdx = 0; chipIdx < chipPerCard_; ++chipIdx) {
-                unsigned int utilizationRate = 0;
-                // chipIdx: 芯片索引；2: 查询AICore 利用率
-                int ret = getUtilizationFunc(npuCardId, chipIdx, 2, &utilizationRate);
-                if (ret != 0) {
-                    ULOG_ERROR(SUBMODLE_NAME_HEALTHCHECKER,
-                        GenerateHealthCheckerErrCode(ERROR, SUBMODLE_FEATURE_SECURE, CHECK_ERROR),
-                        "SimulateTaskRunner: DCMI get AICore failed, card=" << npuCardId
-                                                                             << ", chip=" << chipIdx
-                                                                             << ", error=" << ret);
-                    continue;
-                }
-                maxUtilThisCard = std::max(maxUtilThisCard, utilizationRate);
+        for (const auto& target : npuDeviceCardIds_) {
+            const int npuCardId = target.first;
+            const int chipIdx = target.second;
+            unsigned int utilizationRate = 0;
+            // chipIdx: 芯片索引；2: 查询AICore 利用率
+            int ret = getUtilizationFunc(npuCardId, chipIdx, 2, &utilizationRate);
+            if (ret != 0) {
+                ULOG_ERROR(SUBMODLE_NAME_HEALTHCHECKER,
+                    GenerateHealthCheckerErrCode(ERROR, SUBMODLE_FEATURE_SECURE, CHECK_ERROR),
+                    "SimulateTaskRunner: DCMI get AICore failed, card=" << npuCardId
+                                                                         << ", chip=" << chipIdx
+                                                                         << ", error=" << ret);
+                continue;
             }
-            maxUtilAcrossCards = std::max(maxUtilAcrossCards, maxUtilThisCard);
+            maxUtilAcrossCards = std::max(maxUtilAcrossCards, utilizationRate);
         }
         const auto elapsedMs =
             std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - roundStart);

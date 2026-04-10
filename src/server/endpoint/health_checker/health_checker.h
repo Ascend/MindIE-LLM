@@ -15,6 +15,7 @@
 #define OCK_HEALTH_CHECKER_H
 
 #include <vector>
+#include <utility>
 #include <shared_mutex>
 #include <thread>
 #include <atomic>
@@ -72,7 +73,7 @@ private:
     bool mIsCentralizedNode = false;
     bool mIsCentralizedMaster = true;
     mindie_llm::ConcurrentDeque<ErrorItem> mErrorList;
-    std::set<int> mNpuDeviceCardIds;
+    std::vector<std::pair<int, int>> mNpuDeviceCardIds;
     std::string mEngineName;
     mutable std::shared_mutex mNpuDevicesMutex;
     std::thread mCheckerThread;

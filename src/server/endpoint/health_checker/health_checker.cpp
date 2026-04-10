@@ -84,14 +84,16 @@ void HealthChecker::PrintNpuDeviceIds()
     std::shared_lock<std::shared_mutex> lock(mNpuDevicesMutex);
     std::stringstream ss;
     ss << "{";
-    for (const auto &id : mNpuDeviceCardIds) {
-        if (id != *mNpuDeviceCardIds.begin()) {
+    bool first = true;
+    for (const auto &t : mNpuDeviceCardIds) {
+        if (!first) {
             ss << ", ";
         }
-        ss << id;
+        first = false;
+        ss << t.first << ":" << t.second;
     }
     ss << "}";
-    ULOG_INFO(SUBMODLE_NAME_HEALTHCHECKER, "HealthChecker: NPU Device Card IDs: " << ss.str());
+    ULOG_INFO(SUBMODLE_NAME_HEALTHCHECKER, "HealthChecker: Device Card IDs (card:chip): " << ss.str());
 }
 
 std::string HealthChecker::StatusToString(const ServiceStatus &status) const
@@ -508,16 +510,18 @@ bool HealthChecker::InitNpuDeviceCardIds()
 {
     auto &configManager = mindie_llm::ConfigManager::GetInstance();
     auto &serverConfig = configManager.GetServerConfig();
+    const int chipsPerCard = (mChipPerCard > 0) ? mChipPerCard : 1;
     const auto& npuDeviceIds = configManager.GetBackendConfig().npuDeviceIds;
-    const auto loadNpuIdsFromBackend = [this, &npuDeviceIds]() -> bool {
+    const auto loadNpuIdsFromBackend = [this, &npuDeviceIds, chipsPerCard]() -> bool {
         if (npuDeviceIds.empty() || npuDeviceIds[0].empty()) {
             return false;
         }
         std::unique_lock<std::shared_mutex> lock(mNpuDevicesMutex);
         mNpuDeviceCardIds.clear();
         for (const auto &id : npuDeviceIds[0]) {
-            // backend 配置通常按逻辑芯片 ID 下发；聚合到卡维度以适配 A2/A3
-            mNpuDeviceCardIds.insert(static_cast<int>(id) / mChipPerCard);
+            const int lid = static_cast<int>(id);
+            // backend 为逻辑芯片 ID：映射为 (物理卡, 卡内 chip)。A3 同卡多 DP 时每进程只采样本进程 chip。
+            mNpuDeviceCardIds.emplace_back(lid / chipsPerCard, lid % chipsPerCard);
         }
         return !mNpuDeviceCardIds.empty();
     };
@@ -630,11 +634,12 @@ void HealthChecker::EnqueueErrorMessage(const std::string &errCode, const std::s
 
 void HealthChecker::UpdateNpuDeviceIds(const std::set<int> &npuDeviceIds)
 {
+    const int chipsPerCard = (mChipPerCard > 0) ? mChipPerCard : 1;
     {
         std::unique_lock<std::shared_mutex> lock(mNpuDevicesMutex);
         mNpuDeviceCardIds.clear();
         for (const auto &id : npuDeviceIds) {
-            mNpuDeviceCardIds.insert(id / mChipPerCard);
+            mNpuDeviceCardIds.emplace_back(id / chipsPerCard, id % chipsPerCard);
         }
     }
     PrintNpuDeviceIds();

@@ -14,6 +14,7 @@
 #include <mockcpp/mockcpp.hpp>
 #include <thread>
 #include <chrono>
+#include <vector>
 
 #define private public
 #include "simulate_task_runner.h"
@@ -54,7 +55,8 @@ protected:
     {
         GlobalMockObject::verify();
         executor_ = std::make_shared<MockSimulateExecutor>();
-        npuIds_ = {0, 1};
+        // 与 HealthChecker::UpdateNpuDeviceIds 一致：逻辑设备 0、1，chipPerCard=1 -> (卡, chip)
+        npuDeviceCardIds_ = {{0, 0}, {1, 0}};
     }
 
     void TearDown() override
@@ -63,7 +65,7 @@ protected:
     }
 
     std::shared_ptr<MockSimulateExecutor> executor_;
-    std::set<int> npuIds_;
+    std::vector<std::pair<int, int>> npuDeviceCardIds_;
 };
 
 // ==================== SimulateResult 测试 ====================
@@ -137,7 +139,7 @@ TEST_F(SimulateTaskRunnerTest, ConstructorCreatesInvalidInstance)
 TEST_F(SimulateTaskRunnerTest, InitWithValidParams)
 {
     SimulateTaskRunner runner;
-    bool result = runner.Init(executor_, npuIds_, 10);
+    bool result = runner.Init(executor_, npuDeviceCardIds_, 10);
     
     EXPECT_TRUE(result);
     EXPECT_TRUE(runner.IsValid());
@@ -146,7 +148,7 @@ TEST_F(SimulateTaskRunnerTest, InitWithValidParams)
 TEST_F(SimulateTaskRunnerTest, InitWithNullExecutor)
 {
     SimulateTaskRunner runner;
-    bool result = runner.Init(nullptr, npuIds_, 10);
+    bool result = runner.Init(nullptr, npuDeviceCardIds_, 10);
     
     EXPECT_FALSE(result);
     EXPECT_FALSE(runner.IsValid());
@@ -155,7 +157,7 @@ TEST_F(SimulateTaskRunnerTest, InitWithNullExecutor)
 TEST_F(SimulateTaskRunnerTest, InitWithEmptyNpuIds)
 {
     SimulateTaskRunner runner;
-    std::set<int> emptyIds;
+    std::vector<std::pair<int, int>> emptyIds;
     bool result = runner.Init(executor_, emptyIds, 10);
     
     EXPECT_FALSE(result);
@@ -165,10 +167,10 @@ TEST_F(SimulateTaskRunnerTest, InitWithEmptyNpuIds)
 TEST_F(SimulateTaskRunnerTest, InitTwiceReturnsTrue)
 {
     SimulateTaskRunner runner;
-    EXPECT_TRUE(runner.Init(executor_, npuIds_, 10));
+    EXPECT_TRUE(runner.Init(executor_, npuDeviceCardIds_, 10));
     
     // 再次初始化应该返回 true（已初始化）
-    EXPECT_TRUE(runner.Init(executor_, npuIds_, 10));
+    EXPECT_TRUE(runner.Init(executor_, npuDeviceCardIds_, 10));
     EXPECT_TRUE(runner.IsValid());
 }
 
@@ -186,7 +188,7 @@ TEST_F(SimulateTaskRunnerTest, StartWithoutInitFails)
 TEST_F(SimulateTaskRunnerTest, StartAndStopBasic)
 {
     SimulateTaskRunner runner;
-    runner.Init(executor_, npuIds_, 10);
+    runner.Init(executor_, npuDeviceCardIds_, 10);
     
     runner.Start(1);
     EXPECT_TRUE(runner.IsRunning());
@@ -201,7 +203,7 @@ TEST_F(SimulateTaskRunnerTest, StartAndStopBasic)
 TEST_F(SimulateTaskRunnerTest, StartTwiceIgnoresSecondCall)
 {
     SimulateTaskRunner runner;
-    runner.Init(executor_, npuIds_, 10);
+    runner.Init(executor_, npuDeviceCardIds_, 10);
     
     runner.Start(1);
     EXPECT_TRUE(runner.IsRunning());
@@ -216,7 +218,7 @@ TEST_F(SimulateTaskRunnerTest, StartTwiceIgnoresSecondCall)
 TEST_F(SimulateTaskRunnerTest, StopWhenNotRunningDoesNothing)
 {
     SimulateTaskRunner runner;
-    runner.Init(executor_, npuIds_, 10);
+    runner.Init(executor_, npuDeviceCardIds_, 10);
     
     // 未启动时 Stop 不应该有问题
     runner.Stop();
@@ -228,7 +230,7 @@ TEST_F(SimulateTaskRunnerTest, StopWhenNotRunningDoesNothing)
 TEST_F(SimulateTaskRunnerTest, PauseWhenNotRunningFails)
 {
     SimulateTaskRunner runner;
-    runner.Init(executor_, npuIds_, 10);
+    runner.Init(executor_, npuDeviceCardIds_, 10);
     
     runner.Pause();
     EXPECT_FALSE(runner.IsPaused());
@@ -237,7 +239,7 @@ TEST_F(SimulateTaskRunnerTest, PauseWhenNotRunningFails)
 TEST_F(SimulateTaskRunnerTest, ResumeWhenNotRunningFails)
 {
     SimulateTaskRunner runner;
-    runner.Init(executor_, npuIds_, 10);
+    runner.Init(executor_, npuDeviceCardIds_, 10);
     
     runner.Resume();
     EXPECT_FALSE(runner.IsPaused());
@@ -246,7 +248,7 @@ TEST_F(SimulateTaskRunnerTest, ResumeWhenNotRunningFails)
 TEST_F(SimulateTaskRunnerTest, PauseAndResume)
 {
     SimulateTaskRunner runner;
-    runner.Init(executor_, npuIds_, 10);
+    runner.Init(executor_, npuDeviceCardIds_, 10);
     runner.Start(1);
     
     std::this_thread::sleep_for(std::chrono::milliseconds(50));
@@ -263,7 +265,7 @@ TEST_F(SimulateTaskRunnerTest, PauseAndResume)
 TEST_F(SimulateTaskRunnerTest, PauseTwiceIgnoresSecondCall)
 {
     SimulateTaskRunner runner;
-    runner.Init(executor_, npuIds_, 10);
+    runner.Init(executor_, npuDeviceCardIds_, 10);
     runner.Start(1);
     
     std::this_thread::sleep_for(std::chrono::milliseconds(50));
@@ -280,7 +282,7 @@ TEST_F(SimulateTaskRunnerTest, PauseTwiceIgnoresSecondCall)
 TEST_F(SimulateTaskRunnerTest, ResumeWhenNotPausedDoesNothing)
 {
     SimulateTaskRunner runner;
-    runner.Init(executor_, npuIds_, 10);
+    runner.Init(executor_, npuDeviceCardIds_, 10);
     runner.Start(1);
     
     std::this_thread::sleep_for(std::chrono::milliseconds(50));
@@ -297,7 +299,7 @@ TEST_F(SimulateTaskRunnerTest, ResumeWhenNotPausedDoesNothing)
 TEST_F(SimulateTaskRunnerTest, GetHealthStatusInitial)
 {
     SimulateTaskRunner runner;
-    runner.Init(executor_, npuIds_, 10);
+    runner.Init(executor_, npuDeviceCardIds_, 10);
     
     SimulateHealthStatus status = runner.GetHealthStatus();
     EXPECT_EQ(status.lastMessage, "not started");
@@ -307,7 +309,7 @@ TEST_F(SimulateTaskRunnerTest, GetHealthStatusInitial)
 TEST_F(SimulateTaskRunnerTest, GetHealthStatusAfterStart)
 {
     SimulateTaskRunner runner;
-    runner.Init(executor_, npuIds_, 10);
+    runner.Init(executor_, npuDeviceCardIds_, 10);
     runner.Start(1);
     
     std::this_thread::sleep_for(std::chrono::milliseconds(50));
@@ -321,7 +323,7 @@ TEST_F(SimulateTaskRunnerTest, GetHealthStatusAfterStart)
 TEST_F(SimulateTaskRunnerTest, GetHealthStatusAfterStop)
 {
     SimulateTaskRunner runner;
-    runner.Init(executor_, npuIds_, 10);
+    runner.Init(executor_, npuDeviceCardIds_, 10);
     runner.Start(1);
     
     std::this_thread::sleep_for(std::chrono::milliseconds(50));
@@ -338,7 +340,7 @@ TEST_F(SimulateTaskRunnerTest, GetHealthStatusAfterStop)
 TEST_F(SimulateTaskRunnerTest, GetNpuUtilizationInitial)
 {
     SimulateTaskRunner runner;
-    runner.Init(executor_, npuIds_, 10);
+    runner.Init(executor_, npuDeviceCardIds_, 10);
     
     // 初始值应该是 -1（未检测）
     EXPECT_EQ(runner.GetNpuUtilization(), -1);
@@ -349,7 +351,7 @@ TEST_F(SimulateTaskRunnerTest, GetNpuUtilizationInitial)
 TEST_F(SimulateTaskRunnerTest, UpdateHealthStatusSuccess)
 {
     SimulateTaskRunner runner;
-    runner.Init(executor_, npuIds_, 10);
+    runner.Init(executor_, npuDeviceCardIds_, 10);
     
     SimulateResult result{SimulateResult::Status::SUCCESS, "test success"};
     runner.UpdateHealthStatus(result);
@@ -364,7 +366,7 @@ TEST_F(SimulateTaskRunnerTest, UpdateHealthStatusSuccess)
 TEST_F(SimulateTaskRunnerTest, UpdateHealthStatusBusy)
 {
     SimulateTaskRunner runner;
-    runner.Init(executor_, npuIds_, 10);
+    runner.Init(executor_, npuDeviceCardIds_, 10);
     
     SimulateResult result{SimulateResult::Status::BUSY, "device busy"};
     runner.UpdateHealthStatus(result);
@@ -378,7 +380,7 @@ TEST_F(SimulateTaskRunnerTest, UpdateHealthStatusBusy)
 TEST_F(SimulateTaskRunnerTest, UpdateHealthStatusTimeout)
 {
     SimulateTaskRunner runner;
-    runner.Init(executor_, npuIds_, 10);
+    runner.Init(executor_, npuDeviceCardIds_, 10);
     
     SimulateResult result{SimulateResult::Status::TIMEOUT, "timeout"};
     runner.UpdateHealthStatus(result);
@@ -392,7 +394,7 @@ TEST_F(SimulateTaskRunnerTest, UpdateHealthStatusTimeout)
 TEST_F(SimulateTaskRunnerTest, UpdateHealthStatusError)
 {
     SimulateTaskRunner runner;
-    runner.Init(executor_, npuIds_, 10);
+    runner.Init(executor_, npuDeviceCardIds_, 10);
     
     SimulateResult result{SimulateResult::Status::ERROR, "error occurred"};
     runner.UpdateHealthStatus(result);
@@ -406,7 +408,7 @@ TEST_F(SimulateTaskRunnerTest, UpdateHealthStatusError)
 TEST_F(SimulateTaskRunnerTest, UpdateHealthStatusMultipleTimes)
 {
     SimulateTaskRunner runner;
-    runner.Init(executor_, npuIds_, 10);
+    runner.Init(executor_, npuDeviceCardIds_, 10);
     
     runner.UpdateHealthStatus({SimulateResult::Status::SUCCESS, "1"});
     runner.UpdateHealthStatus({SimulateResult::Status::SUCCESS, "2"});
@@ -424,7 +426,7 @@ TEST_F(SimulateTaskRunnerTest, UpdateHealthStatusMultipleTimes)
 TEST_F(SimulateTaskRunnerTest, ExecutorRunsMultipleTimes)
 {
     SimulateTaskRunner runner;
-    runner.Init(executor_, npuIds_, 10);
+    runner.Init(executor_, npuDeviceCardIds_, 10);
     
     executor_->SetSleepMs(10);
     runner.Start(1);  // 间隔 1 秒
@@ -444,7 +446,7 @@ TEST_F(SimulateTaskRunnerTest, DestructorStopsRunningTask)
     
     {
         SimulateTaskRunner runner;
-        runner.Init(executor, npuIds_, 10);
+        runner.Init(executor, npuDeviceCardIds_, 10);
         runner.Start(1);
         std::this_thread::sleep_for(std::chrono::milliseconds(50));
         // 作用域结束，析构函数应该自动 Stop
