@@ -449,9 +449,9 @@ void PrometheusMetrics::RecordCacheBlockData()
     Status status =
         GetInferInstance()->GetCacheBlockNums(freeNpuBlockNums, freeCpuBlockNums, totalNpuBlockNums, totalCpuBlockNums);
     if (!status.IsOk()) {
-        ULOG_ERROR(SUBMODLE_NAME_ENDPOINT, GenerateEndpointErrCode(ERROR, SUBMODLE_FEATURE_MANAGE_REQUEST,
-              CHECK_ERROR), "Failed to get cache block nums. Maybe the model instance is not ready. "
-              << "Please wait the model instance(coordinator) is ready and use the Prometheus API /metrics later.");
+        ULOG_WARN(SUBMODLE_NAME_ENDPOINT, GenerateEndpointErrCode(WARNING, SUBMODLE_FEATURE_MANAGE_REQUEST,
+            CHECK_ERROR), "Failed to get cache block nums. Maybe the model instance is not ready. "
+            << "Please wait the model instance(coordinator) is ready and use the Prometheus API /metrics later.");
         return;
     }
 
@@ -480,7 +480,7 @@ void PrometheusMetrics::RecordRequestNums()
     std::map<std::string, uint64_t> batchSchedulerMetrics{};
     Status status = GetInferInstance()->GetBatchSchedulerMetrics(batchSchedulerMetrics);
     if (!status.IsOk()) {
-        ULOG_ERROR(SUBMODLE_NAME_ENDPOINT, GenerateEndpointErrCode(ERROR, SUBMODLE_FEATURE_MANAGE_REQUEST,
+        ULOG_WARN(SUBMODLE_NAME_ENDPOINT, GenerateEndpointErrCode(WARNING, SUBMODLE_FEATURE_MANAGE_REQUEST,
             CHECK_ERROR), "Failed to get request nums");
         return;
     }
