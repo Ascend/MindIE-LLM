@@ -307,7 +307,7 @@ class ModelRunnerExp:
         set_forward_context(forward_context)
         
         hidden_states = self.model(input_ids, position_ids)
-        if forward_context.dp_metadata is not None:
+        if get_parallel_info_manager().get(ParallelType.ATTN_DP).is_enabled():
             dp_metadata = forward_context.dp_metadata
             dp_metadata.num_tokens_across_dp_cpu = dp_metadata.num_actual_tokens_across_dp_cpu
         hidden_states = self.model.maybe_gather_and_unpad_for_flashcomm(hidden_states)
@@ -336,7 +336,7 @@ class ModelRunnerExp:
         forward_context = create_forward_context(
             model_inputs, self._mask, self.num_speculative_tokens)
         padding_tokens = forward_context.num_actual_tokens
-        if forward_context.dp_metadata is not None:
+        if get_parallel_info_manager().get(ParallelType.ATTN_DP).is_enabled():
             padding_tokens = forward_context.dp_metadata.max_tokens_across_dp_cpu
         if self._is_aclgraph_enabled:
             num_tokens = self.model.get_padded_graph_size(padding_tokens)
@@ -500,7 +500,7 @@ class ModelRunnerExp:
         forward_context = create_forward_context(
             model_inputs, self._mask, self.num_speculative_tokens)
         forward_context.batch_descriptor = BatchDescriptor(
-            num_tokens, get_parallel_info_manager().get(ParallelType.ATTN_DP).is_enabled())
+            num_tokens, get_parallel_info_manager().get(ParallelType.ATTN_TP).is_enabled())
         # This parameter will be calculated during D2D operation in the formal inference.
         forward_context.attn_metadata.seq_lens_list = seq_lens_list
         if hasattr(forward_context.attn_metadata, 'prepare_dummy_input'): 
