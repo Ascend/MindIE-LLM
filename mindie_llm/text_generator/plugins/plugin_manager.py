@@ -21,7 +21,6 @@ from typing import Optional, Any, TYPE_CHECKING
 
 import numpy as np
 import torch
-import torch.nn.functional as F
 
 from mindie_llm.text_generator.utils import (
     GenerationOutput,
@@ -1002,6 +1001,11 @@ class PluginManager:
                 true_token_ids = sampling_output.token_ids.index_select(
                     dim=0, index=hit_indices_tensor
                 ).flatten()
+                # splitfuse: one row per token in flattened input_ids; must use per-token mask
+                hit_mask_per_token = filling_masks.get("hit_mask_per_token")
+                if hit_mask_per_token is not None:
+                    model_inputs.input_ids[hit_mask_per_token] = true_token_ids
+                    model_inputs.position_ids[hit_mask_per_token] += 1
                 update_indices = filling_masks.get("update_indices")
                 ones_int32 = filling_masks.get("ones_int32")
                 ones_int64 = filling_masks.get("ones_int64")
@@ -1018,14 +1022,17 @@ class PluginManager:
                 model_inputs.forward_context.attn_metadata.max_seq_len = (
                     model_inputs.max_seq_len
                 )
-                actual_seq_lengths_query = torch.ones_like(
-                    model_inputs.input_lengths, dtype=torch.int32
-                )
-                actual_seq_lengths_query = F.pad(
-                    torch.cumsum(actual_seq_lengths_query, dim=0, dtype=torch.int32),
-                    (0, 0),
-                    value=0,
-                )
+                if model_inputs.q_lens is not None:
+                    actual_seq_lengths_query = torch.cumsum(
+                        model_inputs.q_lens, dim=0, dtype=torch.int32
+                    )
+                else:
+                    actual_seq_lengths_query = torch.cumsum(
+                        torch.ones_like(model_inputs.input_lengths, dtype=torch.int32),
+                        dim=0,
+                        dtype=torch.int32,
+                    )
+
                 model_inputs.forward_context.attn_metadata.actual_seq_lengths_query = (
                     actual_seq_lengths_query
                 )

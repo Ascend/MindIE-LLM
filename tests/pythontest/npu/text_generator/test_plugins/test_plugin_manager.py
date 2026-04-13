@@ -1761,6 +1761,64 @@ class TestPluginManagerFillInModelResultExp(unittest.TestCase):
             model_input_wrapper, model_output_wrapper
         )
 
+    def test_fill_in_model_result_exp_with_hit_mask_per_token(self):
+        """测试_fill_in_model_result_exp - splitfuse/mix 按 token 回填（与 _fill_in_model_result 一致）"""
+        self.mock_generator_backend.mapping = Mock()
+        self.mock_generator_backend.mapping.has_attn_cp = Mock(return_value=False)
+
+        model_input_wrapper = Mock()
+        model_input_wrapper.filling_masks = {
+            "hit_sequence_ids_mask": np.array([True, False]),
+            "hit_indices_tensor": torch.tensor([0, 1]),
+            "hit_mask_per_token": torch.tensor(
+                [True, False, True, False], dtype=torch.bool
+            ),
+            "hit_sequence_ids_mask_tensor": torch.tensor(
+                [True, False], dtype=torch.bool
+            ),
+        }
+
+        model_input_wrapper.model_inputs = Mock()
+        model_input_wrapper.model_inputs.input_ids = torch.zeros(4, dtype=torch.long)
+        model_input_wrapper.model_inputs.position_ids = torch.zeros(4, dtype=torch.long)
+        model_input_wrapper.model_inputs.input_lengths = torch.tensor(
+            [1, 1], dtype=torch.long
+        )
+        model_input_wrapper.model_inputs.context_length = np.array(
+            [1, 1], dtype=np.int32
+        )
+        model_input_wrapper.model_inputs.max_seq_len = 1
+        model_input_wrapper.model_inputs.forward_context = Mock()
+        model_input_wrapper.model_inputs.forward_context.attn_metadata = Mock()
+        model_input_wrapper.model_inputs.forward_context.attn_metadata.max_seq_len = 1
+
+        model_output_wrapper = Mock()
+        model_output_wrapper.sampling_output = Mock()
+        model_output_wrapper.sampling_output.token_ids = torch.tensor(
+            [[7], [8]], dtype=torch.long
+        )
+
+        self.plugin_manager._fill_in_model_result_exp(
+            model_input_wrapper, model_output_wrapper
+        )
+
+        torch.testing.assert_close(
+            model_input_wrapper.model_inputs.input_ids,
+            torch.tensor([7, 0, 8, 0], dtype=torch.long),
+        )
+        torch.testing.assert_close(
+            model_input_wrapper.model_inputs.position_ids,
+            torch.tensor([1, 0, 1, 0], dtype=torch.long),
+        )
+        torch.testing.assert_close(
+            model_input_wrapper.model_inputs.input_lengths,
+            torch.tensor([2, 1], dtype=torch.long),
+        )
+        np.testing.assert_array_equal(
+            model_input_wrapper.model_inputs.context_length,
+            np.array([2, 1], dtype=np.int32),
+        )
+
 
 class TestPluginManagerClearCache(unittest.TestCase):
     """测试clear_cache方法"""
