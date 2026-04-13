@@ -20,8 +20,7 @@ from mindie_llm.utils.log.logging import logger
 
 
 class CryptedWeightsFileHandler(WeightsFileHandler):
-
-    def __init__(self, model_path: str, extension: str):
+    def __init__(self, model_path: str, extension: str, quantize: str = None):
         super().__init__(model_path, extension)
 
         self._sf_metadata = {}
@@ -30,20 +29,24 @@ class CryptedWeightsFileHandler(WeightsFileHandler):
 
         if self.encrypt_enable:
             try:
-                decrypt_script = importlib.import_module('tests.encrypttest.custom_crypt')
-                decrypt_cls = getattr(decrypt_script, 'CustomDecrypt')
+                decrypt_script = importlib.import_module(
+                    "tests.encrypttest.custom_crypt"
+                )
+                decrypt_cls = getattr(decrypt_script, "CustomDecrypt")
                 self._decrypt_ins = decrypt_cls()
 
                 for filename in self._filenames:
                     with safetensors.torch.safe_open(filename, framework="pt") as f:
                         self._sf_metadata.update(f.metadata())
-                        
+
             except Exception as e:
-                logger.warning(f"Failed to initialize decryptor: {e}, proceeding without decryption")
+                logger.warning(
+                    f"Failed to initialize decryptor: {e}, proceeding without decryption"
+                )
 
     @property
     def encrypt_enable(self) -> bool:
-        return self._model_path.endswith('crypt') or self._model_path.endswith('crypt/')
+        return self._model_path.endswith("crypt") or self._model_path.endswith("crypt/")
 
     def get_tensor(self, tensor_name: str) -> Any:
         tensor = super().get_tensor(tensor_name)
@@ -52,11 +55,15 @@ class CryptedWeightsFileHandler(WeightsFileHandler):
             try:
                 tensor = self._decrypt_ins.decrypt(tensor)
                 if tensor_name in self._sf_metadata:
-                    module_name, attribute_name = self._sf_metadata[tensor_name].split(".")
+                    module_name, attribute_name = self._sf_metadata[tensor_name].split(
+                        "."
+                    )
                     module = importlib.import_module(module_name)
                     dtype_ = getattr(module, attribute_name)
                     tensor = tensor.to(dtype_)
             except Exception as e:
-                logger.warning(f"Failed to decrypt tensor '{tensor_name}': {e}, using original weight")
+                logger.warning(
+                    f"Failed to decrypt tensor '{tensor_name}': {e}, using original weight"
+                )
 
         return tensor
