@@ -33,7 +33,6 @@ MAX_PATH_LENGTH_KEY = "max_path_length"
 CHECK_LINK_KEY = "check_link"
 
 
-
 @dataclass
 class MultimodalRequestOut:
     req_list: List
@@ -163,7 +162,7 @@ def is_audio_path(path: str) -> bool:
     return is_multimodal_source_path(path, is_audio)
 
 
-def safe_open_audio(audio_cls, audio_path: str, mode='r', is_exist_ok=True, **kwargs):
+def safe_open_audio(audio_cls, audio_path: str, mode="r", is_exist_ok=True, **kwargs):
     """
     :param audio_path: 文件路径
     :param mode: 文件打开模式
@@ -171,17 +170,31 @@ def safe_open_audio(audio_cls, audio_path: str, mode='r', is_exist_ok=True, **kw
     :param kwargs:
     :return:
     """
-    max_path_length = kwargs.get('max_path_length', MAX_PATH_LENGTH)
-    max_file_size = kwargs.get('max_file_size', MAX_AUDIO_FILE_SIZE)
-    check_link = kwargs.get('check_link', True)
+    max_path_length = kwargs.get("max_path_length", MAX_PATH_LENGTH)
+    max_file_size = kwargs.get("max_file_size", MAX_AUDIO_FILE_SIZE)
+    check_link = kwargs.get("check_link", True)
 
     audio_path = file_utils.standardize_path(audio_path, max_path_length, check_link)
     file_utils.check_file_safety(audio_path, mode, is_exist_ok, max_file_size)
 
-    return audio_cls.load(audio_path)
+    try:
+        return audio_cls.load(audio_path)
+    except Exception as e:
+        # torchaudio 2.9 may route to torchcodec, which may be unavailable on NPU env.
+        err = str(e)
+        if "load_with_torchcodec" in err or "TorchCodec" in err or "libnvrtc" in err or "libtorchcodec" in err:
+            logger.warning("torchaudio.load failed, fallback to librosa: %s", err)
+            import librosa
+            import torch
+
+            data, sr = librosa.load(audio_path, sr=None, mono=False)
+            if data.ndim == 1:
+                data = data[None, :]
+            return torch.as_tensor(data), sr
+        raise
 
 
-def safe_open_image(image_cls, file_path: str, mode='r', is_exist_ok=True, **kwargs):
+def safe_open_image(image_cls, file_path: str, mode="r", is_exist_ok=True, **kwargs):
     """
     :image_cls: 图像类
     :param file_path: 文件路径
@@ -191,14 +204,16 @@ def safe_open_image(image_cls, file_path: str, mode='r', is_exist_ok=True, **kwa
     :return:
     """
     if not (isinstance(image_cls, types.ModuleType) and image_cls.__name__ == "PIL.Image"):
-        raise ValueError("Unsupported image loader type."
-                         " Please use PIL.Image or implement a similar class with size validation to ensure security.")
+        raise ValueError(
+            "Unsupported image loader type."
+            " Please use PIL.Image or implement a similar class with size validation to ensure security."
+        )
     Image.MAX_IMAGE_PIXELS = kwargs.get("max_image_pixels", MAX_IMAGE_PIXELS)
     warnings.simplefilter("error", Image.DecompressionBombWarning)
 
-    max_path_length = kwargs.get('max_path_length', MAX_PATH_LENGTH)
-    max_file_size = kwargs.get('max_file_size', MAX_IMAGE_FILE_SIZE)
-    check_link = kwargs.get('check_link', True)
+    max_path_length = kwargs.get("max_path_length", MAX_PATH_LENGTH)
+    max_file_size = kwargs.get("max_file_size", MAX_IMAGE_FILE_SIZE)
+    check_link = kwargs.get("check_link", True)
 
     file_path = file_utils.standardize_path(file_path, max_path_length, check_link)
     file_utils.check_file_safety(file_path, mode, is_exist_ok, max_file_size)
@@ -215,7 +230,7 @@ def safe_open_image(image_cls, file_path: str, mode='r', is_exist_ok=True, **kwa
         raise RuntimeError(err_msg) from e
 
 
-def check_video_path(file_path: str, mode='r', is_exist_ok=True, **kwargs):
+def check_video_path(file_path: str, mode="r", is_exist_ok=True, **kwargs):
     """
     :param file_path: 文件路径
     :param mode: 文件打开模式
@@ -223,9 +238,9 @@ def check_video_path(file_path: str, mode='r', is_exist_ok=True, **kwargs):
     :param kwargs:
     :return:
     """
-    max_path_length = kwargs.get('max_path_length', MAX_PATH_LENGTH)
-    max_file_size = kwargs.get('max_file_size', MAX_VIDEO_FILE_SIZE)
-    check_link = kwargs.get('check_link', True)
+    max_path_length = kwargs.get("max_path_length", MAX_PATH_LENGTH)
+    max_file_size = kwargs.get("max_file_size", MAX_VIDEO_FILE_SIZE)
+    check_link = kwargs.get("check_link", True)
 
     file_path = file_utils.standardize_path(file_path, max_path_length, check_link)
     file_utils.check_file_safety(file_path, mode, is_exist_ok, max_file_size)
@@ -244,15 +259,21 @@ def validate_image_loader(target_func: Callable, kwargs: dict) -> None:
     if not (isinstance(target_func, (types.FunctionType, types.MethodType)) and target_func.__module__ == "PIL.Image"):
         raise ValueError(
             "Unsupported image loader type. "
-            "Please use PIL.Image or implement a similar class with size validation to ensure security.")
+            "Please use PIL.Image or implement a similar class with size validation to ensure security."
+        )
     # Dealing with Decompression Bomb by setting MAX_IMAGE_PIXELS of Image
     Image.MAX_IMAGE_PIXELS = kwargs.pop("max_image_pixels", MAX_IMAGE_PIXELS)
     # Upgrade the level of DecompressionBombWarning from warning to error
     warnings.simplefilter("error", Image.DecompressionBombWarning)
 
 
-def safe_load_multimodal_source(target_func: Callable, file_path: str, mode: str = 'r', is_exist_ok: bool = True,
-                                **kwargs: Any) -> Any:
+def safe_load_multimodal_source(
+    target_func: Callable,
+    file_path: str,
+    mode: str = "r",
+    is_exist_ok: bool = True,
+    **kwargs: Any,
+) -> Any:
     """
     Safely load a multimodal source (image, video, or audio) using the specified target function.
     :param target_func: The target function to load the source
@@ -272,8 +293,10 @@ def safe_load_multimodal_source(target_func: Callable, file_path: str, mode: str
     elif is_audio(file_path):
         max_file_size = kwargs.pop(MAX_FILE_SIZE_KEY, MAX_AUDIO_FILE_SIZE)
     else:
-        raise ValueError("Multimodal source type should be among image, video and audio. "
-                         "Or the format of this modality is temporarily not supported.")
+        raise ValueError(
+            "Multimodal source type should be among image, video and audio. "
+            "Or the format of this modality is temporarily not supported."
+        )
 
     max_path_length = kwargs.pop(MAX_PATH_LENGTH_KEY, MAX_PATH_LENGTH)
     check_link = kwargs.pop(CHECK_LINK_KEY, True)
