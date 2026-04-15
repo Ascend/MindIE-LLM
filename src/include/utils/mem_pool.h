@@ -33,7 +33,6 @@ class MemPool {
     }
 
     std::vector<bool> LookUp(const std::vector<std::string> &keys) {
-        py::gil_scoped_acquire gil;
         PyGILState_STATE state = PyGILState_Ensure();
         std::vector<bool> res(keys.size(), false);
         if (keys.empty()) {
