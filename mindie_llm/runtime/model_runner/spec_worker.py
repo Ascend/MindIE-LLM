@@ -19,6 +19,7 @@ from mindie_llm.runtime.model_runner.forward_metadata.attn_metadata import build
 from mindie_llm.runtime.utils.distributed import get_parallel_info_manager
 from mindie_llm.utils.env import ENV
 from mindie_llm.utils.log.logging import logger
+from mindie_llm.runtime.utils.distributed.parallel_info_manager import ParallelType
 
 
 class BaseWorkerProxy(ABC):
@@ -503,7 +504,7 @@ class MtpWorkerExp(BaseWorkerProxy):
                     npu_cache, input_ids_mtp, positions_mtp, forward_context, mtp_step=mtp_idx, **draft_kwargs)
             else:
                 # If an input is not changed, we can skip padding.
-                if forward_context.dp_metadata is not None:
+                if get_parallel_info_manager().get(ParallelType.ATTN_DP).is_enabled():
                     padding_tokens = forward_context.dp_metadata.num_tokens_across_dp_cpu.max().item()
                     num_tokens = self.draft_model_runner.model.get_padded_graph_size(padding_tokens)
 

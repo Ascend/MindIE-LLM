@@ -1,13 +1,13 @@
 /**
  * Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
  * MindIE is licensed under Mulan PSL v2.
- * You can use this software according to the terms and conditions of the Mulan PSL v2.
- * You may obtain a copy of Mulan PSL v2 at:
+ * You can use this software according to the terms and conditions of the Mulan
+ * PSL v2. You may obtain a copy of Mulan PSL v2 at:
  *          http://license.coscl.org.cn/MulanPSL2
- * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
- * EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
- * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
- * See the Mulan PSL v2 for more details.
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY
+ * KIND, EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
+ * NON-INFRINGEMENT, MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE. See the
+ * Mulan PSL v2 for more details.
  */
 
 #include "base_config_manager.h"
@@ -20,7 +20,7 @@ using Json = nlohmann::json;
 using namespace nlohmann::literals;
 
 namespace mindie_llm {
-const uint32_t MAX_INPUT_LEN = 1024 * 1024 * 4; // 4M
+const uint32_t MAX_INPUT_LEN = 1024 * 1024 * 4;  // 4M
 static std::vector<ParamSpec> g_scheduleParamsConstraint = {{"templateName", "string", true},
                                                             {"templateType", "string", true},
                                                             {"cacheBlockSize", "uint32_t", true},
@@ -50,14 +50,13 @@ static std::vector<ParamSpec> g_scheduleParamsConstraint = {{"templateName", "st
                                                             {"bufferResponseEnabled", "bool", false},
                                                             {"distributedEnable", "bool", false},
                                                             {"maxFirstTokenWaitTime", "uint32_t", false},
-                                                            {"maxBeamWidth", "uint32_t", false},
+                                                            {"maxN", "uint32_t", false},
                                                             {"layerwiseDisaggregated", "object", false}};
 
 static std::vector<ParamSpec> g_scheduleLwdParamsConstraint = {{"nextPHeadPrior", "bool", false}};
 
 bool CheckSystemJson(Json &backendJsonData, const std::string &jsonPath,
-                     std::vector<ParamSpec> &scheduleParamsConstraint)
-{
+                     std::vector<ParamSpec> &scheduleParamsConstraint) {
     if (!CheckSystemConfig(jsonPath, backendJsonData, "BackendConfig")) {
         return false;
     }
@@ -68,8 +67,7 @@ bool CheckSystemJson(Json &backendJsonData, const std::string &jsonPath,
     return true;
 }
 
-bool ScheduleConfigManager::LoadBasicScheduleConfig(Json &scheduleJsonData)
-{
+bool ScheduleConfigManager::LoadBasicScheduleConfig(Json &scheduleJsonData) {
     scheduleConfig_.templateType = scheduleJsonData["templateType"];
     scheduleConfig_.templateName = scheduleJsonData["templateName"];
     scheduleConfig_.cacheBlockSize = scheduleJsonData["cacheBlockSize"];
@@ -80,8 +78,8 @@ bool ScheduleConfigManager::LoadBasicScheduleConfig(Json &scheduleJsonData)
     scheduleConfig_.maxPrefillTokens = scheduleJsonData["maxPrefillTokens"];
     scheduleConfig_.maxIterTimes = scheduleJsonData["maxIterTimes"];
     scheduleConfig_.maxPrefillBatchSize = (scheduleJsonData["maxPrefillBatchSize"] > 0)
-                                            ? scheduleJsonData["maxPrefillBatchSize"]
-                                            : scheduleJsonData["maxBatchSize"];
+                                              ? scheduleJsonData["maxPrefillBatchSize"]
+                                              : scheduleJsonData["maxBatchSize"];
     scheduleConfig_.maxQueueDelayMicroseconds = scheduleJsonData["maxQueueDelayMicroseconds"];
     scheduleConfig_.prefillPolicyType = scheduleJsonData["prefillPolicyType"];
     scheduleConfig_.prefillTimeMsPerReq = scheduleJsonData["prefillTimeMsPerReq"];
@@ -89,16 +87,18 @@ bool ScheduleConfigManager::LoadBasicScheduleConfig(Json &scheduleJsonData)
     if (scheduleJsonData.contains("maxFirstTokenWaitTime")) {
         scheduleConfig_.maxFirstTokenWaitTime = scheduleJsonData["maxFirstTokenWaitTime"];
     }
-    if (scheduleJsonData.contains("maxBeamWidth")) {
-        scheduleConfig_.maxBeamWidth = scheduleJsonData["maxBeamWidth"];
+    if (scheduleJsonData.contains("maxN")) {
+        scheduleConfig_.maxN = scheduleJsonData["maxN"];
+        MINDIE_LLM_LOG_WARN(
+            "When beam search is enabled, maxPrefillBatchSize should be set to "
+            "the number of concurrent requests multiplied by maxN. ");
     } else {
-        scheduleConfig_.maxBeamWidth = std::min(scheduleConfig_.maxBeamWidth, scheduleConfig_.maxBatchSize);
+        scheduleConfig_.maxN = std::min(scheduleConfig_.maxN, scheduleConfig_.maxBatchSize);
     }
     return true;
 }
 
-bool ScheduleConfigManager::LoadLwdConfig(Json &scheduleJsonData)
-{
+bool ScheduleConfigManager::LoadLwdConfig(Json &scheduleJsonData) {
     if (!scheduleJsonData.contains("layerwiseDisaggregated")) {
         return true;
     }
@@ -107,15 +107,14 @@ bool ScheduleConfigManager::LoadLwdConfig(Json &scheduleJsonData)
     if (!ParamChecker::CheckJsonParamType(lwdData, g_scheduleLwdParamsConstraint)) {
         return false;
     }
-    
+
     if (lwdData.contains("nextPHeadPrior")) {
         scheduleConfig_.lwdNextPHeadPrior = lwdData["nextPHeadPrior"];
     }
     return true;
 }
 
-bool ScheduleConfigManager::InitFromJson()
-{
+bool ScheduleConfigManager::InitFromJson() {
     Json backendJsonData;
     if (!CheckSystemJson(backendJsonData, jsonPath_, g_scheduleParamsConstraint)) {
         return false;
@@ -137,19 +136,19 @@ bool ScheduleConfigManager::InitFromJson()
     return true;
 }
 
-void ScheduleConfigManager::LoadPolicyConfig(Json &scheduleJsonData)
-{
+void ScheduleConfigManager::LoadPolicyConfig(Json &scheduleJsonData) {
     if (scheduleJsonData.contains("policyType")) {
         scheduleConfig_.policyType = scheduleJsonData["policyType"];
     }
 }
 
-void ScheduleConfigManager::LoadSplitFuseConfig(Json &scheduleJsonData)
-{
+void ScheduleConfigManager::LoadSplitFuseConfig(Json &scheduleJsonData) {
     if (scheduleJsonData.contains("enableSplit")) {
-        MINDIE_LLM_LOG_WARN("To enable the splitfuse, you only need to configure the 'plugin_params'."
-                            << " 'enableSplit' parameter no longer needs to be configured,"
-                            << " and any value set for it will not take effect.");
+        MINDIE_LLM_LOG_WARN(
+            "To enable the splitfuse, you only need to configure the "
+            "'plugin_params'."
+            << " 'enableSplit' parameter no longer needs to be configured,"
+            << " and any value set for it will not take effect.");
     }
 
     if (scheduleJsonData.contains("splitType")) {
@@ -169,8 +168,7 @@ void ScheduleConfigManager::LoadSplitFuseConfig(Json &scheduleJsonData)
     }
 }
 
-void ScheduleConfigManager::LoadChunkedPrefillConfig(Json &scheduleJsonData)
-{
+void ScheduleConfigManager::LoadChunkedPrefillConfig(Json &scheduleJsonData) {
     if (scheduleJsonData.contains("prefillChunkSize")) {
         scheduleConfig_.prefillChunkSize = scheduleJsonData["prefillChunkSize"];
     }
@@ -188,17 +186,18 @@ void ScheduleConfigManager::LoadChunkedPrefillConfig(Json &scheduleJsonData)
     }
 }
 
-void ScheduleConfigManager::LoadPrefixCacheConfig(Json &scheduleJsonData) const
-{
+void ScheduleConfigManager::LoadPrefixCacheConfig(Json &scheduleJsonData) const {
     if (scheduleJsonData.contains("enablePrefixCache")) {
-        MINDIE_LLM_LOG_WARN("To enable the prefixcache, you only need to configure the 'plugin_params'."
-                            << " 'enablePrefixCache' parameter no longer needs to be configured,"
-                            << " and any value set for it will not take effect.");
+        MINDIE_LLM_LOG_WARN(
+            "To enable the prefixcache, you only need to configure the "
+            "'plugin_params'."
+            << " 'enablePrefixCache' parameter no longer needs to be "
+               "configured,"
+            << " and any value set for it will not take effect.");
     }
 }
 
-void ScheduleConfigManager::LoadMiscConfig(Json &scheduleJsonData)
-{
+void ScheduleConfigManager::LoadMiscConfig(Json &scheduleJsonData) {
     if (scheduleJsonData.contains("bufferResponseEnabled")) {
         scheduleConfig_.bufferResponseEnabled = scheduleJsonData["bufferResponseEnabled"];
     }
@@ -213,8 +212,7 @@ void ScheduleConfigManager::LoadMiscConfig(Json &scheduleJsonData)
     }
 }
 
-void ScheduleConfigManager::LoadDynamicBatchConfig(Json &scheduleJsonData)
-{
+void ScheduleConfigManager::LoadDynamicBatchConfig(Json &scheduleJsonData) {
     if (scheduleJsonData.contains("stageSelectPolicy")) {
         scheduleConfig_.stageSelectPolicy = scheduleJsonData["stageSelectPolicy"];
     }
@@ -226,8 +224,7 @@ void ScheduleConfigManager::LoadDynamicBatchConfig(Json &scheduleJsonData)
     }
 }
 
-void ScheduleConfigManager::CheckSLOParam(bool &checkRes)
-{
+void ScheduleConfigManager::CheckSLOParam(bool &checkRes) {
     const size_t MAX_SELECT_POLICY = 2U;
     const size_t MAX_EXPECT_TIME = 10000U;
     const size_t MIN_EXPECT_TIME = 1U;
@@ -253,20 +250,19 @@ void ScheduleConfigManager::CheckSLOParam(bool &checkRes)
     }
 }
 
-bool ScheduleConfigManager::CheckBeamSearchParam(bool &checkRes)
-{
-    checkRes = checkRes && ParamChecker::CheckMaxMinValue<uint32_t>(scheduleConfig_.maxBeamWidth, 8192U,
-                                                                    1U, "scheduleParam.maxBeamWidth");
-    if (scheduleConfig_.maxBeamWidth > scheduleConfig_.maxBatchSize) {
-        MINDIE_LLM_LOG_ERROR("The maxBeamWidth cannot be set greater than maxBatchSize"
-                             << ", please set 'maxBeamWidth' to be not greater than 'maxBatchSize' in config.json.");
+bool ScheduleConfigManager::CheckBeamSearchParam(bool &checkRes) {
+    checkRes =
+        checkRes && ParamChecker::CheckMaxMinValue<uint32_t>(scheduleConfig_.maxN, 8192U, 1U, "scheduleParam.maxN");
+    if (scheduleConfig_.maxN > scheduleConfig_.maxBatchSize) {
+        MINDIE_LLM_LOG_ERROR("The maxN cannot be set greater than maxBatchSize"
+                             << ", please set 'maxN' to be not greater than "
+                                "'maxBatchSize' in config.json.");
         checkRes = checkRes && false;
     }
     return checkRes;
 }
 
-bool ScheduleConfigManager::CheckParam()
-{
+bool ScheduleConfigManager::CheckParam() {
     // 对所有参数进行校验，即使中途失败仍继续执行
     bool checkRes = true;
     checkRes = checkRes && ParamChecker::CheckMaxMinValue<uint32_t>(scheduleConfig_.cacheBlockSize, 128U, 1U,
@@ -279,7 +275,8 @@ bool ScheduleConfigManager::CheckParam()
                                                                     "scheduleParam.maxBatchSize");
     if (scheduleConfig_.maxPreemptCount > scheduleConfig_.maxBatchSize) {
         MINDIE_LLM_LOG_ERROR("The maxPreemptCount cannot be set greater than maxBatchsize"
-                             << ", please set 'maxPreemptCount' to be not greater than 'maxBatchsize' in config.json.");
+                             << ", please set 'maxPreemptCount' to be not greater than "
+                                "'maxBatchsize' in config.json.");
         checkRes = checkRes && false;
     }
     checkRes = checkRes && ParamChecker::CheckMaxMinValue<uint32_t>(scheduleConfig_.maxPrefillTokens, MAX_INPUT_LEN, 1U,
@@ -289,8 +286,8 @@ bool ScheduleConfigManager::CheckParam()
                                                                     "scheduleParam.maxPrefillBatchSize");
     checkRes = checkRes && ParamChecker::CheckMaxMinValue<uint32_t>(scheduleConfig_.maxQueueDelayMicroseconds, 1000000U,
                                                                     500U, "scheduleParam.maxQueueDelayMicroseconds");
-    checkRes = checkRes && ParamChecker::CheckMaxMinValue<uint32_t>(scheduleConfig_.maxFirstTokenWaitTime, 3600000U,
-                                                                    0U, "scheduleParam.maxFirstTokenWaitTime");
+    checkRes = checkRes && ParamChecker::CheckMaxMinValue<uint32_t>(scheduleConfig_.maxFirstTokenWaitTime, 3600000U, 0U,
+                                                                    "scheduleParam.maxFirstTokenWaitTime");
     checkRes = checkRes &&
                ParamChecker::CheckPolicyValue(scheduleConfig_.prefillPolicyType, "scheduleParam.prefillPolicyType");
     checkRes = checkRes && ParamChecker::CheckMixPolicyValue(scheduleConfig_.policyType, "scheduleParam.policyType");
@@ -319,4 +316,4 @@ bool ScheduleConfigManager::CheckParam()
 void ScheduleConfigManager::SetMaxPreemptCount(uint32_t value) { scheduleConfig_.maxPreemptCount = value; }
 
 const struct ScheduleConfig &ScheduleConfigManager::GetParam() { return scheduleConfig_; }
-} // namespace mindie_llm
+}  // namespace mindie_llm

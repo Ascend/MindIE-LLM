@@ -36,7 +36,7 @@ Context Parallel（CP，上下文并行）主要针对Self-attention模块在seq
 1. 打开Server的config.json文件。
 
     ```bash
-    cd {MindIE安装目录}/latest/mindie-service/
+    cd {MindIE安装目录}/mindie_llm/
     vi conf/config.json
     ```
 
@@ -72,5 +72,5 @@ Context Parallel（CP，上下文并行）主要针对Self-attention模块在seq
 3. 启动服务。
 
     ```bash
-    ./bin/mindieservice_daemon
+    mindie_llm_server
     ```

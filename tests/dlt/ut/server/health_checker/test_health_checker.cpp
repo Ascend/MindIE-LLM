@@ -13,6 +13,7 @@
 #include <mockcpp/mockcpp.hpp>
 #include <thread>
 #include <chrono>
+#include <vector>
 #define private public
 #include "health_checker.h"
 #include "health_checker.cpp"
@@ -176,14 +177,13 @@ TEST_F(HealthCheckerTest, UpdateNpuDeviceIds)
     // Set chip per card to 2 (A3 scenario)
     checker.mChipPerCard = 2;
 
-    // Device IDs: 0, 1, 2, 3 -> Card IDs: 0, 0, 1, 1
+    // 逻辑设备 0..3，每卡 2 chip：(card, chip) = (0,0)(0,1)(1,0)(1,1)，每条记录对应一个逻辑设备
     std::set<int> npuDeviceIds = {0, 1, 2, 3};
     checker.UpdateNpuDeviceIds(npuDeviceIds);
 
     std::shared_lock<std::shared_mutex> lock(checker.mNpuDevicesMutex);
-    EXPECT_EQ(checker.mNpuDeviceCardIds.size(), 2);
-    EXPECT_TRUE(checker.mNpuDeviceCardIds.find(0) != checker.mNpuDeviceCardIds.end());
-    EXPECT_TRUE(checker.mNpuDeviceCardIds.find(1) != checker.mNpuDeviceCardIds.end());
+    const std::vector<std::pair<int, int>> expected = {{0, 0}, {0, 1}, {1, 0}, {1, 1}};
+    EXPECT_EQ(checker.mNpuDeviceCardIds, expected);
 }
 
 // Test UpdateNpuDeviceIds with single chip per card
@@ -197,11 +197,8 @@ TEST_F(HealthCheckerTest, UpdateNpuDeviceIdsSingleChip)
     checker.UpdateNpuDeviceIds(npuDeviceIds);
 
     std::shared_lock<std::shared_mutex> lock(checker.mNpuDevicesMutex);
-    EXPECT_EQ(checker.mNpuDeviceCardIds.size(), 4);
-    EXPECT_TRUE(checker.mNpuDeviceCardIds.find(0) != checker.mNpuDeviceCardIds.end());
-    EXPECT_TRUE(checker.mNpuDeviceCardIds.find(1) != checker.mNpuDeviceCardIds.end());
-    EXPECT_TRUE(checker.mNpuDeviceCardIds.find(2) != checker.mNpuDeviceCardIds.end());
-    EXPECT_TRUE(checker.mNpuDeviceCardIds.find(3) != checker.mNpuDeviceCardIds.end());
+    const std::vector<std::pair<int, int>> expected = {{0, 0}, {1, 0}, {2, 0}, {3, 0}};
+    EXPECT_EQ(checker.mNpuDeviceCardIds, expected);
 }
 
 // Test IsValidStatusTransition

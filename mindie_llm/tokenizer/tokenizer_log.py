@@ -17,24 +17,24 @@ from mindie_llm.utils.log.logging_base import HandlerType
 
 class TokenizerLogger:
     @staticmethod
-    def debug(msg):
-        baselog.debug(msg, extra={"handler_ids": HandlerType.TOKENIZER})
+    def debug(msg, *args, **kwargs):
+        baselog.debug(msg, *args, extra={"handler_ids": HandlerType.TOKENIZER}, **kwargs)
 
     @staticmethod
-    def info(msg):
-        baselog.info(msg, extra={"handler_ids": HandlerType.TOKENIZER})
+    def info(msg, *args, **kwargs):
+        baselog.info(msg, *args, extra={"handler_ids": HandlerType.TOKENIZER}, **kwargs)
 
     @staticmethod
-    def warning(msg):
-        baselog.warning(msg, extra={"handler_ids": HandlerType.TOKENIZER})
+    def warning(msg, *args, **kwargs):
+        baselog.warning(msg, *args, extra={"handler_ids": HandlerType.TOKENIZER}, **kwargs)
 
     @staticmethod
-    def error(msg):
-        baselog.error(msg, extra={"handler_ids": HandlerType.TOKENIZER})
+    def error(msg, *args, **kwargs):
+        baselog.error(msg, *args, extra={"handler_ids": HandlerType.TOKENIZER}, **kwargs)
 
     @staticmethod
-    def exception(msg):
-        baselog.critical(msg, extra={"handler_ids": HandlerType.TOKENIZER})
+    def exception(msg, *args, **kwargs):
+        baselog.error(msg, *args, exc_info=True, extra={"handler_ids": HandlerType.TOKENIZER}, **kwargs)
 
 
 logger = TokenizerLogger()

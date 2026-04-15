@@ -17,7 +17,7 @@
 
 | 旧环境变量（将被删除）              | 新环境变量（变更后）     |
 | :-------------------------------- | :--------------------- |
-| **日志是否打屏**                  |                        |
+| **日志是否打印**                  |                        |
 | `OCK_LOG_TO_STDOUT`               | `MINDIE_LOG_TO_STDOUT` |
 | `MINDIE_LLM_PYTHON_LOG_TO_STDOUT` | `MINDIE_LOG_TO_STDOUT` |
 | `MINDIE_LLM_LOG_TO_STDOUT`        | `MINDIE_LOG_TO_STDOUT` |
@@ -100,10 +100,10 @@
 | MINDIE_LOG_PATH | 控制日志写入路径 | N/A | ~/mindie/log/debug | 正在使用 | 是 |
 | MINDIE_LOG_VERBOSE | 控制日志格式 | {0, 1, true, false} | true | 正在使用 | 是 |
 | MINDIE_LOG_ROTATE | 控制日志轮转 |-fs：每个进程日志文件轮转最大大小，当日志文件大小超过此数值时，当前文件会被保存为旧文件，并创建新文件继续记录日志，单位MB，取值范围[1, 500]<br>-r：每个进程轮转时可保留日志文件数量，超过此数量的旧日志文件会被自动删除，取值范围[1, 64] | -fs 20<br>-r 10 | 正在使用 | 是 |
-| PYTHON_LOG_MAXSIZE | ATB Python每个进程日志文件轮转最大大小 | [0, 524288000] 字节 | None | 将于2026年12月日落 | 仅作用ATB Python侧，与“MINDIE_LOG_ROTATE”中的“-fs”等效，若两个变量同时配置，“MINDIE_LOG_ROTATE”优先级更高 |
+| PYTHON_LOG_MAXSIZE | ATB Python每个进程日志文件轮转最大大小 | [0, 524288000] 字节 | None | 将于2026年12月下线 | 仅作用ATB Python侧，与“MINDIE_LOG_ROTATE”中的“-fs”等效，若两个变量同时配置，“MINDIE_LOG_ROTATE”优先级更高 |
 
-注：  
-mindie-llm-token默认每个进程日志文件轮转最大大小1MB，每个进程轮转时可保留日志文件数量2个，不受MINDIE_LOG_ROTATE控制；  
+注：
+mindie-llm-token默认每个进程日志文件轮转最大大小1MB，每个进程轮转时可保留日志文件数量2个，不受MINDIE_LOG_ROTATE控制；
 mindie-llm-token日志仅可写入文件，不会输出到终端；
 
 #### 日志格式说明
@@ -128,7 +128,7 @@ mindie-llm-token日志仅可写入文件，不会输出到终端；
 
 ##### 日志文件说明
 
-- 分组件设置MINDIE_LOG_PATH：  
+- 分组件设置MINDIE_LOG_PATH：
     （例如：export MINDIE_LOG_PATH='llm:/path/to/llm_log;llmmodels:/path/to/llmmodels_log'）
 
     | 组件 | 文件名 | 内容说明 |
@@ -139,9 +139,9 @@ mindie-llm-token日志仅可写入文件，不会输出到终端；
     | | mindie-llm-tokenizer_{pid}_{datetime}.log | 分词器日志(python) |
     | llmmodels | mindie-llmmodels_{pid}_{datetime}.log | 模型管理日志(cpp、python) |
     | server | mindie-server_{pid}_{datetime}.log | 服务管理日志(cpp) |
- 
-- 不分组件设置MINDIE_LOG_PATH：  
-    （例如：export MINDIE_LOG_PATH='/path/to/log'）  
+
+- 不分组件设置MINDIE_LOG_PATH：
+    （例如：export MINDIE_LOG_PATH='/path/to/log'）
     python侧同进程的llmmodels组件日志mindie-llmmodels_{pid}\_{datetime}.log会与llm组件日志mindie-llm_{pid}_
     {datetime}.log写在同一个日志文件中，归一为mindie-llm_{pid}_{datetime}.log
 
@@ -174,7 +174,7 @@ export MINDIE_LOG_LEVEL=INFO
 # 所有组件日志均写入文件
 export MINDIE_LOG_TO_FILE=1
 
-# 所有组件日志均不打屏
+# 所有组件日志均不打印
 export MINDIE_LOG_TO_STDOUT=0
 
 # 所有组件日志都写入指定目录
@@ -197,7 +197,7 @@ export MINDIE_LOG_LEVEL='llm:debug;llmmodels:info'
 # llm组件日志写入文件；llmmodels组件日志不写入文件
 export MINDIE_LOG_TO_FILE='llm:true;llmmodels:false'
 
-# llm组件日志打屏；llmmodels组件日志不打屏
+# llm组件日志打印；llmmodels组件日志不打印
 export MINDIE_LOG_TO_STDOUT='llm:true;llmmodels:false'
 
 # llm组件日志写入路径'llm:/path/to/llm_log'；llmmodels组件日志写入路径'llm:/path/to/llmmodels_log'

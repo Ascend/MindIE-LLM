@@ -101,7 +101,7 @@ target_link_options(intf_pub_cxx14 INTERFACE
   -Wl,-z,noexecstack
   $<$<CONFIG:Release>:-s>
   $<$<CONFIG:Release>:-Wl,--build-id=none>
-  $<$<BOOL:${ENABLE_GCOV}>:-fprofile-arcs -ftest-coverage> 
+  $<$<BOOL:${ENABLE_GCOV}>:-fprofile-arcs -ftest-coverage>
 )
 target_link_directories(intf_pub_cxx14 INTERFACE)
 target_link_libraries(intf_pub_cxx14 INTERFACE
@@ -116,21 +116,22 @@ target_compile_options(intf_pub_cxx17 INTERFACE
     $<IF:$<VERSION_GREATER:${CMAKE_C_COMPILER_VERSION},4.8.5>,-fstack-protector-strong,-fstack-protector-all>
     $<$<CONFIG:Debug>:-g>
     $<$<COMPILE_LANGUAGE:CXX>:-std=c++17>
-    $<$<BOOL:${ENABLE_GCOV}>:-fprofile-arcs -ftest-coverage>  
+    $<$<BOOL:${ENABLE_GCOV}>:-fprofile-arcs -ftest-coverage>
   )
 target_compile_definitions(intf_pub_cxx17 INTERFACE
     _GLIBCXX_USE_CXX11_ABI=0
     $<$<CONFIG:Release>:CFG_BUILD_NDEBUG>
     $<$<CONFIG:Debug>:CFG_BUILD_DEBUG>
     WIN64=1
-    LINUX=0)
+    LINUX=0
+    $<$<COMPILE_LANGUAGE:CXX>:MINDIE_LLM_950_SOC_ENUM=${MINDIE_LLM_950_SOC_ENUM}>)
 target_link_options(intf_pub_cxx17 INTERFACE
     -Wl,-z,relro
     -Wl,-z,now
     -Wl,-z,noexecstack
     $<$<CONFIG:Release>:-s>
     $<$<CONFIG:Release>:-Wl,--build-id=none>
-    $<$<BOOL:${ENABLE_GCOV}>:-fprofile-arcs -ftest-coverage>   
+    $<$<BOOL:${ENABLE_GCOV}>:-fprofile-arcs -ftest-coverage>
   )
 target_link_directories(intf_pub_cxx17 INTERFACE)
 target_link_libraries(intf_pub_cxx17 INTERFACE
@@ -144,7 +145,7 @@ target_compile_options(intf_pub_aicpu INTERFACE
   $<IF:$<VERSION_GREATER:${CMAKE_C_COMPILER_VERSION},4.8.5>,-fstack-protector-strong,-fstack-protector-all>
   $<$<CONFIG:Debug>:-g>
   $<$<COMPILE_LANGUAGE:CXX>:-std=c++17>
-  $<$<BOOL:${ENABLE_GCOV}>:-fprofile-arcs -ftest-coverage> 
+  $<$<BOOL:${ENABLE_GCOV}>:-fprofile-arcs -ftest-coverage>
 )
 target_compile_definitions(intf_pub_aicpu INTERFACE
   $<$<NOT:$<STREQUAL:${PRODUCT_SIDE},device>>:_GLIBCXX_USE_CXX11_ABI=0>

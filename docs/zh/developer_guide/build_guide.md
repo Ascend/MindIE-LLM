@@ -52,7 +52,7 @@ MindIE镜像获取请参见[镜像安装方式](../user_guide/install/source/ima
     ```bash
     export MINDIE_LLM_VERSION_OVERRIDE=3.0.0
     ```
-    
+
 5. 编译生成 MindIE-LLM 的 `.whl` 包。
     在源码根目录下执行：
 
@@ -60,12 +60,12 @@ MindIE镜像获取请参见[镜像安装方式](../user_guide/install/source/ima
     pip wheel . --no-build-isolation -v
     ```
 
-    * 编译完成后，会在当前目录生成 `mindie_LLM-<version>-*.whl` 文件。
+    * 编译完成后，会在当前目录生成 `mindie_llm-<version>-*.whl` 文件。
     * 编译时，`setup.py` 会自动调用 `build.sh` 编译C++代码，并拷贝第三方依赖到包内。
     * 编译后，生成临时目录 `build`、存放二进制的目录 `output` 和 debug 符号表 `llm_debug_symbols` 目录。
 
 6. 安装MindIE-LLM。
-   
+
     ```bash
     old_umask=$(umask)
     umask 027
@@ -79,14 +79,29 @@ MindIE镜像获取请参见[镜像安装方式](../user_guide/install/source/ima
     cd examples/atb_models
     pip wheel . --no-build-isolation -v
     ```
+
     > **注意**：使用 Python 3.10 环境编译，需配套 torch 2.9.0 版本 + torch_npu 2.9.0 版本,
-否则会导致 _bz2 模块缺失，从而导致编译失败。
+否则会导致 \_bz2 模块缺失，从而导致编译失败。
 
 8. 安装 ATB_Models。
-   
-   ```bash
-   pip install atb_llm*.whl
-   ```
+
+    ```bash
+    pip install atb_llm*.whl
+    ```
+
+9. 配置运行环境变量（可选）。
+
+    ATB_Models 安装完成后，需设置其运行所需的环境变量。通过 Python 动态获取 `atb_llm` 的安装路径，以适配不同的 Python 环境和 `site-packages` 位置：
+
+    ```bash
+    ATB_LLM_PATH=$(python3 -c "import atb_llm, os; print(os.path.dirname(atb_llm.__file__))")
+    export ATB_SPEED_HOME_PATH=${ATB_LLM_PATH}
+    export LD_LIBRARY_PATH=${ATB_LLM_PATH}/lib:${LD_LIBRARY_PATH}
+    ```
+
+    > [!TIP]提示
+    > - 建议将以上命令写入 `~/.bashrc` 或启动脚本中，避免每次手动设置。
+    > - MindIE 镜像内置该环境变量，如使用镜像则无需手动设置。
 
 ## 升级
 

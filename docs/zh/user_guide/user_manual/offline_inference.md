@@ -6,7 +6,7 @@
 
 已在环境上安装CANN、PyTorch、Torch-NPU和ATB Models，详情请参见《MindIE安装指南》。
 
-> [!NOTE]说明 
+> [!NOTE]说明
 > 本次样例参考以下安装路径进行：
 > 安装ATB Models并初始化ATB Models环境变量。模型仓set\_env.sh脚本中有初始化“\$\{ATB\_SPEED\_HOME\_PATH\}”环境变量的操作，所以source模型仓中set\_env.sh脚本时会同时初始化“\$\{ATB\_SPEED\_HOME\_PATH\}”环境变量。
 
@@ -19,7 +19,7 @@
 
 当前ATB Models包含三类Readme文档指导您执行推理流程，了解模型支持特性以及提供基础的调测和问题定位手段。
 
-**图 1** ATB Models  Readme文档关系示意图<a name="fig89051134504"></a>  
+**图 1** ATB Models  Readme文档关系示意图<a name="fig89051134504"></a>
 ![](./figures/atb_models_readme.png "ATB-Models-Readme文档关系示意图")
 
 **表 1**  Readme文档介绍
@@ -153,7 +153,7 @@
 
         > [!NOTE]说明
         > 此章节中的run\_pa.py脚本用于纯模型快速测试，脚本中未增加强校验，出现异常情况时，会直接抛出异常信息。例如：
-        > - nput\_texts、input\_ids、input\_file、input\_dict参数包含推理内容，程序进行数据处理的时间和传入数据量成正比。同时这些输入会被转换成token id搬运至NPU，传入数据量过大可能会导致这些NPU tensor占用显存过大，而出现由out of memory导致的报错信息，例如："req: xx input length: xx is too long, max\_prefill\_tokens: xx"等报错信息。
+        > - input\_texts、input\_ids、input\_file、input\_dict参数包含推理内容，程序进行数据处理的时间和传入数据量成正比。同时这些输入会被转换成token id搬运至NPU，传入数据量过大可能会导致这些NPU tensor占用显存过大，而出现由out of memory导致的报错信息，例如："req: xx input length: xx is too long, max\_prefill\_tokens: xx"等报错信息。
         > - chat\_template参数可以使用两种形式输入：模板文本或模板文件的路径。当以模板文本输入时，若文本长度过大，可能会导致运行缓慢。
         > - 脚本会基于max\_batch\_size、max\_input\_length、max\_output\_length、max\_prefill\_batch\_size和max\_prefill\_tokens等参数申请推理输入及KV Cache，若用户传入数值过大，会出现由out of memory导致的报错信息，例如："RuntimeError: NPU out of memory. Tried to allocate xxx GiB."。
         > - 脚本会基于max\_position\_embeddings参数，申请旋转位置编码和attention mask等NPU tensor，若用户传入数值过大，会出现由out of memory导致的报错信息，例如："RuntimeError: NPU out of memory. Tried to allocate xxx GiB."。
@@ -171,10 +171,10 @@
 
     耗时结果会显示在Console中，并保存在./benchmark\_result/benchmark.csv文件里。
 
-    > [!NOTE]说明 
+    > [!NOTE]说明
     > 性能测试后，可使用msprof工具，进行性能数据采集和性能数据分析，达到性能调优目的。msprof工具的使用可参见《性能调优工具》的“[msprof命令行工具](https://www.hiascend.com/document/detail/zh/mindstudio/700/T&ITools/Profiling/atlasprofiling_16_0010.html)”章节。
 
-## ATB Models服务化使用 
+## ATB Models服务化使用
 
 ### 前提条件
 

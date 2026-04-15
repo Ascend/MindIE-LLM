@@ -10,9 +10,9 @@
    ```
 
 2. 执行如下命令，安装whl包。
-  
+
    ```bash
-   pip install mindie_llm-{version}-{python tag}-{abi tag}-{platform tag}.whl --no-deps
+   pip install mindie_llm-{version}-{python tag}-{platform tag}.whl --no-deps
    ```
 
    > [!NOTE]说明
@@ -28,7 +28,14 @@
 
    ```xxx``` 表示安装的实际软件包名。
 
-4. 执行如下命令，恢复权限。
+4. (可选)执行如下命令，查询安装路径。
+
+   ```bash
+   pip show mindie_llm | grep location
+   ```
+
+   若python版本是3.11，则默认安装路径为：`/usr/local/lib/python3.11/site-packages`
+5. 执行如下命令，恢复权限。
 
    ```bash
    umask $old_umask

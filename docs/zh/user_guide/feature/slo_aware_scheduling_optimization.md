@@ -14,12 +14,12 @@ SLO（Service Level Objective，服务级别目标）指在设定时间段内为
 
 - 仅Atlas 800I A2 推理服务器支持此特性。
 - DeepSeek-R1、DeepSeek-V3、Qwen系列模型支持对接此特性。
-- 仅适用于PD混部场景，无法与splitfuse特性同时打开。
+- 仅适用于PD混部场景，无法与SplitFuse特性同时打开。
 - 此特性的收益场景主要在短输出（256以下）场景，随着输出长度变长，吞吐收益会下降。
 
 ## 参数说明
 
-开启SLO调度优化特性，需要配置的参数如*[表1](#table1)所示。
+开启SLO调度优化特性，需要配置的参数如[表1](#table1)所示。
 
 **表 1**  SLO调度优化特性参数说明  <a id="table1"></a>
 
@@ -37,7 +37,7 @@ SLO（Service Level Objective，服务级别目标）指在设定时间段内为
 1. 打开MindIE Motor的config.json文件。
 
     ```bash
-    cd {MindIE安装目录}/latest/mindie-service/
+    cd {MindIE安装目录}/mindie_llm/
     vi conf/config.json
     ```
 
@@ -53,10 +53,10 @@ SLO（Service Level Objective，服务级别目标）指在设定时间段内为
 3. 启动服务。
 
     ```bash
-    ./bin/mindieservice_daemon
+    mindie_llm_server
     ```
 
-4. 以AISBench工具、gsm8k数据集和并发500为例展示调优方式。AISBench工具配置如下，详情请参见《MindIE Motor开发指南》中的“快速入门 > [性能测试](https://gitcode.com/Ascend/MindIE-Motor/blob/dev/docs/zh/user_guide/quick_start.md)”章节。
+4. 以AISBench工具、GSM8K数据集和并发500为例展示调优方式。AISBench工具配置如下，详情请参见《快速入门》中的“[性能测试](../quick_start/quick_start.md#性能测试)”章节。
 
     ```text
     models = [
@@ -80,5 +80,5 @@ SLO（Service Level Objective，服务级别目标）指在设定时间段内为
             pred_postprocessor=dict(type=extract_non_reasoning_content)
         )
     ]
-    
+
     ```

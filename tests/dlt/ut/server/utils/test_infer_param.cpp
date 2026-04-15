@@ -11,44 +11,44 @@
  */
 
 #include <gtest/gtest.h>
-#include "mockcpp/mockcpp.hpp"
-#include "request.h"
-#include "basic_types.h"
-#include "base64_util.h"
+
 #include <nlohmann/json.hpp>
+
+#include "base64_util.h"
+#include "basic_types.h"
 #include "config_manager.h"
 #include "config_manager/config_manager_impl.h"
-#include "mock_util.h"
 #include "infer_param.h"
+#include "mock_util.h"
+#include "mockcpp/mockcpp.hpp"
+#include "request.h"
 
 using OrderedJson = nlohmann::ordered_json;
 
-MOCKER_CPP_OVERLOAD_EQ(ServerConfig)
-
 namespace mindie_llm {
 
+MOCKER_CPP_OVERLOAD_EQ(ScheduleConfig)
+MOCKER_CPP_OVERLOAD_EQ(ServerConfig)
+
 class InferParamTest : public testing::Test {
-protected:
+   protected:
     InferParamTest() = default;
-    void SetUp() override
-    {
+    void SetUp() override {
         request = std::make_shared<Request>(RequestIdNew("mockRequest"));
         jsonObj = OrderedJson::object();
         inferParam = std::make_shared<InferParam>();
     }
-    void TearDown() override
-    {
-        GlobalMockObject::verify();
-    }
+    void TearDown() override { GlobalMockObject::verify(); }
 
     RequestSPtr request;
     InferParamSPtr inferParam;
     std::string error;
     OrderedJson jsonObj;
+    ScheduleConfig mockScheduleConfig_;
+    ServerConfig mockServerConfig_;
 };
 
-TEST_F(InferParamTest, testAssignDoSample)
-{
+TEST_F(InferParamTest, testAssignDoSample) {
     // valid values
     request = std::make_shared<Request>(RequestIdNew("mockRequest"));
     //      doSample should be true given "do_sample" is true
@@ -74,8 +74,7 @@ TEST_F(InferParamTest, testAssignDoSample)
     EXPECT_EQ(request->doSample.has_value(), false);
 }
 
-TEST_F(InferParamTest, testAssignRepetitionPenalty)
-{
+TEST_F(InferParamTest, testAssignRepetitionPenalty) {
     // valid values
     //      should return true given "repetition_penalty" is valid
     request = std::make_shared<Request>(RequestIdNew("mockRequest"));
@@ -98,7 +97,7 @@ TEST_F(InferParamTest, testAssignRepetitionPenalty)
     jsonObj["repetition_penalty"] = -1;
     EXPECT_FALSE(AssignRepetitionPenalty(jsonObj, request, error));
     EXPECT_FALSE(request->repetitionPenalty.has_value());
-    
+
     // contents missing
     //      repetitionPenaly should be a default value given "repetition_penalty" is missing
     request = std::make_shared<Request>(RequestIdNew("mockRequest"));
@@ -107,20 +106,19 @@ TEST_F(InferParamTest, testAssignRepetitionPenalty)
     EXPECT_FALSE(request->repetitionPenalty.has_value());
 }
 
-TEST_F(InferParamTest, testAssignSeed)
-{
+TEST_F(InferParamTest, testAssignSeed) {
     // valid values
     //      should return true given "seed" is valid
     request = std::make_shared<Request>(RequestIdNew("mockRequest"));
     jsonObj["seed"] = static_cast<uint64_t>(1234);
     EXPECT_TRUE(AssignSeed(jsonObj, request, error));
     EXPECT_EQ(request->seed, 1234);
-    
+
     // invalid values
     //      should return false given "seed" is invalid
     jsonObj["seed"] = -1;
     EXPECT_FALSE(AssignSeed(jsonObj, request, error));
-    
+
     // contents missing
     //      should return true given "seed" is missing
     request = std::make_shared<Request>(RequestIdNew("mockRequest"));
@@ -128,8 +126,7 @@ TEST_F(InferParamTest, testAssignSeed)
     EXPECT_TRUE(AssignSeed(jsonObj, request, error));
 }
 
-TEST_F(InferParamTest, testAssignStopStrings)
-{
+TEST_F(InferParamTest, testAssignStopStrings) {
     // valid values
     request = std::make_shared<Request>(RequestIdNew("mockRequest"));
     //      should return true given "stop" is an array
@@ -156,13 +153,12 @@ TEST_F(InferParamTest, testAssignStopStrings)
     EXPECT_FALSE(request->stopStrings.has_value());
     //      stopStrings should have no value given "stop" exceeds length limit
     request = std::make_shared<Request>(RequestIdNew("mockRequest"));
-    jsonObj["stop"] = std::string(48 * 1024, 'a'); // 48K > MAX_TOTAL_STOP = 32K
+    jsonObj["stop"] = std::string(48 * 1024, 'a');  // 48K > MAX_TOTAL_STOP = 32K
     EXPECT_FALSE(AssignStopStrings(jsonObj, request, error));
     EXPECT_FALSE(request->stopStrings.has_value());
 }
 
-TEST_F(InferParamTest, testAssignPresencePenalty)
-{
+TEST_F(InferParamTest, testAssignPresencePenalty) {
     // valid values
     //      should return true given "presence_penalty" is valid
     request = std::make_shared<Request>(RequestIdNew("mockRequest"));
@@ -177,7 +173,7 @@ TEST_F(InferParamTest, testAssignPresencePenalty)
     jsonObj["presence_penalty"] = 2.0;
     EXPECT_TRUE(AssignPresencePenalty(jsonObj, request, error));
     EXPECT_FLOAT_EQ(request->presencyPenalty.value(), 2.0);
-    
+
     // invalid values
     //      case 1
     request = std::make_shared<Request>(RequestIdNew("mockRequest"));
@@ -191,10 +187,12 @@ TEST_F(InferParamTest, testAssignPresencePenalty)
     EXPECT_FALSE(request->presencyPenalty.has_value());
 }
 
-TEST_F(InferParamTest, testAssignN)
-{
-    ServerConfig mockServerConfig;
-    MOCKER_CPP(GetServerConfig, const ServerConfig &(*)()).stubs().will(returnValue(mockServerConfig));
+TEST_F(InferParamTest, testAssignN) {
+    mockScheduleConfig_.maxBatchSize = 128;
+    mockScheduleConfig_.maxPrefillBatchSize = 128;
+    mockScheduleConfig_.maxN = 128;
+    MOCKER_CPP(GetScheduleConfig, const ScheduleConfig &(*)()).stubs().will(returnValue(mockScheduleConfig_));
+    MOCKER_CPP(GetServerConfig, const ServerConfig &(*)()).stubs().will(returnValue(mockServerConfig_));
     // valid values
     //      should return true given "n" is valid
     request = std::make_shared<Request>(RequestIdNew("mockRequest"));
@@ -228,8 +226,7 @@ TEST_F(InferParamTest, testAssignN)
     EXPECT_FALSE(request->n.has_value());
 }
 
-TEST_F(InferParamTest, testAssignBestOf)
-{
+TEST_F(InferParamTest, testAssignBestOf) {
     ServerConfig mockServerConfig;
     MOCKER_CPP(GetServerConfig, const ServerConfig &(*)()).stubs().will(returnValue(mockServerConfig));
     // valid values
@@ -259,8 +256,7 @@ TEST_F(InferParamTest, testAssignBestOf)
     EXPECT_FALSE(request->bestOf.has_value());
 }
 
-TEST_F(InferParamTest, testAssignFrequencyPenalty)
-{
+TEST_F(InferParamTest, testAssignFrequencyPenalty) {
     // valid values
     //      should return true given "frequency_penalty" is valid
     jsonObj["frequency_penalty"] = 0.5;
@@ -286,8 +282,7 @@ TEST_F(InferParamTest, testAssignFrequencyPenalty)
     EXPECT_FALSE(request->frequencyPenalty.has_value());
 }
 
-TEST_F(InferParamTest, testAssignTemperature)
-{
+TEST_F(InferParamTest, testAssignTemperature) {
     // valid values
     //      should return true given "temperature" is valid
     jsonObj["temperature"] = 0.7;
@@ -321,8 +316,7 @@ TEST_F(InferParamTest, testAssignTemperature)
     EXPECT_FALSE(request->temperature.has_value());
 }
 
-TEST_F(InferParamTest, testAssignTopK)
-{
+TEST_F(InferParamTest, testAssignTopK) {
     // valid values
     //      should return true given "top_k" is valid
     jsonObj["top_k"] = 50;
@@ -354,8 +348,7 @@ TEST_F(InferParamTest, testAssignTopK)
     EXPECT_FALSE(request->topK.has_value());
 }
 
-TEST_F(InferParamTest, testAssignTopP)
-{
+TEST_F(InferParamTest, testAssignTopP) {
     // valid values
     //      should return true given "top_p" is valid
     jsonObj["top_p"] = 0.9;
@@ -381,8 +374,7 @@ TEST_F(InferParamTest, testAssignTopP)
     EXPECT_FALSE(request->topP.has_value());
 }
 
-TEST_F(InferParamTest, testAssignStopTokenIds)
-{
+TEST_F(InferParamTest, testAssignStopTokenIds) {
     // valid values
     //      should return true given "stop_token_ids" is valid
     jsonObj["stop_token_ids"] = std::vector<int64_t>{1, 2, 3};
@@ -405,8 +397,7 @@ TEST_F(InferParamTest, testAssignStopTokenIds)
     EXPECT_FALSE(request->stopTokenIds.has_value());
 }
 
-TEST_F(InferParamTest, testAssignStream)
-{
+TEST_F(InferParamTest, testAssignStream) {
     // valid values
     //      streamMode should be true given "stream" is true
     inferParam = std::make_shared<InferParam>();
@@ -434,8 +425,7 @@ TEST_F(InferParamTest, testAssignStream)
     EXPECT_FALSE(inferParam->streamMode);
 }
 
-TEST_F(InferParamTest, testCheckMultimodalUrlFromJson)
-{
+TEST_F(InferParamTest, testCheckMultimodalUrlFromJson) {
     // single url
     jsonObj = OrderedJson::array({{"image_url", "http://example.com/image.jpg"}});
     EXPECT_TRUE(CheckMultimodalUrlFromJson(jsonObj, error));
@@ -448,11 +438,9 @@ TEST_F(InferParamTest, testCheckMultimodalUrlFromJson)
     EXPECT_TRUE(error.empty());
 
     // multiple urls
-    jsonObj = OrderedJson::array({
-        {"image_url", "http://example.com/image1.jpg"},
-        {"video_url", "http://example.com/video1.mp4"},
-        {"audio_url", "http://example.com/audio1.mp3"}
-    });
+    jsonObj = OrderedJson::array({{"image_url", "http://example.com/image1.jpg"},
+                                  {"video_url", "http://example.com/video1.mp4"},
+                                  {"audio_url", "http://example.com/audio1.mp3"}});
     EXPECT_TRUE(CheckMultimodalUrlFromJson(jsonObj, error));
     EXPECT_TRUE(error.empty());
 
@@ -462,8 +450,7 @@ TEST_F(InferParamTest, testCheckMultimodalUrlFromJson)
     EXPECT_TRUE(error.empty());
 }
 
-TEST_F(InferParamTest, testDoSample)
-{
+TEST_F(InferParamTest, testDoSample) {
     // valid values
     jsonObj["do_sample"] = true;
     EXPECT_TRUE(AssignDoSample(jsonObj, request, error));
@@ -474,8 +461,7 @@ TEST_F(InferParamTest, testDoSample)
     EXPECT_FALSE(AssignDoSample(jsonObj, request, error));
 }
 
-TEST_F(InferParamTest, testTypicalP)
-{
+TEST_F(InferParamTest, testTypicalP) {
     // valid values
     jsonObj["typical_p"] = 0.9;
     EXPECT_TRUE(AssignTypicalP(jsonObj, request, error));
@@ -486,8 +472,7 @@ TEST_F(InferParamTest, testTypicalP)
     EXPECT_FALSE(AssignTypicalP(jsonObj, request, error));
 }
 
-TEST_F(InferParamTest, testAssignMaxNewTokens)
-{
+TEST_F(InferParamTest, testAssignMaxNewTokens) {
     // valid values
     //      should return true given "max_new_tokens" is valid
     inferParam = std::make_shared<InferParam>();
@@ -503,8 +488,7 @@ TEST_F(InferParamTest, testAssignMaxNewTokens)
     EXPECT_EQ(inferParam->maxNewTokens, MAX_NEW_TOKENS_DFT);
 }
 
-TEST_F(InferParamTest, testAssignResponseFormat)
-{
+TEST_F(InferParamTest, testAssignResponseFormat) {
     // contents missing
     //      should return true given "response_format" is missing
     request = std::make_shared<Request>(RequestIdNew("mockRequest"));
@@ -528,19 +512,15 @@ TEST_F(InferParamTest, testAssignResponseFormat)
 
     // valid values - type "json_schema" with valid schema and name
     request = std::make_shared<Request>(RequestIdNew("mockRequest"));
-    jsonObj["response_format"] = {
-        {"type", "json_schema"},
-        {"json_schema", {{"name", "test_schema"}, {"schema", {{"type", "object"}}}}}
-    };
+    jsonObj["response_format"] = {{"type", "json_schema"},
+                                  {"json_schema", {{"name", "test_schema"}, {"schema", {{"type", "object"}}}}}};
     EXPECT_TRUE(AssignResponseFormat(jsonObj, request, error));
     EXPECT_TRUE(request->responseFormat.has_value());
 
     // valid values - type "json_schema" with name containing hyphen and underscore
     request = std::make_shared<Request>(RequestIdNew("mockRequest"));
-    jsonObj["response_format"] = {
-        {"type", "json_schema"},
-        {"json_schema", {{"name", "my-test_schema_123"}, {"schema", {{"type", "object"}}}}}
-    };
+    jsonObj["response_format"] = {{"type", "json_schema"},
+                                  {"json_schema", {{"name", "my-test_schema_123"}, {"schema", {{"type", "object"}}}}}};
     EXPECT_TRUE(AssignResponseFormat(jsonObj, request, error));
     EXPECT_TRUE(request->responseFormat.has_value());
 
@@ -615,89 +595,70 @@ TEST_F(InferParamTest, testAssignResponseFormat)
 
     // invalid values - json_schema.name is missing
     request = std::make_shared<Request>(RequestIdNew("mockRequest"));
-    jsonObj["response_format"] = {
-        {"type", "json_schema"},
-        {"json_schema", {{"schema", {{"type", "object"}}}}}
-    };
+    jsonObj["response_format"] = {{"type", "json_schema"}, {"json_schema", {{"schema", {{"type", "object"}}}}}};
     EXPECT_FALSE(AssignResponseFormat(jsonObj, request, error));
     EXPECT_FALSE(request->responseFormat.has_value());
     EXPECT_EQ(error, "Parameter response_format.json_schema.name is required");
 
     // invalid values - json_schema.name is null
     request = std::make_shared<Request>(RequestIdNew("mockRequest"));
-    jsonObj["response_format"] = {
-        {"type", "json_schema"},
-        {"json_schema", {{"name", nullptr}, {"schema", {{"type", "object"}}}}}
-    };
+    jsonObj["response_format"] = {{"type", "json_schema"},
+                                  {"json_schema", {{"name", nullptr}, {"schema", {{"type", "object"}}}}}};
     EXPECT_FALSE(AssignResponseFormat(jsonObj, request, error));
     EXPECT_FALSE(request->responseFormat.has_value());
     EXPECT_EQ(error, "Parameter response_format.json_schema.name is required");
 
     // invalid values - json_schema.name is not a string
     request = std::make_shared<Request>(RequestIdNew("mockRequest"));
-    jsonObj["response_format"] = {
-        {"type", "json_schema"},
-        {"json_schema", {{"name", 123}, {"schema", {{"type", "object"}}}}}
-    };
+    jsonObj["response_format"] = {{"type", "json_schema"},
+                                  {"json_schema", {{"name", 123}, {"schema", {{"type", "object"}}}}}};
     EXPECT_FALSE(AssignResponseFormat(jsonObj, request, error));
     EXPECT_FALSE(request->responseFormat.has_value());
     EXPECT_EQ(error, "Parameter response_format.json_schema.name must be a string");
 
     // invalid values - json_schema.name is empty
     request = std::make_shared<Request>(RequestIdNew("mockRequest"));
-    jsonObj["response_format"] = {
-        {"type", "json_schema"},
-        {"json_schema", {{"name", ""}, {"schema", {{"type", "object"}}}}}
-    };
+    jsonObj["response_format"] = {{"type", "json_schema"},
+                                  {"json_schema", {{"name", ""}, {"schema", {{"type", "object"}}}}}};
     EXPECT_FALSE(AssignResponseFormat(jsonObj, request, error));
     EXPECT_FALSE(request->responseFormat.has_value());
     EXPECT_EQ(error, "Parameter response_format.json_schema.name must be 1-64 characters");
 
     // invalid values - json_schema.name exceeds 64 characters
     request = std::make_shared<Request>(RequestIdNew("mockRequest"));
-    jsonObj["response_format"] = {
-        {"type", "json_schema"},
-        {"json_schema", {{"name", std::string(65, 'a')}, {"schema", {{"type", "object"}}}}}
-    };
+    jsonObj["response_format"] = {{"type", "json_schema"},
+                                  {"json_schema", {{"name", std::string(65, 'a')}, {"schema", {{"type", "object"}}}}}};
     EXPECT_FALSE(AssignResponseFormat(jsonObj, request, error));
     EXPECT_FALSE(request->responseFormat.has_value());
     EXPECT_EQ(error, "Parameter response_format.json_schema.name must be 1-64 characters");
 
     // valid values - json_schema.name with exactly 64 characters
     request = std::make_shared<Request>(RequestIdNew("mockRequest"));
-    jsonObj["response_format"] = {
-        {"type", "json_schema"},
-        {"json_schema", {{"name", std::string(64, 'a')}, {"schema", {{"type", "object"}}}}}
-    };
+    jsonObj["response_format"] = {{"type", "json_schema"},
+                                  {"json_schema", {{"name", std::string(64, 'a')}, {"schema", {{"type", "object"}}}}}};
     EXPECT_TRUE(AssignResponseFormat(jsonObj, request, error));
     EXPECT_TRUE(request->responseFormat.has_value());
 
     // valid values - json_schema.name contains valid character (space)
     request = std::make_shared<Request>(RequestIdNew("mockRequest"));
-    jsonObj["response_format"] = {
-        {"type", "json_schema"},
-        {"json_schema", {{"name", "invalid name"}, {"schema", {{"type", "object"}}}}}
-    };
+    jsonObj["response_format"] = {{"type", "json_schema"},
+                                  {"json_schema", {{"name", "invalid name"}, {"schema", {{"type", "object"}}}}}};
     EXPECT_TRUE(AssignResponseFormat(jsonObj, request, error));
     EXPECT_TRUE(request->responseFormat.has_value());
 
     // valid values - json_schema.name contains valid character (dot)
     request = std::make_shared<Request>(RequestIdNew("mockRequest"));
-    jsonObj["response_format"] = {
-        {"type", "json_schema"},
-        {"json_schema", {{"name", "invalid.name"}, {"schema", {{"type", "object"}}}}}
-    };
+    jsonObj["response_format"] = {{"type", "json_schema"},
+                                  {"json_schema", {{"name", "invalid.name"}, {"schema", {{"type", "object"}}}}}};
     EXPECT_TRUE(AssignResponseFormat(jsonObj, request, error));
     EXPECT_TRUE(request->responseFormat.has_value());
 
     // valid values - json_schema.name contains valid character (special char)
     request = std::make_shared<Request>(RequestIdNew("mockRequest"));
-    jsonObj["response_format"] = {
-        {"type", "json_schema"},
-        {"json_schema", {{"name", "invalid@name"}, {"schema", {{"type", "object"}}}}}
-    };
+    jsonObj["response_format"] = {{"type", "json_schema"},
+                                  {"json_schema", {{"name", "invalid@name"}, {"schema", {{"type", "object"}}}}}};
     EXPECT_TRUE(AssignResponseFormat(jsonObj, request, error));
     EXPECT_TRUE(request->responseFormat.has_value());
 }
 
-} // namespace mindie_llm
+}  // namespace mindie_llm

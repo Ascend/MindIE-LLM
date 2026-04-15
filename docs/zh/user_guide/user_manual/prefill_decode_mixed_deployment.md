@@ -8,23 +8,23 @@
 
 - 若开启HTTPS双向认证，需要提前准备好服务证书、服务器私钥和验签证书等。
 - 若使用容器化部署启动，要求共享内存设置不小于1GB。
-- Server对于Python的环境要求为Python3.10.x或者Python3.11.x。此处以Python3.10.13为例，如果环境中的Python3.10.13不是默认版本，需要参考如下方法添加环境变量（Python路径根据实际路径进行修改）。
+- Server对于Python的环境要求为Python3.11.x。此处以Python3.11为例，如果环境中的Python3.11不是默认版本，需要参考如下方法添加环境变量（Python路径根据实际路径进行修改）。
 
    ```bash
 
-   export LD_LIBRARY_PATH=/usr/local/python3.10.13/lib:$LD_LIBRARY_PATH
-   export PATH=/usr/local/python3.10.13/bin:$PATH
+   export LD_LIBRARY_PATH=/usr/local/python3.11/lib:$LD_LIBRARY_PATH
+   export PATH=/usr/local/python3.11/bin:$PATH
 
    ```
 
 ### 操作步骤
 
 1. 以安装用户进入MindIE安装目录。
-    
+
     ```bash
-     cd {MindIE安装目录}/latest
+     cd {MindIE安装目录}
      ```
-    
+
 2. 确认目录文件权限是否如下所示，若存在不匹配项，则参考以下命令修改权限。
 
     ```bash
@@ -54,7 +54,7 @@
    | 参数名称              | 说明                                             | 注意事项                                                     |
    | --------------------- | ------------------------------------------------ | ------------------------------------------------------------ |
    | httpsEnabled          | 开启HTTPS通信（即“httpsEnabled”=false时）        | 不开启，会存在较高的网络安全风险                             |
-   | maxLinkNum            | 默认值为1000，推荐设置为300                      | 1000并发能力受模型性能影响受限支持，一般较小模型、较低序列长度下才可以使用1000并发 |
+   | maxLinkNum            | 默认值为1000，推荐设置为300                      | 1000并发能力受模型性能影响，受限支持；一般在较小模型、较低序列长度下才可以使用1000并发 |
    | MIES_CONFIG_JSON_PATH | 用户可通过设置该环境变量提供此Server的配置文件   | 需要用户自行保障此配置文件的安全性                           |
    | modelWeightPath       | 模型权重路径，此路径下的所有文件由用户自行提供   | 需要用户自行保障此处所有文件的安全性；且该路径下的config.json文件需保证其用户组和用户名与当前用户一致，并且为非软链接，文件权限不高于750，若不符合要求将会导致Server启动失败 |
    | tlsCaFile             | 业务面RESTful接口使用的服务证书文件              | 文件由用户提供，需要用户自行保障此文件的安全性               |
@@ -76,131 +76,131 @@
 
    a. 进入conf目录，打开“config.json”文件。
 
-       ```bash
-       cd mindie-service/conf
-       vim config.json
-       ```
+         ```bash
+         cd mindie_llm/conf
+         vim config.json
+         ```
 
    b. 按“i”进入编辑模式，根据用户需要修改配置参数，参数详情请参见[配置参数说明（服务化）](service_parameter_configuration.md)”章节。
 
      配置文件config.json格式如下：
 
-       ```json
-     {
-         "Version": "2.2.RC1",
-         "ServerConfig" :
-         {
-             "ipAddress" : "127.0.0.1",
-             "managementIpAddress": "127.0.0.2",
-             "port" : 1025,
-             "managementPort" : 1026,
-             "metricsPort" : 1027,
-             "allowAllZeroIpListening" : false,
-             "maxLinkNum" : 1000,
-             "httpsEnabled" : true,
-             "fullTextEnabled" : false,
-             "tlsCaPath" : "security/ca/",
-             "tlsCaFile" : ["ca.pem"],
-             "tlsCert" : "security/certs/server.pem",
-             "tlsPk" : "security/keys/server.key.pem",
-             "tlsCrlPath" : "security/certs/",
-             "tlsCrlFiles" : ["server_crl.pem"],
-             "managementTlsCaFile" : ["management_ca.pem"],
-             "managementTlsCert" : "security/certs/management/server.pem",
-             "managementTlsPk" : "security/keys/management/server.key.pem",
-             "managementTlsCrlPath" : "security/management/certs/",
-             "managementTlsCrlFiles" : ["server_crl.pem"],
-             "inferMode" : "standard",
-             "interCommTLSEnabled" : true,
-             "interCommPort" : 1121,
-             "interCommTlsCaPath" : "security/grpc/ca/",
-             "interCommTlsCaFiles" : ["ca.pem"],
-             "interCommTlsCert" : "security/grpc/certs/server.pem",
-             "interCommPk" : "security/grpc/keys/server.key.pem",
-             "interCommTlsCrlPath" : "security/grpc/certs/",
-             "interCommTlsCrlFiles" : ["server_crl.pem"],
-             "openAiSupport" : "vllm",
-             "tokenTimeout" : 600,
-             "e2eTimeout" : 600,
-             "distDPServerEnabled": false
-          },
-     
-         "BackendConfig": {
-             "backendName" : "mindieservice_llm_engine",
-             "modelInstanceNumber" : 1,
-             "npuDeviceIds" : [[0,1,2,3]],
-             "tokenizerProcessNumber" : 8,
-             "multiNodesInferEnabled": false,
-             "multiNodesInferPort": 1120,
-             "interNodeTLSEnabled": true,
-             "interNodeTlsCaPath": "security/grpc/ca/",
-             "interNodeTlsCaFiles": ["ca.pem"],
-             "interNodeTlsCert": "security/grpc/certs/server.pem",
-             "interNodeTlsPk": "security/grpc/keys/server.key.pem",
-             "interNodeTlsCrlPath" : "security/grpc/certs/",
-             "interNodeTlsCrlfiles" : ["server_crl.pem"],
-             "ModelDeployConfig":
-             {
-                 "maxSeqLen" : 2560,
-                 "maxInputTokenLen" : 2048,
-                 "truncation" : 0,
-                 "ModelConfig" : [
-                     {
-                         "modelInstanceType": "Standard",
-                         "modelName" : "llama_65b",
-                         "modelWeightPath" : "/data/atb_testdata/weights/llama1-65b-safetensors",
-                         "worldSize" : 4,
-                         "cpuMemSize" : 5,
-                         "npuMemSize" : -1,
-                         "backendType": "atb",
-                         "trustRemoteCode": false,
-                         "async_scheduler_wait_time": 120,
-                         "kv_trans_timeout" : 10,
-                         "kv_link_timeout" : 1080
-                     }
-                 ]
-             },
-      
-             "ScheduleConfig":
-             {
-                 "templateType": "Standard",
-                 "templateName" : "Standard_LLM",
-                 "cacheBlockSize" : 128,
-                 "maxPrefillBatchSize" : 50,
-                 "maxPrefillTokens" : 8192,
-                 "prefillTimeMsPerReq" : 150,
-                 "prefillPolicyType" : 0,
-                 "decodeTimeMsPerReq" : 50,
-                 "decodePolicyType" : 0,
-                 "maxBatchSize" : 200,
-                 "maxIterTimes" : 512,
-                 "maxPreemptCount" : 0,
-                 "supportSelectBatch" : false,
-                 "maxQueueDelayMicroseconds" : 5000,
-                 "maxFirstTokenWaitTime": 2500
-             }
-         },
-         "LogConfig": {
-             "dynamicLogLevel" : "",
-             "dynamicLogLevelValidHours" : 2,
-             "dynamicLogLevelValidTime" : ""
-         }
-     }
-       ```
+            ```json
+            {
+            "Version": "2.2.RC1",
+            "ServerConfig" :
+            {
+                "ipAddress" : "127.0.0.1",
+                "managementIpAddress": "127.0.0.2",
+                "port" : 1025,
+                "managementPort" : 1026,
+                "metricsPort" : 1027,
+                "allowAllZeroIpListening" : false,
+                "maxLinkNum" : 1000,
+                "httpsEnabled" : true,
+                "fullTextEnabled" : false,
+                "tlsCaPath" : "security/ca/",
+                "tlsCaFile" : ["ca.pem"],
+                "tlsCert" : "security/certs/server.pem",
+                "tlsPk" : "security/keys/server.key.pem",
+                "tlsCrlPath" : "security/certs/",
+                "tlsCrlFiles" : ["server_crl.pem"],
+                "managementTlsCaFile" : ["management_ca.pem"],
+                "managementTlsCert" : "security/certs/management/server.pem",
+                "managementTlsPk" : "security/keys/management/server.key.pem",
+                "managementTlsCrlPath" : "security/management/certs/",
+                "managementTlsCrlFiles" : ["server_crl.pem"],
+                "inferMode" : "standard",
+                "interCommTLSEnabled" : true,
+                "interCommPort" : 1121,
+                "interCommTlsCaPath" : "security/grpc/ca/",
+                "interCommTlsCaFiles" : ["ca.pem"],
+                "interCommTlsCert" : "security/grpc/certs/server.pem",
+                "interCommPk" : "security/grpc/keys/server.key.pem",
+                "interCommTlsCrlPath" : "security/grpc/certs/",
+                "interCommTlsCrlFiles" : ["server_crl.pem"],
+                "openAiSupport" : "vllm",
+                "tokenTimeout" : 600,
+                "e2eTimeout" : 600,
+                "distDPServerEnabled": false
+            },
+
+            "BackendConfig": {
+                "backendName" : "mindieservice_llm_engine",
+                "modelInstanceNumber" : 1,
+                "npuDeviceIds" : [[0,1,2,3]],
+                "tokenizerProcessNumber" : 8,
+                "multiNodesInferEnabled": false,
+                "multiNodesInferPort": 1120,
+                "interNodeTLSEnabled": true,
+                "interNodeTlsCaPath": "security/grpc/ca/",
+                "interNodeTlsCaFiles": ["ca.pem"],
+                "interNodeTlsCert": "security/grpc/certs/server.pem",
+                "interNodeTlsPk": "security/grpc/keys/server.key.pem",
+                "interNodeTlsCrlPath" : "security/grpc/certs/",
+                "interNodeTlsCrlFiles" : ["server_crl.pem"],
+                "ModelDeployConfig":
+                {
+                    "maxSeqLen" : 2560,
+                    "maxInputTokenLen" : 2048,
+                    "truncation" : 0,
+                    "ModelConfig" : [
+                        {
+                            "modelInstanceType": "Standard",
+                            "modelName" : "llama_65b",
+                            "modelWeightPath" : "/data/atb_testdata/weights/llama1-65b-safetensors",
+                            "worldSize" : 4,
+                            "cpuMemSize" : 5,
+                            "npuMemSize" : -1,
+                            "backendType": "atb",
+                            "trustRemoteCode": false,
+                            "async_scheduler_wait_time": 120,
+                            "kv_trans_timeout" : 10,
+                            "kv_link_timeout" : 1080
+                        }
+                    ]
+                },
+
+                "ScheduleConfig":
+                {
+                    "templateType": "Standard",
+                    "templateName" : "Standard_LLM",
+                    "cacheBlockSize" : 128,
+                    "maxPrefillBatchSize" : 50,
+                    "maxPrefillTokens" : 8192,
+                    "prefillTimeMsPerReq" : 150,
+                    "prefillPolicyType" : 0,
+                    "decodeTimeMsPerReq" : 50,
+                    "decodePolicyType" : 0,
+                    "maxBatchSize" : 200,
+                    "maxIterTimes" : 512,
+                    "maxPreemptCount" : 0,
+                    "supportSelectBatch" : false,
+                    "maxQueueDelayMicroseconds" : 5000,
+                    "maxFirstTokenWaitTime": 2500
+                }
+            },
+            "LogConfig": {
+                "dynamicLogLevel" : "",
+                "dynamicLogLevelValidHours" : 2,
+                "dynamicLogLevelValidTime" : ""
+            }
+            }
+            ```
 
    c. 按“Esc”键，输入`:wq!`，按“Enter”保存并退出编辑。
 
 4. （可选）若开启了HTTPS认证（即“httpsEnabled” : true时，默认开启）。
 
-   a. 则使用Service的证书导入脚本导入证书，各证书信息如[表1](#table1)所示。  
+   a. 则使用Service的证书导入脚本导入证书，各证书信息如[表1](#table1)所示。
 
     > [!NOTE]说明
     > - HTTPS使用三面隔离时，HTTPS的业务面和管理面不建议使用同一套安全证书，使用同一套安全证书会存在较高的网络安全风险。
     > - HTTPS和GRPC不建议使用同一套安全证书，使用同一套安全证书会存在较高的网络安全风险。
     > - 导入证书时，对于用户导入CA证书的脚本权限要求为600，服务证书的脚本权限要求为600，私钥证书的脚本权限要求为400，吊销列表证书的脚本权限要求为600。
-    > - Service的证书导入脚本请参见《MindIE Motor开发指南》中的"配套工具 > MindIE Service Tools > <a href="https://www.hiascend.com/document/detail/zh/mindie/22RC1/mindieservice/servicedev/mindie_service0312.html">CertTools</a>"章节。
+    > - Service的证书导入脚本请参见《MindIE Motor开发指南》中的“配套工具 > MindIE Service Tools > <a href="https://www.hiascend.com/document/detail/zh/mindie/22RC1/mindieservice/servicedev/mindie_service0312.html">CertTools</a>”章节。
     > - 如果导入证书超时，请参考<a href="https://www.hiascend.com/document/detail/zh/mindie/22RC1/envdeployment/instg/mindie_instg_0088.html">启动haveged服务</a>处理。
-   
+
       表1 证书文件清单  <a id="table1"></a>
 
       | 证书文件               | 默认目标路径                                             | 说明                                              |
@@ -211,7 +211,7 @@
       | 服务证书吊销列表       | {MindIE安装目录}/latest/mindie-service/security/certs/   | 开启HTTPS后可选。                                 |
       | 服务证书私钥的加密口令 | *{MindIE安装目录}*/latest/mindie-service/security/pass/  | 可选。                                            |
 
-   b. 在{MindIE安装目录}/latest下执行以下命令修改证书文件的用户权限。
+   b. 在{MindIE安装目录}下执行以下命令修改证书文件的用户权限。
 
       ```linux
         chmod 400 mindie-service/security/ca/*
@@ -237,37 +237,25 @@
 7. 加载环境变量。
 
     ```shell
-    source mindie-service/set_env.sh
+    source mindie_llm/set_env.sh
     ```
 
-8. 启动服务。启动命令需在/*{MindIE安装目录}*/latest/mindie-service目录中执行。
+8. 启动服务。
 
     > [!NOTE]说明
     > 拉起服务前，建议用户使用MindStudio的预检工具进行配置文件字段校验，辅助校验配置的合法性，详情请参见[链接](https://gitcode.com/Ascend/msit/tree/master/msprechecker)。
-   
-   - （推荐）使用后台进程方式启动服务。
 
-       ```shell
-       nohup ./bin/mindieservice_daemon > output.log 2>&1 &
-       ```
+    直接启动服务。
 
-     在标准输出流捕获到的文件中，打印如下信息说明启动成功。
-
-       ```text
-       Daemon start success!
-       ```
-
-   - 直接启动服务。
-
-       ```shell
-       ./bin/mindieservice_daemon
-       ```
+    ```shell
+    mindie_llm_server
+    ```
 
      回显如下则说明启动成功。
 
-       ```text
-       Daemon start success!
-       ```
+    ```text
+    Daemon start success!
+    ```
 
  > [!NOTE]说明
  >
@@ -277,12 +265,11 @@
  > - 标准输出流捕获到的文件output.log支持用户自定义文件和路径。
  > - 服务启动报缺失lib*.so依赖的错误时，处理方法请参见启动MindIE Motor服务时，出现找不到libboost_thread.so.1.82.0报错章节。
  > - 不建议在同一容器中反复拉起服务，重复拉起前请清理容器“/dev/shm/”目录下的*llm_backend_*和llm_tokenizer_shared_memory_*文件，参考命令如下：
-
-    ```shell
-    find /dev/shm -name '*llm_backend_*' -type f -delete
-    find /dev/shm -name 'llm_tokenizer_shared_memory_*' -type f -delete
-
-    ```
+ >
+>      ```shell
+>      find /dev/shm -name '*llm_backend_*' -type f -delete
+>      find /dev/shm -name 'llm_tokenizer_shared_memory_*' -type f -delete
+>      ```
 
 ## 多机混部
 
@@ -290,11 +277,11 @@
 
 ### 前提条件
 
-- Server对于Python的环境要求为Python3.10.*x*或者Python3.11*.**x*。此处以Python3.10.13为例，如果环境中的Python3.10.13不是默认版本，需要参考如下方法添加环境变量（Python路径根据实际路径进行修改）。
+- Server对于Python的环境要求为Python3.11.x。此处以Python3.11为例，如果环境中的Python3.11不是默认版本，需要参考如下方法添加环境变量（Python路径根据实际路径进行修改）。
 
       ```linux
-      export LD_LIBRARY_PATH=/usr/local/python3.10.13/lib:$LD_LIBRARY_PATH
-      export PATH=/usr/local/python3.10.13/bin:$PATH
+      export LD_LIBRARY_PATH=/usr/local/python3.11/lib:$LD_LIBRARY_PATH
+      export PATH=/usr/local/python3.11/bin:$PATH
       ```
 
 - 服务器或容器环境上已经安装好NPU驱动和固件、CANN包、PyTorch、ATB Models和MindIE。
@@ -316,7 +303,7 @@
 | MIES_CONTAINER_IP     | 容器部署时，请设置成容器的IP地址（如果容器与裸机共用IP地址，应当配置为裸机IP地址），会用于多机间gRPC（Google Remote Procedure Call）通信和EndPoint业务面接收请求。裸机部署时，不配置。 |
 | HOST_IP               | 裸机部署时（不建议使用裸机部署），请设置成机器的物理机或虚拟机的IP地址。容器部署时不配置。 |
 | RANK_TABLE_FILE       | ranktable.json文件的绝对路径。  多机推理必须配置。 单机推理建议取消该环境变量（取消命令：**unset RANK_TABLE_FILE**）。如果设置该环境变量，文件内容必须正确有效（节点IP地址和device_ip必须正确），否则会导致模型初始化失败。 |
-| MIES_CONFIG_JSON_PATH | config.json文件的路径。如果该环境变量存在，则读取该值。如果不存在，则读取$*{MINDIE_LLM_HOME_PATH}*/conf/config.json文件。 |
+| MIES_CONFIG_JSON_PATH | config.json文件的路径。如果该环境变量存在，则读取该值。如果不存在，则读取${MINDIE_LLM_HOME_PATH}/conf/config.json文件。 |
 | HCCL_DETERMINISTIC    | HCCL通信的确定性计算。多机推理时，建议配置为true。           |
 
 > [!NOTE]说明
@@ -342,7 +329,7 @@ ranktable.json文件权限需要设置为640，详细内容请根据以下样例
                "server_id": "Master节点IP地址",
                "container_ip": "Master节点容器IP地址",
                "device": [
-                  { "device_id": "0", "device_ip": "10.20.0.2", "rank_id": "0" }, 
+                  { "device_id": "0", "device_ip": "10.20.0.2", "rank_id": "0" },
                   { "device_id": "1", "device_ip": "10.20.0.3", "rank_id": "1" },
                   { "device_id": "2", "device_ip": "10.20.0.4", "rank_id": "2" },
                   { "device_id": "3", "device_ip": "10.20.0.5", "rank_id": "3" },
@@ -414,7 +401,7 @@ ranktable.json文件权限需要设置为640，详细内容请根据以下样例
 2. 以安装用户进入MindIE安装目录。
 
     ```bash
-    cd {MindIE安装目录}/latest
+    cd {MindIE安装目录}
     ```
 
 3. 确认目录文件权限是否如下所示，若存在不匹配项，则参考以下命令修改权限。
@@ -435,7 +422,7 @@ ranktable.json文件权限需要设置为640，详细内容请根据以下样例
     chmod 700 mindie-service/security
     chmod -R 700 mindie-service/security/*
     ```
-  
+
     > [!NOTE]说明
     > 若文件权限不符合要求将会导致Server启动失败。
 
@@ -446,7 +433,7 @@ ranktable.json文件权限需要设置为640，详细内容请根据以下样例
    a. 进入conf目录，打开“config.json”文件。
 
       ```bash
-      cd ../conf
+      cd mindie_llm/conf
       vim config.json
       ```
 
@@ -483,7 +470,7 @@ ranktable.json文件权限需要设置为640，详细内容请根据以下样例
       > - 如果导入证书超时，请参考启动haveged服务处理。
 
         表2 证书文件信息
-      
+
         | 证书文件               | 默认目标路径                        | 说明                                                         |
         | ---------------------- | ----------------------------------- | ------------------------------------------------------------ |
         | 根证书                 | mindie-service/security/grpc/ca/    | 开启“interNodeTLSEnabled” : true后必选。                     |
@@ -491,7 +478,7 @@ ranktable.json文件权限需要设置为640，详细内容请根据以下样例
         | 服务证书私钥           | mindie-service/security/grpc/keys/  | 支持私钥文件加密场景。开启“interNodeTLSEnabled” : true后必选。 |
         | 服务证书吊销列表       | mindie-service/security/grpc/certs/ | 必选。                                                       |
         | 服务证书私钥的加密口令 | mindie-service/security/pass/       | 必选。                                                       |
-      
+
        b. 在{MindIE安装目录}/latest下执行以下命令修改证书文件的用户权限。
 
         ```shell
@@ -530,7 +517,7 @@ ranktable.json文件权限需要设置为640，详细内容请根据以下样例
        chmod 400 mindie-service/security/keys/*
        chmod 400 mindie-service/security/pass/*
       ```
-      
+
 7. 使用以下命令配置环境变量。
 
       ```bash
@@ -539,7 +526,7 @@ ranktable.json文件权限需要设置为640，详细内容请根据以下样例
       source /usr/local/Ascend/atb-models/set_env.sh                                # ATB Models
       ```
 
-8. 将模型权重文件（由用户自行准备）拷贝到config.json中模型配置参数“modelWeightPath”指定的目录下。 
+8. 将模型权重文件（由用户自行准备）拷贝到config.json中模型配置参数“modelWeightPath”指定的目录下。
 
       ```bash
       cp -r {模型权重文件所在路径} /data/atb_testdata/weights/llama1-65b-safetensors
@@ -569,24 +556,12 @@ ranktable.json文件权限需要设置为640，详细内容请根据以下样例
          export HCCL_DETERMINISTIC=true
          ```
 
-11. 启动服务，启动命令需在/*{MindIE安装目录}*/latest/mindie-service目录中执行。此操作在Master节点容器和Slave节点容器中均需执行。
-
-    - （推荐）使用后台进程方式启动。
-
-      ```bash
-      nohup ./bin/mindieservice_daemon > output.log 2>&1 &
-      ```
-
-      在标准输出流捕获到的文件中，打印如下信息说明启动成功。
-
-      ```text
-      Daemon start success!
-      ```
+11. 启动服务，启动命令需在/*{MindIE安装目录}*/mindie_llm目录中执行。此操作在Master节点容器和Slave节点容器中均需执行。
 
     - 直接启动。
 
       ```bash
-      ./bin/mindieservice_daemon
+      mindie_llm_server
       ```
 
       回显如下则说明启动成功。

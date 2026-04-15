@@ -4,7 +4,7 @@ SplitFuse特性的目的是将长prompt request分解成更小的块，并在多
 
 当MindIE在默认情况下使用PD混部策略，Prefill和Decode阶段请求不会同时被组合成一个batch。打开SplitFuse特性后，MindIE会在优先处理Decode请求的基础上，且batch小于maxBatchSize的情况下在同一批次中加入Prefill请求。
 
-当该次处理的feedforward大于splitchunk tokens时，SplitFuse会对其进行切分，解释如下所示：
+当该次处理的feedforward大于splitChunk tokens时，SplitFuse会对其进行切分，解释如下所示：
 
 - 每一推理轮次中：![](./figures/formula_1_splirfuse.png)，其中：  ![](./figures/formula_2_splirfuse.png)
 - Prefill阶段的tokens为输入token数量，Decode阶段每个请求为1token：![](./figures/formula_3_splirfuse.png)
@@ -56,7 +56,7 @@ SplitFuse特性的目的是将长prompt request分解成更小的块，并在多
 1. 打开Server的config.json文件。
 
     ```bash
-    cd {MindIE安装目录}/latest/mindie-service/
+    cd {MindIE安装目录}/mindie_llm/
     vi conf/config.json
     ```
 
@@ -88,20 +88,20 @@ SplitFuse特性的目的是将长prompt request分解成更小的块，并在多
                 "templateType": "Mix",
                 "templateName" : "Standard_LLM",
                 "cacheBlockSize" : 128,
-    
+
                 "maxPrefillBatchSize" : 40,
                 "maxPrefillTokens" : 65536,
                 "prefillTimeMsPerReq" : 600,
                 "prefillPolicyType" : 0,
-    
+
                 "decodeTimeMsPerReq" : 50,
-                "decodePolicyType" : 0,         
+                "decodePolicyType" : 0,
                 "maxBatchSize" : 256,
                 "maxIterTimes" : 512,
                 "maxPreemptCount" : 0,
                 "supportSelectBatch" : false,
                 "maxQueueDelayMicroseconds" : 5000,
-              
+
                 "prefillChunkSize" : 1024,
                 "maxNumPartialPrefills" : 64,
                 "longPrefillTokenThreshold" : 1024,
@@ -112,30 +112,13 @@ SplitFuse特性的目的是将长prompt request分解成更小的块，并在多
 3. 启动服务。
 
     ```bash
-    ./bin/mindieservice_daemon
+    mindie_llm_server
     ```
 
-4. 本样例以MindIE Benchmark方式展示调优方式。config.json配置完成后，执行如下MindIE Benchmark启动命令。也可以使用AISBench工具进行性能测试，详情请参见《MindIE Motor开发指南》中的“性能测试”章节。
+4. 使用AISBench工具进行性能测试，详情请参见《快速入门》中的“[性能测试](../quick_start/quick_start.md#性能测试)”章节。
 
-    ```bash
-    benchmark \
-    --DatasetPath "/{数据集路径}/GSM8K" \
-    --DatasetType "gsm8k" \
-    --ModelName llama3-70b \
-    --ModelPath "/{模型权重路径}/llama3-70b" \
-    --TestType client \
-    --Http https://{ipAddress}:{port} \
-    --ManagementHttp https://{managementIpAddress}:{managementPort} \
-    --Concurrency 100 \
-    --RequestRate 5 \
-    --TaskKind stream \
-    --Tokenizer True \
-    --MaxOutputLen 512 \
-    --TestAccuracy True
-    ```
-    
 5. 根据首Token时延和Decode时延的实际数据调整参数。
     - 首Token时延和Decode时延（均值，P90）都满足约束阈值，则加大“RequestRate“的值。
     - Decode时延均值位于约束阈值以内，而首Token时延均值大于约束阈值。则“RequestRate“已大于系统吞吐，为满足约束需降低“RequestRate“的值。
-    - 当首Token时延均值和Decode时延均值满足阈值约束，而Decodes时延P90不满足均值时，则考虑降低ChunkSize减小切分，但该操作可能影响吞吐。
+    - 当首Token时延均值和Decode时延均值满足阈值约束，而Decode时延P90不满足均值时，则考虑降低ChunkSize减小切分，但该操作可能影响吞吐。
     - 在输入问题长短不一的场景下，PD混部策略产生更多调度空泡；而SplitFuse特性相对PD混部策略受调度空泡影响较少，所以相对PD混部策略的优势会增加。

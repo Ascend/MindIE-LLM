@@ -9,7 +9,7 @@
 物理机部署场景，需要在物理机安装NPU驱动固件以及部署Docker，执行如下步骤判断是否已安装NPU驱动固件和部署Docker。
 
 - 执行以下命令查看NPU驱动固件是否安装。若出现类似如[图1](#figure1)所示，说明已安装。否则请参见[表1](#table1)进行安装。
- 
+
      ```bash
      npu-smi info
      ```
@@ -83,7 +83,7 @@
            mindie:2.2.RC1-800I-A2-py311-openeuler24.03-lts bash
     ```
 
-     > [!NOTE]说明 
+     > [!NOTE]说明
      > - “mindie:2.2.RC1-800I-A2-py311-openeuler24.03-lts”为镜像名称，可根据实际情况修改。
      > - 对于--device参数，挂载权限设置为rwm，而非权限较小的rw或r，原因如下：
      > - 对于Atlas 800I A2 推理服务器，若设置挂载权限为rw，可以正常进入容器，同时也可以使用npu-smi命令查看npu占用信息，并正常运行MindIE业务；但如果挂载的npu（即对应挂载选项中的davinci_xxx_，如npu0对应davinci0）上有其它任务占用，则使用npu-smi命令会打印报错，且无法运行MindIE任务（此时torch.npu.set\_device\(\)会失败）。
@@ -105,7 +105,7 @@
      docker exec -it <container-name> /bin/bash
      ```
 
-     > [!NOTE]说明 
+     > [!NOTE]说明
      > 更多详细信息，请参考[启动容器](https://gitee.com/ascend/ascend-docker-image/tree/dev/mindie#%E5%90%AF%E5%8A%A8%E5%AE%B9%E5%99%A8)章节。
 
 ## 模型推理
@@ -119,11 +119,11 @@
    若python版本是3.11，则查询到的默认安装路径为：`/usr/local/lib/python3.11/site-packages`。
 
 2. 执行如下命令，进入安装路径。
- 
+
      ```bash
      cd <site-packages>
      ```
- 
+
 3. 确认配置文件有640权限。
 
     ```bash
@@ -153,11 +153,11 @@
     ``` json
 
      {
-        "ServerConfig" : 
+        "ServerConfig" :
             {
             "httpsEnabled" : false
             },
-        "BackendConfig" : 
+        "BackendConfig" :
          {
                 "npuDeviceIds" : [[0,1,2,3]],
                 "ModelDeployConfig" :
@@ -165,7 +165,7 @@
                     "ModelConfig" : [
                     {
                         "modelName" : "qwen2-7b",
-                        "modelWeightPath" : "/home/weight",  
+                        "modelWeightPath" : "/home/weight",
                         "worldSize" : 4,
                         "trustRemoteCode": false
                     }
@@ -202,7 +202,7 @@
     Daemon start success!
     ```
 
-     > [!CAUTION]注意 
+     > [!CAUTION]注意
      >- 如果安装过老版本的MindIE（默认安装路径为`/usr/local/Ascend/mindie`）,为避免搜索到老版本的库，请执行命令`mv /usr/local/Ascend/mindie /usr/local/Ascend/mindie-bak`，移除老版本安装路径下的文件。
      >- bin目录按照安全要求，目录权限为550，没有写权限，但执行推理过程中，算子会在当前目录生成kernel\_meta文件夹，需要写权限，因此不能直接在bin启动mindieservice\_daemon。
      >- Ascend-cann-toolkit工具会在执行服务启动的目录下生成kernel\_meta\_temp\_xxxx目录，该目录为算子的cce文件保存目录。因此需要在当前用户拥有写权限目录下（例如Ascend-mindie-server\__\{version\}_\_linux-_\{arch\}_目录，或者用户在Ascend-mindie-server\__\{version\}_\_linux-_\{arch\}_目录下自行创建临时目录）启动推理服务。
@@ -240,14 +240,14 @@
 1. 使用以下命令下载并安装AISBench工具。
 
     ```bash
-    git clone https://gitee.com/aisbench/benchmark.git 
-    cd benchmark/ 
+    git clone https://gitee.com/aisbench/benchmark.git
+    cd benchmark/
     pip3 install -e ./ --use-pep517
-    pip3 install -r requirements/api.txt 
+    pip3 install -r requirements/api.txt
     pip3 install -r requirements/extra.txt
     ```
 
-    > [!NOTE]说明 
+    > [!NOTE]说明
     > pip安装方式适用于使用AISBench最新功能的场景（镜像安装MindIE方式除外）。AISBench工具已预装在MindIE镜像中，可使用以下命令查看AISBench工具在MindIE镜像中的安装路径。
         >
         >```bash
@@ -261,30 +261,30 @@
 3. 配置ais\_bench/benchmark/configs/models/vllm\_api/vllm\_api\_stream\_chat.py文件，示例如下所示。
 
     ```python
-    from ais_bench.benchmark.models import VLLMCustomAPIChatStream  
-    models = [     
-        dict(         
-            attr="service",         
-            type=VLLMCustomAPIChatStream,         
-            abbr='vllm-api-stream-chat',         
-            path="/home/weight",                    # 指定模型序列化词表文件绝对路径，一般来说就是模型权重文件夹路径        
-            model="qwen2-7b",        # 指定服务端已加载模型名称，依据实际VLLM推理服务拉取的模型名称配置（配置成空字符串会自动获取）        
-            request_rate = 0,           # 请求发送频率，每1/request_rate秒发送1个请求给服务端，小于0.1则一次性发送所有请求        
-            retry = 2,         
-            host_ip = "127.0.0.1",      # 指定推理服务的IP        
-            host_port = 1025,           # 指定推理服务的端口        
-            max_out_len = 512,          # 推理服务输出的token的最大数量        
+    from ais_bench.benchmark.models import VLLMCustomAPIChatStream
+    models = [
+        dict(
+            attr="service",
+            type=VLLMCustomAPIChatStream,
+            abbr='vllm-api-stream-chat',
+            path="/home/weight",                    # 指定模型序列化词表文件绝对路径，一般来说就是模型权重文件夹路径
+            model="qwen2-7b",        # 指定服务端已加载模型名称，依据实际VLLM推理服务拉取的模型名称配置（配置成空字符串会自动获取）
+            request_rate = 0,           # 请求发送频率，每1/request_rate秒发送1个请求给服务端，小于0.1则一次性发送所有请求
+            retry = 2,
+            host_ip = "127.0.0.1",      # 指定推理服务的IP
+            host_port = 1025,           # 指定推理服务的端口
+            max_out_len = 512,          # 推理服务输出的token的最大数量
             batch_size=1,               # 请求发送的最大并发数
-            trust_remote_code=False,         
-            generation_kwargs = dict(             
-                temperature = 0.5,             
-                top_k = 10,             
-                top_p = 0.95,             
-                seed = None,             
-                repetition_penalty = 1.03,                                
-            ) , 
-             pred_postprocessor=dict(type=extract_non_reasoning_content)   
-        ) 
+            trust_remote_code=False,
+            generation_kwargs = dict(
+                temperature = 0.5,
+                top_k = 10,
+                top_p = 0.95,
+                seed = None,
+                repetition_penalty = 1.03,
+            ) ,
+             pred_postprocessor=dict(type=extract_non_reasoning_content)
+        )
     ]
     ```
 
@@ -297,27 +297,27 @@
     回显如下所示则表示执行成功：
 
     ```text
-    dataset                 version  metric   mode  vllm_api_general_chat 
-    ----------------------- -------- -------- ----- ---------------------- 
+    dataset                 version  metric   mode  vllm_api_general_chat
+    ----------------------- -------- -------- ----- ----------------------
     demo_gsm8k              401e4c   accuracy gen                   62.50
     ```
 
 ## 性能测试
 
-> [!NOTE]说明 
+> [!NOTE]说明
 > 以下性能测试以AISBench工具为例，AISBench工具的详细使用方法请参见[AISBench工具](https://gitee.com/aisbench/benchmark)。
 
 1. 使用以下命令下载并安装AISBench工具。
 
     ```bash
-    git clone https://gitee.com/aisbench/benchmark.git 
-    cd benchmark/ 
+    git clone https://gitee.com/aisbench/benchmark.git
+    cd benchmark/
     pip3 install -e ./ --use-pep517
-    pip3 install -r requirements/api.txt 
+    pip3 install -r requirements/api.txt
     pip3 install -r requirements/extra.txt
     ```
 
-    > [!NOTE]说明 
+    > [!NOTE]说明
     > pip安装方式适用于使用AISBench最新功能的场景（镜像安装MindIE方式除外）。AISBench工具已预装在MindIE镜像中，可使用以下命令查看AISBench工具在MindIE镜像中的安装路径。
         >
         >```bash
@@ -331,31 +331,31 @@
 3. 配置ais\_bench/benchmark/configs/models/vllm\_api/vllm\_api\_stream\_chat.py文件，示例如下所示。
 
     ```python
-    from ais_bench.benchmark.models import VLLMCustomAPIChatStream  
-    models = [     
-        dict(         
-            attr="service",         
-            type=VLLMCustomAPIChatStream,         
-            abbr='vllm-api-stream-chat',         
-            path="/home/weight",                    # 指定模型序列化词表文件绝对路径，一般来说就是模型权重文件夹路径        
-            model="qwen2-7b",        # 指定服务端已加载模型名称，依据实际VLLM推理服务拉取的模型名称配置（配置成空字符串会自动获取）        
-            request_rate = 0,           # 请求发送频率，每1/request_rate秒发送1个请求给服务端，小于0.1则一次性发送所有请求        
-            retry = 2,         
-            host_ip = "127.0.0.1",      # 指定推理服务的IP        
-            host_port = 1025,           # 指定推理服务的端口        
-            max_out_len = 512,          # 推理服务输出的token的最大数量        
+    from ais_bench.benchmark.models import VLLMCustomAPIChatStream
+    models = [
+        dict(
+            attr="service",
+            type=VLLMCustomAPIChatStream,
+            abbr='vllm-api-stream-chat',
+            path="/home/weight",                    # 指定模型序列化词表文件绝对路径，一般来说就是模型权重文件夹路径
+            model="qwen2-7b",        # 指定服务端已加载模型名称，依据实际VLLM推理服务拉取的模型名称配置（配置成空字符串会自动获取）
+            request_rate = 0,           # 请求发送频率，每1/request_rate秒发送1个请求给服务端，小于0.1则一次性发送所有请求
+            retry = 2,
+            host_ip = "127.0.0.1",      # 指定推理服务的IP
+            host_port = 1025,           # 指定推理服务的端口
+            max_out_len = 512,          # 推理服务输出的token的最大数量
             batch_size=1,               # 请求发送的最大并发数
-            trust_remote_code=False,        
-            generation_kwargs = dict(             
-                temperature = 0.5,             
-                top_k = 10,             
-                top_p = 0.95,             
-                seed = None,             
-                repetition_penalty = 1.03,             
-                ignore_eos = True,      # 推理服务输出忽略eos（输出长度一定会达到max_out_len）        
-            ) , 
-             pred_postprocessor=dict(type=extract_non_reasoning_content)    
-        ) 
+            trust_remote_code=False,
+            generation_kwargs = dict(
+                temperature = 0.5,
+                top_k = 10,
+                top_p = 0.95,
+                seed = None,
+                repetition_penalty = 1.03,
+                ignore_eos = True,      # 推理服务输出忽略eos（输出长度一定会达到max_out_len）
+            ) ,
+             pred_postprocessor=dict(type=extract_non_reasoning_content)
+        )
     ]
     ```
 
@@ -369,40 +369,40 @@
 
     ```text
 
-    │ Performance Parameters │ Stage  │ Average        │ Min          │ Max        │ Median       │ P75        │ P90          │ P99          │ N │ 
+    │ Performance Parameters │ Stage  │ Average        │ Min          │ Max        │ Median       │ P75        │ P90          │ P99          │ N │
     │ E2EL                   │total   │ 2048.2945  ms  │ 1729.7498 ms │ 3450.96 ms │ 2491.8789 ms │ 2750.85 ms │ 3184.9186 ms │ 3424.4354 ms │ 8 │
     │ TTFT                   │total   │ 50.332 ms      │ 50.6244 ms   │ 52.0585 ms │ 50.3237 ms   │ 50.5872 ms │ 50.7566 ms   │ 50.0551 ms   │ 8 │
-    │ TPOT                   │total   │ 10.6965 ms     │ 10.061 ms    │ 10.8805 ms │ 10.7495 ms   │ 10.7818 ms │ 10.808 ms    │ 10.8582 ms   │ 8 │ 
-    │ ITL                    │total   │ 10.6965 ms     │ 7.3583 ms    │ 13.7707 ms │ 10.7513 ms   │ 10.8009 ms │ 10.8358 ms   │ 10.9322 ms   │ 8 │ 
-    │ InputTokens            │total   │ 1512.5         │ 1481.0       │ 1566.0     │ 1511.5       │ 1520.25    │ 1536.6       │ 1563.06      │ 8 │ 
-    │ OutputTokens           │total   │ 287.375        │ 200.0        │ 407.0      │ 280.0        │ 322.75     │ 374.8        │ 403.78       │ 8 │ 
+    │ TPOT                   │total   │ 10.6965 ms     │ 10.061 ms    │ 10.8805 ms │ 10.7495 ms   │ 10.7818 ms │ 10.808 ms    │ 10.8582 ms   │ 8 │
+    │ ITL                    │total   │ 10.6965 ms     │ 7.3583 ms    │ 13.7707 ms │ 10.7513 ms   │ 10.8009 ms │ 10.8358 ms   │ 10.9322 ms   │ 8 │
+    │ InputTokens            │total   │ 1512.5         │ 1481.0       │ 1566.0     │ 1511.5       │ 1520.25    │ 1536.6       │ 1563.06      │ 8 │
+    │ OutputTokens           │total   │ 287.375        │ 200.0        │ 407.0      │ 280.0        │ 322.75     │ 374.8        │ 403.78       │ 8 │
     │ OutputTokenThroughput  │total   │ 115.9216       │ 107.6555     │ 116.5352   │ 117.6448     │ 118.2426   │ 118.3765     │ 118.6388     │ 8 │
-    
+
     ```
 
     ```text
-    
-    │ Common Metric            │ Stage    │ Value              │ 
-    │ Benchmark Duration       │ total    │ 19897.8505 ms      │ 
-    │ Total Requests           │ total    │ 8                  │ 
-    │ Failed Requests          │ total    │ 0                  │ 
-    │ Success Requests         │ total    │ 8                  │ 
-    │ Concurrency              │ total    │ 0.9972             │ 
-    │ Max Concurrency          │ total    │ 1                  │ 
-    │ Request Throughput       │ total    │ 0.4021 req/s       │ 
-    │ Total Input Tokens       │ total    │ 12100              │ 
-    │ Prefill Token Throughput │ total    │ 17014.3123 token/s │ 
-    │ Total generated tokens   │ total    │ 2299               │ 
-    │ Input Token Throughput   │ total    │ 608.7438 token/s   │ 
-    │ Output Token Throughput  │ total    │ 115.7835 token/s   │ 
-    │ Total Token Throughput   │ total    │ 723.5273 token/s   │ 
-    
-    
+
+    │ Common Metric            │ Stage    │ Value              │
+    │ Benchmark Duration       │ total    │ 19897.8505 ms      │
+    │ Total Requests           │ total    │ 8                  │
+    │ Failed Requests          │ total    │ 0                  │
+    │ Success Requests         │ total    │ 8                  │
+    │ Concurrency              │ total    │ 0.9972             │
+    │ Max Concurrency          │ total    │ 1                  │
+    │ Request Throughput       │ total    │ 0.4021 req/s       │
+    │ Total Input Tokens       │ total    │ 12100              │
+    │ Prefill Token Throughput │ total    │ 17014.3123 token/s │
+    │ Total generated tokens   │ total    │ 2299               │
+    │ Input Token Throughput   │ total    │ 608.7438 token/s   │
+    │ Output Token Throughput  │ total    │ 115.7835 token/s   │
+    │ Total Token Throughput   │ total    │ 723.5273 token/s   │
+
+
     ```
 
     性能测试结果主要关注TTFT、TPOT、Request Throughput和Output Token Throughput输出参数，参数详情信息请参见《MindIE Motor开发指南》中的“配套工具 \> 性能/精度测试工具”章节的“表2 性能测试结果指标对比”。
 
-    > [!NOTE]说明 
+    > [!NOTE]说明
     > 任务执行的过程最终会落盘在默认的输出路径，该输出路径在运行中的打印日志中有提示，日志内容如下所示：
         >
         >```text
@@ -412,14 +412,14 @@
     > 命令执行结束后，outputs/default/20250828\_151326中的任务执行的详情如下所示：
         >
         >```text
-        > 20250828_151326           # 每次实验基于时间戳生成的唯一目录 
-        >├── configs               # 自动存储的所有已转储配置文件 
-        >├── logs                  # 执行过程中日志，命令中如果加--debug，不会有过程日志落盘（都直接打印出来了） 
-        >│   └── performance/      # 推理阶段的日志文件 
-        >└── performance           # 性能测评结果 
-        >│    └── vllm-api-stream-chat/          # “服务化模型配置”名称，对应模型任务配置文件中models的 abbr参数 
-        >│         ├── gsm8kdataset.csv          # 单次请求性能输出（CSV），与性能结果打印中的Performance Parameters表格一致 
-        >│         ├── gsm8kdataset.json         # 端到端性能输出（JSON），与性能结果打印中的Common Metric表格一致 
-        >│         ├── gsm8kdataset_details.json # 全量打点日志（JSON） 
+        > 20250828_151326           # 每次实验基于时间戳生成的唯一目录
+        >├── configs               # 自动存储的所有已转储配置文件
+        >├── logs                  # 执行过程中日志，命令中如果加--debug，不会有过程日志落盘（都直接打印出来了）
+        >│   └── performance/      # 推理阶段的日志文件
+        >└── performance           # 性能测评结果
+        >│    └── vllm-api-stream-chat/          # “服务化模型配置”名称，对应模型任务配置文件中models的 abbr参数
+        >│         ├── gsm8kdataset.csv          # 单次请求性能输出（CSV），与性能结果打印中的Performance Parameters表格一致
+        >│         ├── gsm8kdataset.json         # 端到端性能输出（JSON），与性能结果打印中的Common Metric表格一致
+        >│         ├── gsm8kdataset_details.json # 全量打点日志（JSON）
         >│         └── gsm8kdataset_plot.html    # 请求并发可视化报告（HTML）
         >```

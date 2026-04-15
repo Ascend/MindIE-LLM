@@ -15,9 +15,9 @@ source A2_single_machine.sh
 - NPU_MEMORY_FRACTION：参数为显存比例因子，默认参数为0.92，高并发场景下建议 <=0.92。
     - 建议配置方案：建议将该值设置为可拉起服务的最小值。具体方法是，按照默认配置启动服务，若无法拉起服务，则上调参数至可拉起为止；若拉起服务成功，则下调该参数至刚好拉起服务为止。总之，在服务能正常拉起的前提下，更低的值可以保障更高的服务系统稳定性。
 
-## 2. 配置性能测试mindie_service/conf/config.json文件
+## 2. 配置性能测试mindie_llm/conf/config.json文件
 
-打开mindie_service/conf/config.json文件，修改以下参数：
+打开mindie_llm/conf/config.json文件，修改以下参数：
 
 | origin | change  |
 |---|---|
@@ -54,7 +54,7 @@ source A2_single_machine.sh
 }
 ```
 
-## 3.配置性能测试脚本ais_bench/benchmark/configs/modles/vllm_api/vllm_api_stream_chat.py
+## 3.配置性能测试脚本ais_bench/benchmark/configs/models/vllm_api/vllm_api_stream_chat.py
 
 需要修改host_ip后，直接复制
 
@@ -87,7 +87,7 @@ models=[
 
 只需将性能测试config.json里的"ignore_eos": true,改成"ignore_eos": false,
 
-## 5.配置精度测试脚本ais_bench/benchmark/configs/modles/vllm_api/vllm_api_general_chat.py
+## 5.配置精度测试脚本ais_bench/benchmark/configs/models/vllm_api/vllm_api_general_chat.py
 
 需要修改host_ip后，直接复制
 
@@ -115,13 +115,13 @@ models=[
 ]
 ```
 
-## 6.性能测试指令 
+## 6.性能测试指令
 
 ```bash
 ais_bench --models vllm_api_stream_chat --datasets gsm8k_gen_0_shot_cot_str_perf --debug --summarizer default_perf --mode perf --num-prompts 224
 ```
 
-## 7.精度测试指令 
+## 7.精度测试指令
 
 ```bash
 ais_bench --models vllm_api_general_chat --datasets aime2024_gen_0_shot_chat_prompt --summarizer example

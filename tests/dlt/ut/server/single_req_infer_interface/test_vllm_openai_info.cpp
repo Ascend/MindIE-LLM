@@ -10,22 +10,32 @@
  * See the Mulan PSL v2 for more details.
  */
 #include <gtest/gtest.h>
+
+#include "base_config_manager.h"
+#include "config_manager/config_manager_impl.h"
+#include "mock_util.h"
 #include "mockcpp/mockcpp.hpp"
-#include "single_req_vllm_openai_infer_interface.h"
-#include "single_llm_pnd_req_handler.h"
 #include "request.h"
 #include "response.h"
-#include "mock_util.h"
-#include "base_config_manager.h"
+#include "single_llm_pnd_req_handler.h"
+#include "single_req_vllm_openai_infer_interface.h"
 
 using namespace mindie_llm;
 
 namespace mindie_llm {
+MOCKER_CPP_OVERLOAD_EQ(ScheduleConfig)
+MOCKER_CPP_OVERLOAD_EQ(ServerConfig)
 class VllmOpenAiInferTest : public testing::Test {
-protected:
+   protected:
     VllmOpenAiInferTest() = default;
-    void SetUp()
-    {
+    void SetUp() {
+        mockScheduleConfig_.maxBatchSize = 128;
+        mockScheduleConfig_.maxPrefillBatchSize = 128;
+        mockScheduleConfig_.maxN = 128;
+        mockScheduleConfig_.maxIterTimes = 0;
+        MOCKER_CPP(GetScheduleConfig, const ScheduleConfig &(*)()).stubs().will(returnValue(mockScheduleConfig_));
+        MOCKER_CPP(GetServerConfig, const ServerConfig &(*)()).stubs().will(returnValue(mockServerConfig_));
+
         httpRequest = httplib::Request();
         httpResponse = httplib::Response();
         request = std::make_shared<Request>(RequestIdNew("mockRequest"));
@@ -46,10 +56,11 @@ protected:
     std::shared_ptr<RequestContext> requestContext;
     std::shared_ptr<SingleLLMPnDReqHandler> pndReqHandler;
     std::shared_ptr<SingleReqVllmOpenAiInferInterface> inferInterface;
+    ScheduleConfig mockScheduleConfig_;
+    ServerConfig mockServerConfig_;
 };
 
-TEST_F(VllmOpenAiInferTest, TestSetupInferParams)
-{
+TEST_F(VllmOpenAiInferTest, TestSetupInferParams) {
     std::vector<ModelDeployConfig> mockDeployConfig{ModelDeployConfig{.modelName = "mockModel"}};
     MOCKER_CPP(&ConfigManager::GetModelDeployConfig, const std::vector<ModelDeployConfig> &(*)())
         .stubs()
@@ -93,8 +104,7 @@ TEST_F(VllmOpenAiInferTest, TestSetupInferParams)
     EXPECT_EQ(inferInterface->SetupInferParams(request, errorMsg), false);
 }
 
-TEST_F(VllmOpenAiInferTest, TestSetupInferParamsWithResponseFormat)
-{
+TEST_F(VllmOpenAiInferTest, TestSetupInferParamsWithResponseFormat) {
     std::vector<ModelDeployConfig> mockDeployConfig{ModelDeployConfig{.modelName = "mockModel"}};
     MOCKER_CPP(&ConfigManager::GetModelDeployConfig, const std::vector<ModelDeployConfig> &(*)())
         .stubs()
@@ -159,8 +169,7 @@ TEST_F(VllmOpenAiInferTest, TestSetupInferParamsWithResponseFormat)
     EXPECT_TRUE(inferInterface->SetupInferParams(request, errorMsg));
 }
 
-TEST_F(VllmOpenAiInferTest, TestParseModelName)
-{
+TEST_F(VllmOpenAiInferTest, TestParseModelName) {
     OrderedJson body;
     std::string errorMsg;
     std::string model;
@@ -199,4 +208,4 @@ TEST_F(VllmOpenAiInferTest, TestParseModelName)
     EXPECT_EQ(inferInterface->ParseModelName(body, model, errorMsg), false);
 }
 
-} // namespace mindie_llm
+}  // namespace mindie_llm

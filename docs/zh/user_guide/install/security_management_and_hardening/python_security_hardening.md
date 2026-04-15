@@ -1,0 +1,3 @@
+# Python安全加固
+
+由于项目涉及Python whl包安装，为避免其他用户直接访问和修改Python代码引起代码篡改、伪造等风险，需要用户在安装Python工具和pip3 Python包管理工具时，对Python的访问权限进行限制，建议用户设置Python为仅安装用户可使用和修改。

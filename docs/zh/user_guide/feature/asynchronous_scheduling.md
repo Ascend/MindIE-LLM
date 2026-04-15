@@ -25,13 +25,13 @@
     export MINDIE_ASYNC_SCHEDULING_ENABLE=1
     ```
 
-    > [!NOTE]说明 
+    > [!NOTE]说明
     > PD分离部署场景下，请仅在D节点设置环境变量打开异步调度功能。
 
 2. 打开Server的config.json文件。
 
     ```bash
-    cd {MindIE安装目录}/latest/mindie-service/
+    cd {MindIE安装目录}/mindie_llm/
     vi conf/config.json
     ```
 
@@ -39,7 +39,7 @@
 4. 启动服务。
 
     ```bash
-    ./bin/mindieservice_daemon
+    mindie_llm_server
     ```
 
 5. 使用AISBench工具开始调优，AISBench工具详细说明请参见《MindIE Motor开发指南》中的“配套工具 > 性能/精度测试工具”章节。

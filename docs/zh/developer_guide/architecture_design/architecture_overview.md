@@ -8,16 +8,16 @@
 
 ![MindIE LLM架构图](./../../figures/architecture.png)
 
-- **Server**：推理引擎服务层，提供模型推理的服务化能力。支持 OpenAI/vLLM/Triton 等主流协协议，由Endpoint进行协议封装转换，提供对外 RESTful 接口。
- 
+- **Server**：推理引擎服务层，提供模型推理的服务化能力。支持 OpenAI/vLLM/Triton 等主流协议，由Endpoint进行协议封装转换，提供对外 RESTful 接口。
+
 - **LLM Manager**：推理引擎调度层，负责请求状态管理与任务调度。通过CB调度，实现用户请求组成 Batch、推理任务下发、推理结果返回、以及提供状态记录与查询接口。
     - interface：推理引擎接口层，提供模型实例管理、运行相关C++/Python接口，支持与第三方服务化能力进行集成部署。
-      
+
     - engine：负责对 scheduler、executor、worker 等组件进行编排与串联。通过组件间的协同，engine 为不同推理场景提供统一的请求处理与执行能力。
     - scheduler：用于完成请求的入队、等待调度逻辑，通过调度策略，最大化提升host与device计算的协同效率，从而提高系统整体吞吐性能。
     - block manager：负责kv cache内存的高效分配和管理，提供多种分配策略，以提升内存复用效率。
-      
-    - kv connector: 提供跨卡、跨设备间的的kv cache的链路、传输功能，支持对接多种池化后端。
+
+    - kv connector: 提供跨卡、跨设备间的kv cache的链路、传输功能，支持对接多种池化后端。
 
 - **Text Generator**：推理引擎执行层，负责抽象统一的模型前处理、推理、后处理工作流，同时支持SpecDecoding、ChunkPrefill等推理加速特性。
 
@@ -37,7 +37,7 @@
 │   ├── text_generator                             # 核心推理引擎
 │   │   ├── plugins                                # 高阶特性插件
 │   │   │   ├── prefix_cache                       # Prefix Cache
-│   │   │   ├── splitfuse                          # SplitFuse 
+│   │   │   ├── splitfuse                          # SplitFuse
 │   │   │   ├── memory_decoding                    # Memory Decoding
 │   │   │   ├── la                                 # Lookahead Decoding
 │   ├── modeling                                   # 推理引擎后端
@@ -60,8 +60,8 @@
 ├── tools                                          # 工具类
 │   ├── llm_manager_python_api_demo                # Python API 使用示例（旧）
 ├── tests                                          # 测试
-├── ...                                            
-├── CMakeLists.txt                                 # CMake 构建配置                         
-├── README.md   
-├── requirements.txt                               # Python 安装依赖                               
+├── ...
+├── CMakeLists.txt                                 # CMake 构建配置
+├── README.md
+├── requirements.txt                               # Python 安装依赖
 ```

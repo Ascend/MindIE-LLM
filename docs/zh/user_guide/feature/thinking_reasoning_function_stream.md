@@ -2,7 +2,7 @@
 
 本文档介绍 MindIE 中 Thinking（思考）、Enable_reasoning（思考解析）、Function Call（函数调用）和 Stream（流式输出）四大特性的开启方式、优先级关系及叠加使用说明。
 
-【限制与约束】Atlas 800I A2 推理服务器、Atlas 800I A3 超节点服务器和 Atlas 300I Duo 推理卡支持。
+【限制与约束】Atlas 800I A2 推理服务器、Atlas 800I A3 超节点服务器和 Atlas 300I Duo 推理卡支持以上特性。
 
 ## 特性开启方式总览
 
@@ -131,7 +131,7 @@ Enable_reasoning 仅在**服务级**进行配置，无其他维度冲突。
 > **注意：** 不同模型的配置字段不同：
 >
 - Qwen3-30B-A3B 模型：`"qwen3"` 字段应修改为 `"qwen3_moe"`
-- DeepSeek-R1 模型：`"qwen3"` 字段应修改为 `"deepseekv2"`，并将权重文件中的 `model_type` 字段修改为 `"deepseek_v3"` 
+- DeepSeek-R1 模型：`"qwen3"` 字段应修改为 `"deepseekv2"`，并将权重文件中的 `model_type` 字段修改为 `"deepseek_v3"`
 - DeepSeek-V3.2 模型：`"qwen3"` 字段应修改为 `"deepseek_v32"`
 
 ---

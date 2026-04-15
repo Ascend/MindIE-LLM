@@ -18,6 +18,7 @@ if ((NOT Python3_FOUND) OR (${Python3_EXECUTABLE} STREQUAL ""))
     message(FATAL_ERROR "Can't find python3.")
 endif ()
 set(HI_PYTHON   "${Python3_EXECUTABLE}" CACHE   STRING   "python executor")
+include(CheckCXXSourceCompiles)
 
 # 获取基础 CANN 路径
 if (CUSTOM_ASCEND_CANN_PACKAGE_PATH)
@@ -50,6 +51,48 @@ get_filename_component(OPS_ADV_DIR                  "${CMAKE_CURRENT_SOURCE_DIR}
 get_filename_component(OPS_ADV_CMAKE_DIR            "${OPS_ADV_DIR}/cmake"                  REALPATH)
 get_filename_component(OPS_ADV_UTILS_KERNEL_INC     "${OPS_ADV_DIR}/common/include/kernel"   REALPATH)
 
+# Detect A5-compatible SoC enum support from the CANN headers we are compiling against.
+set(_saved_CMAKE_REQUIRED_INCLUDES "${CMAKE_REQUIRED_INCLUDES}")
+set(CMAKE_REQUIRED_INCLUDES
+        ${ASCEND_CANN_PACKAGE_PATH}/include
+        ${ASCEND_CANN_PACKAGE_PATH}/include/external
+        ${ASCEND_CANN_PACKAGE_PATH}/include/experiment/platform
+        ${ASCEND_CANN_PACKAGE_PATH}/include/experiment/runtime
+)
+
+check_cxx_source_compiles([[
+    #include "tiling/platform/platform_ascendc.h"
+    int main()
+    {
+        auto soc = platform_ascendc::SocVersion::ASCEND950;
+        (void)soc;
+        return 0;
+    }
+]] MINDIE_LLM_HAS_SOC_ASCEND950)
+
+check_cxx_source_compiles([[
+    #include "tiling/platform/platform_ascendc.h"
+    int main()
+    {
+        auto soc = platform_ascendc::SocVersion::ASCEND910_95;
+        (void)soc;
+        return 0;
+    }
+]] MINDIE_LLM_HAS_SOC_ASCEND910_95)
+
+if (MINDIE_LLM_HAS_SOC_ASCEND950)
+    set(MINDIE_LLM_950_SOC_ENUM "ASCEND950")
+elseif (MINDIE_LLM_HAS_SOC_ASCEND910_95)
+    set(MINDIE_LLM_950_SOC_ENUM "ASCEND910_95")
+else ()
+    message(FATAL_ERROR
+            "Neither platform_ascendc::SocVersion::ASCEND950 nor ASCEND910_95 is available in CANN headers.")
+endif ()
+
+set(CMAKE_REQUIRED_INCLUDES "${_saved_CMAKE_REQUIRED_INCLUDES}")
+unset(_saved_CMAKE_REQUIRED_INCLUDES)
+
+message(STATUS "MINDIE_LLM_950_SOC_ENUM=${MINDIE_LLM_950_SOC_ENUM}")
 
 #   构建树相关路径
 set(ASCEND_IMPL_OUT_DIR           ${CMAKE_CURRENT_BINARY_DIR}/impl                     CACHE   STRING "ascend impl output directories")

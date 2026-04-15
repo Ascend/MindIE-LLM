@@ -1,9 +1,9 @@
 # 配置参数说明（服务化）
 
-> [!NOTE]说明 
+> [!NOTE]说明
 >
-> 
->- Server的配置文件config.json，获取路径为：_\{MindIE安装目录\}_/latest/mindie-service/conf/config.json
+>
+>- Server的配置文件config.json，获取路径为：_\{MindIE安装目录\}_/mindie_llm/conf/config.json
 >- 系统读取配置文件时，会先校验文件大小，若文件大小范围不在\(0MB, 10MB\]，将读取失败。
 
 ## 配置文件参数说明
@@ -46,9 +46,9 @@
 |metricsTlsCert|std::string|文件路径长度范围为[1,4096]。实际路径为工程路径+metricsTlsCert。|内部接口服务证书文件路径，只支持软件包安装路径下的相对路径。<br>**httpsEnabled**=**true**且**ipAddress**!=**managementIpAddress**生效，生效后必填，默认值："security/certs/metrics/server.pem"。|
 |metricsTlsPk|std::string|文件路径长度范围为[1,4096]。实际路径为工程路径+metricsTlsPk。|内部接口服务证书私钥文件路径，只支持软件包安装路径下的相对路径，证书私钥的长度要求>=3072。<br>**httpsEnabled**=**true**且**ipAddress**!=**managementIpAddress**生效，生效后必填，默认值："security/keys/metrics/server.key.pem"。|
 |metricsTlsPkPwd|std::string|文件路径长度范围为[0,4096]。实际路径为工程路径+metricsTlsPkPwd。|内部接口服务证书私钥加密密钥文件路径。<br>**httpsEnabled**=**true**且**ipAddress**!=**managementIpAddress**生效，生效后选填，默认值："security/pass/metrics/key_pwd.txt"。<br>若私钥经过加密但是未提供此文件，系统启动时会要求用户在交互窗口输入私钥加密口令。|
-|metricsTlsCrlPath|std::string|metricsTlsCrlPath+metricsTlsCrlFiles路径长度范围为[1,4096]。实际路径为工程路径+managementTlsCrlPath。|内部接口证书吊销列表文件夹路径，只支持软件包安装路径下的相对路径。<ul><li>**httpsEnabled**=**true**且**ipAddress**!=**managementIpAddress**生效，生效后选填，默认值："security/metrics/certs/"。</li><li>**httpsEnabled**=**false**不启用吊销列表。</li></ul>|
+|metricsTlsCrlPath|std::string|metricsTlsCrlPath+metricsTlsCrlFiles路径长度范围为[1,4096]。实际路径为工程路径+metricsTlsCrlPath。|内部接口证书吊销列表文件夹路径，只支持软件包安装路径下的相对路径。<ul><li>**httpsEnabled**=**true**且**ipAddress**!=**managementIpAddress**生效，生效后选填，默认值："security/metrics/certs/"。</li><li>**httpsEnabled**=**false**不启用吊销列表。</li></ul>|
 |metricsTlsCrlFiles|std::set`<std::string>`|metricsTlsCrlPath+metricsTlsCrlFiles路径长度范围为[1,4096]。列表元素个数最小为1，最大为3。|内部接口吊销列表名称列表。<br>**httpsEnabled**=**true**生效，生效后选填，默认值：["server_crl.pem"]。|
-|kmcKsfMaster|std::string|文件路径长度范围为[1,4096]。实际路径为工程路径+kmcKsMaster。|KMC密钥库文件路径，只支持软件包安装路径下的相对路径。<br>**httpsEnabled**=**true**生效，生效后必填，默认值："tools/pmt/master/ksfa"。|
+|kmcKsfMaster|std::string|文件路径长度范围为[1,4096]。实际路径为工程路径+kmcKsfMaster。|KMC密钥库文件路径，只支持软件包安装路径下的相对路径。<br>**httpsEnabled**=**true**生效，生效后必填，默认值："tools/pmt/master/ksfa"。|
 |kmcKsfStandby|std::string|文件路径长度范围为[1,4096]。实际路径为工程路径+kmcKsStandby1。|KMC密钥库备份文件路径，只支持软件包安装路径下的相对路径。<br>**httpsEnabled**=**true**生效，生效后必填，默认值："tools/pmt/standby/ksfb"。|
 |inferMode|std::string|<ul><li>standard</li><li>dmi</li></ul>|必填，默认值：standard。<br>标识是否PD分离<ul><li>standard：表示PD混部模式；</li><li>dmi：表示PD分离模式。</li></ul>|
 |interCommTLSEnabled|bool|<ul><li>true</li><li>false</li></ul>|选填，默认值：true，需要配置证书相关内容。<br>集群内部实例间的通信是否启用TLS。<ul><li>true：启用</li><li>false：不启用</li></ul><br>取值为false或**inferMode**为**standard**时，忽略后续集群内部通信相关参数。|
@@ -56,7 +56,7 @@
 |interCommTlsCaPath|std::string|interCommTlsCaPath+interCommTlsCaFiles路径长度取决于操作系统配置（Linux为PATH_MAX）。实际路径为工程路径+interCommTlsCaPath。|选填，默认值："security/grpc/ca/"。<br>集群内部实例间的通信如果启用TLS，则使用此参数指定CA文件所在路径。|
 |interCommTlsCaFiles|std::set`<std::string>`|interCommTlsCaPath+interCommTlsCaFiles路径长度取决于操作系统配置（Linux为PATH_MAX）。实际路径为工程路径+interCommTlsCaFiles。|选填，默认值：["ca.pem"]。<br>集群内部实例间的通信如果启用TLS，则使用此参数指定CA文件名称。|
 |interCommTlsCert|std::string|文件路径长度取决于操作系统配置（Linux为PATH_MAX）。实际路径为工程路径+interCommTlsCert。|选填，默认值："security/grpc/certs/server.pem"。<br>集群内部实例间的通信如果启用TLS，则使用这里指定的文件作为证书。|
-|interCommPk|std::string|文件路径长度取决于操作系统配置（Linux为PATH_MAX）。实际路径为工程路径+interCommPk取决于操作系统配置（Linux为PATH_MAX）。|选填，默认值："security/grpc/keys/server.key.pem"。<br>集群内部实例间的通信如果启用TLS，则使用这里指定的文件作为私钥。|
+|interCommPk|std::string|文件路径长度取决于操作系统配置（Linux为PATH_MAX）。实际路径为工程路径+interCommPk。|选填，默认值："security/grpc/keys/server.key.pem"。<br>集群内部实例间的通信如果启用TLS，则使用这里指定的文件作为私钥。|
 |interCommPkPwd|std::string|文件路径长度取决于操作系统配置（Linux为PATH_MAX）。实际路径为工程路径+interCommPkPwd。|选填，默认值："security/grpc/pass/key_pwd.txt"。<br>集群内部实例间的通信如果启用TLS，则使用这里指定的文件作为私钥的密码。|
 |interCommTlsCrlPath|std::string|interCommTlsCrlPath+interCommTlsCrlFiles路径长度取决于操作系统配置（Linux为PATH_MAX）。实际路径为工程路径+interCommTlsCrlPath。|选填，默认值："security/grpc/certs/"。<br>集群内部实例间的通信如果启用TLS，则使用此参数指定证书吊销列表文件所在路径。|
 |interCommTlsCrlFiles|std::set`<std::string>`|interCommTlsCrlPath+interCommTlsCrlFiles路径长度取决于操作系统配置（Linux为PATH_MAX）。实际路径为工程路径+interCommTlsCrlFiles。|选填，默认值：["server_crl.pem"]。<br>集群内部实例间的通信如果启用TLS，则使用此参数指定证书吊销列表文件名称。|
@@ -64,15 +64,15 @@
 |tokenTimeout|uint32_t|[1, 3600]|每个token的推理超时时间。默认值：600；单位：秒。<br>PD分离场景该参数无效。|
 |e2eTimeout|uint32_t|[1, 65535]|端到端（接受请求开始到推理结束）超时时间。默认值：600；单位：秒。<br>PD分离场景该参数无效。|
 |maxRequestLength|uint32_t|[1, 100]|选填，默认值：40；单位：MB。<br>输入请求体的最大字符数。|
-|distDPServerEnabled|bool|truefalse|必填，默认值false。<br>是否开启分布式部署，该参数只在大规模专家并行场景下生效。|
+|distDPServerEnabled|bool|<ul><li>true</li><li>false</li></ul>|必填，默认值false。<br>是否开启分布式部署，该参数只在大规模专家并行场景下生效。|
 |HealthCheckConfig|map|-|健康检查相关配置，详情请参见[HealthCheckConfig参数说明](#healthcheckconfig参数说明)。|
 
 >
-> [!NOTE]说明 
-> 
->- 果网络环境不安全，不开启HTTPS通信，即“httpsEnabled“=“false“时，会存在较高的网络安全风险。
->- 如果推理服务所在的计算节点的网络为跨公网和局域网，绑定0.0.0.0的IP地址可能导致网络隔离失效，存在较大安全风险。故该场景下默认禁止EndPoint的IP地址绑定为0.0.0.0。若用户仍需要使用0.0.0.0，请在环境具备全零监管防护能力的前提下，通过设置配置项“allowAllZeroIpListening“=true手动打开允许配置0.0.0.0的IP地址开关，启用全零监管的安全风险由用户自行承担。
->- 推理超时相关的时间参数除了配置文件中的“tokenTimeout“和“e2eTimeout“参数，还有部分接口中来自客户端的“timeout“参数（例如：Token推理接口）。两者达到任何一个参数约束的超时时间，即认为超时。当某条请求超时后，Server向客户端返回超时报错，并终止该条请求的推理过程。
+> [!NOTE]说明
+>
+>- 如果网络环境不安全，不开启HTTPS通信，即"httpsEnabled"="false"时，会存在较高的网络安全风险。
+>- 如果推理服务所在的计算节点的网络为跨公网和局域网，绑定0.0.0.0的IP地址可能导致网络隔离失效，存在较大安全风险。故该场景下默认禁止EndPoint的IP地址绑定为0.0.0.0。若用户仍需要使用0.0.0.0，请在环境具备全零监管防护能力的前提下，通过设置配置项"allowAllZeroIpListening"=true手动打开允许配置0.0.0.0的IP地址开关，启用全零监管的安全风险由用户自行承担。
+>- 推理超时相关的时间参数除了配置文件中的"tokenTimeout"和"e2eTimeout"参数，还有部分接口中来自客户端的"timeout"参数（例如：Token推理接口）。两者达到任何一个参数约束的超时时间，即认为超时。当某条请求超时后，Server向客户端返回超时报错，并终止该条请求的推理过程。
 >
 ### HealthCheckConfig参数说明
 
@@ -80,8 +80,8 @@
 |--|--|--|--|
 |npuUsageThreshold|uint32_t|[0,100]|选填，默认值："10"，单位：%。<br>代表是否开启健康检查以及健康检查的NPU利用率阈值，健康检查会结合虚拟推理（单Token推理）场景下的NPU利用率结果判断服务是否健康。<li> 取值为0时，代表关闭健康检查。</li><li>取值为[1,100]时，代表开启健康检查。</li><br>取值为[1,100]时，该参数表示健康检查的NPU利用率阈值：<li>虚拟推理正常，服务状态为健康。</li><li>虚拟推理失败且NPU实际利用率≥设定阈值，服务状态为繁忙。</li><li>虚拟推理失败且NPU实际利用率＜设定阈值，服务状态为异常。</li>
 
-> [!NOTE]说明 
-> 
+> [!NOTE]说明
+>
 >- 健康检查方案：在每个Server实例中，周期性地同步执行虚拟推理（单Token推理）与NPU利用率检测，基于检测结果在实例内部更新服务状态。<br>　　健康状态：服务能够正常工作的状态。<br>　　繁忙状态：服务在较高负载下的运行状态，此时部分请求可能出现响应延迟或超时。<br> 　　异常状态：服务内部出现故障，无法正常正常处理请求。
 >- 服务状态可通过 v2/health/live和v2/health/ready 健康接口查询。当服务健康时，接口均返回状态码200；当服务繁忙时， v2/health/live接口返回状态码200，v2/health/ready接口返回状态码503；当服务异常时，接口均返回状态码500。
 
@@ -104,7 +104,7 @@
 |interNodeTlsCrlPath|std::string|建议interNodeTlsCrlPath+interNodeTlsCrlFiles路径长度<=4096。实际路径为工程路径+interNodeTlsCrlPath，上限与操作系统有关，最小值为1。|选填，默认值："security/grpc/certs/"。<br>服务证书吊销列表文件夹路径。**interNodeTLSEnabled**=**true**生效。|
 |interNodeTlsCrlFiles|std::set`<std::string>`|建议interNodeTlsCrlPath+interNodeTlsCrlFiles路径长度<=4096。实际路径为工程路径+interNodeTlsCrlFiles，上限与操作系统有关，最小值为1。|选填，默认值：["server_crl.pem"]。<br>服务证书吊销列表名称列表。interNodeTLSEnabled=true生效。|
 |interNodeKmcKsfMaster|std::string|建议文件路径长度<=4096。实际路径为工程路径+interNodeKmcKsfMaster，上限与操作系统有关，最小值为1。|KMC密钥库文件路径，只支持软件包安装路径下的相对路径。<br>**interNodeTLSEnabled**=**true**生效，生效后必填，默认值："tools/pmt/master/ksfa"。|
-|ModlDeployConfig|map|-|模型部署相关配置。详情请参见[ModelDeployConfig参数说明](#modeldeployconfig参数说明)。|
+|ModelDeployConfig|map|-|模型部署相关配置。详情请参见[ModelDeployConfig参数说明](#modeldeployconfig参数说明)。|
 |ScheduleConfig|map|-|调度相关配置。详情请参见[ScheduleConfig参数说明](#scheduleconfig参数说明)。|
 
 ### ModelDeployConfig参数说明
@@ -146,13 +146,13 @@
 |prefillTimeMsPerReq|uint32_t|[0, 1000]|必填，默认值：150。<br>该参数与decodeTimeMsPerReq参数一起参与计算，确定下一次推理应该选择Prefill还是Decode。单位：ms，当**supportSelectBatch**设置为**true**时有效。其调度策略流程图请参见[图1](#figure1)。<ul><li>PD混部场景，通过计算以下参数来选择下一次推理是Prefill还是Decode：<ul><li>prefillWaitTime = prefillTimeMsPerReq*decodeReqNum，表示如果选择Prefill，Decode请求需要等待的时间。</li><li>accumulatedDecodeWasteTime = accumulatedDecodeWasteTime + decodeTimeMsPerReq\*(maxBatchSize - decodeReqNum)，表示连续执行多次Decode浪费的时间。</li>**比较计算结果，确定下一次推理:**<li>当prefillWaitTime > accumulatedDecodeWasteTime时，表示Decode请求积压过多，则下一次推理是Decode。</li><li>当prefillWaitTime <= accumulatedDecodeWasteTime时，表示连续多次Decode浪费的时间过多，则下一次推理是Prefill。</li></ul></li><li>PD分离场景，该参数无效；如果当前实例是Prefill实例，则优先Prefill计算；如果当前实例是Decode实例，则优先Decode计算。</li></ul>|
 |prefillPolicyType|uint32_t|0|必填，只能配置为0。<br>Prefill阶段的调度策略。其调度策略流程图请参见[图2](#figure2)。0：FCFS，先来先服务。|
 |decodeTimeMsPerReq|uint32_t|[0, 1000]|必填，默认值：50。<br>该参数与prefillTimeMsPerReq参数一起参与计算，确定下一次推理应该选择Prefill还是Decode。单位：ms，当supportSelectBatch设置为true时有效。其调度策略流程图请参见[图1](#figure1)。<ul><li>PD混部场景，通过计算以下参数来选择下一次推理是Prefill还是Decode：<ul><li>prefillWaitTime = prefillTimeMsPerReq*decodeReqNum，表示如果选择Prefill，Decode请求需要等待的时间。</li><li>accumulatedDecodeWasteTime = accumulatedDecodeWasteTime +  decodeTimeMsPerReq\*(maxBatchSize - decodeReqNum)，表示连续执行多次Decode浪费的时间。</li>**比较计算结果，确定下一次推理:**<li>当prefillWaitTime > accumulatedDecodeWasteTime时，表示Decode请求积压过多，则下一次推理是Decode；</li><li>当prefillWaitTime <= accumulatedDecodeWasteTime时，表示连续多次Decode浪费的时间过多，则下一次推理是Prefill。</li></ul></li><li>PD分离场景，该参数无效：如果当前实例是Prefill实例，则优先Prefill计算；如果当前实例是Decode实例，则优先Decode计算。</li></ul>|
-|decodePolicyType|uint32_t|0|必填，只能配置为0。<br>Decode阶段的调度策略。其调度策略流程图请参见[图2](#figure1)。0：FCFS，先来先服务。|
+|decodePolicyType|uint32_t|0|必填，只能配置为0。<br>Decode阶段的调度策略。其调度策略流程图请参见[图2](#figure2)。0：FCFS，先来先服务。|
 |maxBatchSize|uint32_t|[1, 819200]，且必须大于或等于maxPreemptCount参数的取值。|必填，默认值：200。<br>最大decode batch size。<br>1. 首先计算block_num：Total Block Num = Floor(NPU显存/(模型网络层数\*cacheBlockSize\*模型注意力头数\*注意力头大小\*Cache类型字节数\*Cache数))，其中，Cache数=2；在tensor并行的情况下，block_num\*world_size为实际的分配block数。如果是多卡，公式中的模型注意力头数\*注意力大小的值需要均摊在每张卡上，即“模型注意力头数*注意力大小/卡数”。公式中的Floor表示计算结果向下取整。<br>2. 为每个请求申请的block数量Block Num=Ceil(输入Token数/cacheBlockSize)+Ceil(最大输出Token数/cacheBlockSize)。输入Token数：输入（字符串）做完tokenizer后的tokenID个数；最大输出Token数：模型推理最大迭代次数和最大输出长度之间取较小值。公式中的Ceil表示计算结果向上取整。<br>3. maxBatchSize=Total Block Num/Block Num。|
 |maxIterTimes|uint32|[1, maxSeqLen]|必填，默认值：512。<br>模型全局最大输出长度。<ul><li>请求的最大输出长度maxOutputLen=min(maxIterTimes, max_tokens)或maxOutputLen=min(maxIterTimes, max_new_tokens)</li><li>请求的实际输出长度outputLen = min(maxSeqLen - inputLen, maxOutputLen)</li></ul>|
 |maxPreemptCount|uint32_t|[0, maxBatchSize]，当取值大于0时，cpuMemSize取值不可为0。|必填，默认值：0。<br>每一批次最大可抢占请求的上限，即限制一轮调度最多抢占请求的数量，最大上限为maxBatchSize，取值大于0则表示开启可抢占功能。|
 |maxQueueDelayMicroseconds|uint32_t|[500, 1000000]|必填，默认值：5000。<br>在队列中的请求数量达到最大maxBatchSize、maxPrefillBatchSize或maxPrefillTokens前，请求在队列中的最大等待时间，单位：us。<br>只要等待时间达到该值，即使请求数量未达到最大maxBatchSize、maxPrefillBatchSize或maxPrefillTokens，也要进行下一次推理。|
 |maxFirstTokenWaitTime|uint32_t|[0, 3600000]|选填，默认值：2500，单位：ms。<br>请求到达后的最长排队时间。达到该等待时间后，将允许本轮调度抢占请求，缩短首token时延。<br>PD分离场景下该字段配置不生效。|
-|maxBeamWidth|uint32_t|[1, 8192], 且必须小于或等于maxBatchSize参数的取值。|选填，默认值：128。<br>Beam search支持的最大采样并行数。<br>请求中携带的n的参数值不能超过maxBeamWidth的值。|
+|maxN|uint32_t|[1, 8192], 且必须小于或等于maxBatchSize参数的取值。|选填，默认值：128。<br>Beam search支持的最大采样并行数。<br>请求中携带的n的参数值不能超过maxN的值。 |
 
 ## LogConfig参数说明
 

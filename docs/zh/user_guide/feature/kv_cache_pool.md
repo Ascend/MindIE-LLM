@@ -35,7 +35,7 @@
 1. 打开Server的config.json文件。
 
     ```bash
-    cd {MindIE安装目录}/latest/mindie-service/
+    cd {MindIE安装目录}/mindie_llm/
     vi conf/config.json
     ```
 
@@ -102,7 +102,7 @@
 4. 启动服务。
 
     ```bash
-    ./bin/mindieservice_daemon
+    mindie_llm_server
     ```
 
 5. 第一次使用以下指令发送请求，prompt为第一轮问题。如需使用到Prefix Cache/池化特性，第二次请求的prompt需要与第一次的prompt有一定长度的公共前缀，常见使用场景有多轮对话和few-shot学习等。具体curl命令请参考[Prefix Cache章节发送请求](prefix_cache.md)的命令和内容。

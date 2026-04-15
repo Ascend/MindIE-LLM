@@ -24,7 +24,7 @@ LoRA权重中需包含 `adapter_config.json` 和 `adapter_model.safetensors` 文
 - 不支持和量化、PD分离、并行解码、SplitFuse、MTP、异步调度、Micro Batch以及Prefix Cache特性同时开启。
 - 仅Qwen2.5-7B、Qwen2.5-14B、Qwen2.5-32B、Qwen2.5-72B、Qwen3-32B、LLaMA3.1-8B、LLaMA3.1-70B和Qwen2-72B支持该特性。
 - LoRA权重名称长度不能超过256个字符。
-- 仅支持vLLM、TGI和vLLM兼容OpenAI接口。
+- 仅支持vLLM、TGI和vLLM兼容的OpenAI接口。
 
 ## 参数说明
 
@@ -36,7 +36,7 @@ LoRA权重中需包含 `adapter_config.json` 和 `adapter_model.safetensors` 文
 | --------------------------- | ---------- | ------------------------------------------------------------ | ------------------------------------------------------------ |
 | `maxLoras`                  | `uint32_t` | 上限根据显存和用户需求来决定，最小值需大于0。                | 最大可加载的LoRA数量。<br>选填，开启LoRA权重动态加载和卸载时需配置。<br>默认值为0。 |
 | `maxLoraRank`               | `uint32_t` | 上限根据显存和用户需求来决定，最小值需大于0。                | 可加载LoRA权重最大的秩。<br>选填，开启LoRA权重动态加载和卸载时需配置。<br>默认值为0。 |
-| `LoraModules`               |            |                                                              |                                                              |
+| `LoraModules`               |      -     |                    -                                       |         -                                                     |
 | &nbsp;&nbsp;`name`          | `string`   | 由大写字母、小写字母、数字、中划线和下划线组成，且不以中划线和下划线作为开头和结尾，字符串长度小于或等于256。 | 必填，LoRA ID。                                              |
 | &nbsp;&nbsp;`path`          | `string`   | 文件绝对路径长度的上限与操作系统的设置（Linux为PATH_MAX）有关，最小值为1。 | 必填，LoRA权重路径。<br>该路径会进行安全校验，需要和执行用户的属组和权限保持一致。 |
 | &nbsp;&nbsp;`baseModelName` | `string`   | 由大写字母、小写字母、数字、中划线、点和下划线组成，且不以中划线、点和下划线作为开头和结尾，字符串长度小于或等于256。 | 必填，基础模型名称。<br>与5.2-ModelConfig参数说明中的`modelName`参数保持一致。 |
@@ -75,9 +75,9 @@ torchrun --nproc_per_node 8 --master_port 20030 -m examples.run_pa \
 以LLaMA3.1 70B模型为例，简单介绍Multi LoRA如何使用。
 
 1. 打开Server的`config.json`文件。
-  
+
     ```bash
-    cd {MindIE安装目录}/latest/mindie-service/
+    cd {MindIE安装目录}/mindie_llm/
     vi conf/config.json
     ```
 
@@ -130,12 +130,13 @@ torchrun --nproc_per_node 8 --master_port 20030 -m examples.run_pa \
             }]
         }
     }
+    }
     ```
 
 3. 启动服务。
 
     ```bash
-    ./bin/mindieservice_daemon
+    mindie_llm_server
     ```
 
 4. 动态加载、卸载或查询LoRA。
@@ -154,7 +155,7 @@ torchrun --nproc_per_node 8 --master_port 20030 -m examples.run_pa \
    - **卸载请求**：
 
      ```bash
-     curl -X POST 127.0.0.2:1026/v1/unload_lora_adapter \
+     curl -X POST http:127.0.0.2:1026/v1/unload_lora_adapter \
        -d '{
              "lora_name": "adapter2"
            }'

@@ -20,6 +20,8 @@
 #include <shared_mutex>
 #include <string>
 #include <set>
+#include <vector>
+#include <utility>
 #include <mutex>
 #include <condition_variable>
 
@@ -77,7 +79,7 @@ public:
     SimulateTaskRunner& operator=(const SimulateTaskRunner&) = delete;
 
     bool Init(std::shared_ptr<ISimulateExecutor> executor,
-              const std::set<int>& npuDeviceCardIds, int npuThreshold,
+              const std::vector<std::pair<int, int>>& npuDeviceCardIds, int npuThreshold,
               RunMode runMode = RunMode::SIMULATE_AND_NPU, int chipPerCard = 1);
 
     /// @brief 检查是否初始化成功
@@ -101,9 +103,10 @@ private:
     void TriggerNpuCheck();
     void WaitForNpuCheckComplete();
     void UpdateHealthStatus(const SimulateResult& result);
+    bool ShouldRunSimulate();
 
     std::shared_ptr<ISimulateExecutor> executor_;
-    std::set<int> npuDeviceCardIds_;  // NPU 设备卡 ID 集合（Init 时传入，不可为空）
+    std::vector<std::pair<int, int>> npuDeviceCardIds_;  // NPU 设备卡 ID 集合（Init 时传入，不可为空）
     bool isValid_{false};  // 是否初始化成功
     int npuThreshold_ = 10; // 适配大部分场景的检测阈值
     RunMode runMode_{RunMode::SIMULATE_AND_NPU};
@@ -131,6 +134,9 @@ private:
 
     mutable std::shared_mutex statusMutex_;
     SimulateHealthStatus healthStatus_;
+
+    int lastAicoreUtil_{-1};
+    int loopsSinceSimulate_{0};
 };
 
 } // namespace mindie_llm

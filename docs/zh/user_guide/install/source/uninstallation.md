@@ -5,7 +5,7 @@
 执行如下命令，卸载whl包，完成卸载。
 
 ```bash
-pip uninstall mindie_llm-{version}-{python tag}-{abi tag}-{platform tag}.whl
+pip uninstall mindie_llm-{version}-{python tag}-{platform tag}.whl
 
 ```
 

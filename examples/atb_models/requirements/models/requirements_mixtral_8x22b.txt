@@ -19,7 +19,7 @@ huggingface-hub==0.23.3
 tabulate==0.9.0
 fuzzywuzzy==0.18.0
 jieba==0.42.1
-Jinja2==3.1.4
+Jinja2>=3.1.5
 thefuzz==0.22.1
 rapidfuzz==3.9.0
 accelerate==0.31.0

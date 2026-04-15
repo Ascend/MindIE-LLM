@@ -1,6 +1,6 @@
 # 安装Docker
 
-本章以ubuntu 22.04安装docker为例。
+本章以Ubuntu 22.04安装docker为例。
 
 1. 确认系统
 
@@ -8,7 +8,7 @@
    cat /etc/os-release
    ```
 
-   ubuntu系统显示结果：
+   Ubuntu系统显示结果：
 
    ```text
    PRETTY_NAME="Ubuntu 22.04 LTS"
@@ -26,7 +26,7 @@
    ```
 
    关注**NAME**、**ID**等参数，确认是否为Ubuntu系统。
-2. ubuntu系统安装docker app：
+2. Ubuntu系统安装docker：
 
    - 切换可用源：
 
@@ -81,27 +81,27 @@
    Scanning processes...
    Scanning processor microcode...
    Scanning linux images...
-   
+
    Running kernel seems to be up-to-date.
-   
+
    Failed to check for processor microcode upgrades.
-   
+
    No services need to be restarted.
-   
+
    No containers need to be restarted.
-   
+
    No user sessions are running outdated binaries.
-   
+
    No VM guests are running outdated hypervisor (qemu) binaries on this host.
    ```
 
-   - 查看升级docker app版本
+   - 查看升级docker版本
 
    ```bash
    # 查看docker版本
    docker --version
-   
-   # 升级到最新版本
+
+   # 更新到最新版本
    sudo apt update
    sudo apt upgrade docker-ce docker-ce-cli containerd.io
    ```

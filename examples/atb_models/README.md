@@ -24,7 +24,7 @@
   - PTA
   - 开源软件依赖
 - 版本配套关系
-  - 当前模型仓需基于CANN包8.0版本及以上，Python 3.10/3.11，torch 2.1.0/2.6.0进行环境部署与运行
+  - 当前模型仓需基于CANN包8.0版本及以上，Python 3.10/3.11，torch 2.1.0/2.9.0进行环境部署与运行
 
 ### 1.1 安装HDK
 
@@ -138,8 +138,8 @@
 
   | 包名 （其中`${version}`为实际版本）                   |
   | -------------------------------------------- |
-  | torch-${version}+cpu-cp310-cp310-linux_x86_64.whl |
-  | torch-${version}-cp310-cp10-linux_aarch64.whl     |
+  | torch-${version}+cpu-cp311-cp311-linux_x86_64.whl |
+  | torch-${version}-cp311-cp311-linux_aarch64.whl     |
   | ...                                          |
 
   - 根据所使用的环境中的python版本以及cpu类型，选择对应版本的torch安装包。
@@ -147,8 +147,8 @@
 - 安装
 
     ```bash
-    # 安装torch 2.1.0 的python 3.10 的arm版本为例
-    pip install torch-2.1.0-cp310-cp310-linux_aarch64.whl
+    # 安装torch 2.9.0 的python 3.11 的arm版本为例
+    pip install torch-2.9.0-cp311-cp311-linux_aarch64.whl
     ```
 
 #### 1.3.2 安装torch_npu
@@ -158,14 +158,13 @@
 | 包名 （其中`${version}`为实际版本）  |
 | --------------------------- |
 | pytorch_v${version}_py311.tar.gz |
-| pytorch_v${version}_py310.tar.gz |
 | ...                         |
 
 - 安装选择与torch版本以及python版本一致的npu_torch版本
 
 ```bash
-# 安装 torch_npu，以 torch 2.1.0，python 3.10 的版本为例
-tar -zxvf pytorch_v2.1.0_py310.tar.gz
+# 安装 torch_npu，以 torch 2.9.0，python 3.11 的版本为例
+tar -zxvf pytorch_v2.9.0_py311.tar.gz
 pip install torch*_aarch64.whl
 ```
 
@@ -201,7 +200,7 @@ pip install torch*_aarch64.whl
 - 场景一：获取MindIE的整包进行安装
   - 下载编译好的包
     - [下载链接](https://www.hiascend.com/developer/download/community/result?module=ie+pt+cann)
-    
+
       | 包名 （其中`${version}`为实际版本）       |
       | -------------------------------------- |
       | Ascend-mindie_${version}_linux-x86_64_abi{0}.run |
@@ -244,8 +243,8 @@ pip install torch*_aarch64.whl
 
       | 包名  （其中`${version}`为实际版本）                           |
       | ------------------------------------------------------------ |
-      | Ascend-mindie-atb-models_${version}_linux-aarch64_py310_torch2.1.0-abi0.tar.gz |
-      | Ascend-mindie-atb-models_${version}_linux-aarch64_py310_torch2.1.0-abi1.tar.gz |
+      | Ascend-mindie-atb-models_${version}_linux-aarch64_py311_torch2.9.0-abi0.tar.gz |
+      | Ascend-mindie-atb-models_${version}_linux-aarch64_py311_torch2.9.0-abi1.tar.gz |
       | ...                                                          |
 
   - 将文件放置在/usr/local/Ascend/路径下
@@ -322,7 +321,7 @@ source /usr/local/Ascend/atb-models/set_env.sh
 
   - 确认脚本中没有覆盖日志相关的环境变量
   - 确认服务器内存充足
-  
+
 ### 日志开关
 
 - 模型仓日志
@@ -363,7 +362,7 @@ source /usr/local/Ascend/atb-models/set_env.sh
   - 打开CANN日志
 
       ```shell
-      export ASCEND_SLOG_PRINT_TO_STDOUT=1 #CANN日志是否输出到控制台 
+      export ASCEND_SLOG_PRINT_TO_STDOUT=1 #CANN日志是否输出到控制台
       export ASCEND_GLOBAL_LOG_LEVEL=1 #CANN日志级别
       export ASCEND_MODULE_LOG_LEVEL=OP=1 #加速库日志级别
       # 0：对应DEBUG级别。

@@ -111,19 +111,20 @@ class DecodingPolicy:
         sampling_metadata.presence_penalty = presence_penalty
         temperature = self.repeat_sample_param(sampling_metadata.temperature, logits_num_per_batch)
         sampling_metadata.temperature = temperature
-        top_p = self.repeat_sample_param(sampling_metadata.top_p, logits_num_per_batch)
-        sampling_metadata.top_p = top_p
-        if sampling_metadata.do_sample_tensor is not None:
-            do_sample_tensor = self.repeat_sample_param(
-                sampling_metadata.do_sample_tensor, logits_num_per_batch
-            ).squeeze(1)
-            sampling_metadata.do_sample_tensor = do_sample_tensor
-        if sampling_metadata.random_number_generators is not None:
-            sampling_metadata.random_number_generators = [
-                gen
-                for gen in sampling_metadata.random_number_generators
-                for _ in range(self.num_speculative_tokens + 1)
-            ]
+        if self.generator_backend.backend_type == "torch":
+            top_p = self.repeat_sample_param(sampling_metadata.top_p, logits_num_per_batch)
+            sampling_metadata.top_p = top_p
+            if sampling_metadata.do_sample_tensor is not None:
+                do_sample_tensor = self.repeat_sample_param(
+                    sampling_metadata.do_sample_tensor, logits_num_per_batch
+                ).squeeze(1)
+                sampling_metadata.do_sample_tensor = do_sample_tensor
+            if sampling_metadata.random_number_generators is not None:
+                sampling_metadata.random_number_generators = [
+                    gen
+                    for gen in sampling_metadata.random_number_generators
+                    for _ in range(self.num_speculative_tokens + 1)
+                ]
 
     def decode_model_input_update(self, model_inputs, input_metadata, cached_idx, hit_mask=None):
         # 小模型使用的model_inputs构造

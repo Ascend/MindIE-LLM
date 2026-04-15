@@ -24,7 +24,7 @@
     此处拉取Ubuntu 22.04仅为示例，用户可拉取其他支持的操作系统版本，但确保镜像拉取的操作系统符合[硬件配套和支持的操作系统](../installation_introduction.md#硬件配套和支持的操作系统)中的要求。
 
     > [!NOTE]说明
-    > torch_npu 2.1.0版本请拉取ubuntu 22.04，torch_npu 2.6.0版本请拉取ubuntu 24.04 LTS。
+    > torch_npu 2.1.0版本请拉取ubuntu 22.04，torch_npu 2.9.0版本请拉取ubuntu 24.04 LTS。
     > 在一个全新的容器内可能会出现apt源下载路径问题，请用户配置Ubuntu 22.04的专用源，提升下载速度。
     > 安装过程需要下载相关依赖，请确保安装环境能够连接网络。
     > 请在root用户下执行`apt update`命令检查源是否可用。

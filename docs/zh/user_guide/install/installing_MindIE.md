@@ -12,7 +12,7 @@ MindIE物理机安装详情请参见[安装MindIE](./source/installation_on_a_ph
 
 ## 容器安装
 
-MindIE容器安装详情请参见[容器安装方式](./source/installtion_in_containerized.md)。
+MindIE容器安装详情请参见[容器安装方式](./source/installation_in_containerized.md)。
 
 ## 升级
 

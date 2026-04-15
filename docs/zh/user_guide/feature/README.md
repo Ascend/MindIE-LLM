@@ -34,7 +34,7 @@ MindIE LLM 支持的特性包括基础特性、量化特性、长序列特性、
         <td rowspan="10">量化特性</td><td>离群值抑制</td><td>通过抑制数据中的异常值，来提升大模型量化的精度。详见 <a href="./anti_outlier.md">离群值抑制</a>。</td><td>减少量化精度损失</td>
     </tr>
     <tr>
-        <td>PD MIX 量化</td><td>在模型推理的 Prefill 和 Decode 阶段使用不同的量化方式。详见 <a href="./pdmix.md">PD MIX 量化</a>。</td><td>减低显存</td>
+        <td>PD MIX 量化</td><td>在模型推理的 Prefill 和 Decode 阶段使用不同的量化方式。详见 <a href="./pdmix.md">PD MIX 量化</a>。</td><td>降低显存</td>
     </tr>
     <tr>
         <td>W8A8 量化</td><td>将权重和激活值统一量化为 int8 格式，以减少模型体积并加速推理计算。详见 <a href="./w8a8.md">W8A8 量化</a>。</td><td>降低显存、提高吞吐</td>

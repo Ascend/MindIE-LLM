@@ -10,15 +10,12 @@
 import unittest
 import numpy as np
 
-from mindie_llm.modeling.backend_type import BackendType
-from mindie_llm.utils.env import ENV
 from mindie_llm.utils.tensor import _set_tensor_backend
 
 
 class TestTensorBackend(unittest.TestCase):
-
     def use_operations(self):
-        device = 'npu'
+        device = "npu"
         tensor_backend = _set_tensor_backend()
         tensor = tensor_backend.tensor(np.array([[0]] * 16, dtype=np.int32))
         tensor = tensor_backend.to(tensor, device)
@@ -31,8 +28,10 @@ class TestTensorBackend(unittest.TestCase):
         tensor_backend.get_device(tensor)
         tensor_backend.masked_fill(
             tensor,
-            tensor_backend.to(tensor_backend.tensor(np.array([[1]] * 16, dtype=np.bool_)), device),
-            0
+            tensor_backend.to(
+                tensor_backend.tensor(np.array([[1]] * 16, dtype=np.bool_)), device
+            ),
+            0,
         )
         tensor_backend.numpy(tensor)
         tensor_backend.ones((16,))
@@ -40,21 +39,29 @@ class TestTensorBackend(unittest.TestCase):
         tensor_backend.scatter(tensor, 0, tensor, tensor)
         tensor_backend.shape(tensor, 0)
         tensor_backend.softmax(
-            tensor_backend.to(tensor_backend.tensor(np.array([[1]] * 16, dtype=np.float16)), device),
-            0
+            tensor_backend.to(
+                tensor_backend.tensor(np.array([[1]] * 16, dtype=np.float16)), device
+            ),
+            0,
         )
-        tensor_backend.where(tensor_backend.to(tensor_backend.tensor(np.array([[1]] * 16, dtype=np.float32)), device))
+        tensor_backend.where(
+            tensor_backend.to(
+                tensor_backend.tensor(np.array([[1]] * 16, dtype=np.float32)), device
+            )
+        )
         tensor_backend.zeros((16,))
-        
-        tensor_list = [tensor_backend.tensor(np.array([[1, 2, 3]])), tensor_backend.tensor(np.array([[4, 5, 6]]))]
+
+        tensor_list = [
+            tensor_backend.tensor(np.array([[1, 2, 3]])),
+            tensor_backend.tensor(np.array([[4, 5, 6]])),
+        ]
         golden_cat_tensor = tensor_backend.tensor(np.array([[1, 2, 3], [4, 5, 6]]))
         test_cat_tensor = tensor_backend.cat(tensor_list, dim=0)
         self.assertTrue(tensor_backend.equal(test_cat_tensor, golden_cat_tensor))
 
     def test_torch(self):
-        ENV.framework_backend = BackendType.ATB
         self.use_operations()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

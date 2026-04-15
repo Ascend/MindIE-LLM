@@ -4,7 +4,7 @@
 
 Flash Attention 3（FA3）量化，类似Attention量化，不同之处在于DeepSeek使用MLA算法，k rope的取值变化过大，不适合量化。因此此量化方式将k的非rope张量量化为8bit，k的rope张量不量化。目前使用的量化方案是perhead量化。通过对k的部分量化来减少KV Cache的显存占用，优化decode阶段attention算子的速度，提升吞吐。
 
-> [!NOTE]说明 
+> [!NOTE]说明
 >
 >- Atlas 800I A2 推理服务器，Atlas 800I A3 超节点服务器支持FA3量化。
 >- 支持W8A8配合使用。
@@ -58,7 +58,7 @@ FA3量化搭配W8A8量化后权重目录结构：
 
 和W8A8量化权重相比：新增fa\_quant\_type描述字段；新增self\_attn字段及下面包含的内容；input\_scale用于将q，k特征量化为int8类型；deq\_scale用于将q，k输出反量化成浮点类型。
 
-**图 1**  FA3量化权重推理时流程  
+**图 1**  FA3量化权重推理时流程
 
 ![](./figures/fa3_quantization.png)
 
@@ -88,7 +88,7 @@ FA3量化搭配W8A8量化后权重目录结构：
 1. 开启KV Cache NZ格式。
 
     - 纯模型推理时：在“$\{ATB\_SPEED\_HOME\_PATH\}/atb\_llm/conf/config.json”中将“enable\_nz”设置为“true”。
-    - 服务化推理时：在“_\{MindIE安装目录\}_/latest/mindie-service/conf/config.json”的"ModelConfig"字段下添加“enable\_nz”字段，如下所示：
+    - 服务化推理时：在“_\{MindIE安装目录\}_/mindie_llm/conf/config.json”的"ModelConfig"字段下添加“enable\_nz”字段，如下所示：
 
         ```json
         "ModelConfig" : [
@@ -118,7 +118,7 @@ FA3量化搭配W8A8量化后权重目录结构：
         ]
         ```
 
-    > [!NOTE]说明 
+    > [!NOTE]说明
     > PD分离推理时，需要在配置文件中将“enable\_nz”设置为“true”。
 
 2. 您可以使用以下指令执行对话测试，推理内容为"What's deep learning?"。

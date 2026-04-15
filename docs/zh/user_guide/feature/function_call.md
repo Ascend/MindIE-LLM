@@ -4,7 +4,7 @@
 
 以下统一使用“工具调用”（tool use）来介绍function call特性。
 
-**图 1**  大模型工具调用的流程图<a name="fig11208183710820"></a>  
+**图 1**  大模型工具调用的流程图<a name="fig11208183710820"></a>
 ![](./figures/function_call_flowchart.png "大模型工具调用的流程图")
 
 ## 流程步骤
@@ -59,7 +59,7 @@
 1. 打开Server的config.json文件。
 
     ```bash
-    cd {MindIE安装目录}/latest/mindie-service/
+    cd {MindIE安装目录}/mindie_llm/
     vi conf/config.json
     ```
 
@@ -99,7 +99,7 @@
             },
     ```
 
-    > [!NOTE]说明 
+    > [!NOTE]说明
     >- DeepSeek-V3.1模型：“tool\_call\_parser”必须配置为“deepseek\_v31”，否则将默认使用deepseek\_v3的工具解析模块，与Deepeek-V3.1模型格式不匹配，无法正确解析。
     >- 其余模型：步骤1和2非必要，会自动匹配对应模型的工具解析方式。若配置，需要将“deepseekv2”字段修改为对应模型的“model\_type”。
     >- chat\_template：传入后会覆盖模型tokenizer\_config.json中默认的chat\_template。对于DeepSeek V3.1，DeepSeek R1 0528与DeepSeek V3 0324模型，权重tokenizer\_config.json中默认的chat\_template不支持Function Call，需要传入支持Function Call的chat\_template。
@@ -108,7 +108,7 @@
 3. 启动服务。
 
     ```bash
-    ./bin/mindieservice_daemon
+    mindie_llm_server
     ```
 
 4. <a name="step4"></a>向服务发送请求，参数说明见《MindIE Motor开发指南》中的“服务化接口 \> EndPoint业务面RESTful接口 \> 兼容OpenAI接口 \> 推理接口”章节。

@@ -228,14 +228,12 @@ def create_forward_context(
         model_inputs, mask, num_speculative_tokens
     )
 
-    dp_metadata = None
-    if DPMetadata.is_enabled():
-        dp_metadata = DPMetadata.from_model_input(model_inputs)
+    dp_metadata = DPMetadata.from_model_input(model_inputs)
 
     num_actual_tokens = len(model_inputs.input_ids)
     batch_descriptor = BatchDescriptor(
         num_actual_tokens,
-        get_parallel_info_manager().get(ParallelType.ATTN_DP).is_enabled(),
+        get_parallel_info_manager().get(ParallelType.ATTN_TP).is_enabled(),
     )
 
     if model_inputs.prefill_head_indices is not None:

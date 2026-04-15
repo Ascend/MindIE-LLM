@@ -10,7 +10,7 @@
 
 include_guard(GLOBAL)
 
-find_package(Python3 3.7 COMPONENTS Interpreter)
+find_package(Python3 3.10 COMPONENTS Interpreter)
 set(HI_PYTHON ${Python3_EXECUTABLE})
 message(STATUS "HI_PYTHON = ${Python3_EXECUTABLE}")
 
@@ -57,4 +57,4 @@ message(STATUS "HI_PYTHON_INC_TEMP = ${HI_PYTHON_INC_TEMP}")
 message(STATUS "HI_PYTHON_LIB_TEMP = ${HI_PYTHON_LIB_TEMP}")
 
 set(HI_PYTHON_INC ${HI_PYTHON_INC_TEMP} CACHE STRING "python include path" FORCE)
-set(HI_PYTHON_LIB ${HI_PYTHON_LIB_TEMP} CACHE STRING "python library libpython3.7m.a" FORCE)
+set(HI_PYTHON_LIB ${HI_PYTHON_LIB_TEMP} CACHE STRING "python library" FORCE)

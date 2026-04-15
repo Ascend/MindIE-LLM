@@ -24,14 +24,14 @@ self.rope_emb = get_rope(
             is_neox_style=True,
             rope_config=config.rope_scaling,
         )
-        
+
  ...
  # 使用方式
- # 根据postions设置cos_sin_indexed_cache
+ # 根据positions设置cos_sin_indexed_cache
 self.layers[0].self_attn.rope_emb.set_cos_sin_indexed_cache(positions)
 ...
  # 1. 调用forward直接对query,key进行rope变换
-query, key = self.rope_emb(positions, query, key) 
+query, key = self.rope_emb(positions, query, key)
 ...
 # 2. 直接拿出cos, sin交给attention 后端使用
 return self.attn(hidden_states,
@@ -96,18 +96,18 @@ class DeepseekV3YarnRotaryEmbedding(YarnScalingRotaryEmbedding):
             beta_slow=beta_slow,
             mscale=mscale
         )
-    
-    def set_cos_sin_indexed_cache(self, postions) -> None:
+
+    def set_cos_sin_indexed_cache(self, positions) -> None:
         """Create position-indexed cosine/sine caches with dimension doubling.
 
         Extracts position-specific rotary values from precomputed caches and
         duplicates them across the last dimension to match attention head layout.
 
         Args:
-            postions: 1D tensor of position indices to index into the cache.
+            positions: 1D tensor of position indices to index into the cache.
         """
-        cos_indexed_cache = torch.index_select(self.cos_cache, dim=0, index=postions.view(-1)).unsqueeze(1).unsqueeze(1)
-        sin_indexed_cache = torch.index_select(self.sin_cache, dim=0, index=postions.view(-1)).unsqueeze(1).unsqueeze(1) 
+        cos_indexed_cache = torch.index_select(self.cos_cache, dim=0, index=positions.view(-1)).unsqueeze(1).unsqueeze(1)
+        sin_indexed_cache = torch.index_select(self.sin_cache, dim=0, index=positions.view(-1)).unsqueeze(1).unsqueeze(1)
         cos_indexed_cache = torch.cat((cos_indexed_cache, cos_indexed_cache), dim=-1)
         sin_indexed_cache = torch.cat((sin_indexed_cache, sin_indexed_cache), dim=-1)
         self.register_buffer("cos_indexed_cache", cos_indexed_cache, persistent=False) # [seq_len, 1, 1, rotary_dim]

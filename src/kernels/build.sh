@@ -15,22 +15,22 @@
 
 set -e
 
-startswith() {
+contains() {
     local str="$1"
-    local prefix="$2"
-    [[ $str == "$prefix"* ]]
+    local substr="$2"
+    [[ "$str" == *"$substr"* ]]
 }
 
 soc_name=$(python3 -c "\
 import torch;\
 import torch_npu;\
 soc_name = torch.npu.get_device_properties().name;\
-print(soc_name);\
+print(f'mie_ops_version:{soc_name}');\
 " 2>/dev/null) || soc_name="unknown"
 
-if startswith "$soc_name" "Ascend910B" ]; then
+if contains "$soc_name" "mie_ops_version:Ascend910B" ]; then
     ops="ascend910b"
-elif startswith "$soc_name" "Ascend910_93" ]; then
+elif contains "$soc_name" "mie_ops_version:Ascend910_93" ]; then
     ops="ascend910_93"
 else
     if [ $# -eq 1 ]; then

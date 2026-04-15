@@ -208,7 +208,6 @@ class AllGatherStrategy(MoECommStrategyBase):
 
 # Strategy selection order: first applicable strategy is used
 MOE_COMM_STRATEGIES = [
-    FusedMC2Strategy,  # P0: Optimal (910C Fused MC2)
     MC2Strategy,  # P1: High perf (large cluster/decode)
     All2AllStrategy,  # P2: Fallback for prefill/specific cases
     AllGatherStrategy,  # P3: Universal fallback

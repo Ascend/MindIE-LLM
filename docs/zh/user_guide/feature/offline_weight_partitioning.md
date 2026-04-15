@@ -1,12 +1,12 @@
 # 权重离线切分
 
-MindIE在权重加载过程中，默认实现为首先完整加载safetensor格式的权重文件，然后在内存中依据并行策略执行切分处理，最终通过H2D（Host-to-Device）方式将权重传输至NPU卡上。针对如DeepSeek等大规模参数模型，为降低权重加载时间开销，可采用权重离线切分优化策略：即预先依据运行时并行策略对权重进行切分并存储于tmpfs中，以实现更高效的加载流程。
+MindIE在权重加载过程中，默认实现为首先完整加载safetensors格式的权重文件，然后在内存中依据并行策略执行切分处理，最终通过H2D（Host-to-Device）方式将权重传输至NPU卡上。针对如DeepSeek等大规模参数模型，为降低权重加载时间开销，可采用权重离线切分优化策略：即预先依据运行时并行策略对权重进行切分并存储于tmpfs中，以实现更高效的加载流程。
 
 ## 限制与约束
 
 - 仅DeepSeek-R1和DeepSeek-V3模型支持此特性。
 - 权重离线切分时的配置需和模型推理运行时的配置保持一致。
-- 仅Atlas 800I A2 推理服务器双机、Atlas 800I A3 超节点服务器单机场景支持此特性。
+- 仅Atlas 800I A2 推理服务器双机场景、Atlas 800I A3 超节点服务器单机场景支持此特性。
 - 不支持与共享专家和路由专家合并特性同时开启。
 - 不支持和动态负载均衡特性同时开启。
 
@@ -75,7 +75,7 @@ torchrun --nnodes=2 --nproc_per_node 8 --node_rank=1 --master_addr="主节点IP"
 └── tokenizer_config.json
 ```
 
-> [!NOTE]说明 
+> [!NOTE]说明
 >
 >- 切分后模型权重按照model层、norm模块、attention模块、dense模块以及moe模块分目录存储。
 >- 切分后新增model\_sharded\_metadata.json文件，用于索引切分策略和切分文件。
@@ -87,7 +87,7 @@ torchrun --nnodes=2 --nproc_per_node 8 --node_rank=1 --master_addr="主节点IP"
 1. 打开Server的config.json文件。
 
     ```bash
-    cd {MindIE安装目录}/latest/mindie-service/
+    cd {MindIE安装目录}/mindie_llm/
     vi conf/config.json
     ```
 

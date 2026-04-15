@@ -9,10 +9,13 @@
 # See the Mulan PSL v2 for more details.
 
 import unittest
+import json
 
 from mindie_llm.runtime.models.deepseek_v32.tool_calls_processor_deepseekv32 import (
     INIT_RETURN_NONE,
     TOOL_CALLS,
+    NAME,
+    ARGUMENTS,
     ToolCallsProcessorDeepseekv32,
 )
 
@@ -22,12 +25,13 @@ class MockTokenizer:
         return "".join(token_ids)
 
 
-class TestToolCallsProcessorStreamCornerCases(unittest.TestCase):
+class TestToolCallsProcessorDeepseekV32(unittest.TestCase):
 
     def setUp(self):
-        """Initializes the processor and injects testing schemas."""
+        """Initializes the processor and injects all required schemas for stream & non-stream tests."""
         self.processor = ToolCallsProcessorDeepseekv32(tokenizer=MockTokenizer())
         self.processor.tools = [
+            # --- Stream Test Schemas ---
             {
                 "function": {
                     "name": "get_weather",
@@ -51,9 +55,36 @@ class TestToolCallsProcessorStreamCornerCases(unittest.TestCase):
                     "name": "calculator",
                     "parameters": {"properties": {"formula": {"type": "string"}}}
                 }
+            },
+            # --- Non-Stream Type Conversion Schemas ---
+            {
+                "function": {
+                    "name": "calculate_area",
+                    "parameters": {
+                        "properties": {
+                            "base": {"type": "integer"},
+                            "height": {"type": "integer"},
+                            "is_triangle": {"type": "boolean"},
+                            "unit": {"type": "string"}
+                        }
+                    }
+                }
+            },
+            {
+                "function": {
+                    "name": "complex_task",
+                    "parameters": {
+                        "properties": {
+                            "config": {"type": "object"}
+                        }
+                    }
+                }
             }
         ]
 
+    # =========================================================================
+    # Helper Methods
+    # =========================================================================
     def _simulate_stream(self, chunks: list) -> str:
         """Helper method to simulate stream arrival and aggregate JSON deltas."""
         accumulated_xml = ""
@@ -74,17 +105,18 @@ class TestToolCallsProcessorStreamCornerCases(unittest.TestCase):
                         
         return "".join(emitted_deltas)
 
-    def test_stream_empty_parameters(self):
-        """Tests tool invocation with no parameters."""
+    # =========================================================================
+    # Streaming Tests (Snapshot-Diffing & Corner Cases)
+    # =========================================================================
+    def test_stream_empty_parameters_new_format(self):
         chunks = [
-            '<｜DSML｜invoke name="get_current_time">',
-            '</｜DSML｜invoke>'
+            '<invoke name="get_current_time">',
+            '</invoke>'
         ]
         final_json = self._simulate_stream(chunks)
         self.assertEqual(final_json, '{}')
 
-    def test_stream_nested_dict_injection(self):
-        """Tests parameter extraction when value is a raw JSON object."""
+    def test_stream_nested_dict_injection_legacy_format(self):
         chunks = [
             '<｜DSML｜invoke name="update_user">\n',
             '<｜DSML｜parameter name="user_data">',
@@ -95,38 +127,35 @@ class TestToolCallsProcessorStreamCornerCases(unittest.TestCase):
         final_json = self._simulate_stream(chunks)
         self.assertEqual(final_json, '{"user_data": {"name": "Alice", "age": 18}}')
 
-    def test_stream_unescaped_quotes_and_newlines(self):
-        """Tests automatic escaping of newlines and quotes within string parameters."""
+    def test_stream_unescaped_quotes_and_newlines_new_format(self):
         chunks = [
-            '<｜DSML｜invoke name="execute_script">\n',
-            '<｜DSML｜parameter name="script">',
+            '<invoke name="execute_script">\n',
+            '<parameter name="script">',
             '```python\n',
             'print("Hello")\n',
             '```\n',
-            '</｜DSML｜parameter>\n',
-            '</｜DSML｜invoke>'
+            '</parameter>\n',
+            '</invoke>'
         ]
         final_json = self._simulate_stream(chunks)
         expected_content = '```python\\nprint(\\"Hello\\")\\n```\\n'
         self.assertIn(expected_content, final_json)
 
     def test_stream_attribute_reordering(self):
-        """Tests parsing tolerance when XML attributes are unordered or padded."""
         chunks = [
-            '<｜DSML｜invoke name="get_weather">\n',
-            '<｜DSML｜parameter \n  string="true"   name="city"  >',
+            '<invoke name="get_weather">\n',
+            '<parameter \n  string="true"   name="city"  >',
             'Tokyo',
-            '</｜DSML｜parameter>\n',
-            '</｜DSML｜invoke>'
+            '</parameter>\n',
+            '</invoke>'
         ]
         final_json = self._simulate_stream(chunks)
         self.assertEqual(final_json, '{"city": "Tokyo"}')
 
-    def test_stream_single_character_drip(self):
-        """Tests snapshot-diffing stability under extreme token fragmentation."""
+    def test_stream_single_character_drip_mixed(self):
         full_xml = (
             '<｜DSML｜invoke name="calculator">\n'
-            '<｜DSML｜parameter name="formula">1+1</｜DSML｜parameter>\n'
+            '<parameter name="formula">1+1</parameter>\n'
             '</｜DSML｜invoke>'
         )
         chunks = list(full_xml)
@@ -134,15 +163,14 @@ class TestToolCallsProcessorStreamCornerCases(unittest.TestCase):
         final_json = self._simulate_stream(chunks)
         self.assertEqual(final_json, '{"formula": "1+1"}')
 
-    def test_stream_multiple_invocations_isolation(self):
-        """Tests state reset and data isolation during consecutive tool calls."""
+    def test_stream_multiple_invocations_isolation_dual_mode(self):
         chunks = [
             '<｜DSML｜invoke name="get_weather">\n',
             '<｜DSML｜parameter name="city">London</｜DSML｜parameter>\n',
             '</｜DSML｜invoke>\n',
-            '<｜DSML｜invoke name="calculator">\n',
-            '<｜DSML｜parameter name="formula">2+2</｜DSML｜parameter>\n',
-            '</｜DSML｜invoke>'
+            '<invoke name="calculator">\n',
+            '<parameter name="formula">2+2</parameter>\n',
+            '</invoke>'
         ]
         
         accumulated_xml = ""
@@ -168,6 +196,71 @@ class TestToolCallsProcessorStreamCornerCases(unittest.TestCase):
         
         self.assertEqual(json_0, '{"city": "London"}')
         self.assertEqual(json_1, '{"formula": "2+2"}')
+
+    # =========================================================================
+    # Non-Streaming Tests (Schema-Aware Type Coercion)
+    # =========================================================================
+    def test_non_streaming_type_conversion(self):
+        """Tests if decode correctly converts int/bool based on injected schema."""
+        content = (
+            '<function_calls>\n'
+            '<invoke name="calculate_area">\n'
+            '<parameter name="base">10</parameter>\n'
+            '<parameter name="height">5</parameter>\n'
+            '<parameter name="is_triangle">true</parameter>\n'
+            '<parameter name="unit">cm</parameter>\n'
+            '</invoke>\n'
+            '</function_calls>'
+        )
+        
+        result = self.processor.decode(content)
+        
+        self.assertIn(TOOL_CALLS, result)
+        tool_call = result[TOOL_CALLS][0]["function"]
+        self.assertEqual(tool_call[NAME], "calculate_area")
+        
+        args_dict = json.loads(tool_call[ARGUMENTS])
+        self.assertIsInstance(args_dict["base"], int)
+        self.assertEqual(args_dict["base"], 10)
+        self.assertIsInstance(args_dict["is_triangle"], bool)
+        self.assertTrue(args_dict["is_triangle"])
+        self.assertIsInstance(args_dict["unit"], str)
+        self.assertEqual(args_dict["unit"], "cm")
+
+    def test_non_streaming_object_type(self):
+        """Tests handling of raw JSON objects in non-streaming decoding."""
+        content = (
+            '<function_calls>\n'
+            '<invoke name="complex_task">\n'
+            '<parameter name="config">{"timeout": 30, "retry": true}</parameter>\n'
+            '</invoke>\n'
+            '</function_calls>'
+        )
+        
+        result = self.processor.decode(content)
+        tool_call = result[TOOL_CALLS][0]["function"]
+        args_dict = json.loads(tool_call[ARGUMENTS])
+        
+        self.assertEqual(args_dict["config"]["timeout"], 30)
+        self.assertTrue(args_dict["config"]["retry"])
+
+    def test_non_streaming_fallback_to_string(self):
+        """Tests fallback mechanism when schema is completely missing."""
+        self.processor.tools = None
+        content = (
+            '<function_calls>\n'
+            '<invoke name="unknown_tool">\n'
+            '<parameter name="val">123</parameter>\n'
+            '</invoke>\n'
+            '</function_calls>'
+        )
+        
+        result = self.processor.decode(content)
+        args_dict = json.loads(result[TOOL_CALLS][0]["function"][ARGUMENTS])
+        
+        self.assertIsInstance(args_dict["val"], str)
+        self.assertEqual(args_dict["val"], "123")
+
 
 if __name__ == '__main__':
     unittest.main()

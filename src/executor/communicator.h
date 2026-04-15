@@ -84,7 +84,7 @@ private:
     bool layerwiseDisaggregated_{false};
     bool isLwdMultiNodesInfer_{false};
     MasterSlaveRole msRole_;
-    uint32_t slaveNum_{0};
+    uint32_t numExpectedResponses_{0};
     int dpRankIdx_;             // The rank index of the current executor in the data parallel group.
     int remoteDPRankIdx_;       // The rank index of the remote executor in the data parallel group.
     bool intraNodeTP_;          // Whether the current executor is in intra-node tensor parallel mode.

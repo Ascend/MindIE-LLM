@@ -1,8 +1,8 @@
 # Micro Batch
 
-Micro Batch即在批处理过程中，将数据切分为更小粒度的多个batch运行。当前实现中，通过额外创建一条数据流，将一批数据分成两个batch在两条数据流上执行。数据流1在执行计算时，数据流2可进行通信，计算和通信耗时掩盖，使得硬件资源得以充分利用，以提高推理吞吐。
+Micro Batch即在批处理过程中，将数据切分为更小粒度的多个batch运行。当前实现中，通过额外创建一条数据流，将一批数据分成两个batch在两条数据流上执行。数据流1在执行计算时，数据流2可进行通信，计算和通信耗时被掩盖，使得硬件资源得以充分利用，以提高推理吞吐。
 
-**图 1**  Micro Batch双流示意图<a name="fig13635185816491"></a>  
+**图 1**  Micro Batch双流示意图<a name="fig13635185816491"></a>
 ![](./figures/micro_batch.png "Micro-Batch双流示意图")
 
 数据流间通过Event机制进行同步，计算和通信任务间都相互不冲突，防止硬件资源抢占。此特性通常应用在Prefill阶段，因为Prefill阶段通信类算子耗时较长，且通信类算子与计算类算子耗时占比更为均衡。在此实现下，计算和通信类算子掩盖率达70%+。
@@ -32,7 +32,7 @@ Micro Batch即在批处理过程中，将数据切分为更小粒度的多个bat
 1. 打开Server的config.json文件。
 
     ```bash
-    cd /usr/local/lib/python3.11/site-packages/mindie_llm
+    cd {MindIE安装目录}/mindie_llm/
     vi conf/config.json
     ```
 

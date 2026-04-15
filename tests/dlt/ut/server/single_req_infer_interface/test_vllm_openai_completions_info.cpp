@@ -10,20 +10,30 @@
  * See the Mulan PSL v2 for more details.
  */
 #include <gtest/gtest.h>
+
+#include "config_manager/config_manager_impl.h"
+#include "mock_util.h"
 #include "mockcpp/mockcpp.hpp"
-#include "single_req_vllm_openai_completions_infer_interface.h"
-#include "single_llm_pnd_req_handler.h"
 #include "request.h"
 #include "response.h"
-#include "mock_util.h"
+#include "single_llm_pnd_req_handler.h"
+#include "single_req_vllm_openai_completions_infer_interface.h"
 
 using namespace mindie_llm;
 namespace mindie_llm {
+MOCKER_CPP_OVERLOAD_EQ(ScheduleConfig)
+MOCKER_CPP_OVERLOAD_EQ(ServerConfig)
 class VllmOpenAiCompletionsInferTest : public testing::Test {
-protected:
+   protected:
     VllmOpenAiCompletionsInferTest() = default;
-    void SetUp()
-    {
+    void SetUp() {
+        mockScheduleConfig_.maxBatchSize = 128;
+        mockScheduleConfig_.maxPrefillBatchSize = 128;
+        mockScheduleConfig_.maxN = 128;
+        mockScheduleConfig_.maxIterTimes = 0;
+        MOCKER_CPP(GetScheduleConfig, const ScheduleConfig &(*)()).stubs().will(returnValue(mockScheduleConfig_));
+        MOCKER_CPP(GetServerConfig, const ServerConfig &(*)()).stubs().will(returnValue(mockServerConfig_));
+
         httpRequest = httplib::Request();
         httpResponse = httplib::Response();
         request = std::make_shared<Request>(RequestIdNew("mockRequest"));
@@ -37,8 +47,7 @@ protected:
 
     void TearDown() { GlobalMockObject::verify(); }
 
-    SingleReqInferInterfaceBase::StreamCache CreateTestStreamCache(uint64_t seqId)
-    {
+    SingleReqInferInterfaceBase::StreamCache CreateTestStreamCache(uint64_t seqId) {
         SingleReqInferInterfaceBase::StreamCache cache;
         cache.postTokenIdMap[seqId] = {1001};
         cache.prevDecodeIndex[seqId] = 0;
@@ -58,10 +67,11 @@ protected:
     std::shared_ptr<RequestContext> requestContext;
     std::shared_ptr<SingleLLMPnDReqHandler> pndReqHandler;
     std::shared_ptr<SingleReqVllmOpenAiCompletionsInferInterface> inferInterface;
+    ScheduleConfig mockScheduleConfig_;
+    ServerConfig mockServerConfig_;
 };
 
-TEST_F(VllmOpenAiCompletionsInferTest, TestValidateAndPrepareReqToken)
-{
+TEST_F(VllmOpenAiCompletionsInferTest, TestValidateAndPrepareReqToken) {
     OrderedJson body;
     std::string errorMsg, input;
     uint64_t timestamp;
@@ -117,15 +127,14 @@ TEST_F(VllmOpenAiCompletionsInferTest, TestValidateAndPrepareReqToken)
     encodeStubs.will(invoke(&MockTokenizerDecodeSuccess));
     EXPECT_TRUE(inferInterface->ValidateAndPrepareReqToken(body, errorMsg, timestamp));
     inferInterface->isReCompute_ = true;
-    MOCKER_CPP(&SingleReqInferInterfaceBase::GetTokensFromInput, bool(*)(const std::string &,
-        std::vector<std::int64_t> &, std::vector<std::int64_t> &, std::string &))
+    MOCKER_CPP(&SingleReqInferInterfaceBase::GetTokensFromInput,
+               bool (*)(const std::string &, std::vector<std::int64_t> &, std::vector<std::int64_t> &, std::string &))
         .stubs()
         .will(returnValue(false));
     EXPECT_FALSE(inferInterface->ValidateAndPrepareReqToken(body, errorMsg, timestamp));
 }
 
-TEST_F(VllmOpenAiCompletionsInferTest, TestProcess)
-{
+TEST_F(VllmOpenAiCompletionsInferTest, TestProcess) {
     std::vector<ModelDeployConfig> mockDeployConfig{ModelDeployConfig{.modelName = "mockModel"}};
     MOCKER_CPP(&ConfigManager::GetModelDeployConfig, const std::vector<ModelDeployConfig> &(*)())
         .stubs()
@@ -158,8 +167,7 @@ TEST_F(VllmOpenAiCompletionsInferTest, TestProcess)
     EXPECT_EQ(inferInterface->inputParam->timeout, 1);
 }
 
-TEST_F(VllmOpenAiCompletionsInferTest, TestBuildResponseJson)
-{
+TEST_F(VllmOpenAiCompletionsInferTest, TestBuildResponseJson) {
     std::vector<ModelDeployConfig> mockDeployConfig{ModelDeployConfig{.modelName = "mockModel"}};
     MOCKER_CPP(&ConfigManager::GetModelDeployConfig, const std::vector<ModelDeployConfig> &(*)())
         .stubs()
@@ -193,8 +201,7 @@ TEST_F(VllmOpenAiCompletionsInferTest, TestBuildResponseJson)
     EXPECT_FALSE(inferInterface->BuildResponseJson(resp, tempTokens, jsonStrings, timestamp));
 }
 
-TEST_F(VllmOpenAiCompletionsInferTest, TestBuildStreamResponseJson)
-{
+TEST_F(VllmOpenAiCompletionsInferTest, TestBuildStreamResponseJson) {
     std::vector<ModelDeployConfig> mockDeployConfig{ModelDeployConfig{.modelName = "mockModel"}};
     MOCKER_CPP(&ConfigManager::GetModelDeployConfig, const std::vector<ModelDeployConfig> &(*)())
         .stubs()
@@ -229,8 +236,7 @@ TEST_F(VllmOpenAiCompletionsInferTest, TestBuildStreamResponseJson)
     EXPECT_FALSE(inferInterface->BuildResponseJson(resp, tempTokens, jsonStrings, timestamp));
 }
 
-TEST_F(VllmOpenAiCompletionsInferTest, TestSetupInferParams)
-{
+TEST_F(VllmOpenAiCompletionsInferTest, TestSetupInferParams) {
     std::vector<ModelDeployConfig> mockDeployConfig{ModelDeployConfig{.modelName = "mockModel"}};
     MOCKER_CPP(&ConfigManager::GetModelDeployConfig, const std::vector<ModelDeployConfig> &(*)())
         .stubs()
@@ -280,8 +286,7 @@ TEST_F(VllmOpenAiCompletionsInferTest, TestSetupInferParams)
     EXPECT_EQ(inferInterface->SetupInferParams(request, errorMsg), false);
 }
 
-TEST_F(VllmOpenAiCompletionsInferTest, TestSetupInferParamsCase2)
-{
+TEST_F(VllmOpenAiCompletionsInferTest, TestSetupInferParamsCase2) {
     std::string errorMsg;
     inferInterface->reqJsonBody_ = OrderedJson::parse(R"({
         "logprobs": 5,
@@ -308,8 +313,7 @@ TEST_F(VllmOpenAiCompletionsInferTest, TestSetupInferParamsCase2)
     EXPECT_EQ(inferInterface->SetupInferParams(request, errorMsg), false);
 }
 
-TEST_F(VllmOpenAiCompletionsInferTest, TestSetupInferParamsWithResponseFormat)
-{
+TEST_F(VllmOpenAiCompletionsInferTest, TestSetupInferParamsWithResponseFormat) {
     std::vector<ModelDeployConfig> mockDeployConfig{ModelDeployConfig{.modelName = "mockModel"}};
     MOCKER_CPP(&ConfigManager::GetModelDeployConfig, const std::vector<ModelDeployConfig> &(*)())
         .stubs()
@@ -394,8 +398,7 @@ TEST_F(VllmOpenAiCompletionsInferTest, TestSetupInferParamsWithResponseFormat)
     EXPECT_FALSE(inferInterface->SetupInferParams(request, errorMsg));
 }
 
-TEST_F(VllmOpenAiCompletionsInferTest, TestSendStreamResponse)
-{
+TEST_F(VllmOpenAiCompletionsInferTest, TestSendStreamResponse) {
     std::vector<ModelDeployConfig> mockDeployConfig{ModelDeployConfig{.modelName = "mockModel"}};
     MOCKER_CPP(&ConfigManager::GetModelDeployConfig, const std::vector<ModelDeployConfig> &(*)())
         .stubs()
@@ -447,13 +450,13 @@ TEST_F(VllmOpenAiCompletionsInferTest, TestSendStreamResponse)
     inferInterface->streamCache.push_back(testCache);
     inferInterface->reqTokens_ = {101, 102};
     MOCKER_CPP(&SingleReqInferInterfaceBase::DecodeSingleToken,
-                bool (*)(std::vector<int64_t> &, std::string &, const uint32_t &, const uint32_t &, const bool &))
-        .stubs().will(returnValue(true));
+               bool (*)(std::vector<int64_t> &, std::string &, const uint32_t &, const uint32_t &, const bool &))
+        .stubs()
+        .will(returnValue(true));
     inferInterface->SendStreamResponse(jsonStrings);
 }
 
-TEST_F(VllmOpenAiCompletionsInferTest, BuildReComputeBody)
-{
+TEST_F(VllmOpenAiCompletionsInferTest, BuildReComputeBody) {
     using OrderedJson = nlohmann::ordered_json;
 
     request = std::make_shared<Request>(RequestIdNew("mockRequest"));
@@ -524,4 +527,4 @@ TEST_F(VllmOpenAiCompletionsInferTest, BuildReComputeBody)
     EXPECT_EQ(obj["stop_token_ids"][1].get<long long>(), 8);
 }
 
-} // namespace mindie_llm
+}  // namespace mindie_llm

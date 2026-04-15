@@ -216,7 +216,7 @@ max_input_length长度设置可参考模型权重路径下config.json里的max_p
   bash ${script_path}/run_pa.sh --performance ${weight_path} --video_path ${video_path} --question "你是谁？"
   ```
 
-### 服务化推理场景 精度测试
+### 服务化推理场景 benchmark精度测试
 
 首先按照[推理服务化部署](#推理服务化部署)，启动服务
 
@@ -317,6 +317,63 @@ max_input_length长度设置可参考模型权重路径下config.json里的max_p
   ```
 
 完成数据集推理后，测试结果将打印展示数据集得分等指标，同时测试结果会保存在--SavePath路径下。
+
+### 服务化推理场景 Aisbench精度测试
+
+- 首先按照[推理服务化部署](#推理服务化部署)，启动服务端进程
+- 参考[Aisbench/benchmark](https://github.com/AISBench/benchmark/)安装精度性能评测工具
+- 参考[开源数据集](https://github.com/AISBench/benchmark/blob/master/ais_bench/benchmark/configs/datasets/textvqa/README.md)下载TextVQA数据集
+- 参考[Eval_QA](https://huggingface.co/datasets/maoxx241/videobench_subset) && [Video-Bench](https://huggingface.co/datasets/LanguageBind/Video-Bench/tree/main)下载Videobench数据集
+
+- TextVQA
+  - 编辑 `ais_bench/benchmark/configs/datasets/textvqa/textvqa_gen.py`
+    - 将其中 `path=` 指向 `textvqa_val.jsonl` 的绝对文件路径
+    - 将 `textvqa_eval_cfg` 字段里`evaluator`改为
+    - `evaluator=dict(type=TEXTEvaluatorForVita)`
+  - 建议保证 `textvqa_val.jsonl` 中每条样本的 `image` 字段为图片的绝对文件路径
+- VideoBench
+  - 编辑 `ais_bench/benchmark/configs/datasets/videobench/videobench_gen.py`
+    - 将其中 `path=` 指向 VideoBench 数据目录（`videobench/`）的绝对路径
+    - 将 `videobench_eval_cfg` 字段里`evaluator`改为
+    - `evaluator=dict(type=VideoBenchEvaluatorForVita)`
+  - 确保 VideoBench 样本中的视频文件路径对推理服务可访问（权限/路径在服务端侧需成立）
+
+- 配置测试任务 `ais_bench/benchmark/configs/models/vita/vita_generate_chat.py`
+
+```python
+from ais_bench.benchmark.models.api_models.vita_generate_api import VITAGenerateAPI
+
+models = [
+    dict(
+        attr="service",
+        type=VITAGenerateAPI,
+        abbr="vita-generate-chat",
+        path="/mnt/nfs/weight/VITA-MLLM/VITA-1___5", # 自定义本地权重路径
+        model="vita",  # 模型名称配置为vita
+        stream=False,
+        request_rate=0,
+        retry=2,
+        api_key="",
+        host_ip="127.0.0.1",  # 服务IP地址
+        host_port=1025, # 服务业务面端口号，与服务化推理配置保持一致
+        url="",
+        max_out_len=512,
+        batch_size=1,
+        trust_remote_code=False,
+        generation_kwargs=dict(
+            do_sample=False,
+            temperature=0.01,
+        ),
+    )
+]
+```
+
+执行命令开始精度测试
+
+```shell
+ais_bench --models vita_generate_chat --datasets textvqa_gen --debug      # textvqa精度测试
+ais_bench --models vita_generate_chat --datasets videobench_gen --debug      # videobench精度测试
+```
 
 ### 服务化推理场景 性能测试
 

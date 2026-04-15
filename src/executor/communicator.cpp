@@ -49,7 +49,7 @@ Communicator::Communicator(std::unordered_map<std::string, std::string> &config,
         std::vector<std::string> slaveIPs;
         mindie_llm::Split(config.at("slaveIPs"), ",", slaveIPs);
         size_t slaveCount = slaveIPs.size();
-        slaveNum_ = slaveCount;
+        numExpectedResponses_ = intraNodeTP ? slaveCount : 1;
         size_t dpNumPerNode = intraNodeTP ? 1 : std::stoul(config.at("dp")) / (slaveCount + 1);
         if (intraNodeTP || static_cast<std::size_t>(dpRankIdx_) < dpNumPerNode) {
             remoteSlaveIP_ = ""; // The first segment of DP ranks in Master node does not have remote DP rank.
@@ -262,7 +262,7 @@ bool Communicator::SendSharedSyncRequestAndReceive(ExecuteRequest &request, std:
 
 bool Communicator::ReceiveSyncResponsesFromRemote(std::vector<ExecuteResponse> &responses)
 {
-    for (uint32_t i = 0; i < slaveNum_; i++) {
+    for (uint32_t i = 0; i < numExpectedResponses_; i++) {
         ExecuteResponse grpcResponse;
         if (!grpcCommunicator_->GetSyncResponse(grpcResponse, dpRankIdx_)) {
             MINDIE_LLM_LOG_ERROR("Failed to receive a sync response from remote slave node.");

@@ -15,8 +15,10 @@
 
 #include <pybind11/embed.h>
 #include <pybind11/stl.h>
+
 #include <iostream>
 #include <string>
+
 #include "log.h"
 
 namespace py = pybind11;
@@ -25,15 +27,14 @@ namespace mindie_llm {
 
 #pragma GCC visibility push(default)
 class MemPool {
-public:
-    explicit MemPool(std::shared_ptr<py::object> instance) : impl_(std::move(instance))
-    {
+   public:
+    explicit MemPool(std::shared_ptr<py::object> instance) : impl_(std::move(instance)) {
         enable_batch_lookup_ = py::hasattr(*impl_, "batch_exist");
     }
 
-    std::vector<bool> LookUp(const std::vector<std::string> &keys)
-    {
-        py::gil_scoped_acquire acquire;
+    std::vector<bool> LookUp(const std::vector<std::string> &keys) {
+        py::gil_scoped_acquire gil;
+        PyGILState_STATE state = PyGILState_Ensure();
         std::vector<bool> res(keys.size(), false);
         if (keys.empty()) {
             return res;
@@ -41,7 +42,7 @@ public:
 
         if (this->enable_batch_lookup_) {
             auto tmp = impl_->attr("batch_exist")(keys).cast<std::vector<bool>>();
-            res.assign(tmp.begin(),  tmp.end());
+            res.assign(tmp.begin(), tmp.end());
         } else {
             size_t i = 0;
             bool single_res = true;
@@ -51,10 +52,11 @@ public:
                 i++;
             }
         }
+        PyGILState_Release(state);
         return res;
     }
 
-private:
+   private:
     std::shared_ptr<py::object> impl_{};
     bool enable_batch_lookup_ = false;
 };

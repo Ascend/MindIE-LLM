@@ -1,10 +1,10 @@
-# 使用指导 
+# 使用指导
 
 ## 场景说明
 
 Server提供EndPoint模块对推理服务化协议和接口封装，兼容Triton/OpenAI/TGI/vLLM等第三方框架接口。使用单节点安装模式安装Server之后，用户使用客户端（Linux curl命令，Postman工具等）发送HTTP/HTTPS请求，即可调用EndPoint提供的接口。
 
->[!NOTE]说明 
+>[!NOTE]说明
 >HTTP协议存在安全风险，建议您使用HTTPS安全协议。
 
 ## EndPoint RESTful接口使用说明
@@ -13,12 +13,12 @@ HTTP/HTTPS请求的URL的IP地址和端口号在config.json中进行配置，详
 
 - 以Linux curl工具发送generate请求，URL请求格式如下：
     - 操作类型：**POST**
-    - **URL：http_\[__s\]_://**_\{ip\}:\{port\}_**/generate**
+    - **URL：**http[_s_]:\//\{_ip_\}:\{_port_\}**/generate**
 
 - 未开启HTTPS，发送推理请求：
 
     ```bash
-    curl -H "Accept: application/json" -H "Content-type: application/json" -X POST -d '{
+    curl -H "Accept: application/json" -H "Content-Type: application/json" -X POST -d '{
       "inputs": "My name is Olivier and I",
       "parameters": {
         "details": true,
@@ -32,7 +32,7 @@ HTTP/HTTPS请求的URL的IP地址和端口号在config.json中进行配置，详
     }' http://{ip}:{port}/generate
     ```
 
-- HTTPS双向认证的请求方式示例： 
+- HTTPS双向认证的请求方式示例：
 
     ```bash
     curl --location --request POST 'https://{ip}:{port}/generate' \
@@ -59,7 +59,7 @@ HTTP/HTTPS请求的URL的IP地址和端口号在config.json中进行配置，详
     }'
     ```
 
-    >[!NOTE]说明 
+    >[!NOTE]说明
     >- --cacert：验签证书文件路径。
     >- ca.pem：Server服务端证书的验签证书/根证书。
     >- --cert：客户端证书文件路径。
@@ -106,21 +106,21 @@ HTTP/HTTPS请求的URL的IP地址和端口号在config.json中进行配置，详
 
 |API|接口类型|URL|说明|支持框架|
 |--|--|--|--|--|
-|推理任务|POST|/|TGI推理接口，stream==false返回文本推理结果，stream==true返回流式推理结果。|TGI|
-|POST|/generate|TGI和vLLM的推理接口，通过请求参数来区分是哪种服务的接口。|TGIvLLM|
-|POST|/generate_stream|TGI流式推理接口，使用Server-Sent Events格式返回结果。|TGI|
-|POST|/v1/chat/completions|OpenAI文本/流式推理接口。|OpenAI|
-|POST|/v1/completions|vLLM兼容OpenAI文本/流式推理接口。|OpenAI|
-|POST|/infer|原生推理接口，支持文本/流式返回结果。|原生|
-|POST|/infer_token|原生推理接口，实现token输入的文本/流式推理。|原生|
-|POST|/v2/models/${MODEL_NAME}[/versions/\${MODEL_VERSION}]/infer|Triton的token推理接口。|Triton|
-|POST|/v2/models/${MODEL_NAME}[/versions/\${MODEL_VERSION}]/stopInfer|参考Triton接口定义，提供提前终止请求接口。|原生|
-|POST|/v2/models/${MODEL_NAME}[/versions/\${MODEL_VERSION}]/generate|Triton文本推理接口。|Triton|
-|POST|/v2/models/${MODEL_NAME}[/versions/\${MODEL_VERSION}]/generate_stream|Triton流式推理接口。|Triton|
-|POST|/v1/tokenizer|计算token数量。|原生|
-|GET|/dresult|调度器与D实例间，存在一个长连接，D实例每推理出一个结果，就通过该长连接响应给调度器。|PD分离相关|
+|推理任务|POST|/|TGI推理接口，stream\==false返回文本推理结果，stream\==true返回流式推理结果。|TGI|
+|推理任务|POST|/generate|TGI和vLLM的推理接口，通过请求参数来区分是哪种服务的接口。|<ul><li>TGI</li><li>vLLM</li></ul>|
+|推理任务|POST|/generate_stream|TGI流式推理接口，使用Server-Sent Events格式返回结果。|TGI|
+|推理任务|POST|/v1/chat/completions|OpenAI文本/流式推理接口。|OpenAI|
+|推理任务|POST|/v1/completions|vLLM兼容OpenAI文本/流式推理接口。|OpenAI|
+|推理任务|POST|/infer|原生推理接口，支持文本/流式返回结果。|原生|
+|推理任务|POST|/infer_token|原生推理接口，实现token输入的文本/流式推理。|原生|
+|推理任务|POST|/v2/models/${MODEL_NAME}[/versions/\${MODEL_VERSION}]/infer|Triton的token推理接口。|Triton|
+|推理任务|POST|/v2/models/${MODEL_NAME}[/versions/\${MODEL_VERSION}]/stopInfer|参考Triton接口定义，提供提前终止请求接口。|原生|
+|推理任务|POST|/v2/models/${MODEL_NAME}[/versions/\${MODEL_VERSION}]/generate|Triton文本推理接口。|Triton|
+|推理任务|POST|/v2/models/${MODEL_NAME}[/versions/\${MODEL_VERSION}]/generate_stream|Triton流式推理接口。|Triton|
+|推理任务|POST|/v1/tokenizer|计算token数量。|原生|
+|推理任务|GET|/dresult|调度器与D实例间，存在一个长连接，D实例每推理出一个结果，就通过该长连接响应给调度器。|PD分离相关|
 
->[!NOTE]说明 
+>[!NOTE]说明
 >
 >- $\{MODEL\_NAME\}字段指定需要查询的模型名称。
 >- \[/versions/$\{MODEL\_VERSION\}\]字段暂不支持，不传递。

@@ -15,9 +15,9 @@ source A2_double_machine.sh
 - NPU_MEMORY_FRACTION：参数为显存比例因子，默认参数为0.92，高并发场景下建议 <=0.92。
     - 建议配置方案：建议将该值设置为可拉起服务的最小值。具体方法是，按照默认配置启动服务，若无法拉起服务，则上调参数至可拉起为止；若拉起服务成功，则下调该参数至刚好拉起服务为止。总之，在服务能正常拉起的前提下，更低的值可以保障更高的服务系统稳定性。
 
-## 2. 配置性能测试mindie_service/conf/config.json文件
+## 2. 配置性能测试mindie_llm/conf/config.json文件
 
-打开/usr/local/Ascend/mindie/latest/mindie_service/conf/config.json文件，修改以下参数：
+打开{MindIE安装目录}/mindie_llm/conf/config.json文件，修改以下参数：
 
 | origin | change  |
 |---|---|
@@ -117,13 +117,13 @@ models=[
 ]
 ```
 
-## 6.性能测试指令 
+## 6.性能测试指令
 
 ```bash
 ais_bench --models vllm_api_stream_chat --datasets gsm8k_gen_0_shot_cot_str_perf --debug --summarizer default_perf --mode perf --num-prompts 280
 ```
 
-## 7.精度测试指令 
+## 7.精度测试指令
 
 ```bash
 ais_bench --models vllm_api_general_chat --datasets aime2024_gen_0_shot_chat_prompt --summarizer example

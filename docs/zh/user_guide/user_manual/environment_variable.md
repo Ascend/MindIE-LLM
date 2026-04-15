@@ -1,6 +1,6 @@
 # 环境变量说明
 
-MindIE LLM安装完成后，提供进程级环境变量设置脚本“set\_env.sh“，以自动完成环境变量设置。
+MindIE LLM安装完成后，提供进程级环境变量设置脚本“set_env.sh“，以自动完成环境变量设置。
 
 ## “set\_env.sh“脚本环境变量
 
@@ -67,7 +67,7 @@ MindIE\_LLM相关环境变量请参考**表3**。
 |MINDIE_LLM_BENCHMARK_FILEPATH|指定MindIE LLM模块的Benchmark功能输出的性能数据文件路径。|N/A|"{MINDIE_LLM_HOME_PATH}/logs/benchmark.jsonl"|
 |MINDIE_LLM_BENCHMARK_RESERVING_RATIO|当性能数据文件超过最大文件大小限制时，旧数据会被新数据覆盖。此环境变量指定保留旧数据的比例，默认为0.1。|[0.0, 1.0]|0.1|
 |NPU_DEVICE_IDS|使用的NPU卡号。|[0,卡号]<br>例：[0, 1, 2,...]|N/A|
-|NPU_MEMORY_FRACTION|NPU显存利用率，代表总显存分配给模型权重、kvcache和work space的比例。不包含HCCL和PTA申请的空间。建议将该值设置为可拉起服务的最小值。具体方法是：按照默认配置启动服务，若无法拉起服务，则上调参数至可拉起为止；若拉起服务成功，则下调该参数至刚好拉起服务为止。总之，在服务能正常拉起的前提下，更低的值可以保障更高的服务系统稳定性。|(0.0, 1.0]Kimi K2模型，推荐设置为0.9。|在ATB Models中默认值为1.0在MindIE LLM中默认值为0.8|
+|NPU_MEMORY_FRACTION|NPU显存利用率，代表总显存分配给模型权重、kvcache和work space的比例。不包含HCCL和PyTorch申请的空间。建议将该值设置为可拉起服务的最小值。具体方法是：按照默认配置启动服务，若无法拉起服务，则上调参数至可拉起为止；若拉起服务成功，则下调该参数至刚好拉起服务为止。总之，在服务能正常拉起的前提下，更低的值可以保障更高的服务系统稳定性。|(0.0, 1.0]Kimi K2模型，推荐设置为0.9。|在ATB Models中默认值为1.0在MindIE LLM中默认值为0.8|
 |PERFORMANCE_PREFIX_TREE_ENABLE|memory_decoding并行解码高性能前缀树实现开关。|0：不开启<br>1：开启|0|
 |POST_PROCESSING_SPEED_MODE_TYPE|指定后处理加速模式|0：不开启加速<br>1：开启top_p近似计算<br>2：开启索引加速<br>3：同时开启上top_p近似计算和索引加速|0|
 |RANK|指示device的全局ID。|[0, ${WORLD_SIZE})|0|
@@ -87,7 +87,7 @@ ATB\_Models相关环境变量请参考**表4**。
 |ATB_LLM_LCOC_ENABLE|通信计算掩盖功能开关。|None或1：开启<br>其他值：不开启|None|
 |ATB_LLM_LOGITS_SAVE_ENABLE|是否保存logits信息。|0：否<br>其它值：是|0|
 |ATB_LLM_LOGITS_SAVE_FOLDER|保存logits信息的文件夹。|所有值|None|
-|ATB_LLM_RAZOR_ATTENTION_ENABLE|开启ra压缩需要。|0：不开启<br>1：开启|0|
+|ATB_LLM_RAZOR_ATTENTION_ENABLE|需要开启ra压缩。|0：不开启<br>1：开启|0|
 |ATB_LLM_RAZOR_ATTENTION_ROPE|在rope旋转编码方式下的Razor attention压缩算法使能开关。|0：不开启<br>1：开启|0|
 |ATB_LLM_TOKEN_IDS_SAVE_ENABLE|是否保存token信息。|0：否<br>其它值：是|0|
 |ATB_LLM_TOKEN_IDS_SAVE_FOLDER|保存token信息的文件夹。|所有值|None|
@@ -105,7 +105,7 @@ ATB\_Models相关环境变量请参考**表4**。
 |RESERVED_MEMORY_GB|模型运行时动态申请显存池的大小。|[0, 64)|3|
 |MINDIE_ENABLE_EXPERT_HOTPOT_GATHER|负载均衡专家热点信息采集开关。|1：开启<br>其他值或None：不开启|None|
 |MINDIE_EXPERT_HOTPOT_DUMP_PATH|负载均衡专家热点信息保存路径。|所有值|None|
-|REMOVE_GENERATION_CONFIG_DICT|开启后，设置模型后处理参数为默认值（仅LLM类模型生效）|1：开启其他值或None：不开启|None|
+|REMOVE_GENERATION_CONFIG_DICT|开启后，设置模型后处理参数为默认值（仅LLM类模型生效）|1：开启<br>其他值或None：不开启|None|
 
 日志相关环境变量请参考**表5**。
 
@@ -140,4 +140,4 @@ ATB\_Models相关环境变量请参考**表4**。
 >
 >- “INF\_NAN\_MODE\_ENABLE”，“TASK\_QUEUE\_ENABLE”和“RANK\_TABLE\_FILE”等更多PyTorch环境变量，请参见《环境变量参考》中的“INF\_NAN\_MODE\_ENABLE”章节。
 >- 当BIND\_CPU环境变量开启时，会调用execute\_command方法执行以下命令：
-> **execute\_command\(\["npu-smi", "info", "-i", f"\{npu\_id\}", "-t", "memory"\]\).split\("\\n"\)\[1:\]execute\_command\(\["npu-smi", "info", "-i", f"\{npu\_id\}", "-t", "usages"\]\).split\("\\n"\)\[1:\]execute\_command\(\["npu-smi", "info", "-m"\]\).strip\(\).split\("\\n"\)\[1:\]execute\_command\(\["npu-smi", "info", "-t", "board", "-i", f"\{device\_info.npu\_id\}", -c", f"\{device\_info.chip\_id\}"\]\).strip\(\).split\("\\n"\)execute\_command\(\["lspci", "-s", f"\{pcie\_no\}", "-vvv"\]\).split\("\\n"\)execute\_command\(\["lscpu"\]\).split\("\\n"\)**
+> **execute\_command\(\["npu-smi", "info", "-i", f"\{npu\_id\}", "-t", "memory"\]\).split\("\\n"\)\[1:\]execute\_command\(\["npu-smi", "info", "-i", f"\{npu\_id\}", "-t", "usages"\]\).split\("\\n"\)\[1:\]execute\_command\(\["npu-smi", "info", "-m"\]\).strip\(\).split\("\\n"\)\[1:\]execute\_command\(\["npu-smi", "info", "-t", "board", "-i", f"\{device\_info.npu\_id\}", -c", f"\{device\_info.chip\_id\}"\]\).strip\(\).split\("\\n"\)execute\_command\(\["lspci", "-s", f"\{pcie_no\}", "-vvv"\]\).split\("\\n"\)execute\_command\(\["lscpu"\]\).split\("\\n"\)**

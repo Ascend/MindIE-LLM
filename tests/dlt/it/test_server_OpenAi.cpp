@@ -9,27 +9,29 @@
  * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
  * See the Mulan PSL v2 for more details.
  */
- 
+
 #include <gtest/gtest.h>
+
 #include <mockcpp/mockcpp.hpp>
+
 #include "http_rest_resource.h"
 #define private public
-#include "single_req_infer_interface_base.h"
-#include "single_req_openai_infer_interface.h"
-#include "single_llm_pnd_req_handler.h"
-#include "infer_instances.h"
-#include "response.h"
-#include "llm_manager_impl.h"
-#include "llm_manager_v2.h"
-#include "llm_engine.h"
-#include "infer_tokenizer.h"
-#include "endpoint_def.h"
-#include "executor.h"
-#include "config_manager.h"
-#include "config_manager_impl.h"
 #include "base64_util.h"
 #include "basic_types.h"
+#include "config_manager.h"
+#include "config_manager_impl.h"
+#include "endpoint_def.h"
+#include "executor.h"
+#include "infer_instances.h"
+#include "infer_tokenizer.h"
+#include "llm_engine.h"
+#include "llm_manager_impl.h"
+#include "llm_manager_v2.h"
 #include "mock_util.h"
+#include "response.h"
+#include "single_llm_pnd_req_handler.h"
+#include "single_req_infer_interface_base.h"
+#include "single_req_openai_infer_interface.h"
 
 namespace mindie_llm {
 extern uint32_t g_vocabSizeConfig;
@@ -41,8 +43,7 @@ extern uint32_t g_maxTopKConfig;
 
 MOCKER_CPP_OVERLOAD_EQ(ServerConfig)
 static Status MockEncodeSuccess(TokenizerProcessPool *pool, const std::string &prompt, std::vector<int64_t> &tokenIds,
-                                HeadFlag flag, uint64_t &timestamp)
-{
+                                HeadFlag flag, uint64_t &timestamp) {
     tokenIds = {1, 2, 3};
     return Status(Error::Code::OK, "Success");
 }
@@ -50,25 +51,22 @@ static void EmptyMock(const std::string &) {}
 
 static bool MockCheckModelNameCustom(const std::string &modelName) { return true; }
 
-static bool MockAssignIncludeStopStrSuccess(const OrderedJson &jsonObj, RequestSPtr param, std::string &error)
-{
+static bool MockAssignIncludeStopStrSuccess(const OrderedJson &jsonObj, RequestSPtr param, std::string &error) {
     return true;
 }
 
-static bool MockAssignMaxTokensSuccess(const OrderedJson &jsonObj, InferParamSPtr param, std::string &error)
-{
+static bool MockAssignMaxTokensSuccess(const OrderedJson &jsonObj, InferParamSPtr param, std::string &error) {
     return true;
 }
 
 class OpenAiInferTestF : public ::testing::Test {
-protected:
+   protected:
     std::map<std::string, std::string> modelConfig;
     std::map<std::string, std::string> ipInfo;
     SchedulerConfig config;
     Role pdRole;
     std::shared_ptr<InferInstance> inferInstance;
-    void SetUp() override
-    {
+    void SetUp() override {
         LiveInferContext::GetInstance(0)->reqId2SeqGroupMap_.clear();
         LiveInferContext::GetInstance(0)->seqId2SeqGroupMap_.clear();
         LiveInferContext::GetInstance(0)->seqId2RootSeqGroupMap_.clear();
@@ -81,7 +79,9 @@ protected:
             .stubs()
             .will(invoke(&EmptyMock));
 
-        MOCKER_CPP(&SingleReqOpenAiInferInterface::CheckModelName, bool (*)(const std::string &)).stubs().will(invoke(&MockCheckModelNameCustom));
+        MOCKER_CPP(&SingleReqOpenAiInferInterface::CheckModelName, bool (*)(const std::string &))
+            .stubs()
+            .will(invoke(&MockCheckModelNameCustom));
 
         MOCKER_CPP(&AssignIncludeStopStrInOutput, bool (*)(const OrderedJson &, RequestSPtr, std::string &))
             .stubs()
@@ -90,8 +90,12 @@ protected:
         MOCKER_CPP(&AssignBeamSearch, bool (*)(const OrderedJson &, RequestSPtr, std::string &))
             .stubs()
             .will(invoke(&MockAssignIncludeStopStrSuccess));
-        
+
         MOCKER_CPP(&AssignBestOf, bool (*)(const OrderedJson &, RequestSPtr, std::string &))
+            .stubs()
+            .will(invoke(&MockAssignIncludeStopStrSuccess));
+
+        MOCKER_CPP(&AssignN, bool (*)(const OrderedJson &, RequestSPtr, std::string &))
             .stubs()
             .will(invoke(&MockAssignIncludeStopStrSuccess));
 
@@ -122,12 +126,11 @@ protected:
         g_maxInputTokenLen = 1024;
         g_maxTopKConfig = 1024;
         inferInstance = GetInferInstance();
-        inferInstance->started_ = false; // make sure not go through InferInstance::Forward
+        inferInstance->started_ = false;  // make sure not go through InferInstance::Forward
     }
 };
 
-TEST_F(OpenAiInferTestF, ShouldSeqGroupMatchParametersInRequest)
-{
+TEST_F(OpenAiInferTestF, ShouldSeqGroupMatchParametersInRequest) {
     std::vector<ModelDeployConfig> mockDeployConfig{ModelDeployConfig{.modelName = "mockModel"}};
     MOCKER_CPP(GetModelDeployConfig, const std::vector<ModelDeployConfig> &(*)())
         .stubs()
@@ -215,4 +218,4 @@ TEST_F(OpenAiInferTestF, ShouldSeqGroupMatchParametersInRequest)
     EXPECT_EQ(skipSpecialTokens, false);
 }
 
-} // namespace mindie_llm
+}  // namespace mindie_llm

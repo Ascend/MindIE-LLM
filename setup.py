@@ -70,6 +70,7 @@ class CustomBuildPy(_build_py):
         shutil.copytree("output", build_pkg, dirs_exist_ok=True)
         (build_pkg / "runtime/conf").mkdir(parents=True, exist_ok=True)
         shutil.copytree("mindie_llm/runtime/conf", build_pkg / "runtime/conf", dirs_exist_ok=True)
+        shutil.copytree("docs", build_pkg / "docs", dirs_exist_ok=True)
         shutil.copytree("src/server/scripts", build_pkg / "scripts",
             dirs_exist_ok=True, ignore=shutil.ignore_patterns("set_env.sh"))
         self.copy_third_party()

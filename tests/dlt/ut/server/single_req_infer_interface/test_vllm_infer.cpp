@@ -9,26 +9,36 @@
  * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
  * See the Mulan PSL v2 for more details.
  */
- 
+
 #include <gtest/gtest.h>
+
+#include "base64_util.h"
+#include "config_manager/config_manager_impl.h"
+#include "mock_util.h"
 #include "mockcpp/mockcpp.hpp"
-#include "single_req_vllm_infer_interface.h"
-#include "single_llm_pnd_req_handler.h"
 #include "request.h"
 #include "response.h"
-#include "mock_util.h"
-#include "base64_util.h"
+#include "single_llm_pnd_req_handler.h"
+#include "single_req_vllm_infer_interface.h"
 
 using namespace mindie_llm;
 using OrderedJson = nlohmann::ordered_json;
 
 namespace mindie_llm {
+MOCKER_CPP_OVERLOAD_EQ(ScheduleConfig)
+MOCKER_CPP_OVERLOAD_EQ(ServerConfig)
 
 class VllmInferTest : public testing::Test {
-protected:
+   protected:
     VllmInferTest() = default;
-    void SetUp()
-    {
+    void SetUp() {
+        mockScheduleConfig_.maxBatchSize = 128;
+        mockScheduleConfig_.maxPrefillBatchSize = 128;
+        mockScheduleConfig_.maxN = 128;
+        mockScheduleConfig_.maxIterTimes = 0;
+        MOCKER_CPP(GetScheduleConfig, const ScheduleConfig &(*)()).stubs().will(returnValue(mockScheduleConfig_));
+        MOCKER_CPP(GetServerConfig, const ServerConfig &(*)()).stubs().will(returnValue(mockServerConfig_));
+
         httpRequest = httplib::Request();
         httpResponse = httplib::Response();
         request = std::make_shared<Request>(RequestIdNew("mockRequest"));
@@ -39,10 +49,7 @@ protected:
         vllmInferInterface->inputParam = std::make_shared<InferParam>();
         vllmInferInterface->request_ = std::make_shared<Request>();
     }
-    void TearDown()
-    {
-        GlobalMockObject::verify();
-    }
+    void TearDown() { GlobalMockObject::verify(); }
 
     httplib::Request httpRequest;
     httplib::Response httpResponse;
@@ -51,13 +58,16 @@ protected:
     std::shared_ptr<RequestContext> requestContext;
     std::shared_ptr<SingleLLMPnDReqHandler> pndReqHandler;
     std::shared_ptr<SingleReqVllmInferInterface> vllmInferInterface;
+    ScheduleConfig mockScheduleConfig_;
+    ServerConfig mockServerConfig_;
 };
 
-TEST_F(VllmInferTest, testProcess)
-{
-    MOCKER_CPP(&TokenizerProcessPool::Encode, Status(*)(TokenizerProcessPool*, const std::string&,
-        std::vector<int64_t>&, HeadFlag, uint64_t&, const bool)).stubs().will(invoke(&MockTokenizerEncodeSuccess));
-    
+TEST_F(VllmInferTest, testProcess) {
+    MOCKER_CPP(&TokenizerProcessPool::Encode, Status(*)(TokenizerProcessPool *, const std::string &,
+                                                        std::vector<int64_t> &, HeadFlag, uint64_t &, const bool))
+        .stubs()
+        .will(invoke(&MockTokenizerEncodeSuccess));
+
     // HTTP request
     httpRequest.method = "mockMethod";
     httpRequest.path = "mockPath";
@@ -113,8 +123,7 @@ TEST_F(VllmInferTest, testProcess)
     EXPECT_EQ(vllmInferInterface->request_->input_ids, std::vector<int64_t>({1, 2, 3}));
 }
 
-TEST_F(VllmInferTest, testSetupInferParams)
-{
+TEST_F(VllmInferTest, testSetupInferParams) {
     // valid values
     vllmInferInterface->reqJsonBody_ = OrderedJson::parse(R"({
         "prompt": "Hi?",
@@ -141,7 +150,7 @@ TEST_F(VllmInferTest, testSetupInferParams)
         "best_of": 3,
         "n": 2
     })");
-    
+
     // SetupInferParams should return true given valid reqJsonBody
     std::string errorMsg;
     EXPECT_EQ(vllmInferInterface->SetupInferParams(request, errorMsg), true);
@@ -169,7 +178,7 @@ TEST_F(VllmInferTest, testSetupInferParams)
     EXPECT_EQ(*request->bestOf, 3U);
     EXPECT_TRUE(request->n.has_value());
     EXPECT_EQ(*request->n, 2U);
-    
+
     // invalid values
     //      should return false given repetition_penalty exceeds limits
     vllmInferInterface->reqJsonBody_["repetition_penalty"] = -1;
@@ -180,8 +189,7 @@ TEST_F(VllmInferTest, testSetupInferParams)
     EXPECT_EQ(vllmInferInterface->SetupInferParams(request, errorMsg), false);
 }
 
-TEST_F(VllmInferTest, testSetReturnSeqCount)
-{
+TEST_F(VllmInferTest, testSetReturnSeqCount) {
     std::string errorMsg;
     // valid values
     vllmInferInterface->reqJsonBody_ = OrderedJson::parse(R"({})");
@@ -205,8 +213,7 @@ TEST_F(VllmInferTest, testSetReturnSeqCount)
     EXPECT_EQ(vllmInferInterface->SetupInferParams(request, errorMsg), false);
 }
 
-TEST_F(VllmInferTest, testBuildResponseJson)
-{
+TEST_F(VllmInferTest, testBuildResponseJson) {
     ResponseSPtr resp = std::make_shared<Response>(RequestIdNew{});
     std::vector<BestNTokens> tempTokens;
     RespBodyQueue jsonStrings;
@@ -226,8 +233,8 @@ TEST_F(VllmInferTest, testBuildResponseJson)
     vllmInferInterface->reqJsonBody_ = OrderedJson::parse(R"({"stream": true})");
     EXPECT_EQ(vllmInferInterface->SetupInferParams(request, errorMsg), true);
     auto stubs = MOCKER_CPP(&SingleReqInferInterfaceBase::ProcessResponseStream,
-               bool (*)(ResponseSPtr, const std::vector<BestNTokens> &, RespBodyQueue &, const uint64_t &))
-        .stubs();
+                            bool (*)(ResponseSPtr, const std::vector<BestNTokens> &, RespBodyQueue &, const uint64_t &))
+                     .stubs();
     // succeed to process vLLM response stream, return true
     stubs.will(returnValue(true));
     EXPECT_TRUE(vllmInferInterface->BuildResponseJson(resp, tempTokens, jsonStrings, timestamp));
@@ -236,8 +243,7 @@ TEST_F(VllmInferTest, testBuildResponseJson)
     EXPECT_FALSE(vllmInferInterface->BuildResponseJson(resp, tempTokens, jsonStrings, timestamp));
 }
 
-TEST_F(VllmInferTest, testSendStreamResponse)
-{
+TEST_F(VllmInferTest, testSendStreamResponse) {
     RespBodyQueue jsonStrings;
     auto stubs = MOCKER_CPP(&SingleReqInferInterfaceBase::GetAvailableOutputCache,
                             bool (*)(std::vector<SingleReqInferInterfaceBase::StreamCache> &))
@@ -249,31 +255,30 @@ TEST_F(VllmInferTest, testSendStreamResponse)
 
 // NOTE: the following unit tests come from the code repo before refactor
 
-TEST_F(VllmInferTest, ValidateAndPrepareReqToken)
-{
+TEST_F(VllmInferTest, ValidateAndPrepareReqToken) {
     OrderedJson body;
     std::string msg;
     uint64_t timestamp;
 
     OrderedJson mockMultiModelUrlArr = {};
     for (size_t i = 0; i < MAX_MULTIMODAL_URL_NUM + 1; ++i) {
-        mockMultiModelUrlArr.push_back({{"image_url", "mockImageUrl"}, {"audio_url", "mockAudioUrl"},
-                                        {"video_url", "mockVideoUrl"}});
+        mockMultiModelUrlArr.push_back(
+            {{"image_url", "mockImageUrl"}, {"audio_url", "mockAudioUrl"}, {"video_url", "mockVideoUrl"}});
     }
-    auto testPromptArr = OrderedJson::array({
-        nullptr, 1, "\xFF", "",
-        OrderedJson::array(), OrderedJson::array({ 1, 2 }), OrderedJson::array({ {{"image_url", nullptr}} }),
-        OrderedJson::array({ {{"image_url", "mockImageUrl"}, {"audio_url", nullptr}} }),
-        OrderedJson::array({ {{"image_url", "mockImageUrl"}, {"audio_url", "mockAudioUrl"}} }),
-        OrderedJson::array({ {{"image_url", "mockImageUrl"}, {"audio_url", "mockAudioUrl"}, {"video_url", nullptr}} }),
-        OrderedJson::array({ {{"image_url", "mockImageUrl"}, {"audio_url", "mockAudioUrl"},
-            {"video_url", "mockVideoUrl"}} }),
-        mockMultiModelUrlArr, "hello"
-    });
+    auto testPromptArr = OrderedJson::array(
+        {nullptr, 1, "\xFF", "", OrderedJson::array(), OrderedJson::array({1, 2}),
+         OrderedJson::array({{{"image_url", nullptr}}}),
+         OrderedJson::array({{{"image_url", "mockImageUrl"}, {"audio_url", nullptr}}}),
+         OrderedJson::array({{{"image_url", "mockImageUrl"}, {"audio_url", "mockAudioUrl"}}}),
+         OrderedJson::array({{{"image_url", "mockImageUrl"}, {"audio_url", "mockAudioUrl"}, {"video_url", nullptr}}}),
+         OrderedJson::array(
+             {{{"image_url", "mockImageUrl"}, {"audio_url", "mockAudioUrl"}, {"video_url", "mockVideoUrl"}}}),
+         mockMultiModelUrlArr, "hello"});
 
-    auto stubs = MOCKER_CPP(&TokenizerProcessPool::Encode, Status(*)(TokenizerProcessPool*, const std::string&,
-        std::vector<int64_t>&, HeadFlag, uint64_t&)).stubs();
-    
+    auto stubs = MOCKER_CPP(&TokenizerProcessPool::Encode, Status(*)(TokenizerProcessPool *, const std::string &,
+                                                                     std::vector<int64_t> &, HeadFlag, uint64_t &))
+                     .stubs();
+
     stubs.will(invoke(&MockTokenizerEncodeFail));
     for (size_t i = 0; i < testPromptArr.size(); ++i) {
         body["prompt"] = testPromptArr[i];
@@ -282,21 +287,20 @@ TEST_F(VllmInferTest, ValidateAndPrepareReqToken)
 
     stubs.will(invoke(&MockTokenizerResultsEmpty));
     EXPECT_FALSE(vllmInferInterface->ValidateAndPrepareReqToken(body, msg, timestamp));
-    
+
     stubs.will(invoke(&MockTokenizerEncodeSuccess));
     EXPECT_TRUE(vllmInferInterface->ValidateAndPrepareReqToken(body, msg, timestamp));
     // case when recompute is true
     vllmInferInterface->isReCompute_ = true;
     EXPECT_FALSE(vllmInferInterface->ValidateAndPrepareReqToken(body, msg, timestamp));
-    MOCKER_CPP(&SingleReqInferInterfaceBase::GetTokensFromInput, bool(*)(const std::string &,
-        std::vector<std::int64_t> &, std::vector<std::int64_t> &, std::string &))
+    MOCKER_CPP(&SingleReqInferInterfaceBase::GetTokensFromInput,
+               bool (*)(const std::string &, std::vector<std::int64_t> &, std::vector<std::int64_t> &, std::string &))
         .stubs()
         .will(returnValue(true));
     EXPECT_FALSE(vllmInferInterface->ValidateAndPrepareReqToken(body, msg, timestamp));
 }
 
-TEST_F(VllmInferTest, BuildVllmReComputeBody)
-{
+TEST_F(VllmInferTest, BuildVllmReComputeBody) {
     auto request = std::make_shared<Request>(RequestIdNew("mockRequest"));
     request->repetitionPenalty = 1.03f;
     request->presencyPenalty = 0.10f;
@@ -359,4 +363,4 @@ TEST_F(VllmInferTest, BuildVllmReComputeBody)
     EXPECT_TRUE(j["prompt"].is_string());
 }
 
-} // namespace mindie_llm
+}  // namespace mindie_llm

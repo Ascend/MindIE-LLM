@@ -426,6 +426,8 @@ class RequestRouterCloud(RequestRouterLwd):
         decision_type = DecisionType(ctrl_tensor[CtrlTypePos.DECISION_TYPE])
         shape = ctrl_tensor[CtrlTypePos.SHAPE_START: CtrlTypePos.SHAPE_END + 1]
         if decision_type == DecisionType.DO_DECODE:
+            while not self.request_map[REQUEST_KEY_DECODE]:
+                self.get_all_request()
             self.ctrl_comm.decode_recv_msg = self.ctrl_comm.shape_to_msg(shape)
         elif decision_type == DecisionType.DO_PREFILL:
             while not self.request_map[REQUEST_KEY_PREFILL]:

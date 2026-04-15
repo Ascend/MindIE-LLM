@@ -17,7 +17,6 @@ from dataclasses import dataclass
 import contextlib
 import acl
 import torch
-import torch_npu
 
 from mindie_llm.utils.log.logging import logger, print_log
 from mindie_llm.utils.tensor import npu
@@ -55,7 +54,6 @@ class WeightMemoryProfiler:
 # https://github.com/vllm-project/vllm/blob/main/vllm/utils/mem_utils.py
 @dataclass
 class MemorySnapshot:
-
     torch_peak: int = 0
     free_memory: int = 0
     total_memory: int = 0
@@ -133,9 +131,7 @@ class MemoryProfilingResult:
 
 @contextlib.contextmanager
 def memory_profiling(
-    baseline_non_torch: int = 0,
-    weights_memory: int = 0,
-    backend_type=None
+    baseline_non_torch: int = 0, weights_memory: int = 0, backend_type=None
 ):
     gc.collect()
     npu.empty_cache()
@@ -155,7 +151,9 @@ def memory_profiling(
 
     diff_profile = result.after_profile - result.before_profile
     result.torch_peak_increase = diff_profile.torch_peak
-    result.non_torch_increase = result.after_profile.non_torch_memory - baseline_non_torch
+    result.non_torch_increase = (
+        result.after_profile.non_torch_memory - baseline_non_torch
+    )
     result.total_memory = result.before_profile.total_memory
 
     non_torch_memory = result.non_torch_increase
@@ -177,7 +175,9 @@ def calc_block_mem(model_info, block_size, num_speculative_tokens=None):
         k_total_head_size = total_head_size
         v_total_head_size = total_head_size
     num_layers = model_info.num_layers + (num_speculative_tokens >= 1)
-    per_layer_k_cache_bytes_size = [model_info.data_byte_size for layer_id in range(num_layers)]
+    per_layer_k_cache_bytes_size = [
+        model_info.data_byte_size for layer_id in range(num_layers)
+    ]
     model_mem_size = num_layers * v_total_head_size * model_info.data_byte_size
     if model_info.kvcache_quant_layers:
         for i, kvcache_quant in enumerate(model_info.kvcache_quant_layers):
@@ -199,7 +199,15 @@ def calc_npu_mem(block_nums, model_info, block_size, num_speculative_tokens=None
 
 
 def gb(mem_size):
-    return float(mem_size / (1024 ** 3))
+    """Convert memory size from Bytes to GiB.
+
+    Args:
+        mem_size (int): Memory size in Bytes.
+
+    Returns:
+        float: Memory size in GiB.
+    """
+    return float(mem_size / (1024**3))
 
 
 class NpuMemoryWatcher:
@@ -208,7 +216,9 @@ class NpuMemoryWatcher:
         self.threshold = 0
         self.warmup = True
 
-    def watch_npu_mem(self, rank_id, tag, is_multimodal=False, max_input_len=2048, trigger_count=-1):
+    def watch_npu_mem(
+        self, rank_id, tag, is_multimodal=False, max_input_len=2048, trigger_count=-1
+    ):
         if self.warmup:
             # Ensure that the warmup is completed before checking the memory,
             # otherwise the memory statistics of npu-smi may be incomplete.
@@ -216,7 +226,11 @@ class NpuMemoryWatcher:
             free_mem, total_mem, _ = acl.rt.get_mem_info(1)
             peak_mem = total_mem - free_mem
 
-            if is_multimodal and "310P" not in acl.get_soc_name().upper() and total_mem >= TOTAL_MEMORY:
+            if (
+                is_multimodal
+                and "310P" not in acl.get_soc_name().upper()
+                and total_mem >= TOTAL_MEMORY
+            ):
                 memory_threshold = (
                     MM_LONG_SEQ_MEMORY
                     if max_input_len > MM_LONG_SEQ_TOKENLEN
@@ -231,7 +245,9 @@ class NpuMemoryWatcher:
                     print_log(rank_id, logger.error, error_message)
                     raise RuntimeError("NPU out of memory. " + error_message)
 
-            logger.info(f"{tag}, peak mem: {gb(peak_mem):.2f}G, total_mem: {gb(total_mem):.2f}G")
+            logger.info(
+                f"{tag}, peak mem: {gb(peak_mem):.2f}G, total_mem: {gb(total_mem):.2f}G"
+            )
             return total_mem, peak_mem
 
         else:
@@ -243,16 +259,21 @@ class NpuMemoryWatcher:
                 if remaining_mem_warmup == 0:
                     raise RuntimeError("NPU out of memory.")
 
-                remaining_mem_reduction = (peak_mem - self.warmup_mem) / remaining_mem_warmup
+                remaining_mem_reduction = (
+                    peak_mem - self.warmup_mem
+                ) / remaining_mem_warmup
 
-            # 检查是否超过阈值
+                # 检查是否超过阈值
                 if remaining_mem_reduction > self.threshold:
                     logger.warning(
                         f"After warmup, mem is {gb(self.warmup_mem):.2f}G, left mem is {gb(remaining_mem_warmup):.2f}G."
                         f"{tag}, peak mem is: {gb(peak_mem):.2f}G, available mem is: {gb(free_mem):.2f}G. "
                         f"Remaining memory decreased {100 * remaining_mem_reduction:.2f}% compared to the warmup phase."
                     )
-                    self.threshold = math.ceil(remaining_mem_reduction / THRESHOLD_GRAD) * THRESHOLD_GRAD
+                    self.threshold = (
+                        math.ceil(remaining_mem_reduction / THRESHOLD_GRAD)
+                        * THRESHOLD_GRAD
+                    )
             else:
                 total_mem = 0
                 peak_mem = 0

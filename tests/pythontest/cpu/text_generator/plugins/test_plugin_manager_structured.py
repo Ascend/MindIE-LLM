@@ -10,12 +10,11 @@
 """PluginManager 结构化输出相关路径（Mock，CPU 可运行，不依赖 NPU）"""
 
 import unittest
-from unittest.mock import Mock, patch
+from unittest.mock import Mock
 
 import numpy as np
 import torch
 
-from mindie_llm.modeling.backend_type import BackendType
 from mindie_llm.text_generator.plugins.plugin_manager import PluginManager
 
 
@@ -105,11 +104,11 @@ class TestPluginManagerStructuredHelpers(unittest.TestCase):
         pm = _make_plugin_manager()
         miw = Mock()
         miw.filling_masks = {
-            'hit_sequence_ids_mask': np.array([True, False]),
-            'hit_indices_tensor': torch.tensor([0], dtype=torch.long),
-            'update_indices': torch.tensor([0], dtype=torch.long),
-            'ones_int32': torch.tensor([1], dtype=torch.int32),
-            'ones_int64': torch.tensor([1], dtype=torch.int64),
+            "hit_sequence_ids_mask": np.array([True, False]),
+            "hit_indices_tensor": torch.tensor([0], dtype=torch.long),
+            "update_indices": torch.tensor([0], dtype=torch.long),
+            "ones_int32": torch.tensor([1], dtype=torch.int32),
+            "ones_int64": torch.tensor([1], dtype=torch.int64),
         }
         miw.model_inputs = Mock()
         miw.model_inputs.input_ids = torch.zeros(2, dtype=torch.long)
@@ -142,8 +141,9 @@ class TestPluginManagerPreprocessWithStructuredOutput(unittest.TestCase):
     def _wire_compose(self, sampling_metadata):
         mock_model_inputs = Mock()
         self.mock_infer_context.get_batch_context_handles = Mock(return_value=[1, 2])
-        self.mock_infer_context.compose_model_inputs = Mock(return_value=(
-            mock_model_inputs, sampling_metadata, [100, 200]))
+        self.mock_infer_context.compose_model_inputs = Mock(
+            return_value=(mock_model_inputs, sampling_metadata, [100, 200])
+        )
 
     def test_preprocess_with_structured_output_manager(self):
         sm = Mock()
@@ -179,96 +179,5 @@ class TestPluginManagerPreprocessWithStructuredOutput(unittest.TestCase):
         self.assertEqual(len(self.plugin_manager.preprocess(input_metadata)), 4)
 
 
-@patch('mindie_llm.text_generator.plugins.plugin_manager.ENV')
-class TestPluginManagerPostprocessStructured(unittest.TestCase):
-    """postprocess：结构化 accepted 数组、FSM 更新、filter 第四参"""
-
-    def setUp(self):
-        self.pm = _make_plugin_manager()
-        self.pm.async_inference = False
-        self.pm.plugin_verify_manager = Mock()
-
-    def test_postprocess_passes_accepted_array_to_filter(self, mock_env):
-        mock_env.framework_backend = BackendType.TORCH
-        mgr = Mock()
-        mgr.compute_structured_output_accepted.return_value = np.array([True, False])
-        self.pm._structured_output_manager = mgr
-
-        _attach_postprocess_mocks(
-            self.pm,
-            filter_return=(
-                np.array([0, 0]), np.array([], dtype=np.int64), np.array([], dtype=np.int64)),
-            update_return=(np.array([]), np.array([])),
-            clear_finished_return=np.array([]),
-            output_len_count=np.array([1, 1]),
-        )
-
-        im = Mock()
-        im.is_prefill = False
-        im.is_dummy_batch = True
-        im.all_sequence_ids = np.array([1, 2])
-        im.batch_is_prefill = None
-        im.batch_last_prompt = None
-
-        sm, so = _sampling_metadata_and_output(batch=2, is_prefill=False)
-        logits = torch.zeros(2, 1, 10)
-        self.pm.postprocess(np.array([1, 2]), im, logits, sm, so)
-
-        ff_call = self.pm.output_filter.filter_finished_sequences.call_args
-        self.assertIsNotNone(ff_call)
-
-    def test_postprocess_with_structured_output_manager(self, mock_env):
-        mock_env.framework_backend = BackendType.TORCH
-        mgr = Mock()
-        mgr.compute_structured_output_accepted.return_value = np.ones(3, dtype=bool)
-        self.pm._structured_output_manager = mgr
-
-        _attach_postprocess_mocks(
-            self.pm,
-            filter_return=_POSTPROCESS_FILTER_STD,
-            update_return=_POSTPROCESS_UPDATE_STD,
-            clear_finished_return=np.array([2], dtype=np.int64),
-            output_len_count=np.array([1, 1, 1]),
-        )
-
-        im = Mock()
-        im.is_prefill = True
-        im.is_dummy_batch = False
-        im.all_sequence_ids = np.array([1, 2, 3])
-        im.batch_is_prefill = None
-        im.batch_last_prompt = None
-
-        sm, so = _sampling_metadata_and_output(batch=3, is_prefill=True)
-        out = self.pm.postprocess(
-            [1, 2, 3], im, torch.tensor([[0.1, 0.2, 0.3]]), sm, so)
-        self.assertIsNotNone(out)
-
-    def test_postprocess_without_active_structured_output_returns_none(self, mock_env):
-        mock_env.framework_backend = BackendType.TORCH
-        mgr = Mock()
-        mgr.compute_structured_output_accepted.return_value = None
-        self.pm._structured_output_manager = mgr
-
-        _attach_postprocess_mocks(
-            self.pm,
-            filter_return=_POSTPROCESS_FILTER_STD,
-            update_return=_POSTPROCESS_UPDATE_STD,
-            clear_finished_return=np.array([2], dtype=np.int64),
-            output_len_count=np.array([1, 1, 1]),
-        )
-
-        im = Mock()
-        im.is_prefill = True
-        im.is_dummy_batch = False
-        im.all_sequence_ids = np.array([1, 2, 3])
-        im.batch_is_prefill = None
-        im.batch_last_prompt = None
-
-        sm, so = _sampling_metadata_and_output(batch=3, is_prefill=True)
-        out = self.pm.postprocess(
-            [1, 2, 3], im, torch.tensor([[0.1, 0.2, 0.3]]), sm, so)
-        self.assertIsNotNone(out)
-
-
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

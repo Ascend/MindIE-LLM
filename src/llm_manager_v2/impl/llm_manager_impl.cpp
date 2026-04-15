@@ -1,35 +1,38 @@
 /**
  * Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
  * MindIE is licensed under Mulan PSL v2.
- * You can use this software according to the terms and conditions of the Mulan PSL v2.
- * You may obtain a copy of Mulan PSL v2 at:
+ * You can use this software according to the terms and conditions of the Mulan
+ * PSL v2. You may obtain a copy of Mulan PSL v2 at:
  *          http://license.coscl.org.cn/MulanPSL2
- * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
- * EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
- * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
- * See the Mulan PSL v2 for more details.
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY
+ * KIND, EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
+ * NON-INFRINGEMENT, MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE. See the
+ * Mulan PSL v2 for more details.
  */
- 
+
 #include "llm_manager_impl.h"
+
+#include <pybind11/pybind11.h>
+
 #include <chrono>
 #include <iomanip>
-#include <pybind11/pybind11.h>
-#include "memory_utils.h"
-#include "nlohmann/json.hpp"
-#include "config_manager.h"
-#include "param_checker.h"
-#include "file_utils.h"
-#include "log.h"
-#include "llm_manager_v2.h"
-#include "request_response/callback.h"
-#include "string_utils.h"
+
 #include "check_utils.h"
 #include "common_util.h"
-#include "msServiceProfiler/msServiceProfiler.h"
-#include "infer_instances.h"
+#include "config_manager.h"
 #include "config_manager_impl.h"
+#include "file_utils.h"
+#include "infer_instances.h"
+#include "llm_manager_v2.h"
+#include "log.h"
+#include "memory_utils.h"
+#include "msServiceProfiler/msServiceProfiler.h"
+#include "nlohmann/json.hpp"
+#include "param_checker.h"
+#include "request_response/callback.h"
 #include "safe_io.h"
 #include "shared_memory.h"
+#include "string_utils.h"
 
 using Json = nlohmann::json;
 namespace py = pybind11;
@@ -40,8 +43,7 @@ const std::string DEFAULT_HOST_IP = "127.0.0.1";
 constexpr uint32_t PROCESS_GROUP_MASTER_PORT = 7777;
 ConcurrentMap<mindie_llm::RequestIdNew, SendResponsesCallbackV2> mindie_llm::InferInstance::callbackMap{};
 
-void HandleResponse(ResponseSPtr response)
-{
+void HandleResponse(ResponseSPtr response) {
     auto spanHandleResponse = PROF(INFO, Domain("Engine").SpanStart("HandleResponse"));
     if (response == nullptr) {
         MINDIE_LLM_LOG_ERROR("[LlmManagerImpl] Response is null!");
@@ -58,16 +60,16 @@ void HandleResponse(ResponseSPtr response)
     if (response->isEos || response->transferStatusFlag == TransferStatusType::PUBLISH_KV_COMPLETE) {
         InferInstance::GetCallbackMap().Erase(response->reqId);
         MINDIE_LLM_LOG_INFO_REQUEST("[LlmManagerImpl] Remove SendResponsesCallback requestId: " + response->reqId +
-                            " when encountering EOS or PUBLISH_KV_COMPLETE.");
+                                    " when encountering EOS or PUBLISH_KV_COMPLETE.");
     }
 
     if (serverResponseCallback.has_value()) {
         serverResponseCallback.value()(response);
     } else if (!InferInstance::IsPaused()) {
         MINDIE_LLM_LOG_INFO_REQUEST("[LlmManagerImpl] SendResponsesCallback of requestId: " + response->reqId +
-                            " is not exist.");
+                                    " is not exist.");
     }
-    
+
     PROF(spanHandleResponse.SpanEnd());
 }
 
@@ -79,7 +81,7 @@ struct PDLinkRequestData {
     int64_t hostIpNum = 0;
     int64_t superPodIdNum = 0;
     int64_t containsDpInstanceIds = 0;
-    int64_t hostIpNumPerDp = 1; // won't be serialized
+    int64_t hostIpNumPerDp = 1;  // won't be serialized
 
     // {dpInstanceId: [host_ip1, host_ip2, ...]}, TBC 处理多个 host_ip
     std::unordered_map<InstanceId, std::vector<std::string>> dpInstance2HostIps;
@@ -99,8 +101,7 @@ struct PDLinkRequestData {
     std::unordered_map<InstanceId, std::vector<int64_t>> dpInstance2UnLinkSuperDeviceIds;
 };
 
-PDLinkRequestData GetPDLinkRequestDataFromInferRequest(RequestSPtr inferRequest)
-{
+PDLinkRequestData GetPDLinkRequestDataFromInferRequest(RequestSPtr inferRequest) {
     PDLinkRequestData pdLinkRequestData;
     pdLinkRequestData.role = static_cast<model_execute_data::PDRole>(inferRequest->role);
     pdLinkRequestData.needSwitch = inferRequest->needSwitch;
@@ -132,8 +133,7 @@ PDLinkRequestData GetPDLinkRequestDataFromInferRequest(RequestSPtr inferRequest)
 void AddDevices(const PDLinkRequestData &requestData,
                 const std::unordered_map<InstanceId, std::vector<std::pair<std::string, int64_t>>> &dpInstance2Devices,
                 const std::unordered_map<InstanceId, std::vector<int64_t>> &dpInstance2SuperDeviceIds,
-                PDLinkRequest_PDLinkInfo *singlePDLinkInfo, bool isLinkInfo)
-{
+                PDLinkRequest_PDLinkInfo *singlePDLinkInfo, bool isLinkInfo) {
     for (const auto &[dpInstanceId, devices] : dpInstance2Devices) {
         RemoteInfo *remoteInfo = nullptr;
         if (isLinkInfo) {
@@ -149,7 +149,7 @@ void AddDevices(const PDLinkRequestData &requestData,
             if (hostIt != requestData.dpInstance2HostIps.end()) {
                 hostInfo->set_host_ip(hostIt->second.at(i));
             } else {
-                hostInfo->set_host_ip(DEFAULT_HOST_IP); // 默认IP
+                hostInfo->set_host_ip(DEFAULT_HOST_IP);  // 默认IP
             }
             hostInfo->set_cluster_id(std::to_string(dpInstanceId));
             auto superPodIdIt = requestData.dpInstance2SuperPodId.find(dpInstanceId);
@@ -175,8 +175,7 @@ void AddDevices(const PDLinkRequestData &requestData,
     }
 }
 
-PDLinkRequest BuildPDLinkRequest(const PDLinkRequestData &pdLinkRequestData)
-{
+PDLinkRequest BuildPDLinkRequest(const PDLinkRequestData &pdLinkRequestData) {
     PDLinkRequest pdLinkRequest;
     auto *singlePDLinkInfo = pdLinkRequest.add_pd_link_info();
 
@@ -206,8 +205,7 @@ PDLinkRequest BuildPDLinkRequest(const PDLinkRequestData &pdLinkRequestData)
     return pdLinkRequest;
 }
 
-bool SafeStoull(const std::string &str, uint64_t &outValue)
-{
+bool SafeStoull(const std::string &str, uint64_t &outValue) {
     try {
         outValue = std::stoull(str);
         return true;
@@ -221,7 +219,7 @@ bool SafeStoull(const std::string &str, uint64_t &outValue)
         return false;
     }
 }
-} // namespace mindie_llm
+}  // namespace mindie_llm
 
 namespace mindie_llm {
 uint32_t g_vocabSizeConfig = 0;
@@ -242,8 +240,7 @@ LlmManagerImpl::LlmManagerImpl(const std::string &llmConfigPath, GetRequestsCall
                                SendResponsesCallbackV2 handleResponse, ControlSignalCallbackV2 controlCallback,
                                LlmManagerStatsCallback statusCallback,
                                SendStatusResponseCallbackV2 statusResponseCallback,
-                               std::map<std::string, std::string> ipInfo)
-{
+                               std::map<std::string, std::string> ipInfo) {
     getRequests_ = getRequests;
     handleResponse_ = handleResponse ? handleResponse : HandleResponse;
     controlCallback_ = controlCallback;
@@ -254,9 +251,7 @@ LlmManagerImpl::LlmManagerImpl(const std::string &llmConfigPath, GetRequestsCall
     llmConfigPath_ = llmConfigPath;
 
     if (!mindie_llm::Log::GetInstance(LoggerType::MINDIE_LLM)) {
-        std::call_once(pool_init_flag, []() {
-            spdlog::init_thread_pool(LOGGER_QUEUE_SIZE, LOGGER_THREAD_NUM);
-        });
+        std::call_once(pool_init_flag, []() { spdlog::init_thread_pool(LOGGER_QUEUE_SIZE, LOGGER_THREAD_NUM); });
         mindie_llm::Log::CreateInstance(LoggerType::MINDIE_LLM);
     }
 
@@ -264,15 +259,14 @@ LlmManagerImpl::LlmManagerImpl(const std::string &llmConfigPath, GetRequestsCall
     if (!mindie_llm::ConfigManager::CreateInstance(llmConfigPath_)) {
         MINDIE_LLM_LOG_ERROR("Failed to create ConfigManager in LlmManagerImpl");
     }
-    
+
     if (ipInfo.count("infer_mode") > 0 && ipInfo["infer_mode"] == "dmi") {
         isDmiInfer_ = true;
     }
     MINDIE_LLM_LOG_INFO("LLMRuntime init success!");
 }
 
-void LlmManagerImpl::Step()
-{
+void LlmManagerImpl::Step() {
     shutdown_ = false;
     if (getRequests_ != nullptr) {
         processThread_ = std::thread(&LlmManagerImpl::ProcessStep, this);
@@ -291,13 +285,12 @@ void LlmManagerImpl::Step()
     MINDIE_LLM_LOG_INFO("LLMRuntime thread start success!");
 }
 
-void LlmManagerImpl::Stop()
-{
+void LlmManagerImpl::Stop() {
     shutdown_ = true;
     bool have_gil = false;
     if (Py_IsInitialized() == 1) {
 #ifdef PyGILState_Check
-    have_gil = (PyGILState_Check() != 0);
+        have_gil = (PyGILState_Check() != 0);
 #endif
     }
     if (have_gil) {
@@ -326,40 +319,35 @@ void LlmManagerImpl::Stop()
     MINDIE_LLM_LOG_INFO("LLMRuntime thread stop success!");
 }
 
-void LlmManagerImpl::Shutdown()
-{
+void LlmManagerImpl::Shutdown() {
     auto ret = Finalize();
     if (!ret.IsOk()) {
         MINDIE_LLM_LOG_ERROR("Shut down LLMRuntime failed!. errmsg:" << ret.StatusMsg());
     }
 }
 
-void LlmManagerImpl::ProcessStep()
-{
+void LlmManagerImpl::ProcessStep() {
     while (!shutdown_) {
         ProcessRequests();
         std::this_thread::sleep_for(std::chrono::microseconds(PROCESS_STEP_SLEEP));
     }
 }
 
-void LlmManagerImpl::ControlStep()
-{
+void LlmManagerImpl::ControlStep() {
     while (!shutdown_) {
         ControlRequest();
         std::this_thread::sleep_for(std::chrono::milliseconds(CONTROL_STEP_SLEEP));
     }
 }
 
-void LlmManagerImpl::SendRuntimeStep()
-{
+void LlmManagerImpl::SendRuntimeStep() {
     while (!shutdown_) {
         SendRuntimeStatus();
         std::this_thread::sleep_for(std::chrono::milliseconds(RUNTIME_STEP_SLEEP));
     }
 }
 
-static void InitbackendConfig(EngineConfig &engineConfig, const BackendConfig &backendConfig)
-{
+static void InitbackendConfig(EngineConfig &engineConfig, const BackendConfig &backendConfig) {
     engineConfig.backendName = backendConfig.backendName;
     engineConfig.tokenizerProcessNumber = backendConfig.tokenizerProcessNumber;
     engineConfig.deployType = backendConfig.deployType;
@@ -378,15 +366,13 @@ static void InitbackendConfig(EngineConfig &engineConfig, const BackendConfig &b
     engineConfig.lwdMultiNodesEnable = backendConfig.lwdMultiNodesEnable;
 }
 
-static bool CheckJsonDepthCallback(int depth, Json::parse_event_t ev, [[maybe_unused]] Json& obj)
-{
+static bool CheckJsonDepthCallback(int depth, Json::parse_event_t ev, [[maybe_unused]] Json &obj) {
     return CheckJsonDepthWithLogger(depth, ev, [depth]() {
-        MINDIE_LLM_LOG_INFO("Failed to parse json: depth is " << depth <<  ", limit is " << GetJsonDepthLimit());
+        MINDIE_LLM_LOG_INFO("Failed to parse json: depth is " << depth << ", limit is " << GetJsonDepthLimit());
     });
 }
 
-static void UpdateFromEnv(std::set<size_t> &npuDeviceIds, uint32_t modelInstanceId)
-{
+static void UpdateFromEnv(std::set<size_t> &npuDeviceIds, uint32_t modelInstanceId) {
     auto envPtr = std::getenv(ENV_NPU_DEVICE_IDS.c_str());
     if (envPtr == nullptr) {
         return;
@@ -397,14 +383,14 @@ static void UpdateFromEnv(std::set<size_t> &npuDeviceIds, uint32_t modelInstance
     try {
         jsonData["npuDeviceIds"] = Json::parse(envNpuIds, CheckJsonDepthCallback);
         MINDIE_LLM_LOG_INFO("Config data has been updated by env variable:" << ENV_NPU_DEVICE_IDS);
-        
+
         npuDeviceIds.clear();
         for (auto &ele : jsonData["npuDeviceIds"][modelInstanceId]) {
             npuDeviceIds.insert(static_cast<size_t>(ele));
         }
     } catch (Json::parse_error &e) {
-        MINDIE_LLM_LOG_ERROR("Env variable resolution failed: " <<
-            ENV_NPU_DEVICE_IDS << ", Incorrect format: " << e.what());
+        MINDIE_LLM_LOG_ERROR("Env variable resolution failed: " << ENV_NPU_DEVICE_IDS
+                                                                << ", Incorrect format: " << e.what());
     } catch (Json::out_of_range &e) {
         MINDIE_LLM_LOG_ERROR("modelInstanceId=" << modelInstanceId << " out of range: " << e.what());
     } catch (Json::type_error &e) {
@@ -413,8 +399,7 @@ static void UpdateFromEnv(std::set<size_t> &npuDeviceIds, uint32_t modelInstance
     MINDIE_LLM_LOG_INFO("ModelDeployConfig::npuDeviceIds=" << jsonData["npuDeviceIds"]);
 }
 
-static void SetModelParams(ModelDeployConfig &modelDeployParam)
-{
+static void SetModelParams(ModelDeployConfig &modelDeployParam) {
     g_truncation = modelDeployParam.truncation;
     g_maxSeqLen = modelDeployParam.maxSeqLen;
     g_maxInputTokenLen = modelDeployParam.maxInputTokenLen;
@@ -430,15 +415,13 @@ static void SetModelParams(ModelDeployConfig &modelDeployParam)
     if (g_truncation != 0) {
         g_truncLen = std::min(modelDeployParam.maxInputTokenLen, modelDeployParam.maxSeqLen - 1);
     }
-    MINDIE_LLM_LOG_INFO("InitModelConfig: maxSeqLen=" << modelDeployParam.maxSeqLen
-                                                      << ", maxInputTokenLen=" << modelDeployParam.maxInputTokenLen
-                                                      << ", g_truncation=" << g_truncation
-                                                      << ", g_truncLen=" << g_truncLen);
+    MINDIE_LLM_LOG_INFO("InitModelConfig: maxSeqLen="
+                        << modelDeployParam.maxSeqLen << ", maxInputTokenLen=" << modelDeployParam.maxInputTokenLen
+                        << ", g_truncation=" << g_truncation << ", g_truncLen=" << g_truncLen);
 }
 
 static void UpdateNpuDeviceId(std::set<size_t> &modelNpuDeviceIds, std::set<size_t> &npuDeviceIds,
-                              ModelDeployConfig &modelParam, uint32_t modelInstanceId)
-{
+                              ModelDeployConfig &modelParam, uint32_t modelInstanceId) {
     for (auto &npuID : npuDeviceIds) {
         modelNpuDeviceIds.insert(npuID);
     }
@@ -452,8 +435,7 @@ static void UpdateNpuDeviceId(std::set<size_t> &modelNpuDeviceIds, std::set<size
 }
 
 static bool InitModelConfig(EngineConfig &engineConfig, std::vector<ModelDeployConfig> &modelDeployParam,
-                            std::set<size_t> &npuDeviceIds, uint32_t modelInstanceId)
-{
+                            std::set<size_t> &npuDeviceIds, uint32_t modelInstanceId) {
     if (modelDeployParam.empty()) {
         return false;
     }
@@ -488,8 +470,7 @@ static bool InitModelConfig(EngineConfig &engineConfig, std::vector<ModelDeployC
     return true;
 }
 
-static bool GetPluginEnable(std::string pluginName, std::vector<ModelDeployConfig> &modelDeployParam)
-{
+static bool GetPluginEnable(std::string pluginName, std::vector<ModelDeployConfig> &modelDeployParam) {
     for (auto &modelParam : modelDeployParam) {
         auto it = modelParam.modelConfig.find("plugin_params");
         std::string pluginParam;
@@ -509,8 +490,11 @@ static bool GetPluginEnable(std::string pluginName, std::vector<ModelDeployConfi
         } catch (const nlohmann::json::parse_error &e) {
             std::stringstream errMsg;
             errMsg << "Invalid plugin parameters. "
-                   << "Please check the 'plugin_params' field in the 'config.json' file for the service, "
-                   << "and ensure it adheres to the JSON format. The error info is: " << e.what();
+                   << "Please check the 'plugin_params' field in the "
+                      "'config.json' file for the service, "
+                   << "and ensure it adheres to the JSON format. The error "
+                      "info is: "
+                   << e.what();
             MINDIE_LLM_LOG_ERROR(errMsg.str());
             throw std::invalid_argument(errMsg.str());
         }
@@ -535,28 +519,32 @@ static bool GetPluginEnable(std::string pluginName, std::vector<ModelDeployConfi
                 }
             }
         } else {
-            MINDIE_LLM_LOG_ERROR("'plugin_type' field not found in plugin_params, please check!");
+            MINDIE_LLM_LOG_ERROR(
+                "'plugin_type' field not found in plugin_params, please "
+                "check!");
             return false;
         }
     }
     return false;
 }
 
-static bool CheckEngineConfig(EngineConfig &engineConfig)
-{
+static bool CheckEngineConfig(EngineConfig &engineConfig) {
     bool checkRes = true;
     if (engineConfig.enableSplit && engineConfig.templateType != "Mix") {
         MINDIE_LLM_LOG_ERROR("templateType must be Mix when enableSplit is True, but is " << engineConfig.templateType);
         checkRes = false;
     }
     if (engineConfig.enableSplit && engineConfig.splitChunkTokens == 0) {
-        MINDIE_LLM_LOG_ERROR("splitChunkTokens should be larger than 0 when splitfuse is enabled, but is "
-                             << engineConfig.splitChunkTokens);
+        MINDIE_LLM_LOG_ERROR(
+            "splitChunkTokens should be larger than 0 when splitfuse is "
+            "enabled, but is "
+            << engineConfig.splitChunkTokens);
         checkRes = false;
     }
     if (engineConfig.enableChunkedPrefill && engineConfig.supportSelectBatch) {
-        MINDIE_LLM_LOG_WARN("Both splitfuse and supportSelectBatch are configured, the " <<
-            "scheduling strategy will be executed according to splitfuse, supportSelectBatch will be disabled.");
+        MINDIE_LLM_LOG_WARN("Both splitfuse and supportSelectBatch are configured, the "
+                            << "scheduling strategy will be executed according to splitfuse, "
+                               "supportSelectBatch will be disabled.");
     }
     if (ConfigManager::GetInstance().IslayerwiseDisaggregated() && engineConfig.enablePrefixCache) {
         MINDIE_LLM_LOG_ERROR("Prefix cache isn't supported in layerwise-disaggregated mode.");
@@ -565,17 +553,17 @@ static bool CheckEngineConfig(EngineConfig &engineConfig)
     return checkRes;
 }
 
-static void UpdateEngineConfig(EngineConfig &engineConfig)
-{
+static void UpdateEngineConfig(EngineConfig &engineConfig) {
     auto &deployParam = engineConfig.modelDeployParam[0];
 
     uint32_t cpSize = 1;
     const auto it = deployParam.modelConfig.find("cp");
     if (it != deployParam.modelConfig.end()) {
-        // cpSize has been checked in model_deploy_config.cpp. It can be safely assigned here.
+        // cpSize has been checked in model_deploy_config.cpp. It can be safely
+        // assigned here.
         cpSize = static_cast<uint32_t>(std::stoi(it->second));
     }
-    
+
     const bool isCpEnabled = (cpSize > 1);
     const uint32_t loadBalanceCpSize = cpSize * 2;
 
@@ -583,38 +571,41 @@ static void UpdateEngineConfig(EngineConfig &engineConfig)
     if (isCpEnabled && (maxSeqLen % loadBalanceCpSize != 0)) {
         const uint32_t base = maxSeqLen / loadBalanceCpSize;
         maxSeqLen = (base + 1) * loadBalanceCpSize;
-        MINDIE_LLM_LOG_INFO("CP enabled: maxSeqLen increased to multiple of 2 * cpsize. " <<
-                            "New value: " << maxSeqLen);
+        MINDIE_LLM_LOG_INFO("CP enabled: maxSeqLen increased to multiple of 2 * cpsize. " << "New value: "
+                                                                                          << maxSeqLen);
     }
-    
+
     const uint32_t maxLen = std::min(maxSeqLen, deployParam.maxInputTokenLen + engineConfig.maxIterTimes);
     uint32_t maxPrefillTokens = engineConfig.maxPrefillTokens;
-    
+
     if ((maxPrefillTokens < maxLen) && !engineConfig.enableSplit) {
         maxPrefillTokens = maxLen;
-        MINDIE_LLM_LOG_INFO("maxPrefillTokens is smaller than maxLen. It will be replaced by maxLen. " <<
-                            "maxLen = min(maxSeqLen, maxInputTokenLen + maxIterTimes)");
+        MINDIE_LLM_LOG_INFO(
+            "maxPrefillTokens is smaller than maxLen. It will be replaced by "
+            "maxLen. "
+            << "maxLen = min(maxSeqLen, maxInputTokenLen + maxIterTimes)");
     }
 
     if (isCpEnabled && (maxPrefillTokens % loadBalanceCpSize != 0)) {
         const uint32_t base = maxPrefillTokens / loadBalanceCpSize;
         maxPrefillTokens = (base + 1) * loadBalanceCpSize;
-        MINDIE_LLM_LOG_INFO("CP enabled: maxPrefillTokens increased to multiple of 2 * cpsize. " <<
-                            "New value: " << maxPrefillTokens);
+        MINDIE_LLM_LOG_INFO("CP enabled: maxPrefillTokens increased to multiple of 2 * cpsize. " << "New value: "
+                                                                                                 << maxPrefillTokens);
     }
 
     if (engineConfig.maxBatchSize > maxPrefillTokens) {
         engineConfig.maxBatchSize = maxPrefillTokens;
-        MINDIE_LLM_LOG_INFO("maxBatchSize is greater than maxPrefillTokens. It will be replaced by maxPrefillTokens.");
+        MINDIE_LLM_LOG_INFO(
+            "maxBatchSize is greater than maxPrefillTokens. It will be "
+            "replaced by maxPrefillTokens.");
     }
-    
+
     engineConfig.maxPrefillTokens = maxPrefillTokens;
     deployParam.maxSeqLen = maxSeqLen;
 }
 
 static void InitScheduleConfig(EngineConfig &engineConfig, const ScheduleConfig &scheduleConfig, bool enableSplit,
-    bool enablePrefixCache)
-{
+                               bool enablePrefixCache) {
     // schedule config
     engineConfig.templateType = scheduleConfig.templateType;
     engineConfig.templateName = scheduleConfig.templateName;
@@ -641,7 +632,7 @@ static void InitScheduleConfig(EngineConfig &engineConfig, const ScheduleConfig 
     engineConfig.maxPreemptCount = scheduleConfig.maxPreemptCount;
     engineConfig.supportSelectBatch = scheduleConfig.supportSelectBatch;
     engineConfig.maxQueueDelayMicroseconds = scheduleConfig.maxQueueDelayMicroseconds;
-    engineConfig.maxBeamWidth = scheduleConfig.maxBeamWidth;
+    engineConfig.maxN = scheduleConfig.maxN;
     // policy config
     engineConfig.policyType = scheduleConfig.policyType;
     engineConfig.maxIterTimes = scheduleConfig.maxIterTimes;
@@ -682,8 +673,7 @@ static void InitScheduleConfig(EngineConfig &engineConfig, const ScheduleConfig 
 
 static bool InitEngineConfig(EngineConfig &engineConfig, std::vector<ModelDeployConfig> &modelDeployParam,
                              std::set<size_t> &npuDeviceIds, uint32_t modelInstanceId,
-                             std::map<std::string, std::string> extendInfo)
-{
+                             std::map<std::string, std::string> extendInfo) {
     const ScheduleConfig &scheduleConfig = GetScheduleConfig();
     const BackendConfig &backendConfig = GetBackendConfig();
     const RanktableParam &ranktableParam = GetRanktableParam();
@@ -821,8 +811,7 @@ static bool InitEngineConfig(EngineConfig &engineConfig, std::vector<ModelDeploy
     return true;
 }
 
-static void LLMSetMultiNodeConfig(std::map<std::string, std::string> &modelConfig, const EngineConfig &engineConfig)
-{
+static void LLMSetMultiNodeConfig(std::map<std::string, std::string> &modelConfig, const EngineConfig &engineConfig) {
     modelConfig["multiNodesInferPort"] = std::to_string(engineConfig.multiNodesInferPort);
     modelConfig["interNodeTLSEnabled"] = std::to_string(engineConfig.interNodeTLSEnabled);
     modelConfig["multiNodesInferEnabled"] = std::to_string(engineConfig.multiNodesInferEnabled);
@@ -836,8 +825,7 @@ static void LLMSetMultiNodeConfig(std::map<std::string, std::string> &modelConfi
     modelConfig["globalWorldSize"] = std::to_string(engineConfig.globalWorldSize);
 }
 
-static void LLMSetModelParam(std::map<std::string, std::string> &modelConfig, const ModelParam &modelParam)
-{
+static void LLMSetModelParam(std::map<std::string, std::string> &modelConfig, const ModelParam &modelParam) {
     modelConfig["speculation_gamma"] = std::to_string(modelParam.speculationGamma);
 
     for (auto it = modelParam.modelConfig.begin(); it != modelParam.modelConfig.end(); ++it) {
@@ -858,8 +846,7 @@ static void LLMSetModelParam(std::map<std::string, std::string> &modelConfig, co
     modelConfig["max_lora_rank"] = std::to_string(modelParam.maxLoraRank);
 }
 
-static std::string IsAsyncBatchscheduler(const EngineConfig &engineConfig)
-{
+static std::string IsAsyncBatchscheduler(const EngineConfig &engineConfig) {
     const char *mindieAsyncSchedulingEnable = std::getenv("MINDIE_ASYNC_SCHEDULING_ENABLE");
     if (mindieAsyncSchedulingEnable == nullptr) {
         return "false";
@@ -870,13 +857,12 @@ static std::string IsAsyncBatchscheduler(const EngineConfig &engineConfig)
     if (engineConfig.enableSplit) {
         return "false";
     }
-    
+
     return "true";
 }
 
 static void LLMSetLayerwiseDisaggregatedModelConfig(std::map<std::string, std::string> &modelConfig,
-    const EngineConfig &engineConfig)
-{
+                                                    const EngineConfig &engineConfig) {
     auto &configManager = mindie_llm::ConfigManager::GetInstance();
     auto &serverConfig = configManager.GetServerConfig();
     auto &backendConfig = configManager.GetBackendConfig();
@@ -921,18 +907,16 @@ static void LLMSetLayerwiseDisaggregatedModelConfig(std::map<std::string, std::s
     modelConfig["lwdNextPHeadPrior"] = scheduleConfig.lwdNextPHeadPrior ? "true" : "false";
     if (modelConfig["lwd_multi_nodes_enable"] == "true") {
         modelConfig["lwd_multi_nodes_is_master"] = engineConfig.isLwdMultiNodesMaster ? "true" : "false";
-        modelConfig["layerwiseDisaggregatedMultiNodesMaster"] = \
-            engineConfig.isLwdMultiNodesMaster ? "true" : "false";
+        modelConfig["layerwiseDisaggregatedMultiNodesMaster"] = engineConfig.isLwdMultiNodesMaster ? "true" : "false";
         if (configManager.GetLwdRoleType() != "master") {
-            modelConfig["localIP"] = engineConfig.isLwdMultiNodesMaster ? \
-                engineConfig.slaveIPs[0] : engineConfig.slaveIPs[1];
+            modelConfig["localIP"] =
+                engineConfig.isLwdMultiNodesMaster ? engineConfig.slaveIPs[0] : engineConfig.slaveIPs[1];
         }
     }
 }
 
 static void LLMSetModelConfig(std::map<std::string, std::string> &modelConfig, const std::string &homePath,
-                              const EngineConfig &engineConfig, const ModelParam &modelParam, bool isDmiInfer = false)
-{
+                              const EngineConfig &engineConfig, const ModelParam &modelParam, bool isDmiInfer = false) {
     LLMSetModelParam(modelConfig, modelParam);
     modelConfig["max_prefill_tokens"] = std::to_string(engineConfig.maxPrefillTokens);
     modelConfig["max_prefill_batch_size"] = std::to_string(engineConfig.maxPrefillBatchSize);
@@ -947,7 +931,7 @@ static void LLMSetModelConfig(std::map<std::string, std::string> &modelConfig, c
     modelConfig["distributed_enable"] = engineConfig.distributedEnable ? "true" : "false";
     modelConfig["max_batch_size"] = std::to_string(engineConfig.maxBatchSize);
     modelConfig["max_prefill_batch_size"] = std::to_string(engineConfig.maxPrefillBatchSize);
-    modelConfig["max_beam_width"] = std::to_string(engineConfig.maxBeamWidth);
+    modelConfig["max_n"] = std::to_string(engineConfig.maxN);
     modelConfig["kv_pool_backend"] = engineConfig.kvPoolConfig.backend;
     modelConfig["kv_pool_config_path"] = engineConfig.kvPoolConfig.configPath;
     modelConfig["kv_pool_async_write"] = engineConfig.kvPoolConfig.asyncWrite ? "true" : "false";
@@ -964,7 +948,9 @@ static void LLMSetModelConfig(std::map<std::string, std::string> &modelConfig, c
     LLMSetMultiNodeConfig(modelConfig, engineConfig);
     std::string slaveIPs;
     if (!engineConfig.slaveIPs.empty()) {
-        for (auto &ip : engineConfig.slaveIPs) { slaveIPs += ip + ","; }
+        for (auto &ip : engineConfig.slaveIPs) {
+            slaveIPs += ip + ",";
+        }
         slaveIPs.pop_back();
     }
     modelConfig["slaveIPs"] = slaveIPs;
@@ -987,8 +973,7 @@ static void LLMSetModelConfig(std::map<std::string, std::string> &modelConfig, c
     if (configManager.IslayerwiseDisaggregated()) LLMSetLayerwiseDisaggregatedModelConfig(modelConfig, engineConfig);
 }
 
-static void InitPolicyConfig(SchedulerConfig &schedulerConfig, const EngineConfig &engineConfig)
-{
+static void InitPolicyConfig(SchedulerConfig &schedulerConfig, const EngineConfig &engineConfig) {
     // policy config
     schedulerConfig.prefillPolicyType = engineConfig.prefillPolicyType;
     schedulerConfig.decodePolicyType = engineConfig.decodePolicyType;
@@ -1012,8 +997,7 @@ static void InitPolicyConfig(SchedulerConfig &schedulerConfig, const EngineConfi
 }
 
 static void InitDeviceAndInstanceConfig(SchedulerConfig &schedulerConfig, const EngineConfig &engineConfig,
-                                        const std::map<std::string, std::string> &ipInfo)
-{
+                                        const std::map<std::string, std::string> &ipInfo) {
     for (auto &paramObj : engineConfig.modelDeployParam) {
         schedulerConfig.npuDeviceIds.push_back(paramObj.npuDeviceIds);
     }
@@ -1028,10 +1012,7 @@ static void InitDeviceAndInstanceConfig(SchedulerConfig &schedulerConfig, const 
     }
 }
 
-static void InitBlockConfig(SchedulerConfig &schedulerConfig,
-                            BlockNum blockNum,
-                            const EngineConfig &engineConfig)
-{
+static void InitBlockConfig(SchedulerConfig &schedulerConfig, BlockNum blockNum, const EngineConfig &engineConfig) {
     schedulerConfig.maxSeqLen = engineConfig.modelDeployParam[0].maxSeqLen;
     schedulerConfig.maxIterTimes = engineConfig.maxIterTimes;
     schedulerConfig.cpuBlockNum = blockNum.cpuBlockNum;
@@ -1042,12 +1023,9 @@ static void InitBlockConfig(SchedulerConfig &schedulerConfig,
     schedulerConfig.maxLoraRank = engineConfig.modelDeployParam[0].maxLoraRank;
 }
 
-static void InitParallelConfig(SchedulerConfig &schedulerConfig,
-                               const EngineConfig &engineConfig)
-{
-    const auto& modelConfig = engineConfig.modelDeployParam[0].modelConfig;
-    auto setParallelValue = [&](const std::string& parallelInfo,
-                                uint32_t& schedulerConfigValue) {
+static void InitParallelConfig(SchedulerConfig &schedulerConfig, const EngineConfig &engineConfig) {
+    const auto &modelConfig = engineConfig.modelDeployParam[0].modelConfig;
+    auto setParallelValue = [&](const std::string &parallelInfo, uint32_t &schedulerConfigValue) {
         auto it = modelConfig.find(parallelInfo);
         if (it != modelConfig.end()) {
             // parallelValue has been checked in model_deploy_config.cpp.
@@ -1060,8 +1038,7 @@ static void InitParallelConfig(SchedulerConfig &schedulerConfig,
     setParallelValue("cp", schedulerConfig.cpSize);
 }
 
-static void InitDistributedConfig(SchedulerConfig &schedulerConfig, const EngineConfig &engineConfig)
-{
+static void InitDistributedConfig(SchedulerConfig &schedulerConfig, const EngineConfig &engineConfig) {
     schedulerConfig.globalWorldSize = engineConfig.globalWorldSize;
     schedulerConfig.globalRankIds = engineConfig.globalRankIds;
     schedulerConfig.worldSize = engineConfig.modelDeployParam[0].worldSize;
@@ -1069,8 +1046,7 @@ static void InitDistributedConfig(SchedulerConfig &schedulerConfig, const Engine
     schedulerConfig.distributedEnable = engineConfig.distributedEnable;
 }
 
-static void InitWorkflowConfig(SchedulerConfig &schedulerConfig, const EngineConfig &engineConfig)
-{
+static void InitWorkflowConfig(SchedulerConfig &schedulerConfig, const EngineConfig &engineConfig) {
     schedulerConfig.modelName = engineConfig.modelDeployParam[0].modelName;
     schedulerConfig.templateType = engineConfig.templateType;
     schedulerConfig.templateName = engineConfig.templateName;
@@ -1078,8 +1054,7 @@ static void InitWorkflowConfig(SchedulerConfig &schedulerConfig, const EngineCon
     schedulerConfig.maxInputTokenLen = engineConfig.modelDeployParam[0].maxInputTokenLen;
 }
 
-static void InitSplitFuseConfig(SchedulerConfig &schedulerConfig, const EngineConfig &engineConfig)
-{
+static void InitSplitFuseConfig(SchedulerConfig &schedulerConfig, const EngineConfig &engineConfig) {
     schedulerConfig.enableSplit = engineConfig.enableSplit;
     if (schedulerConfig.enableSplit) {
         schedulerConfig.splitType = engineConfig.splitType;
@@ -1097,13 +1072,11 @@ static void InitSplitFuseConfig(SchedulerConfig &schedulerConfig, const EngineCo
     }
 }
 
-static void InitPrefixCacheConfig(SchedulerConfig &schedulerConfig, const EngineConfig &engineConfig)
-{
+static void InitPrefixCacheConfig(SchedulerConfig &schedulerConfig, const EngineConfig &engineConfig) {
     schedulerConfig.enablePrefixCache = engineConfig.enablePrefixCache;
 }
 
-static void InitKvPoolConfig(SchedulerConfig &schedulerConfig, const EngineConfig &engineConfig)
-{
+static void InitKvPoolConfig(SchedulerConfig &schedulerConfig, const EngineConfig &engineConfig) {
     if (engineConfig.kvPoolConfig.backend != "" && engineConfig.kvPoolConfig.configPath != "") {
         schedulerConfig.enableKvPool = true;
     } else {
@@ -1112,39 +1085,35 @@ static void InitKvPoolConfig(SchedulerConfig &schedulerConfig, const EngineConfi
     schedulerConfig.kvPoolConfig = engineConfig.kvPoolConfig;
 }
 
-static void InitBufferResponseConfig(SchedulerConfig &schedulerConfig, const EngineConfig &engineConfig)
-{
+static void InitBufferResponseConfig(SchedulerConfig &schedulerConfig, const EngineConfig &engineConfig) {
     schedulerConfig.bufferResponseEnabled = engineConfig.bufferResponseEnabled;
     schedulerConfig.prefillExpectedTime = engineConfig.prefillExpectedTime;
     schedulerConfig.decodeExpectedTime = engineConfig.decodeExpectedTime;
     schedulerConfig.isMultiNodeInfer = engineConfig.multiNodesInferEnabled;
 }
 
-static void InitLayerwiseDisaggregated(SchedulerConfig &schedulerConfig)
-{
+static void InitLayerwiseDisaggregated(SchedulerConfig &schedulerConfig) {
     auto &configManager = mindie_llm::ConfigManager::GetInstance();
     auto &serverConfig = configManager.GetServerConfig();
     auto &scheduleConfig = configManager.GetScheduleConfig();
     if (serverConfig.layerwiseDisaggregated) {
-        schedulerConfig.stageSelectPolicy = 3; // 边云策略为3
-        schedulerConfig.batchPnum = scheduleConfig.lwdNextPHeadPrior ? 2 : 1; // 2是允许下发P batch最大数量
+        schedulerConfig.stageSelectPolicy = 3;                                 // 边云策略为3
+        schedulerConfig.batchPnum = scheduleConfig.lwdNextPHeadPrior ? 2 : 1;  // 2是允许下发P batch最大数量
         // 下发batchsize为P batch数目（batchPnum）加D batch数目（1）
         schedulerConfig.maxDispatchBatchNum = schedulerConfig.batchPnum + 1;
         schedulerConfig.layerwiseDisaggregated = true;
     }
 }
 
-static void InitThinkingConfig(SchedulerConfig &schedulerConfig, ThinkingConfig &thinkingConfig)
-{
+static void InitThinkingConfig(SchedulerConfig &schedulerConfig, ThinkingConfig &thinkingConfig) {
     schedulerConfig.earlyStoppingIds = thinkingConfig.earlyStoppingIds;
     schedulerConfig.startThinkingId = thinkingConfig.startThinkingId;
     schedulerConfig.stopThinkingId = thinkingConfig.stopThinkingId;
 }
 
 static void LLMInitSchedulerConfig(SchedulerConfig &schedulerConfig, BlockNum blockNum,
-                                   const EngineConfig &engineConfig,
-                                   const std::map<std::string, std::string> &ipInfo, ThinkingConfig &thinkingConfig)
-{
+                                   const EngineConfig &engineConfig, const std::map<std::string, std::string> &ipInfo,
+                                   ThinkingConfig &thinkingConfig) {
     InitDeviceAndInstanceConfig(schedulerConfig, engineConfig, ipInfo);
     InitPolicyConfig(schedulerConfig, engineConfig);
     InitParallelConfig(schedulerConfig, engineConfig);
@@ -1157,8 +1126,9 @@ static void LLMInitSchedulerConfig(SchedulerConfig &schedulerConfig, BlockNum bl
     InitLayerwiseDisaggregated(schedulerConfig);
     InitKvPoolConfig(schedulerConfig, engineConfig);
     InitThinkingConfig(schedulerConfig, thinkingConfig);
-    // Fill multi-kv-cache descriptors from executor (populated via RemoteModelInitResults.kv_cache_descs).
-    // Backward compatible: if empty, scheduler will create a single block manager using cacheBlockSize.
+    // Fill multi-kv-cache descriptors from executor (populated via
+    // RemoteModelInitResults.kv_cache_descs). Backward compatible: if empty,
+    // scheduler will create a single block manager using cacheBlockSize.
     {
         std::lock_guard<std::mutex> lock(IExecutor::kvCacheOverview_.updateValueMutex);
         schedulerConfig.kvCacheDescs.clear();
@@ -1174,8 +1144,7 @@ static void LLMInitSchedulerConfig(SchedulerConfig &schedulerConfig, BlockNum bl
 }
 
 static void LlmSetLoraConfig(const std::map<std::string, std::string> &loraModules,
-                             std::map<std::string, std::string> &modelConfig)
-{
+                             std::map<std::string, std::string> &modelConfig) {
     Json loraJson(loraModules);
     std::string loraString = loraJson.dump();
     modelConfig["lora_modules"] = loraString;
@@ -1183,9 +1152,8 @@ static void LlmSetLoraConfig(const std::map<std::string, std::string> &loraModul
 
 static bool LlmSetModelConfig(const EngineConfig &engineConfig,
                               std::vector<std::map<std::string, std::string>> &modelConfigs,
-                              const std::map<std::string, std::string>& ipInfo = std::map<std::string, std::string>(),
-                              bool isDmiInfer = false)
-{
+                              const std::map<std::string, std::string> &ipInfo = std::map<std::string, std::string>(),
+                              bool isDmiInfer = false) {
     std::string homePath;
     for (auto &modelParam : engineConfig.modelDeployParam) {
         std::map<std::string, std::string> modelConfig{ipInfo};
@@ -1201,8 +1169,7 @@ static bool LlmSetModelConfig(const EngineConfig &engineConfig,
     return true;
 }
 
-Role LlmManagerImpl::GetRoleFromString(std::string &pdRole) const
-{
+Role LlmManagerImpl::GetRoleFromString(std::string &pdRole) const {
     if ("decoder" == pdRole) {
         return Role::D;
     }
@@ -1218,8 +1185,7 @@ Role LlmManagerImpl::GetRoleFromString(std::string &pdRole) const
     return Role::PnD;
 }
 
-void LlmManagerImpl::InitEngineDPProcessGroup(SchedulerConfig &schedulerConfig)
-{
+void LlmManagerImpl::InitEngineDPProcessGroup(SchedulerConfig &schedulerConfig) {
     std::vector<NodeInfo> nodeInfos;
     if (engineConfig_.distributedEnable && schedulerConfig.dpSize > 1) {
         // DataParallel部署形态，需要初始化进程组用于DP间通信
@@ -1231,8 +1197,7 @@ void LlmManagerImpl::InitEngineDPProcessGroup(SchedulerConfig &schedulerConfig)
     }
 }
 
-BlockNum LlmManagerImpl::GetMinBlockNumFromExecutors()
-{
+BlockNum LlmManagerImpl::GetMinBlockNumFromExecutors() {
     // CpuBlockNum和NpuBlockNum是Executor类的静态成员变量，所有Executor实例共享这两个值，其值为所有NPU中最小的blockNum
     // 因此只需获取第一个Executor实例的数值即可
     uint32_t minCpuBlockNum = iExecutorSPtrs_.front()->GetCpuBlockNum();
@@ -1243,8 +1208,7 @@ BlockNum LlmManagerImpl::GetMinBlockNumFromExecutors()
     return blockNum;
 }
 
-ThinkingConfig LlmManagerImpl::GetThinkingConfigFromExecutors()
-{
+ThinkingConfig LlmManagerImpl::GetThinkingConfigFromExecutors() {
     ThinkingConfig thinkingConfig;
     if (iExecutorSPtrs_.size() != 0 && iExecutorSPtrs_.front() != nullptr) {
         thinkingConfig = iExecutorSPtrs_.front()->GetThinkingConfig();
@@ -1252,16 +1216,17 @@ ThinkingConfig LlmManagerImpl::GetThinkingConfigFromExecutors()
     return thinkingConfig;
 }
 
-Status LlmManagerImpl::LaunchLlmEngine(Role pdRole)
-{
+Status LlmManagerImpl::LaunchLlmEngine(Role pdRole) {
     if (iExecutorSPtrs_.size() == 0) {
         MINDIE_LLM_LOG_ERROR("LlmManagerImpl::LaunchLlmEngine:iExecutorSPtrs_ is empty");
         return Status(Error::Code::ERROR, "Executors is empty.");
     }
 
     if ((engineConfig_.multiNodesInferEnabled || engineConfig_.layerwiseDisaggregated) && !engineConfig_.isMaster) {
-        MINDIE_LLM_LOG_INFO("In centralized inter-node PD co-locating, the slave node does not hold its own LlmEngine, "
-                            "it shares the same LlmEngine with the master node.");
+        MINDIE_LLM_LOG_INFO(
+            "In centralized inter-node PD co-locating, the slave node does not "
+            "hold its own LlmEngine, "
+            "it shares the same LlmEngine with the master node.");
         return Status(Error::Code::OK, "Success");
     }
 
@@ -1280,9 +1245,9 @@ Status LlmManagerImpl::LaunchLlmEngine(Role pdRole)
 
     llmEnginePtr_ = MakeLlmEngine(schedulerConfig, iExecutorSPtrs_, handleResponse_, pdRole, &llmEngineReady_);
     std::vector<ModelParam> modelParamVec = engineConfig_.modelDeployParam;
-    llmEnginePtr_->InitStaticLoras(modelParamVec, iExecutorSPtrs_.size()); // 初始化lora_manager中静态lora
-    InitEngineDPProcessGroup(schedulerConfig); // 初始化分布式多DP进程通信资源
-    llmEnginePtr_->StartEngineThread(); // 启动Engine调度线程
+    llmEnginePtr_->InitStaticLoras(modelParamVec, iExecutorSPtrs_.size());  // 初始化lora_manager中静态lora
+    InitEngineDPProcessGroup(schedulerConfig);                              // 初始化分布式多DP进程通信资源
+    llmEnginePtr_->StartEngineThread();                                     // 启动Engine调度线程
 
     // 标记Engine已就绪。请求会进入Scheduler队列，调度线程会按正常流程处理
     // 无需等待线程启动，因为队列和调度机制本身是线程安全的
@@ -1298,8 +1263,7 @@ Status LlmManagerImpl::LaunchLlmEngine(Role pdRole)
 }
 
 Status LlmManagerImpl::InitModelForMultiPd(const std::map<std::string, std::string> pdInfo,
-                                           [[maybe_unused]] uint32_t modelInstanceId)
-{
+                                           [[maybe_unused]] uint32_t modelInstanceId) {
     if (iExecutorSPtrs_.size() == 0) {
         return Status(Error::Code::ERROR, "iExecutorSPtrs_ in InitModelForMultiPd is empty");
     }
@@ -1338,8 +1302,7 @@ bool LlmManagerImpl::GetMultiNodesInferEnabled() const { return multiNodesInferE
 bool LlmManagerImpl::GetDmiInferEnabled() const { return isDmiInfer_; }
 
 Status LlmManagerImpl::Init(uint32_t modelInstanceId, std::set<size_t> npuDeviceIds,
-    [[maybe_unused]] std::map<std::string, std::string> extendInfo)
-{
+                            [[maybe_unused]] std::map<std::string, std::string> extendInfo) {
     if (handleResponse_ == nullptr) {
         return Status(Error::Code::ERROR, "callback function is nullptr");
     }
@@ -1356,7 +1319,7 @@ Status LlmManagerImpl::Init(uint32_t modelInstanceId, std::set<size_t> npuDevice
     }
     multiNodesInferEnabled_ = engineConfig_.multiNodesInferEnabled;
     isMaster_ = engineConfig_.isMaster;
-    
+
     if (!LlmSetModelConfig(engineConfig_, modelConfigs_, ipInfo_, isDmiInfer_)) {
         MINDIE_LLM_LOG_ERROR("Malloc modelBackends_ failed.");
         return Status(Error::Code::ERROR, "Engine init model failed: new modelBackends_ failed");
@@ -1372,14 +1335,14 @@ Status LlmManagerImpl::Init(uint32_t modelInstanceId, std::set<size_t> npuDevice
     size_t shmCount = 1;
     auto it = engineConfig_.modelDeployParam[0].modelConfig.find("dp");
 
-    if (engineConfig_.layerwiseDisaggregated) { // 边云特性的逻辑在这个分支
+    if (engineConfig_.layerwiseDisaggregated) {  // 边云特性的逻辑在这个分支
         size_t dp = 1;
         if (it != engineConfig_.modelDeployParam[0].modelConfig.end()) {
             dp = std::stoul(it->second);
         }
         auto &configManager = mindie_llm::ConfigManager::GetInstance();
         if (configManager.GetLwdRoleType() == "master") {
-            executorNum = dp;   // master起dp个
+            executorNum = dp;  // master起dp个
         } else {
             std::vector<std::string> slaveIPs;
             mindie_llm::Split(modelConfigs_[0].at("slaveIPs"), ",", slaveIPs);
@@ -1413,9 +1376,11 @@ Status LlmManagerImpl::Init(uint32_t modelInstanceId, std::set<size_t> npuDevice
     threads.reserve(executorNum);
     iExecutorSPtrs_.resize(executorNum);
     if (!SharedMemorySizeCheck(TOTAL_SHARED_MEMORY_PER_DP * shmCount)) {
-        MINDIE_LLM_LOG_ERROR("Available shared memory size is not enough for all executors. Please increase the "
-                                 "available shared memory. The least required size is " +
-                                 std::to_string(TOTAL_SHARED_MEMORY_PER_DP * shmCount));
+        MINDIE_LLM_LOG_ERROR(
+            "Available shared memory size is not enough for all executors. "
+            "Please increase the "
+            "available shared memory. The least required size is " +
+            std::to_string(TOTAL_SHARED_MEMORY_PER_DP * shmCount));
         return Status(Error::Code::ERROR, "Shared memory size is not enough for all executors.");
     }
     for (size_t i = 0; i < executorNum; i++) {
@@ -1455,14 +1420,12 @@ Status LlmManagerImpl::Init(uint32_t modelInstanceId, std::set<size_t> npuDevice
     return LaunchLlmEngine(role);
 }
 
-Status LlmManagerImpl::ProcessRequests(RequestSPtr request)
-{
+Status LlmManagerImpl::ProcessRequests(RequestSPtr request) {
     MINDIE_LLM_LOG_WARN_REQUEST("Get a new inferRequest from server, requestId: " << request->requestId);
     return ForwardRequest(request);
 }
 
-Status LlmManagerImpl::ProcessRequests()
-{
+Status LlmManagerImpl::ProcessRequests() {
     if (getRequests_ == nullptr) {
         return Status(Error::Code::ERROR, "getRequests_ is nullptr");
     }
@@ -1487,8 +1450,7 @@ Status LlmManagerImpl::ProcessRequests()
     return Status(Error::Code::OK, "Success");
 }
 
-Status LlmManagerImpl::ForwardRequest(RequestSPtr request)
-{
+Status LlmManagerImpl::ForwardRequest(RequestSPtr request) {
     Status ret = ProcessReqInputIds(request);
     if (!ret.IsOk()) {
         return ret;
@@ -1502,12 +1464,12 @@ Status LlmManagerImpl::ForwardRequest(RequestSPtr request)
     return Status(Error::Code::OK, "Success");
 }
 
-Status VerifyInputTokenSize(int64_t inputTokenSize, uint32_t maxInputTokenSize)
-{
+Status VerifyInputTokenSize(int64_t inputTokenSize, uint32_t maxInputTokenSize) {
     if (inputTokenSize > g_maxPositionEmbeddings && g_maxPositionEmbeddings > 0) {
-        std::string errorMsg = "This model's maximum input ids length cannot be greater than maxPositionEmbeddings " +
-                               std::to_string(g_maxPositionEmbeddings) + "," + "the input ids length is " +
-                               std::to_string(inputTokenSize);
+        std::string errorMsg =
+            "This model's maximum input ids length cannot be greater than "
+            "maxPositionEmbeddings " +
+            std::to_string(g_maxPositionEmbeddings) + "," + "the input ids length is " + std::to_string(inputTokenSize);
         MINDIE_LLM_LOG_ERROR(errorMsg);
         return Status(Error::Code::INVALID_ARG, errorMsg);
     }
@@ -1521,20 +1483,22 @@ Status VerifyInputTokenSize(int64_t inputTokenSize, uint32_t maxInputTokenSize)
     }
 
     if (inputTokenSize > g_maxSeqLen) {
-        std::string errorMsg = "This model's maximum input ids length cannot be greater than maxSeqLen " +
-                               std::to_string(g_maxSeqLen) + "," + "the input ids length is " +
-                               std::to_string(inputTokenSize);
+        std::string errorMsg =
+            "This model's maximum input ids length cannot be greater than "
+            "maxSeqLen " +
+            std::to_string(g_maxSeqLen) + "," + "the input ids length is " + std::to_string(inputTokenSize);
         MINDIE_LLM_LOG_ERROR(errorMsg);
         return Status(Error::Code::INVALID_ARG, errorMsg);
     }
     return Status(Error::Code::OK, "Success");
 }
 
-Status VerifyTopK(RequestSPtr &request)
-{
+Status VerifyTopK(RequestSPtr &request) {
     int32_t topK = request->topK.value();
     if (g_vocabSizeConfig > static_cast<uint32_t>(INT32_MAX)) {
-        std::string errorMsg = "The value of g_vocabSizeConfig exceeds the maximum limit INT32_MAX.";
+        std::string errorMsg =
+            "The value of g_vocabSizeConfig exceeds the maximum limit "
+            "INT32_MAX.";
         MINDIE_LLM_LOG_ERROR(errorMsg);
         return Status(Error::Code::INVALID_ARG, errorMsg);
     }
@@ -1547,15 +1511,16 @@ Status VerifyTopK(RequestSPtr &request)
     }
     if (topK > signedVocabSizeConfig || topK > g_maxTopKConfig) {
         request->topK = std::min(signedVocabSizeConfig, g_maxTopKConfig);
-        MINDIE_LLM_LOG_INFO_REQUEST("Request topK value has been set to " << request->topK.value()
-                            << ". Config the `top_k` value in the `generation_config.json` file of the model.");
+        MINDIE_LLM_LOG_INFO_REQUEST("Request topK value has been set to "
+                                    << request->topK.value()
+                                    << ". Config the `top_k` value in the `generation_config.json` "
+                                       "file of the model.");
     }
     return Status(Error::Code::OK, "Success");
 }
 
-static Status CheckReqInputIds(RequestSPtr &request, const uint32_t vocabSize)
-{
-    if (vocabSize == 0) { // 有些配置下（如多模态），vocabSize可能为0，表示不检查input_ids
+static Status CheckReqInputIds(RequestSPtr &request, const uint32_t vocabSize) {
+    if (vocabSize == 0) {  // 有些配置下（如多模态），vocabSize可能为0，表示不检查input_ids
         return Status(Error::Code::OK, "Success");
     }
     MINDIE_LLM_LOG_DEBUG_REQUEST("Checking input ids from request in CheckReqInputIds function.");
@@ -1568,8 +1533,7 @@ static Status CheckReqInputIds(RequestSPtr &request, const uint32_t vocabSize)
     return Status(Error::Code::OK, "Success");
 }
 
-Status LlmManagerImpl::ProcessReqInputIds(RequestSPtr &request) const
-{
+Status LlmManagerImpl::ProcessReqInputIds(RequestSPtr &request) const {
     if (!request) {
         MINDIE_LLM_LOG_ERROR("CheckReqInputIds: request is nullptr.");
         return Status(Error::Code::ERROR, "CheckReqInputIds: request is nullptr.");
@@ -1606,12 +1570,11 @@ Status LlmManagerImpl::ProcessReqInputIds(RequestSPtr &request) const
     return Status(Error::Code::OK, "Success");
 }
 
-void LlmManagerImpl::ControlRequest(const RequestIdNew &requestId, OperationV2 operation)
-{
+void LlmManagerImpl::ControlRequest(const RequestIdNew &requestId, OperationV2 operation) {
     RequestId reqId = requestId;
     std::unordered_set<RequestId> reqIds = {reqId};
     MINDIE_LLM_LOG_INFO_REQUEST("Get a new ControlRequest from server, requestId: " << reqId << ", with operation:"
-                                                                            << static_cast<int>(operation));
+                                                                                    << static_cast<int>(operation));
     if (operation == OperationV2::STOP) {
         llmEnginePtr_->AbortRequests(reqIds);
     } else if (operation == OperationV2::RELEASE_KV) {
@@ -1621,13 +1584,12 @@ void LlmManagerImpl::ControlRequest(const RequestIdNew &requestId, OperationV2 o
     }
 }
 
-void LlmManagerImpl::ControlRequest()
-{
+void LlmManagerImpl::ControlRequest() {
     auto stopReqPairs = controlCallback_();
     for (auto reqPair : stopReqPairs) {
         RequestId reqId = reqPair.first;
-        MINDIE_LLM_LOG_INFO("Get a new ControlRequest from server, requestId: "
-                    << reqId << ", with operation:" << static_cast<int>(reqPair.second));
+        MINDIE_LLM_LOG_INFO("Get a new ControlRequest from server, requestId: " << reqId << ", with operation:"
+                                                                                << static_cast<int>(reqPair.second));
         std::unordered_set<RequestId> reqIds = {reqId};
         if (reqPair.second == OperationV2::STOP) {
             llmEnginePtr_->AbortRequests(reqIds);
@@ -1644,8 +1606,7 @@ void LlmManagerImpl::ControlRequest()
     }
 }
 
-void LlmManagerImpl::SendRuntimeStatus()
-{
+void LlmManagerImpl::SendRuntimeStatus() {
     if ((engineConfig_.multiNodesInferEnabled || engineConfig_.layerwiseDisaggregated) && !engineConfig_.isMaster) {
         return;
     }
@@ -1655,8 +1616,7 @@ void LlmManagerImpl::SendRuntimeStatus()
     SendJsonData(engineMetric);
 }
 
-void LlmManagerImpl::SendJsonData(EngineMetric &engineMetric)
-{
+void LlmManagerImpl::SendJsonData(EngineMetric &engineMetric) {
     enum class HealthStatus { READY, ABNORMAL };
     std::map<std::string, HealthStatus> healthStatus{};
     Json jsonData = {{"slaves_status", healthStatus},
@@ -1687,8 +1647,7 @@ void LlmManagerImpl::SendJsonData(EngineMetric &engineMetric)
     }
 }
 
-Status LlmManagerImpl::Finalize()
-{
+Status LlmManagerImpl::Finalize() {
     // 0. finalize threads
     Stop();
 
@@ -1708,8 +1667,7 @@ Status LlmManagerImpl::Finalize()
     return Status(Error::Code::OK, "Success.");
 }
 
-Status LlmManagerImpl::FinalizeLlmEngine() const
-{
+Status LlmManagerImpl::FinalizeLlmEngine() const {
     if (multiNodesInferEnabled_ && !isMaster_) {
         MINDIE_LLM_LOG_INFO("Multi Nodes inference slave instance need not finalize.");
     } else {
@@ -1723,8 +1681,7 @@ uint32_t LlmManagerImpl::GetMaxPositionEmbeddings() const { return maxPositionEm
 
 std::map<std::string, std::string> LlmManagerImpl::GetModelParams() { return g_modelParams; }
 
-Status LlmManagerImpl::RelaunchLlmEngine(int64_t roleIndex)
-{
+Status LlmManagerImpl::RelaunchLlmEngine(int64_t roleIndex) {
     constexpr int MIN_ROLE_INDEX = 1;
     constexpr int MAX_ROLE_INDEX = 3;
     if (roleIndex < MIN_ROLE_INDEX || roleIndex > MAX_ROLE_INDEX) {
@@ -1749,8 +1706,7 @@ Status LlmManagerImpl::RelaunchLlmEngine(int64_t roleIndex)
     return Status(Error::Code::OK, "Switch P/D role successfully!");
 }
 
-bool LlmManagerImpl::SwitchPdRole(RequestSPtr &runtimeRequest)
-{
+bool LlmManagerImpl::SwitchPdRole(RequestSPtr &runtimeRequest) {
     int64_t roleInt = static_cast<int64_t>(runtimeRequest->role);
     bool needSwitch = runtimeRequest->needSwitch;
 
@@ -1767,8 +1723,7 @@ bool LlmManagerImpl::SwitchPdRole(RequestSPtr &runtimeRequest)
 }
 
 bool LlmManagerImpl::SetExecuteConfig(bool isForceRelease, std::map<std::string, std::string> &executeConfig,
-                                      RequestSPtr &runtimeRequest)
-{
+                                      RequestSPtr &runtimeRequest) {
     if (!isForceRelease) {
         if (!SwitchPdRole(runtimeRequest)) {
             return false;
@@ -1780,10 +1735,11 @@ bool LlmManagerImpl::SetExecuteConfig(bool isForceRelease, std::map<std::string,
     return true;
 }
 
-bool LlmManagerImpl::UpdateEngineInfo(RequestSPtr &runtimeRequest, bool isForceRelease)
-{
+bool LlmManagerImpl::UpdateEngineInfo(RequestSPtr &runtimeRequest, bool isForceRelease) {
     if (pdRole_ == Role::FlexP && isFlexInitialized_) {
-        MINDIE_LLM_LOG_INFO("[LlmManager::LlmManagerImpl::UpdateEngineInfo] Only set flex prefill percentage.");
+        MINDIE_LLM_LOG_INFO(
+            "[LlmManager::LlmManagerImpl::UpdateEngineInfo] Only set flex "
+            "prefill percentage.");
         return true;
     }
 
@@ -1817,10 +1773,11 @@ bool LlmManagerImpl::UpdateEngineInfo(RequestSPtr &runtimeRequest, bool isForceR
     return true;
 }
 
-bool LlmManagerImpl::LlmManagerImpl::QueryPDLinkStatus(model_execute_data::PDLinkStatusResponse &response)
-{
+bool LlmManagerImpl::LlmManagerImpl::QueryPDLinkStatus(model_execute_data::PDLinkStatusResponse &response) {
     if (pdRole_ == Role::FlexP && isFlexInitialized_) {
-        MINDIE_LLM_LOG_INFO("[LlmManager::LlmManagerImpl::QueryPDLinkStatus] Flex mode, skipping query.");
+        MINDIE_LLM_LOG_INFO(
+            "[LlmManager::LlmManagerImpl::QueryPDLinkStatus] Flex mode, "
+            "skipping query.");
         return true;
     }
 
@@ -1844,19 +1801,20 @@ bool LlmManagerImpl::LlmManagerImpl::QueryPDLinkStatus(model_execute_data::PDLin
 
     // Aggregate responses from all executors
     for (size_t i = 0; i < iExecutorSPtrs_.size(); i++) {
-        const auto& executorResponse = iExecutorSPtrs_[i]->GetPDLinkStatusResponse();
+        const auto &executorResponse = iExecutorSPtrs_[i]->GetPDLinkStatusResponse();
         response.mutable_failed_link_info()->MergeFrom(executorResponse.failed_link_info());
         response.mutable_success_link_info()->MergeFrom(executorResponse.success_link_info());
         response.mutable_running_link_info()->MergeFrom(executorResponse.running_link_info());
         response.mutable_waitting_link_info()->MergeFrom(executorResponse.waitting_link_info());
     }
 
-    MINDIE_LLM_LOG_INFO("[LlmManager::LlmManagerImpl::QueryPDLinkStatus] Query completed successfully.");
+    MINDIE_LLM_LOG_INFO(
+        "[LlmManager::LlmManagerImpl::QueryPDLinkStatus] Query completed "
+        "successfully.");
     return true;
 }
 
-EngineMetric LlmManagerImpl::CollectEngineMetric(size_t localDPRank)
-{
+EngineMetric LlmManagerImpl::CollectEngineMetric(size_t localDPRank) {
     EngineMetric engineMetric = {};
     if (engineConfig_.multiNodesInferEnabled && !engineConfig_.isMaster) {
         return engineMetric;
@@ -1875,8 +1833,7 @@ EngineMetric LlmManagerImpl::CollectEngineMetric(size_t localDPRank)
     return engineMetric;
 }
 
-Status LlmManagerImpl::HandleLoraImpl(const LoraOperation loraOperation, std::vector<LoraParamSPtr> &loraInfo)
-{
+Status LlmManagerImpl::HandleLoraImpl(const LoraOperation loraOperation, std::vector<LoraParamSPtr> &loraInfo) {
     Status ret;
     size_t dpSize = iExecutorSPtrs_.size();
     if (loraOperation == mindie_llm::LoraOperation::LORA_QUERY) {
@@ -1884,7 +1841,9 @@ Status LlmManagerImpl::HandleLoraImpl(const LoraOperation loraOperation, std::ve
         return ret;
     }
     if (pdRole_ != Role::PnD && pdRole_ != Role::FlexP) {
-        MINDIE_LLM_LOG_ERROR("[LlmManager::LlmManagerImpl::HandleLoraImpl] Multi Lora does not support PD separation.");
+        MINDIE_LLM_LOG_ERROR(
+            "[LlmManager::LlmManagerImpl::HandleLoraImpl] Multi Lora does not "
+            "support PD separation.");
         return Status(Error::Code::ERROR, "Multi Lora does not support PD separation!");
     }
     if (loraOperation == mindie_llm::LoraOperation::LORA_LOAD) {
@@ -1895,8 +1854,7 @@ Status LlmManagerImpl::HandleLoraImpl(const LoraOperation loraOperation, std::ve
     return ret;
 }
 
-bool LlmManagerImpl::UpdateFlexSwitchInfo(const std::shared_ptr<FlexSwitchInfo> flexSwitchInfo)
-{
+bool LlmManagerImpl::UpdateFlexSwitchInfo(const std::shared_ptr<FlexSwitchInfo> flexSwitchInfo) {
     if (flexSwitchInfo == nullptr) {
         MINDIE_LLM_LOG_ERROR("[UpdateFlexSwitchInfo] flexSwitchInfo is nullptr.");
         return false;
@@ -1905,8 +1863,7 @@ bool LlmManagerImpl::UpdateFlexSwitchInfo(const std::shared_ptr<FlexSwitchInfo> 
     return true;
 }
 
-bool LlmManagerImpl::ExecuteRecoverCommand(RecoverCommandInfo &commandInfo) const
-{
+bool LlmManagerImpl::ExecuteRecoverCommand(RecoverCommandInfo &commandInfo) const {
     std::string command = commandInfo.command;
 
     if (command == "CMD_PAUSE_ENGINE" || command == "CMD_PAUSE_ENGINE_ROCE") {
@@ -1925,4 +1882,4 @@ bool LlmManagerImpl::ExecuteRecoverCommand(RecoverCommandInfo &commandInfo) cons
     return true;
 }
 
-} // namespace mindie_llm
+}  // namespace mindie_llm

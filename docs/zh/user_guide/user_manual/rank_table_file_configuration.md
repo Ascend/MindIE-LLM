@@ -1,10 +1,10 @@
-# rank\_table\_file.json 配置指南
+# rank_table_file.json 配置指南
 
 ## 概述
 
 在多机推理场景下，MindIE-LLM 依赖 HCCL（Huawei Collective Communication Library）进行多节点间的集合通信。为了让各节点上的 NPU 卡能够互相发现并建立通信连接，需要用户提供一个 `rank_table_file.json` 文件，用于描述集群中每张卡的拓扑信息。
 
-`rank_table_file.json` 本质上是一份"通信拓扑表"，它告诉 HCCL 以下几个关键信息：
+`rank_table_file.json` 本质上是一份“通信拓扑表”，它告诉 HCCL 以下几个关键信息：
 
 - 集群中有多少台机器（server_count）
 - 每台机器有哪些 NPU 卡（device_id）
@@ -93,7 +93,7 @@ for i in {0..15}; do hccn_tool -i $i -ip -g; done
 执行后会输出每张卡的 IP 地址信息，请将结果记录下来，后续编写 `rank_table_file.json` 时需要使用。
 
 > [!NOTE]
-> 
+>
 > - 每张 NPU 卡都有一个独立的 RoCE（RDMA over Converged Ethernet）网口，拥有自己的 IP 地址，此 IP 地址用于卡间高速通信。
 > - 不同机器上的 NPU 卡数可能不同，请根据实际情况调整循环范围。例如，每机 8 卡时使用 `{0..7}`。
 
@@ -338,7 +338,7 @@ export MASTER_PORT=xxxx                    # 主机端口号，取值范围 [0, 
 ```
 
 > [!NOTE]
-> 
+>
 > - `MASTER_IP` 应填写 `server_list` 中第一个 server 的 `server_id` 值。
 > - `MIES_CONTAINER_IP` 应填写当前机器对应的 `server_id` 值。
 > - 如果容器内设置了代理，需要取消设置，避免多机通信异常：

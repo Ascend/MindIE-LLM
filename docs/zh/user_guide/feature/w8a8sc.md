@@ -13,7 +13,7 @@
 >- 压缩算法和硬件强相关，仅Atlas 300I Duo 推理卡支持稀疏量化。
 >- bfloat16权重不支持稀疏量化。
 >- 仅支持Qwen3-8B、Qwen3-14B和Qwen3-32B。
->- 仅支持和并行解码、Prefix Cache、Function Call、长序列特性同时使用。
+>- 仅支持并行解码、Prefix Cache、Function Call、长序列特性同时使用。
 
 稀疏+量化后权重目录结构：
 
@@ -86,7 +86,7 @@
 
 压缩后的MatMul权重相比量化新增了index，压缩信息用于复原权重。
 
-**图 1**  量化权重推理时流程<a name="fig13717203714549"></a>  
+**图 1**  量化权重推理时流程<a name="fig13717203714549"></a>
 ![](./figures/w8a8sc.png "量化权重推理时流程-2")
 
 **表 1**  float16权重量化后dtype及shape信息（假设原始权重的shape为\[n, k\]）
@@ -94,11 +94,11 @@
 |Tensor信息|weight|input_scale|input_offset|quant_bias|deq_scale|index|
 |--|--|--|--|--|--|--|
 |dtype|int8|float16|int8|int32|int64|int8|
-|shape|[x]x的取值范围为(0, n * k)。|[1]|[1]|[n]|[n]|[y]y由以下计算得出。y = k_index *n_index* 8k_index = ceil(k1 / tilingK)n_index = ceil(n1 / tilingN)k1 = k / 32n1 = n / 16其中，ceil()为向上取整函数 ，tilingK和tilingN为稀疏量化默认参数。|
+|shape|[x]<br>x的取值范围为(0, n * k)。|[1]|[1]|[n]|[n]|[y]<br>y由以下计算得出。<br>y = k_index *n_index* 8<br>k_index = ceil(k1 / tilingK)<br>n_index = ceil(n1 / tilingN)<br>k1 = k / 32<br>n1 = n / 16<br>其中，ceil()为向上取整函数 ，tilingK和tilingN为稀疏量化默认参数。|
 
 ## 前提条件
 
-在使用稀疏量化脚本之前，需要安装压缩工具msmodelslim，安装步骤参见《msModelSlim工具》的“[msModelSlim安装](https://gitcode.com/Ascend/msit/blob/master/msmodelslim/docs/%E5%AE%89%E8%A3%85%E6%8C%87%E5%8D%97.md)”章节。
+在使用稀疏量化脚本之前，需要安装压缩工具msModelSlim，安装步骤参见《msModelSlim工具》的“[msModelSlim安装](https://gitcode.com/Ascend/msit/blob/master/msmodelslim/docs/%E5%AE%89%E8%A3%85%E6%8C%87%E5%8D%97.md)”章节。
 
 ## 生成权重
 
@@ -113,7 +113,7 @@
     - 以上指令包含生成Qwen3-8B W8A8S稀疏量化权重的最优参数配置，不同模型的参数配置不同，请参考模型Readme文件。
     - 生成权重后需将浮点权重下的special\_tokens\_map.json文件复制到W8A8S量化权重路径
 
-2. 使用以下指令设置msModelSlim工具所在的Python路径环境变量，\{Python Lib Path\}为安装msmodelslim时编译步骤中所在的Python路径。
+2. 使用以下指令设置msModelSlim工具所在的Python路径环境变量，\{Python Lib Path\}为安装msModelSlim时编译步骤中所在的Python路径。
 
     ```bash
     export LD_LIBRARY_PATH={Python Lib Path}/lib:$LD_LIBRARY_PATH

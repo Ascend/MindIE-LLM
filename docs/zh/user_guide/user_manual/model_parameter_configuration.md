@@ -1,6 +1,6 @@
 # 配置参数说明（模型侧）
 
-模型侧atb-models安装目录下的配置文件获取路径为：$\{ATB\_SPEED\_HOME\_PATH\}/atb\_llm/conf/config.json
+模型侧atb-models安装目录下的配置文件获取路径为：$\{ATB_SPEED_HOME_PATH\}/atb_llm/conf/config.json
 
 模型的配置文件config.json格式如下：
 
@@ -118,7 +118,7 @@
 |--|--|--|--|
 |deepseekv2|map|-|deepseekv2相关配置。详情请参见[deepseekv2参数](#deepseekv2参数)。|
 
-## deepseekv2参数 
+## deepseekv2参数
 
 |配置项|取值类型|取值范围|配置说明|
 |--|--|--|--|
@@ -131,7 +131,7 @@
 |enable_oproj_prefetch|bool|<ul><li>true</li><li>false</li></ul>|控制是否开启oproj预取。<br>Atlas 800I A2 推理服务器不建议开启。Atlas 800I A3 超节点服务器建议与OprojTp同时开启，推荐OprojTp设置为2。<ul><li>true：开启</li><li>false：关闭</li></ul>默认值：false|
 |eplb|
 |level|int|[0, 3]|<ul><li>0 : 不开启负载均衡</li><li>1 : 开启静态冗余负载均衡</li><li>2 : 开启动态冗余负载均衡（暂不支持）</li><li>3 : 开启强制负载均衡</li></ul>默认值：0|
-|expert_map_file|string|该文件路径存在|静态冗余负载专家部署表路径。<br>默认值：""|
+|expert_map_file|string|文件路径|静态冗余负载专家部署表路径。<br>默认值：""|
 |num_redundant_experts|int|[0, n_routed_experts]|**当前版本暂不支持该参数。**<br>冗余专家的个数。<br>默认值：0|
 |aggregate_threshold|int|≥1|**当前版本暂不支持该参数。**<br>表示动态EPLB算法触发的频率，单位是decode次数。<br>例如：50表示50次decode，触发一次动态EPLB算法，若算法认为热度超过一定阈值时，则调整路由表来降低算法热度。|
 |buffer_expert_layer_num|int|[1, num_moe_layers]|**当前版本暂不支持该参数。**<br>表示动态EPLB每次搬运的layer个数。<br>由于权重搬运为异步搬运，在不影响原decode情况下，需要一个额外的buffer内存来存放被搬运中的新权重，配置为1层时，则为一次只搬运一层，然后刷新掉一层layer的权重和路由表。<br>影响的内存公式为：buffer_expert_layer_num*local_experts_num*44M (44M为一个int8的专家大小)|

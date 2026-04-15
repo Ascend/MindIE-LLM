@@ -1,25 +1,25 @@
 /**
  * Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
  * MindIE is licensed under Mulan PSL v2.
- * You can use this software according to the terms and conditions of the Mulan PSL v2.
- * You may obtain a copy of Mulan PSL v2 at:
+ * You can use this software according to the terms and conditions of the Mulan
+ * PSL v2. You may obtain a copy of Mulan PSL v2 at:
  *          http://license.coscl.org.cn/MulanPSL2
- * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
- * EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
- * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
- * See the Mulan PSL v2 for more details.
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY
+ * KIND, EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
+ * NON-INFRINGEMENT, MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE. See the
+ * Mulan PSL v2 for more details.
  */
 
 #ifndef GLOBAL_PARAM_H
 #define GLOBAL_PARAM_H
-#include <iostream>
+#include <cstdint>
 #include <cstring>
-#include <vector>
+#include <iostream>
+#include <map>
+#include <memory>
 #include <set>
 #include <string>
-#include <cstdint>
-#include <memory>
-#include <map>
+#include <vector>
 
 namespace mindie_llm {
 
@@ -163,7 +163,7 @@ struct EngineConfig {
     bool supportSelectBatch{};
     bool supportEarlyFinish = true;
     uint32_t maxQueueDelayMicroseconds{};
-    uint32_t maxBeamWidth = 128U;
+    uint32_t maxN = 128U;
     // policy
     uint32_t policyType = 0U;
     uint32_t maxIterTimes;
@@ -360,7 +360,7 @@ struct ScheduleConfig {
     uint32_t maxPreemptCount{};
     bool supportSelectBatch{};
     uint32_t maxQueueDelayMicroseconds{};
-    uint32_t maxBeamWidth = 128U;
+    uint32_t maxN = 128U;
     // policy
     uint32_t policyType = 0U;
     uint32_t maxIterTimes = 0U;
@@ -391,7 +391,7 @@ struct ScheduleConfig {
     // slo
     uint16_t stageSelectPolicy = 0;
     bool dynamicBatchSizeEnable = false;
-    
+
     // layerwiseDisaggregated
     bool lwdNextPHeadPrior = false;
 };
@@ -453,15 +453,16 @@ struct SchedulerConfig {
     uint32_t spSize{1};
     uint32_t tpSize{1};
     uint32_t cpSize{1};
-    
+
     // store rankid for logging
     int dpRankId_{0};
-    
+
     // blockManageConfig
     uint32_t cacheBlockSize;
 
-    // New requirement: multiple KV cache block managers (e.g. different block sizes / compression ratios).
-    // If empty, fallback to legacy single block manager using `cacheBlockSize`.
+    // New requirement: multiple KV cache block managers (e.g. different block
+    // sizes / compression ratios). If empty, fallback to legacy single block
+    // manager using `cacheBlockSize`.
     struct KVCacheDesc {
         uint32_t npuBlockNum{0};
         uint32_t blockSize{0};
@@ -491,10 +492,11 @@ struct SchedulerConfig {
 
     // chunked prefill（外部参数缺少参数校验）
     bool enableChunkedPrefill{false};
-    size_t prefillChunkSize;          // 固定切分长度的块大小
-    size_t maxNumPartialPrefills;     // batch中可以被并行做partial prefill的最大请求数
-    size_t longPrefillTokenThreshold; // 判定为长prefill的未计算token数阈值
-    size_t maxLongPartialPrefills;    // batch中允许容纳的长prefill个数
+    size_t prefillChunkSize;           // 固定切分长度的块大小
+    size_t maxNumPartialPrefills;      // batch中可以被并行做partial
+                                       // prefill的最大请求数
+    size_t longPrefillTokenThreshold;  // 判定为长prefill的未计算token数阈值
+    size_t maxLongPartialPrefills;     // batch中允许容纳的长prefill个数
 
     // prefix cache
     bool enablePrefixCache;
@@ -512,11 +514,11 @@ struct SchedulerConfig {
     uint32_t maxDispatchBatchNum = 1;
     bool layerwiseDisaggregated = false;
 
-    bool isMultiNodeInfer{false}; // 集中式
+    bool isMultiNodeInfer{false};  // 集中式
 
     bool ChooseV2BlockManager() const;
 };
 
 using SchedulerConfigSPtr = std::shared_ptr<SchedulerConfig>;
-} // namespace mindie_llm
+}  // namespace mindie_llm
 #endif

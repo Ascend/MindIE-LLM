@@ -19,7 +19,7 @@
 ```
 
 > [!IMPORTANT]
-> 
+>
 > - 如果模型需要支持 `/chat/completion` 接口、多轮对话或 ToolCall，需实现 `InputBuilder`
 > - 如果模型需要支持 ToolCall 能力，需实现 `ToolCallsProcessor`
 
@@ -99,7 +99,7 @@ Router 需要继承 `BaseRouter` 。
 > **必需接口**：`__init__` - 继承基类即可，无需特殊实现
 >
 > **可扩展接口**（举例）：
-> 
+>
 > - `_get_input_builder()` - 返回自定义的 InputBuilder 实例
 > - `_get_tool_calls_parser()` - 返回工具调用解析器名称（支持 ToolsCall 时需要）
 
@@ -113,21 +113,21 @@ from mindie_llm.runtime.models.base.router import BaseRouter
 @dataclass
 class MyModelRouter(BaseRouter):
     """MyModel Router"""
-    
+
     def _get_input_builder(self):
         """
         获取 InputBuilder
-        
+
         如果模型需要特殊的输入格式（如自定义 chat_template），
         需要重写此方法返回自定义的 InputBuilder。
         默认返回 None，使用框架默认的 InputBuilder。
         """
         return None
-    
+
     def _get_tool_calls_parser(self):
         """
         获取工具调用解析器名称
-        
+
         如果模型支持 ToolsCall，需要重写此方法。
         默认不支持工具调用，返回 None。
         """
@@ -161,8 +161,8 @@ Config 需要继承 `HuggingFaceConfig`。
 > **必需接口**：`__init__` - 调用父类初始化，处理模型特有的配置项
 >
 > **可扩展接口**（举例）：
-> 
-> - `_create_rope_scaling()` - 自定义 RoPE 缩放配置，详细配置请参考 [RoPE 文档](../RoPEFactoryGuide.md)
+>
+> - `_create_rope_scaling()` - 自定义 RoPE 缩放配置，详细配置请参考 [RoPE 文档](../architecture_design/RoPEFactoryGuide.md)
 
 **示例**：
 
@@ -174,13 +174,13 @@ from mindie_llm.runtime.config.huggingface_config import HuggingFaceConfig
 @dataclass
 class MyModelConfig(HuggingFaceConfig):
     """MyModel 配置类，继承自 HuggingFaceConfig，定义模型特有的配置项。"""
-    
+
     use_qk_norm: bool = True  # 是否使用 QK 归一化，如果模型有额外参数配置可类似添加
-    
+
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         # 如果模型有新的配置项，在这里处理
-    
+
     def _create_rope_scaling(self, rope_scaling_dict, rope_theta, max_position_embeddings):
         """创建 RoPE 缩放配置"""
         return YourRopeScaling.from_dict(
@@ -247,7 +247,7 @@ class MyModelAttention(nn.Module):
         self.o_proj = RowParallelLinear(...)
         self.rope_emb = get_rope(...)
         self.attn = Attention(...)
-    
+
     def forward(self, positions, hidden_states):
         ...
 
@@ -258,7 +258,7 @@ class MyModelMoe(nn.Module):
         self.experts = FusedMoE(..., prefix=f"{prefix}.experts")
         self.gate = ReplicatedLinear(..., prefix=f"{prefix}.gate")
         self.shared_experts = MyModelMLP(...)  # 可选
-    
+
     def forward(self, hidden_states):
         ...
 
@@ -271,7 +271,7 @@ class MyModelLayer(nn.Module):
         # MoE 模型 or Dense 模型二选一
         self.mlp = MyModelMoe(..., prefix=f"{prefix}.mlp") # MOE
         self.mlp = MyModelMlp(..., prefix=f"{prefix}.mlp") # DENSE
-    
+
     def forward(self, positions, hidden_states):
         ...
 
@@ -284,7 +284,7 @@ class MyModelModel(nn.Module):
             for i in range(config.num_hidden_layers)
         ])
         self.norm = RMSNorm(...)
-    
+
     def forward(self, input_ids, positions):
         ...
 
@@ -293,10 +293,10 @@ class MyModelForCausalLM(BaseModelForCausalLM):
         super().__init__(mindie_llm_config)
         self.model = MyModelModel(..., prefix="model")
         self.lm_head = ParallelLMHead(..., prefix="lm_head")
-    
+
     def forward(self, input_ids, positions, ...):
         return self.model(input_ids, positions)
-    
+
     def compute_logits(self, hidden_states):
         ...
 ```
@@ -305,7 +305,7 @@ class MyModelForCausalLM(BaseModelForCausalLM):
 > **权重加载注意事项**：
 >
 > 模块的权重名称优先使用 `prefix` 字段定义，如果 `prefix` 字段没有定义，则直接使用模块的属性名进行匹配。
-> 
+>
 > - 权重名称与属性名一致时，无需指定 `prefix`，如 `self.o_proj = RowParallelLinear(...)`
 > - 权重名称与属性名不一致时，需要指定 `prefix`，如 `qkv_proj` 对应 `q_proj, k_proj, v_proj`，此时 `prefix` 为列表：`prefix=[f"{prefix}.q_proj", f"{prefix}.k_proj", f"{prefix}.v_proj"]`
 >
@@ -333,10 +333,10 @@ from mindie_llm.runtime.models.base.input_builder import InputBuilder
 
 class MyModelInputBuilder(InputBuilder):
     """MyModel InputBuilder"""
-    
+
     def __init__(self, tokenizer, **kwargs):
         super().__init__(tokenizer, **kwargs)
-    
+
     def _apply_chat_template(self, conversation, tools_msg=None, **kwargs):
         """应用 Chat Template"""
         if not hasattr(self.tokenizer, "apply_chat_template"):
@@ -352,7 +352,7 @@ class MyModelInputBuilder(InputBuilder):
 
 > [!NOTE]
 > **必需接口**：
-> 
+>
 > - `__init__` - 初始化，定义工具调用的正则表达式
 > - `tool_call_start_token` - 工具调用起始标记
 > - `tool_call_end_token` - 工具调用结束标记
@@ -372,27 +372,27 @@ from mindie_llm.runtime.models.base.tool_calls_processor import (
 @ToolCallsProcessorManager.register_module(module_names=["my_model"])
 class ToolCallsProcessorMyModel(ToolCallsProcessorWithXml):
     """MyModel ToolCallsProcessor"""
-    
+
     def __init__(self, tokenizer=None):
         super().__init__(tokenizer)
         self._tool_calls_regex = re.compile(r'<tool_call\s*({.*?})\s*/>', re.DOTALL)
-    
+
     @property
     def tool_call_start_token(self) -> str:
         return "<tool_call"
-    
+
     @property
     def tool_call_end_token(self) -> str:
         return "/>"
-    
+
     @property
     def tool_call_start_token_id(self) -> int:
         return self.tokenizer.convert_tokens_to_ids("<tool_call")
-    
+
     @property
     def tool_call_end_token_id(self) -> int:
         return self.tokenizer.convert_tokens_to_ids("/>")
-    
+
     @property
     def tool_call_regex(self):
         return self._tool_calls_regex
@@ -423,7 +423,7 @@ class ToolCallsProcessorMyModel(ToolCallsProcessorWithXml):
 - `QKVParallelLinear`: 多头和分组查询注意力机制的查询、键和值投影的并行线性层。当键值头数小于 world size 时，该类会正确复制键值头。
 
 > [!TIP]
-> 
+>
 > - `MergedColumnParallelLinear` 支持量化方式不一致的场景，当多个并行线性层的量化方式不统一时，会变成一个包含多个 `ColumnParallelLinear` 模块的列表。
 > - 框架提供 `ParallelInfoManager` 单例，用于获取并行数与 rank，通信域使用懒加载机制创建。可以通过 `get_parallel_info_manager().get(ParallelType.ATTN_TP).group_size` 获取并行信息。
 
@@ -457,10 +457,10 @@ MindIE-LLM 支持 AutoQuant 能力，目前已支持的量化方式请参考 [mi
 ### 9.2 相关文档
 
 - **CANN 文档**: [CANN-文档-昇腾社区](https://www.hiascend.com/cann/document)
-- **PTA 文档**: [Ascend Extension for PyTorch](https://www.hiascend.com/document/detail/zh/Pytorch/730/index/index.html)
+- **PyTorch 文档**: [Ascend Extension for PyTorch](https://www.hiascend.com/document/detail/zh/Pytorch/730/index/index.html)
 - **msmodelslim 文档**: [模型量化工具](https://gitcode.com/Ascend/msmodelslim)
 
 ---
 
-**文档版本**: v1.0  
-**最后更新**: 2026-03-20  
+**文档版本**: v1.0
+**最后更新**: 2026-03-20

@@ -47,6 +47,10 @@ tme = "tme"
 dout = "dout"
 Pn = "Pn"
 arange = "arange"
+nd = "nd"
+chage = "chage"
+aNULL = "aNULL"
+BA = "BA"
 
 [type.py]
 extend-glob = []
