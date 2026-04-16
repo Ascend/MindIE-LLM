@@ -876,8 +876,16 @@ class PluginManager:
                 # splitfuse: one row per token in flattened input_ids; must use per-token mask
                 hit_mask_per_token = filling_masks.get("hit_mask_per_token")
                 if hit_mask_per_token is not None:
-                    model_inputs.input_ids[hit_mask_per_token] = true_token_ids
-                    model_inputs.position_ids[hit_mask_per_token] += 1
+                    hit_mask_per_token = hit_mask_per_token.to(
+                        model_inputs.input_ids.device
+                    )
+                    model_inputs.input_ids = model_inputs.input_ids.masked_scatter(
+                        hit_mask_per_token,
+                        true_token_ids.to(model_inputs.input_ids.device),
+                    )
+                    model_inputs.position_ids = (
+                        model_inputs.position_ids + hit_mask_per_token
+                    )
                 update_indices = filling_masks.get("update_indices")
                 ones_int32 = filling_masks.get("ones_int32")
                 ones_int64 = filling_masks.get("ones_int64")
