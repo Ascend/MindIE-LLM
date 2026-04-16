@@ -27,19 +27,32 @@ class CacheEngine:
         for i in range(batch_size):
             token_len = sampling_output.num_new_tokens[i]
             self.infer_context.set_mtp_last_token_num(cached_ids[i], token_len)
-            self.infer_context.set_mtp_hidden_states_prefix(cached_ids[i], token_alias_len[i],
-                                                            hidden_states_cpu[start_idx:start_idx + token_alias_len[i]])
+            self.infer_context.set_mtp_hidden_states_prefix(
+                cached_ids[i],
+                token_alias_len[i],
+                hidden_states_cpu[start_idx : start_idx + token_alias_len[i]],
+            )
             start_idx += token_alias_len[i]
 
 
 class DecodingPolicy:
-    def __init__(self, generator_backend, infer_context, model_wrapper,
-                 num_speculative_tokens, device_and_type, plugin_data_param, model_role, eos_token_id, max_block_size):
+    def __init__(
+        self,
+        generator_backend,
+        infer_context,
+        model_wrapper,
+        num_speculative_tokens,
+        device_and_type,
+        plugin_data_param,
+        model_role,
+        eos_token_id,
+        max_block_size,
+    ):
         self.infer_context = infer_context
         self.plugin_data_param = plugin_data_param
         self.generator_backend = generator_backend
         self.num_speculative_tokens = num_speculative_tokens
-        (self.kv_device, self.kv_dtype) = device_and_type 
+        (self.kv_device, self.kv_dtype) = device_and_type
         self.mtp_cache = CacheEngine(self.infer_context, self.num_speculative_tokens)
         self.model_wrapper = model_wrapper
         self.eos_token_id = eos_token_id
@@ -78,7 +91,7 @@ class DecodingPolicy:
             slot_list = []
             for i in range(input_metadata.batch_size):
                 seq_len = input_metadata.batch_seq_len[i]
-                tmp_slot = model_inputs.slots[start_idx:start_idx + seq_len]
+                tmp_slot = model_inputs.slots[start_idx : start_idx + seq_len]
                 slot_list.append(tmp_slot)
                 if self.infer_context.spcp_parallel_info.scp_size > 1:
                     self.infer_context.set_mtp_seq_block_rank_id(
@@ -91,8 +104,9 @@ class DecodingPolicy:
                 self.infer_context.set_mtp_last_rank(cached_idx, input_metadata.sp_rank_id)
         else:
             model_inputs, q_len, attn_mask = self.decode_model_input_update(
-                model_inputs, input_metadata, cached_idx, hit_mask=hit_mask)
-        return model_inputs, q_len, attn_mask 
+                model_inputs, input_metadata, cached_idx, hit_mask=hit_mask
+            )
+        return model_inputs, q_len, attn_mask
 
     def handle_sampling(self, sampling_metadata):
         if sampling_metadata is None or sampling_metadata.is_prefill:
@@ -129,7 +143,8 @@ class DecodingPolicy:
     def decode_model_input_update(self, model_inputs, input_metadata, cached_idx, hit_mask=None):
         # 小模型使用的model_inputs构造
         mtp_model_inputs, hidden_states = self.get_mtp_draft_model_inputs(
-            model_inputs, input_metadata, cached_idx, hit_mask=hit_mask)
+            model_inputs, input_metadata, cached_idx, hit_mask=hit_mask
+        )
         self.plugin_data_param.mtp_model_inputs = mtp_model_inputs
         self.plugin_data_param.hidden_states = hidden_states
         # 大模型使用的model_inputs构造
@@ -140,12 +155,14 @@ class DecodingPolicy:
         return model_inputs_new, q_lens, attn_mask
 
     def get_mtp_draft_model_inputs(self, model_inputs, input_metadata, cached_idx, hit_mask=None):
-        if self.model_role == 'standard':
-            model_inputs_mtp, hidden_states = \
-                self.get_mtp_draft_model_inputs_standard(model_inputs, input_metadata, cached_idx, hit_mask=hit_mask)
+        if self.model_role == "standard":
+            model_inputs_mtp, hidden_states = self.get_mtp_draft_model_inputs_standard(
+                model_inputs, input_metadata, cached_idx, hit_mask=hit_mask
+            )
         else:
-            model_inputs_mtp, hidden_states = \
-                self.get_mtp_draft_model_inputs_pd(model_inputs, input_metadata, cached_idx, hit_mask=hit_mask)
+            model_inputs_mtp, hidden_states = self.get_mtp_draft_model_inputs_pd(
+                model_inputs, input_metadata, cached_idx, hit_mask=hit_mask
+            )
         return model_inputs_mtp, hidden_states
 
     def get_mtp_draft_model_inputs_pd(self, model_inputs, input_metadata, cached_idx, hit_mask=None):
@@ -166,12 +183,13 @@ class DecodingPolicy:
                 is_prefill=input_metadata.is_prefill,
                 adapter_ids=input_metadata.adapter_ids,
                 dp_rank_ids=input_metadata.batch_dp_rank_ids,
-                sp_tokens=input_metadata.sp_tokens
+                sp_tokens=input_metadata.sp_tokens,
             )
             hidden_states = self.get_input_hidden_states([0])
         elif np.any(self.infer_context.get_output_len_count(cached_idx) == 0):
-            mtp_model_inputs, hidden_states = \
-                self.get_mtp_draft_model_inputs_standard(model_inputs, input_metadata, cached_idx, hit_mask)
+            mtp_model_inputs, hidden_states = self.get_mtp_draft_model_inputs_standard(
+                model_inputs, input_metadata, cached_idx, hit_mask
+            )
             if hit_mask is None:
                 decode_mask = self.infer_context.get_output_len_count(cached_idx) != 0
                 decode_mask_for_slots = np.repeat(decode_mask, self.num_speculative_tokens * 2)
@@ -187,18 +205,21 @@ class DecodingPolicy:
 
             hidden_states = self.get_input_hidden_states(cached_idx)
         else:
-            mtp_model_inputs, hidden_states = \
-                self.get_mtp_draft_model_inputs_standard(model_inputs, input_metadata, cached_idx, hit_mask)
+            mtp_model_inputs, hidden_states = self.get_mtp_draft_model_inputs_standard(
+                model_inputs, input_metadata, cached_idx, hit_mask
+            )
         return mtp_model_inputs, hidden_states
 
-    def sp_token_and_slot_calc_by_context_length(self, context_length, block_rank_id, block_tables, slots_num_per_batch):
+    def sp_token_and_slot_calc_by_context_length(
+        self, context_length, block_rank_id, block_tables, slots_num_per_batch
+    ):
         scp_rank = self.infer_context.spcp_parallel_info.scp_rank
         block_table = [row[row != -1] for row in block_tables]
         pos = np.arange(context_length)
         block_index = pos // self.max_block_size
         block_offset = pos % self.max_block_size
         rank_id = block_rank_id[block_index]
-        is_current = (rank_id == scp_rank)
+        is_current = rank_id == scp_rank
 
         block_to_cache = np.zeros(len(block_rank_id), dtype=int)
         draft_sp_token = np.zeros(len(block_table), dtype=int)
@@ -217,6 +238,7 @@ class DecodingPolicy:
         batch_size = input_metadata.batch_size
         batch_block_tables = input_metadata.batch_block_tables
 
+        cached_block_rank_id = None
         # 首先获取上一轮的生成长度信息
         cached_last_token_num = self.infer_context.get_mtp_last_token_num(cached_idx)
         if self.infer_context.spcp_parallel_info.scp_size > 1:
@@ -236,65 +258,76 @@ class DecodingPolicy:
         is_need_mask = [0] * batch_size
         for i in range(batch_size):
             # mtp场景下，虚推需要特殊处理，构造对应特殊的slots并置为-1不占用正常请求slots
-            if input_metadata.all_sequence_ids is not None and \
-                    input_metadata.all_sequence_ids[i] == SIMULATE_SEQUENCE_ID:
-                new_slots[i * slots_num_per_batch:(i + 1) * slots_num_per_batch] = -1
+            if (
+                input_metadata.all_sequence_ids is not None
+                and input_metadata.all_sequence_ids[i] == SIMULATE_SEQUENCE_ID
+            ):
+                new_slots[i * slots_num_per_batch : (i + 1) * slots_num_per_batch] = -1
                 new_context_length[i] = self.num_speculative_tokens
-                new_position_ids[start_idx:start_idx + speculative_len] = np.arange(speculative_len)
+                new_position_ids[start_idx : start_idx + speculative_len] = np.arange(speculative_len)
                 prefill_head_indices_new[i] = start_idx + speculative_len - 1
                 start_idx += speculative_len
                 continue
             last_token_num = cached_last_token_num[i]
-            if last_token_num == 0: # 对于PD分离场景，第一次decode无法获取到prefill输出的token数，因此这里保护成1
+            if last_token_num == 0:  # 对于PD分离场景，第一次decode无法获取到prefill输出的token数，因此这里保护成1
                 last_token_num = 1
             if hit_mask is None or not hit_mask[i]:
                 if i >= len(cached_idx):
-                    message = (f"Index of cached_idx is out of range (i={i}, len={len(cached_idx)})")
+                    message = f"Index of cached_idx is out of range (i={i}, len={len(cached_idx)})"
                     raise ValueError(message)
                 all_input_id = self.infer_context.get_all_input_ids(cached_idx[i])
                 all_input_len = self.infer_context.get_seq_lens(cached_idx[i])
-                new_input_ids[start_idx:start_idx + last_token_num] = \
-                    all_input_id[all_input_len - last_token_num:all_input_len]
+                new_input_ids[start_idx : start_idx + last_token_num] = all_input_id[
+                    all_input_len - last_token_num : all_input_len
+                ]
                 context_length_first_mtp = model_inputs.context_length[i] - last_token_num + self.num_speculative_tokens
                 context_length_for_slot = (self.num_speculative_tokens - 1) + context_length_first_mtp
                 new_context_length[i] = context_length_first_mtp
                 block_tables = batch_block_tables[i]
-                new_position_ids[start_idx:start_idx + speculative_len] = \
-                    np.arange(model_inputs.position_ids[i] - last_token_num + 1, model_inputs.position_ids[i] - last_token_num + 1 + speculative_len)
+                new_position_ids[start_idx : start_idx + speculative_len] = np.arange(
+                    model_inputs.position_ids[i] - last_token_num + 1,
+                    model_inputs.position_ids[i] - last_token_num + 1 + speculative_len,
+                )
 
                 if self.infer_context.spcp_parallel_info.scp_size == 1:
-                    new_slots[i * slots_num_per_batch:(i + 1) * slots_num_per_batch] = \
-                        self.infer_context.block_table_to_slots(block_tables) \
-                            .reshape(-1)[context_length_for_slot - slots_num_per_batch:context_length_for_slot]
+                    new_slots[i * slots_num_per_batch : (i + 1) * slots_num_per_batch] = (
+                        self.infer_context.block_table_to_slots(block_tables).reshape(-1)[
+                            context_length_for_slot - slots_num_per_batch : context_length_for_slot
+                        ]
+                    )
                 else:
-                    draft_sp_tokens[i], new_slots[i * slots_num_per_batch:(i + 1) * slots_num_per_batch] = (
-                        self.sp_token_and_slot_calc_by_context_length(
-                            model_inputs.position_ids[i] - last_token_num + 1 + self.num_speculative_tokens,
-                            cached_block_rank_id[i],
-                            input_metadata.block_tables[i],
-                            slots_num_per_batch,
-                        )
+                    (
+                        draft_sp_tokens[i],
+                        new_slots[i * slots_num_per_batch : (i + 1) * slots_num_per_batch],
+                    ) = self.sp_token_and_slot_calc_by_context_length(
+                        model_inputs.position_ids[i] - last_token_num + 1 + self.num_speculative_tokens,
+                        cached_block_rank_id[i],
+                        input_metadata.block_tables[i],
+                        slots_num_per_batch,
                     )
                     is_need_mask[i] = int(new_slots[(i + 1) * slots_num_per_batch - 1] != -1)
                 # 新的lmhead indices是可接受的最后一个长度， 但是每次start_idx 的累加要是 MTP + 1
                 prefill_head_indices_new[i] = start_idx + last_token_num - 1
             else:
                 cur_pos = model_inputs.position_ids[i]
-                new_position_ids[start_idx:start_idx + speculative_len] = \
-                    np.arange(cur_pos + 1, cur_pos + speculative_len + 1)
+                new_position_ids[start_idx : start_idx + speculative_len] = np.arange(
+                    cur_pos + 1, cur_pos + speculative_len + 1
+                )
                 block_tables = batch_block_tables[i]
                 candidate_slots = self.infer_context.block_table_to_slots(block_tables).reshape(-1)
                 if self.infer_context.spcp_parallel_info.scp_size == 1:
-                    new_slots[i * slots_num_per_batch: (i + 1) * slots_num_per_batch] = \
-                        candidate_slots[model_inputs.context_length[i] - 1: model_inputs.context_length[i] - 1 + slots_num_per_batch]
+                    new_slots[i * slots_num_per_batch : (i + 1) * slots_num_per_batch] = candidate_slots[
+                        model_inputs.context_length[i] - 1 : model_inputs.context_length[i] - 1 + slots_num_per_batch
+                    ]
                 else:
-                    draft_sp_tokens[i], new_slots[i * slots_num_per_batch:(i + 1) * slots_num_per_batch] = (
-                        self.sp_token_and_slot_calc_by_context_length(
-                            model_inputs.position_ids[i] + 1 + self.num_speculative_tokens,
-                            cached_block_rank_id[i],
-                            input_metadata.block_tables[i],
-                            slots_num_per_batch,
-                        )
+                    (
+                        draft_sp_tokens[i],
+                        new_slots[i * slots_num_per_batch : (i + 1) * slots_num_per_batch],
+                    ) = self.sp_token_and_slot_calc_by_context_length(
+                        model_inputs.position_ids[i] + 1 + self.num_speculative_tokens,
+                        cached_block_rank_id[i],
+                        input_metadata.block_tables[i],
+                        slots_num_per_batch,
                     )
                     is_need_mask[i] = int(new_slots[(i + 1) * slots_num_per_batch - 1] != -1)
                 new_context_length[i] = model_inputs.context_length[i] + self.num_speculative_tokens
@@ -306,19 +339,21 @@ class DecodingPolicy:
         batch_is_need_mask = None
         if self.infer_context.spcp_parallel_info.scp_size > 0:
             batch_is_need_mask = is_need_mask
-        mtp_model_inputs = ModelInput(input_ids=new_input_ids,
-                                      position_ids=new_position_ids,
-                                      block_tables=model_inputs.block_tables.copy(),
-                                      slots=new_slots,
-                                      context_length=new_context_length,
-                                      cached_context_length=new_context_length,
-                                      max_seq_len=new_max_seq_len,
-                                      prefill_head_indices=prefill_head_indices_new,
-                                      is_prefill=model_inputs.is_prefill,
-                                      adapter_ids=model_inputs.adapter_ids,
-                                      dp_rank_ids=model_inputs.dp_rank_ids,
-                                      sp_tokens=draft_sp_tokens,
-                                      is_need_mask=batch_is_need_mask)
+        mtp_model_inputs = ModelInput(
+            input_ids=new_input_ids,
+            position_ids=new_position_ids,
+            block_tables=model_inputs.block_tables.copy(),
+            slots=new_slots,
+            context_length=new_context_length,
+            cached_context_length=new_context_length,
+            max_seq_len=new_max_seq_len,
+            prefill_head_indices=prefill_head_indices_new,
+            is_prefill=model_inputs.is_prefill,
+            adapter_ids=model_inputs.adapter_ids,
+            dp_rank_ids=model_inputs.dp_rank_ids,
+            sp_tokens=draft_sp_tokens,
+            is_need_mask=batch_is_need_mask,
+        )
 
         # 从cache中获取hidden_states进行组batch拼接
         hidden_states = self.get_input_hidden_states(cached_idx)
@@ -332,6 +367,7 @@ class DecodingPolicy:
         new_context_length = model_inputs.context_length + self.num_speculative_tokens
         new_max_seq_len = model_inputs.max_seq_len + self.num_speculative_tokens
 
+        cached_block_rank_id = None
         if self.infer_context.spcp_parallel_info.scp_size > 1:
             cached_block_rank_id = self.infer_context.get_mtp_seq_block_rank_id(cached_idx)
         draft_sp_tokens = np.zeros((batch_size, self.infer_context.spcp_parallel_info.scp_size), dtype=np.int32)
@@ -345,52 +381,57 @@ class DecodingPolicy:
         for i in range(batch_size):
             input_len_per_batch = self.num_speculative_tokens + 1
             # mtp场景下，虚推需要特殊处理，构造对应特殊的slots并置为-1不占用正常请求slots
-            if input_metadata.all_sequence_ids is not None and \
-                    input_metadata.all_sequence_ids[i] == SIMULATE_SEQUENCE_ID:
-                new_slots[i * input_len_per_batch:(i + 1) * input_len_per_batch] = -1
+            if (
+                input_metadata.all_sequence_ids is not None
+                and input_metadata.all_sequence_ids[i] == SIMULATE_SEQUENCE_ID
+            ):
+                new_slots[i * input_len_per_batch : (i + 1) * input_len_per_batch] = -1
                 start_pos_ids = model_inputs.position_ids[i]
                 tmp_pos_ids = np.arange(start_pos_ids, start_pos_ids + input_len_per_batch)
-                new_position_ids[i * input_len_per_batch:(i + 1) * input_len_per_batch] = tmp_pos_ids
+                new_position_ids[i * input_len_per_batch : (i + 1) * input_len_per_batch] = tmp_pos_ids
                 continue
             new_input_ids[i * input_len_per_batch] = model_inputs.input_ids[i]
             block_tables = input_metadata.batch_block_tables[i]
             start_pos_ids = model_inputs.position_ids[i]
             tmp_pos_ids = np.arange(start_pos_ids, start_pos_ids + input_len_per_batch)
-            new_position_ids[i * input_len_per_batch:(i + 1) * input_len_per_batch] = tmp_pos_ids
+            new_position_ids[i * input_len_per_batch : (i + 1) * input_len_per_batch] = tmp_pos_ids
 
             if self.infer_context.spcp_parallel_info.scp_size == 1:
                 end_idx = new_context_length[i]
                 start_idx = model_inputs.context_length[i] - 1
                 tmp_slots = self.infer_context.block_table_to_slots(block_tables).reshape(-1)[start_idx:end_idx]
 
-                new_slots[i * input_len_per_batch:(i + 1) * input_len_per_batch] = tmp_slots
+                new_slots[i * input_len_per_batch : (i + 1) * input_len_per_batch] = tmp_slots
             else:
-                draft_sp_tokens[i], new_slots[i * input_len_per_batch:(i + 1) * input_len_per_batch] = (
-                    self.sp_token_and_slot_calc_by_context_length(
-                        new_context_length[i],
-                        cached_block_rank_id[i],
-                        input_metadata.block_tables[i],
-                        input_len_per_batch,
-                    )
+                (
+                    draft_sp_tokens[i],
+                    new_slots[i * input_len_per_batch : (i + 1) * input_len_per_batch],
+                ) = self.sp_token_and_slot_calc_by_context_length(
+                    new_context_length[i],
+                    cached_block_rank_id[i],
+                    input_metadata.block_tables[i],
+                    input_len_per_batch,
                 )
                 is_need_mask[i] = int(new_slots[(i + 1) * input_len_per_batch - 1] != -1)
 
         batch_is_need_mask = None
         if self.infer_context.spcp_parallel_info.scp_size > 0:
             batch_is_need_mask = is_need_mask
-        new_model_inputs = ModelInput(input_ids=new_input_ids,
-                                      position_ids=new_position_ids,
-                                      block_tables=model_inputs.block_tables,
-                                      slots=new_slots,
-                                      context_length=new_context_length,
-                                      cached_context_length=new_context_length.copy(),
-                                      max_seq_len=new_max_seq_len,
-                                      prefill_head_indices=model_inputs.prefill_head_indices,
-                                      is_prefill=model_inputs.is_prefill,
-                                      adapter_ids=model_inputs.adapter_ids,
-                                      dp_rank_ids=model_inputs.dp_rank_ids,
-                                      sp_tokens=draft_sp_tokens,
-                                      is_need_mask=batch_is_need_mask)
+        new_model_inputs = ModelInput(
+            input_ids=new_input_ids,
+            position_ids=new_position_ids,
+            block_tables=model_inputs.block_tables,
+            slots=new_slots,
+            context_length=new_context_length,
+            cached_context_length=new_context_length.copy(),
+            max_seq_len=new_max_seq_len,
+            prefill_head_indices=model_inputs.prefill_head_indices,
+            is_prefill=model_inputs.is_prefill,
+            adapter_ids=model_inputs.adapter_ids,
+            dp_rank_ids=model_inputs.dp_rank_ids,
+            sp_tokens=draft_sp_tokens,
+            is_need_mask=batch_is_need_mask,
+        )
 
         return new_model_inputs
 
@@ -400,15 +441,17 @@ class DecodingPolicy:
         for _, cache_id in enumerate(cached_idx):
             select_hidden_states = self.infer_context.get_mtp_hidden_states(cache_id)
             if len(select_hidden_states) < (self.num_speculative_tokens + 1):
-                message = (f"The select_hidden_states {len(select_hidden_states)}"
-                            f" is less than num_speculative_tokens {self.num_speculative_tokens + 1}")
+                message = (
+                    f"The select_hidden_states {len(select_hidden_states)}"
+                    f" is less than num_speculative_tokens {self.num_speculative_tokens + 1}"
+                )
                 raise ValueError(message)
-            slice_hidden_states = select_hidden_states[:self.num_speculative_tokens + 1]
+            slice_hidden_states = select_hidden_states[: self.num_speculative_tokens + 1]
             hidden_states_list.append(slice_hidden_states)
         hidden_states_tensor = torch.cat(hidden_states_list, dim=0)
         return hidden_states_tensor
 
-    def stop_criteria(self, sampling_output, output_space_left, next_tokens_indices):        
+    def stop_criteria(self, sampling_output, output_space_left, next_tokens_indices):
         for idx, token_indices in enumerate(next_tokens_indices):
             num_new_tokens = len(token_indices)
             seq_token_ids = sampling_output.token_ids[token_indices]
@@ -428,7 +471,13 @@ class DecodingPolicy:
                 num_new_tokens = output_space_left[idx]
             next_tokens_indices[idx] = token_indices[:num_new_tokens]
 
-    def all_token_ids_padding(self, sampling_metadata, next_guess_logits_num_per_batch, batch_size, draft_tokens):
+    def all_token_ids_padding(
+        self,
+        sampling_metadata,
+        next_guess_logits_num_per_batch,
+        batch_size,
+        draft_tokens,
+    ):
         if sampling_metadata.all_token_ids is None:
             return None
         max_len = max(next_guess_logits_num_per_batch)
@@ -438,22 +487,29 @@ class DecodingPolicy:
         input_ids_pad = np.zeros((total_logits_num, input_ids_len + max_len), dtype=np.int64)
         index = 0
         for batch in range(batch_size):
-            input_ids = np.expand_dims(tensor_backend.numpy(tensor_backend.cpu(
-                sampling_metadata.all_token_ids[batch])), axis=0)
-            input_ids_pad[index:index + next_guess_logits_num_per_batch[batch], :input_ids_len] = \
-                np.repeat(input_ids, next_guess_logits_num_per_batch[batch], axis=0)
-            input_ids_pad[index:index + next_guess_logits_num_per_batch[batch], input_ids_len:] = -1
+            input_ids = np.expand_dims(
+                tensor_backend.numpy(tensor_backend.cpu(sampling_metadata.all_token_ids[batch])),
+                axis=0,
+            )
+            input_ids_pad[index : index + next_guess_logits_num_per_batch[batch], :input_ids_len] = np.repeat(
+                input_ids, next_guess_logits_num_per_batch[batch], axis=0
+            )
+            input_ids_pad[index : index + next_guess_logits_num_per_batch[batch], input_ids_len:] = -1
             guess_index = index + 1
             index += next_guess_logits_num_per_batch[batch]
-            draft_tokens_per_batch = \
-                draft_tokens[batch * self.num_speculative_tokens: (batch + 1) * self.num_speculative_tokens]
+            draft_tokens_per_batch = draft_tokens[
+                batch * self.num_speculative_tokens : (batch + 1) * self.num_speculative_tokens
+            ]
             if len(draft_tokens_per_batch) >= 1:
                 guess_set = draft_tokens_per_batch
                 for idx in range(len(guess_set)):
-                    input_ids_pad[guess_index, input_ids_len:input_ids_len + idx + 1] = \
-                        np.array(list(guess_set[0:idx + 1]))
+                    input_ids_pad[guess_index, input_ids_len : input_ids_len + idx + 1] = np.array(
+                        list(guess_set[0 : idx + 1])
+                    )
                     guess_index += 1
-        input_ids_pad = tensor_backend.tensor(input_ids_pad,
-                                              dtype=sampling_metadata.all_token_ids.dtype,
-                                              device=self.kv_device)
+        input_ids_pad = tensor_backend.tensor(
+            input_ids_pad,
+            dtype=sampling_metadata.all_token_ids.dtype,
+            device=self.kv_device,
+        )
         return input_ids_pad

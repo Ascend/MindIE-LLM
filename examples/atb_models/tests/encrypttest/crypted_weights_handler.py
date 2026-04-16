@@ -29,9 +29,7 @@ class CryptedWeightsFileHandler(WeightsFileHandler):
 
         if self.encrypt_enable:
             try:
-                decrypt_script = importlib.import_module(
-                    "tests.encrypttest.custom_crypt"
-                )
+                decrypt_script = importlib.import_module("tests.encrypttest.custom_crypt")
                 decrypt_cls = getattr(decrypt_script, "CustomDecrypt")
                 self._decrypt_ins = decrypt_cls()
 
@@ -40,9 +38,7 @@ class CryptedWeightsFileHandler(WeightsFileHandler):
                         self._sf_metadata.update(f.metadata())
 
             except Exception as e:
-                logger.warning(
-                    f"Failed to initialize decryptor: {e}, proceeding without decryption"
-                )
+                logger.warning(f"Failed to initialize decryptor: {e}, proceeding without decryption")
 
     @property
     def encrypt_enable(self) -> bool:
@@ -55,15 +51,11 @@ class CryptedWeightsFileHandler(WeightsFileHandler):
             try:
                 tensor = self._decrypt_ins.decrypt(tensor)
                 if tensor_name in self._sf_metadata:
-                    module_name, attribute_name = self._sf_metadata[tensor_name].split(
-                        "."
-                    )
+                    module_name, attribute_name = self._sf_metadata[tensor_name].split(".")
                     module = importlib.import_module(module_name)
                     dtype_ = getattr(module, attribute_name)
                     tensor = tensor.to(dtype_)
             except Exception as e:
-                logger.warning(
-                    f"Failed to decrypt tensor '{tensor_name}': {e}, using original weight"
-                )
+                logger.warning(f"Failed to decrypt tensor '{tensor_name}': {e}, using original weight")
 
         return tensor

@@ -21,8 +21,7 @@ from mindie_llm.connector.common.model_execute_data_pb2 import (
     ExecuteType,
     LoraOperationType,
     LoraOperationStatus,
-    PDLinkStatusResponse,
-    PDErrorCode
+    PDErrorCode,
 )
 from mindie_llm.model_wrapper.utils.config import DmiConfig
 from mindie_llm.model_wrapper.utils.error import ModelWrapperErrorCode
@@ -32,13 +31,22 @@ from mindie_llm.connector.request_router.router_impl import (
     SRC_BLOCK_TABLE_KEY,
     DST_BLOCK_TABLE_KEY,
     REQ_INDEX,
-    MindieLlmStatusCode
+    MindieLlmStatusCode,
 )
 from mindie_llm.connector.common.input_metadata_composite import InputMetadataComposite
-from mindie_llm.connector.common import send_model_execute_response, send_transfer_response, send_command_response
-from mindie_llm.connector.common.response_builder import ExecuteResponseBuilder as RealExecuteResponseBuilder
+from mindie_llm.connector.common import (
+    send_model_execute_response,
+    send_transfer_response,
+    send_command_response,
+)
+from mindie_llm.connector.common.response_builder import (
+    ExecuteResponseBuilder as RealExecuteResponseBuilder,
+)
 from mindie_llm.utils.log.error_code import ErrorCode, ErrorCodeException
-from mindie_llm.utils.layerwise.request_metadata import LwdMetadata, lwd_metadata_manager
+from mindie_llm.utils.layerwise.request_metadata import (
+    LwdMetadata,
+    lwd_metadata_manager,
+)
 
 
 class TestRouterImplUtils(unittest.TestCase):
@@ -49,7 +57,8 @@ class TestRouterImplUtils(unittest.TestCase):
 
         with self.assertRaises(RuntimeError) as ctx:
             _print_component_error_log(
-                Exception("The Inner error is reported as above. The process exits for this inner error"))
+                Exception("The Inner error is reported as above. The process exits for this inner error")
+            )
         self.assertIn("CANN execute error", str(ctx.exception))
 
     def test_print_component_error_log_other_exception(self):
@@ -91,18 +100,14 @@ class TestRouterImpl(unittest.TestCase):
 
     def test_check_output_invalid(self):
         with self.assertRaises(ValueError):
-            mock_output = Mock(
-                token_ids=None,
-                eos_info=np.array([1]),
-                num_top_tokens=np.array([1])
-            )
+            mock_output = Mock(token_ids=None, eos_info=np.array([1]), num_top_tokens=np.array([1]))
             RouterImpl.check_output(mock_output)
 
         with self.assertRaises(ValueError):
             mock_output = Mock(
                 token_ids=np.array([], dtype=np.uint32),
                 eos_info=np.array([1], dtype=np.uint32),
-                num_top_tokens=np.array([1])
+                num_top_tokens=np.array([1]),
             )
             RouterImpl.check_output(mock_output)
 
@@ -110,14 +115,14 @@ class TestRouterImpl(unittest.TestCase):
             mock_output = Mock(
                 token_ids=np.array([4294967296], dtype=np.uint64),
                 eos_info=np.array([1], dtype=np.uint32),
-                num_top_tokens=np.array([1])
+                num_top_tokens=np.array([1]),
             )
             RouterImpl.check_output(mock_output)
 
     def test_get_id_to_block_table_map(self):
         id_to_block_table_map = {
             "inst1": {SRC_BLOCK_TABLE_KEY: [], DST_BLOCK_TABLE_KEY: [], REQ_INDEX: []},
-            "inst2": {SRC_BLOCK_TABLE_KEY: [], DST_BLOCK_TABLE_KEY: [], REQ_INDEX: []}
+            "inst2": {SRC_BLOCK_TABLE_KEY: [], DST_BLOCK_TABLE_KEY: [], REQ_INDEX: []},
         }
         params = {
             "id_to_block_table_map": id_to_block_table_map,
@@ -125,7 +130,7 @@ class TestRouterImpl(unittest.TestCase):
             "src_block_table": [1, 2, -1, 3, 4, 5],
             "dst_block_table": [10, 20, 30, 40, 50, 60],
             "inst_ids": ["inst1", "inst2"],
-            "index": 0
+            "index": 0,
         }
         RouterImpl._get_id_to_block_table_map(**params)
 
@@ -134,8 +139,8 @@ class TestRouterImpl(unittest.TestCase):
         self.assertEqual(id_to_block_table_map["inst2"][SRC_BLOCK_TABLE_KEY], [3, 4, 5])
         self.assertEqual(id_to_block_table_map["inst2"][DST_BLOCK_TABLE_KEY], [30, 40, 50])
 
-    @patch('mindie_llm.connector.request_router.router_impl.set_npu_compile_mode')
-    @patch('mindie_llm.connector.request_router.router_impl.Generator')
+    @patch("mindie_llm.connector.request_router.router_impl.set_npu_compile_mode")
+    @patch("mindie_llm.connector.request_router.router_impl.Generator")
     def test_initialize(self, mock_generator_cls, mock_set_compile):
         # 构建与业务代码一致的配置
         mock_config = Mock(spec=DmiConfig)
@@ -149,7 +154,7 @@ class TestRouterImpl(unittest.TestCase):
         mock_config.model_weight_path = "/mock/path/weights"
         mock_config.model_config = {
             "model_weight_path": "/mock/path/weights",
-            "other_param": "test_value"
+            "other_param": "test_value",
         }
         mock_config.distributed_enable = False
 
@@ -183,7 +188,7 @@ class TestRouterImpl(unittest.TestCase):
         self.assertEqual(result["kvCacheDescs"][0]["blockSize"], 64)
 
         mock_config.max_seq_len = 3000
-        with self.assertLogs(logger="llm", level='WARNING') as log:
+        with self.assertLogs(logger="llm", level="WARNING") as log:
             self.router.initialize(mock_config)
             self.assertGreater(len(log.output), 0)
             self.assertIn("WARN:llm:[MIE04E13030A]", log.output[0])
@@ -194,7 +199,7 @@ class TestRouterImpl(unittest.TestCase):
         result_with_dp = self.router.initialize(mock_config)
         self.assertEqual(result_with_dp["kvCacheDescs"][0]["npuBlockNum"], 8)
 
-    @patch('mindie_llm.connector.request_router.router_impl.send_model_execute_response')
+    @patch("mindie_llm.connector.request_router.router_impl.send_model_execute_response")
     def test_seq_ctrl(self, mock_send_response):
         mock_request = Mock(spec=ExecuteRequest)
         mock_cleanup_req = Mock(spec=TGCleanupRequest)
@@ -219,8 +224,8 @@ class TestRouterImpl(unittest.TestCase):
             self.router.seq_ctrl(mock_request)
         self.assertIn("SEQ_IDS_TO_CLEAR", str(ctx.exception))
 
-    @patch.object(RouterImpl, '_generate')
-    @patch.object(RouterImpl, '_mix')
+    @patch.object(RouterImpl, "_generate")
+    @patch.object(RouterImpl, "_mix")
     def test_execute_forward_types(self, mock_mix, mock_generate):
         mock_request = Mock(spec=ExecuteRequest)
         mock_execute_model_req = Mock()
@@ -250,13 +255,13 @@ class TestRouterImpl(unittest.TestCase):
         mock_execute_model_req.forward_type = 999
         mock_request.execute_model_request = mock_execute_model_req
 
-        with self.assertLogs(logger="llm", level='ERROR') as log_ctx:
+        with self.assertLogs(logger="llm", level="ERROR") as log_ctx:
             self.router.execute(mock_request)
         self.assertTrue(any("Unknown forward_type" in msg for msg in log_ctx.output))
 
-    @patch('mindie_llm.connector.request_router.router_impl.convert_pull_kv_request_to_input_metadata_composite')
-    @patch('mindie_llm.connector.request_router.router_impl.send_transfer_response')
-    @patch('mindie_llm.connector.request_router.router_impl.ExecuteResponseBuilder')
+    @patch("mindie_llm.connector.request_router.router_impl.convert_pull_kv_request_to_input_metadata_composite")
+    @patch("mindie_llm.connector.request_router.router_impl.send_transfer_response")
+    @patch("mindie_llm.connector.request_router.router_impl.ExecuteResponseBuilder")
     def test_transfer_data(self, mock_response_builder, mock_send_response, mock_convert):
         mock_request = Mock(spec=ExecuteRequest)
 
@@ -279,8 +284,8 @@ class TestRouterImpl(unittest.TestCase):
         self.router.block_size = 64
         self.router.config.p_inst_enable_sp_cp = False
         self.router.config.remote_sp_size = 1
-        self.router.config.dp_inst_id_to_cluster_id = {1:[1001], 2:[1002]}
-        self.router.config.enable_mtp = False 
+        self.router.config.dp_inst_id_to_cluster_id = {1: [1001], 2: [1002]}
+        self.router.config.enable_mtp = False
         self.mock_generator.kvcache_settings.num_npu_blocks = 10
 
         self.mock_generator.pull_kv.return_value = (MindieLlmStatusCode.SUCCESS, None)
@@ -290,25 +295,23 @@ class TestRouterImpl(unittest.TestCase):
 
         self.router.transfer_data(mock_request)
 
-        mock_convert.assert_called_once_with(
-            mock_request.pull_kv_request,
-            10,
-            64,
-            self.router.config
-        )
+        mock_convert.assert_called_once_with(mock_request.pull_kv_request, 10, 64, self.router.config)
 
         self.assertGreater(len(self.mock_generator.pull_kv.call_args[0][1]), 0)
 
         mock_response_builder.build_from_transfer_result.assert_called_with(
-            0, {"1001": ModelWrapperErrorCode.SUCCESS, "1002": ModelWrapperErrorCode.SUCCESS}
+            0,
+            {
+                "1001": ModelWrapperErrorCode.SUCCESS,
+                "1002": ModelWrapperErrorCode.SUCCESS,
+            },
         )
         mock_send_response.assert_called_once_with(mock_response)
 
-
-    @patch('mindie_llm.connector.request_router.router_impl.get_attribute_info')
-    @patch('mindie_llm.connector.request_router.router_impl.send_transfer_response')
-    @patch('mindie_llm.connector.request_router.router_impl.ExecuteResponseBuilder')
-    def test_pd_role(self, mock_attribute_info,mock_send_response, mock_convert):
+    @patch("mindie_llm.connector.request_router.router_impl.get_attribute_info")
+    @patch("mindie_llm.connector.request_router.router_impl.send_transfer_response")
+    @patch("mindie_llm.connector.request_router.router_impl.ExecuteResponseBuilder")
+    def test_pd_role(self, mock_attribute_info, mock_send_response, mock_convert):
         mock_request = Mock(spec=ExecuteRequest)
         mock_request.pd_link_request = MagicMock()
         self.router.config.remote_unlink_cluster_id = []
@@ -322,46 +325,46 @@ class TestRouterImpl(unittest.TestCase):
         self.mock_generator.link.return_value = []
         self.router.pd_role(mock_request)
 
-    @patch('mindie_llm.connector.request_router.router_impl.get_attribute_info')
-    @patch('mindie_llm.connector.request_router.router_impl.send_transfer_response')
+    @patch("mindie_llm.connector.request_router.router_impl.get_attribute_info")
+    @patch("mindie_llm.connector.request_router.router_impl.send_transfer_response")
     def test_pd_role_unlink_exception(self, mock_send_response, mock_attribute_info):
         """unlink_batch 抛出 HCCL 异常时，_print_component_error_log 会抛出 RuntimeError"""
         mock_request = Mock(spec=ExecuteRequest)
         mock_request.pd_link_request = MagicMock()
-        
+
         # 设置配置
         self.router.config.remote_unlink_cluster_id = {0: [1001, 1002]}
         self.router.config.need_switch = False
         self.router.config.remote_link_cluster_id = {}
-        
+
         self.mock_generator.unlink_batch.side_effect = Exception("ACL stream synchronize failed")
-        
+
         with self.assertRaises(RuntimeError) as ctx:
             self.router.pd_role(mock_request)
         self.assertIn("HCCL execute error", str(ctx.exception))
-        
+
         mock_send_response.assert_not_called()
 
-    @patch('mindie_llm.connector.request_router.router_impl.get_attribute_info')
-    @patch('mindie_llm.connector.request_router.router_impl.send_transfer_response')
+    @patch("mindie_llm.connector.request_router.router_impl.get_attribute_info")
+    @patch("mindie_llm.connector.request_router.router_impl.send_transfer_response")
     def test_pd_role_unlink_other_exception_returns_error(self, mock_send_response, mock_attribute_info):
         """unlink_batch 抛出非 HCCL/CANN 异常时，应该直接 return（不发送响应）"""
         mock_request = Mock(spec=ExecuteRequest)
         mock_request.pd_link_request = MagicMock()
-        
+
         # 设置配置
         self.router.config.remote_unlink_cluster_id = {0: [1001]}
         self.router.config.need_switch = False
         self.router.config.remote_link_cluster_id = {}
-        
+
         self.mock_generator.unlink_batch.side_effect = ValueError("some other error")
-        
+
         self.router.pd_role(mock_request)
-        
+
         mock_send_response.assert_not_called()
 
-    @patch('mindie_llm.connector.request_router.router_impl.get_attribute_info')
-    @patch('mindie_llm.connector.request_router.router_impl.send_transfer_response')
+    @patch("mindie_llm.connector.request_router.router_impl.get_attribute_info")
+    @patch("mindie_llm.connector.request_router.router_impl.send_transfer_response")
     def test_pd_role_need_switch(self, mock_send_response, mock_attribute_info):
         """need_switch 为 True 时应调用 switch_role"""
         mock_request = Mock(spec=ExecuteRequest)
@@ -381,7 +384,7 @@ class TestRouterImpl(unittest.TestCase):
 
         self.mock_generator.switch_role.assert_called_once_with("encoder")
 
-    @patch('mindie_llm.connector.request_router.router_impl.send_command_response')
+    @patch("mindie_llm.connector.request_router.router_impl.send_command_response")
     def test_load_lora(self, mock_send_response):
         mock_request = Mock(spec=ExecuteRequest)
         mock_request.lora_operation_request = MagicMock()
@@ -391,7 +394,7 @@ class TestRouterImpl(unittest.TestCase):
         self.mock_generator.load_lora.return_value = LoraOperationStatus.LORA_CMD_SUCCESS
         self.router.process_lora_operation(mock_request)
 
-    @patch('mindie_llm.connector.request_router.router_impl.send_command_response')
+    @patch("mindie_llm.connector.request_router.router_impl.send_command_response")
     def test_unload_lora(self, mock_send_response):
         mock_request = Mock(spec=ExecuteRequest)
         mock_request.lora_operation_request = MagicMock()
@@ -400,72 +403,81 @@ class TestRouterImpl(unittest.TestCase):
         mock_request.lora_operation_request.lora_path = "fake_path"
         self.mock_generator.unload_lora.return_value = LoraOperationStatus.LORA_CMD_SUCCESS
         self.router.process_lora_operation(mock_request)
-    
-    @patch('mindie_llm.connector.request_router.router_impl.send_transfer_response')
+
+    @patch("mindie_llm.connector.request_router.router_impl.send_transfer_response")
     def test_query_link_status_normal(self, mock_send_response):
         # 测试正常情况：包含所有状态的链接信息
         mock_link_status = {
-            "waitting": ["cluster_1", "cluster_2"],
+            "waiting": ["cluster_1", "cluster_2"],
             "running": ["cluster_3"],
             "success": ["cluster_4", "cluster_5"],
-            "failed": ["cluster_6"]
+            "failed": ["cluster_6"],
         }
         self.mock_generator.query_link_status.return_value = mock_link_status
-        
+
         self.router.query_link_status()
-        
+
         # 验证generator.query_link_status被调用
         self.mock_generator.query_link_status.assert_called_once()
-        
+
         # 验证send_transfer_response被调用，且参数正确
         self.assertEqual(mock_send_response.call_count, 1)
         call_args = mock_send_response.call_args[0][0]
         self.assertEqual(call_args.msg_type, ExecuteType.PD_LINK_STATUS_QUERY)
-        self.assertEqual(call_args.pd_link_status_response.waitting_link_info, ["cluster_1", "cluster_2"])
+        self.assertEqual(
+            call_args.pd_link_status_response.waiting_link_info,
+            ["cluster_1", "cluster_2"],
+        )
         self.assertEqual(call_args.pd_link_status_response.running_link_info, ["cluster_3"])
-        self.assertEqual(call_args.pd_link_status_response.success_link_info, ["cluster_4", "cluster_5"])
+        self.assertEqual(
+            call_args.pd_link_status_response.success_link_info,
+            ["cluster_4", "cluster_5"],
+        )
         self.assertEqual(len(call_args.pd_link_status_response.failed_link_info), 1)
-        self.assertEqual(call_args.pd_link_status_response.failed_link_info[0].cluster_id, "cluster_6")
-        self.assertEqual(call_args.pd_link_status_response.failed_link_info[0].pd_error_code, PDErrorCode.PD_LINK_ERROR)
-    
-    @patch('mindie_llm.connector.request_router.router_impl.send_transfer_response')
+        self.assertEqual(
+            call_args.pd_link_status_response.failed_link_info[0].cluster_id,
+            "cluster_6",
+        )
+        self.assertEqual(
+            call_args.pd_link_status_response.failed_link_info[0].pd_error_code,
+            PDErrorCode.PD_LINK_ERROR,
+        )
+
+    @patch("mindie_llm.connector.request_router.router_impl.send_transfer_response")
     def test_query_link_status_partial(self, mock_send_response):
         # 测试部分状态的链接信息
-        mock_link_status = {
-            "running": ["cluster_1"],
-            "success": ["cluster_2"]
-        }
+        mock_link_status = {"running": ["cluster_1"], "success": ["cluster_2"]}
         self.mock_generator.query_link_status.return_value = mock_link_status
-        
+
         self.router.query_link_status()
-        
+
         call_args = mock_send_response.call_args[0][0]
-        self.assertEqual(call_args.pd_link_status_response.waitting_link_info, [])
+        self.assertEqual(call_args.pd_link_status_response.waiting_link_info, [])
         self.assertEqual(call_args.pd_link_status_response.running_link_info, ["cluster_1"])
         self.assertEqual(call_args.pd_link_status_response.success_link_info, ["cluster_2"])
         self.assertEqual(len(call_args.pd_link_status_response.failed_link_info), 0)
-    
-    @patch('mindie_llm.connector.request_router.router_impl.send_transfer_response')
+
+    @patch("mindie_llm.connector.request_router.router_impl.send_transfer_response")
     def test_query_link_status_empty(self, mock_send_response):
         # 测试空的链接信息
         mock_link_status = {}
         self.mock_generator.query_link_status.return_value = mock_link_status
-        
+
         self.router.query_link_status()
-        
+
         call_args = mock_send_response.call_args[0][0]
-        self.assertEqual(call_args.pd_link_status_response.waitting_link_info, [])
+        self.assertEqual(call_args.pd_link_status_response.waiting_link_info, [])
         self.assertEqual(call_args.pd_link_status_response.running_link_info, [])
         self.assertEqual(call_args.pd_link_status_response.success_link_info, [])
         self.assertEqual(len(call_args.pd_link_status_response.failed_link_info), 0)
-    
-    @patch('mindie_llm.connector.request_router.router_impl.send_transfer_response')
+
+    @patch("mindie_llm.connector.request_router.router_impl.send_transfer_response")
     def test_query_link_status_exception(self, mock_send_response):
         # 测试异常情况
         self.mock_generator.query_link_status.side_effect = Exception("Test exception")
-        
+
         self.router.query_link_status()
-        
+
         # 验证异常情况下仍调用send_transfer_response，且状态为错误
         self.assertEqual(mock_send_response.call_count, 1)
         call_args = mock_send_response.call_args[0][0]
@@ -484,7 +496,7 @@ class TestRouterImpl(unittest.TestCase):
         self.mock_generator.load_lora.assert_not_called()
         self.mock_generator.unload_lora.assert_not_called()
 
-    @patch('mindie_llm.connector.request_router.router_impl.send_command_response')
+    @patch("mindie_llm.connector.request_router.router_impl.send_command_response")
     def test_recover_command_exec(self, mock_send_command):
         mock_request = Mock(spec=ExecuteRequest)
         mock_request.recover_command_request = Mock(command="CMD_PAUSE_ENGINE")
@@ -501,7 +513,7 @@ class TestRouterImpl(unittest.TestCase):
         self.mock_generator.execute_recover_command.assert_called_once_with("CMD_PAUSE_ENGINE")
         mock_send_command.assert_called_once()
 
-    @patch.object(RouterImpl, '_execute_empty_batch')
+    @patch.object(RouterImpl, "_execute_empty_batch")
     def test_execute_forward_type_dummy(self, mock_empty_batch):
         mock_request = Mock(spec=ExecuteRequest)
         mock_execute_model_req = Mock()
@@ -512,8 +524,8 @@ class TestRouterImpl(unittest.TestCase):
 
         mock_empty_batch.assert_called_once_with(mock_request)
 
-    @patch('mindie_llm.connector.request_router.router_impl.send_model_execute_response')
-    @patch('mindie_llm.connector.request_router.router_impl.make_dummy_input_metadata')
+    @patch("mindie_llm.connector.request_router.router_impl.send_model_execute_response")
+    @patch("mindie_llm.connector.request_router.router_impl.make_dummy_input_metadata")
     def test_execute_empty_batch_err_msg(self, mock_make_dummy, mock_send):
         """ErrorCodeException 时应发送 err_msg 响应"""
         self.router.layerwise_disaggregated = False
@@ -535,9 +547,9 @@ class TestRouterImpl(unittest.TestCase):
         self.assertEqual(first_call_proto.msg_type, ExecuteType.EXECUTE_ERROR)
         self.assertIn("MIE05E01000A", first_call_proto.execute_model_response.err_msg)
 
-    @patch('mindie_llm.connector.request_router.router_impl.send_model_execute_response')
-    @patch('mindie_llm.connector.request_router.router_impl.make_dummy_input_metadata')
-    @patch('mindie_llm.connector.request_router.router_impl.make_dummy_input_metadata_dmi_decoder')
+    @patch("mindie_llm.connector.request_router.router_impl.send_model_execute_response")
+    @patch("mindie_llm.connector.request_router.router_impl.make_dummy_input_metadata")
+    @patch("mindie_llm.connector.request_router.router_impl.make_dummy_input_metadata_dmi_decoder")
     def test_execute_empty_batch_dmi_decoder(self, mock_make_dmi_decoder, mock_make_dummy, mock_send):
         """dmi + decoder 时应调用 input_metadata_queue.put 和 make_dummy_input_metadata_dmi_decoder"""
         self.router.layerwise_disaggregated = False
@@ -560,16 +572,16 @@ class TestRouterImpl(unittest.TestCase):
         mock_make_dmi_decoder.assert_called_once()
         self.mock_generator.generate_token.assert_called_once_with(mock_dmi_decoder_result)
 
-    @patch('mindie_llm.connector.request_router.router_impl.send_model_execute_response')
+    @patch("mindie_llm.connector.request_router.router_impl.send_model_execute_response")
     def test_finalize(self, mock_send):
         self.router.metrics = MagicMock()
         self.router.finalize()
         # 验证mock调用
         self.router.metrics.output.assert_called_once()
 
-    @patch('mindie_llm.connector.request_router.router_impl.ExecuteResponseBuilder')
-    @patch('mindie_llm.connector.request_router.router_impl.send_transfer_response')
-    @patch('mindie_llm.connector.request_router.router_impl.convert_pull_kv_request_to_input_metadata_composite')
+    @patch("mindie_llm.connector.request_router.router_impl.ExecuteResponseBuilder")
+    @patch("mindie_llm.connector.request_router.router_impl.send_transfer_response")
+    @patch("mindie_llm.connector.request_router.router_impl.convert_pull_kv_request_to_input_metadata_composite")
     def test_transfer_data_with_sp_enabled(self, mock_convert, _mock_send, _mock_builder):
         mock_metadata = Mock()
         mock_convert.return_value = mock_metadata
@@ -579,13 +591,13 @@ class TestRouterImpl(unittest.TestCase):
             dst_block_tables=[np.array([1, 2], dtype=np.int64).tobytes()],
             src_block_tables=[np.array([10, 20], dtype=np.int64).tobytes()],
             seq_group_metadata=Mock(request_id="2001", prompt_lens=struct.pack("<q", 100)),
-            cluster_id="20000"
+            cluster_id="20000",
         )
         mock_kv2 = Mock(
             dst_block_tables=[np.array([5, 6, 7, 8], dtype=np.int64).tobytes()],
             src_block_tables=[np.array([50, 60, 70, 80], dtype=np.int64).tobytes()],
             seq_group_metadata=Mock(request_id="2002", prompt_lens=struct.pack("<q", 100)),
-            cluster_id="30000"
+            cluster_id="30000",
         )
         mock_pull = Mock(pull_kv_infos=[mock_kv1, mock_kv2])
         mock_request.pull_kv_request = mock_pull
@@ -594,9 +606,8 @@ class TestRouterImpl(unittest.TestCase):
         self.router.config.p_inst_enable_sp_cp = True
         self.router.config.remote_sp_size = 2
         self.router.config.remote_cp_size = 1
-        self.router.config.dp_inst_id_to_cluster_id = {2:[2001], 3:[2002]}
+        self.router.config.dp_inst_id_to_cluster_id = {2: [2001], 3: [2002]}
 
-        
         self.mock_generator.kvcache_settings.num_npu_blocks = 20
         self.mock_generator.pull_kv.return_value = (MindieLlmStatusCode.SUCCESS, None)
 
@@ -605,8 +616,8 @@ class TestRouterImpl(unittest.TestCase):
         self.assertTrue(self.mock_generator.pull_kv.called)
         self.assertEqual(len(self.mock_generator.pull_kv.call_args[0][1]), 2)
 
-    @patch('mindie_llm.connector.request_router.router_impl.convert_pull_kv_request_to_input_metadata_composite')
-    @patch('mindie_llm.connector.request_router.router_impl.send_transfer_response')
+    @patch("mindie_llm.connector.request_router.router_impl.convert_pull_kv_request_to_input_metadata_composite")
+    @patch("mindie_llm.connector.request_router.router_impl.send_transfer_response")
     def test_transfer_data_failure_case(self, mock_send, mock_convert):
         mock_metadata = Mock()
         mock_convert.return_value = mock_metadata
@@ -617,20 +628,20 @@ class TestRouterImpl(unittest.TestCase):
             dst_block_tables=[np.array([10], dtype=np.int64).tobytes()],
             src_block_tables=[np.array([1], dtype=np.int64).tobytes()],
             seq_group_metadata=Mock(request_id="3001", prompt_lens=struct.pack("<q", 100)),
-            cluster_id="30000"
+            cluster_id="30000",
         )
         mock_request.pull_kv_request = Mock(pull_kv_infos=[mock_kv])
 
         self.router.block_size = 64
         self.router.config.p_inst_enable_sp_cp = False
-        self.router.config.dp_inst_id_to_cluster_id = {3:[3001]}
+        self.router.config.dp_inst_id_to_cluster_id = {3: [3001]}
         self.mock_generator.kvcache_settings.num_npu_blocks = 10
 
         # failed_p_id 应为底层实际的 cluster_id（3001），而非 dp_instance_id（30000）
         # 因为 pull_kv_items 中使用的是通过 dp_inst_id_to_cluster_id 映射后的实际 cluster_id
         self.mock_generator.pull_kv.return_value = (
             ErrorCode.TEXT_GENERATOR_PD_PULL_KV_ERROR,
-            3001
+            3001,
         )
 
         self.router.transfer_data(mock_request)
@@ -640,11 +651,14 @@ class TestRouterImpl(unittest.TestCase):
         self.assertEqual(proto_response.msg_type, ExecuteType.KV_TRANSFER)
         # 顶层 status 恒为 SUCCESS 以便 executor 释放 kv cache；实际成败看各条 pd_error_code
         self.assertEqual(proto_response.status, ModelWrapperErrorCode.SUCCESS.value)
-        self.assertEqual(proto_response.pull_kv_response.pull_kv_results[0].pd_error_code, ModelWrapperErrorCode.PD_PULL_KV_ERROR.value)
+        self.assertEqual(
+            proto_response.pull_kv_response.pull_kv_results[0].pd_error_code,
+            ModelWrapperErrorCode.PD_PULL_KV_ERROR.value,
+        )
         self.assertEqual(proto_response.pull_kv_response.pull_kv_results[0].request_id, "3001")
 
-    @patch('mindie_llm.connector.request_router.router_impl.convert_pull_kv_request_to_input_metadata_composite')
-    @patch('mindie_llm.connector.request_router.router_impl.send_transfer_response')
+    @patch("mindie_llm.connector.request_router.router_impl.convert_pull_kv_request_to_input_metadata_composite")
+    @patch("mindie_llm.connector.request_router.router_impl.send_transfer_response")
     def test_transfer_data_pull_kv_fail_dp1_scale_down_p(self, mock_send, mock_convert):
         """
         模拟 2P1D 静态缩容场景（dp_size=1）：
@@ -664,7 +678,7 @@ class TestRouterImpl(unittest.TestCase):
             dst_block_tables=[np.array([10, 20], dtype=np.int64).tobytes()],
             src_block_tables=[np.array([1, 2], dtype=np.int64).tobytes()],
             seq_group_metadata=Mock(request_id="req_450", prompt_lens=struct.pack("<q", 100)),
-            cluster_id="10000"
+            cluster_id="10000",
         )
         mock_request.pull_kv_request = Mock(pull_kv_infos=[mock_kv])
 
@@ -678,7 +692,7 @@ class TestRouterImpl(unittest.TestCase):
         # 缩容P节点导致 pull_kv 失败，返回的 failed_p_id 是实际 cluster_id
         self.mock_generator.pull_kv.return_value = (
             ErrorCode.TEXT_GENERATOR_PD_PULL_KV_ERROR,
-            1000000001  # 实际 cluster_id，非 dp_instance_id
+            1000000001,  # 实际 cluster_id，非 dp_instance_id
         )
 
         self.router.transfer_data(mock_request)
@@ -690,11 +704,11 @@ class TestRouterImpl(unittest.TestCase):
         self.assertEqual(proto_response.pull_kv_response.pull_kv_results[0].request_id, "req_450")
         self.assertEqual(
             proto_response.pull_kv_response.pull_kv_results[0].pd_error_code,
-            ModelWrapperErrorCode.PD_PULL_KV_ERROR.value
+            ModelWrapperErrorCode.PD_PULL_KV_ERROR.value,
         )
 
-    @patch('mindie_llm.connector.request_router.router_impl.convert_pull_kv_request_to_input_metadata_composite')
-    @patch('mindie_llm.connector.request_router.router_impl.send_transfer_response')
+    @patch("mindie_llm.connector.request_router.router_impl.convert_pull_kv_request_to_input_metadata_composite")
+    @patch("mindie_llm.connector.request_router.router_impl.send_transfer_response")
     def test_transfer_data_pull_kv_fail_partial_two_p_nodes(self, mock_send, mock_convert):
         """
         模拟 2P1D 缩容其中1个P的场景：
@@ -714,14 +728,14 @@ class TestRouterImpl(unittest.TestCase):
             dst_block_tables=[np.array([10], dtype=np.int64).tobytes()],
             src_block_tables=[np.array([1], dtype=np.int64).tobytes()],
             seq_group_metadata=Mock(request_id="req_100", prompt_lens=struct.pack("<q", 100)),
-            cluster_id="10000"
+            cluster_id="10000",
         )
         # 请求2：来自 P2（dp_instance_id=20000，P instance 2）
         mock_kv2 = Mock(
             dst_block_tables=[np.array([30], dtype=np.int64).tobytes()],
             src_block_tables=[np.array([3], dtype=np.int64).tobytes()],
             seq_group_metadata=Mock(request_id="req_200", prompt_lens=struct.pack("<q", 100)),
-            cluster_id="20000"
+            cluster_id="20000",
         )
         mock_request.pull_kv_request = Mock(pull_kv_infos=[mock_kv1, mock_kv2])
 
@@ -737,7 +751,7 @@ class TestRouterImpl(unittest.TestCase):
         # P1（cluster_id=1001）被缩容，pull_kv 失败
         self.mock_generator.pull_kv.return_value = (
             ErrorCode.TEXT_GENERATOR_PD_PULL_KV_ERROR,
-            1001  # P1 的实际 cluster_id
+            1001,  # P1 的实际 cluster_id
         )
 
         self.router.transfer_data(mock_request)
@@ -750,8 +764,8 @@ class TestRouterImpl(unittest.TestCase):
         results = {r.request_id: r.pd_error_code for r in proto_response.pull_kv_response.pull_kv_results}
         self.assertEqual(results["req_100"], ModelWrapperErrorCode.PD_PULL_KV_ERROR.value)
 
-    @patch('mindie_llm.connector.request_router.router_impl.convert_pull_kv_request_to_input_metadata_composite')
-    @patch('mindie_llm.connector.request_router.router_impl.send_transfer_response')
+    @patch("mindie_llm.connector.request_router.router_impl.convert_pull_kv_request_to_input_metadata_composite")
+    @patch("mindie_llm.connector.request_router.router_impl.send_transfer_response")
     def test_transfer_data_pull_kv_fail_dp_gt1(self, mock_send, mock_convert):
         """
         dp_size > 1 场景下的失败检测：
@@ -768,7 +782,7 @@ class TestRouterImpl(unittest.TestCase):
             dst_block_tables=[np.array([10], dtype=np.int64).tobytes()],
             src_block_tables=[np.array([1], dtype=np.int64).tobytes()],
             seq_group_metadata=Mock(request_id="req_500", prompt_lens=struct.pack("<q", 100)),
-            cluster_id="5"
+            cluster_id="5",
         )
         mock_request.pull_kv_request = Mock(pull_kv_infos=[mock_kv])
 
@@ -782,7 +796,7 @@ class TestRouterImpl(unittest.TestCase):
         # pull_kv 失败，返回其中一个实际 cluster_id
         self.mock_generator.pull_kv.return_value = (
             ErrorCode.TEXT_GENERATOR_PD_PULL_KV_ERROR,
-            5001
+            5001,
         )
 
         self.router.transfer_data(mock_request)
@@ -794,12 +808,14 @@ class TestRouterImpl(unittest.TestCase):
         self.assertEqual(proto_response.pull_kv_response.pull_kv_results[0].request_id, "req_500")
         self.assertEqual(
             proto_response.pull_kv_response.pull_kv_results[0].pd_error_code,
-            ModelWrapperErrorCode.PD_PULL_KV_ERROR.value
+            ModelWrapperErrorCode.PD_PULL_KV_ERROR.value,
         )
 
     def test_initialize_distributed_mode(self):
-        with patch('mindie_llm.connector.request_router.router_impl.set_npu_compile_mode') as _, \
-                patch('mindie_llm.connector.request_router.router_impl.Generator') as mock_generator_cls:
+        with (
+            patch("mindie_llm.connector.request_router.router_impl.set_npu_compile_mode") as _,
+            patch("mindie_llm.connector.request_router.router_impl.Generator") as mock_generator_cls,
+        ):
             mock_config = Mock(spec=DmiConfig)
             mock_config.distributed_enable = True
             mock_config.rank = 2
@@ -829,7 +845,7 @@ class TestRouterImpl(unittest.TestCase):
             mock_output = Mock(
                 token_ids=np.array([1, 2], dtype=np.uint32),
                 eos_info=None,
-                num_top_tokens=np.array([2], dtype=np.int32)
+                num_top_tokens=np.array([2], dtype=np.int32),
             )
             RouterImpl.check_output(mock_output)
 
@@ -837,7 +853,7 @@ class TestRouterImpl(unittest.TestCase):
             mock_output = Mock(
                 token_ids=np.array([1, 2], dtype=np.uint32),
                 eos_info=np.array([], dtype=np.uint32),
-                num_top_tokens=np.array([2], dtype=np.int32)
+                num_top_tokens=np.array([2], dtype=np.int32),
             )
             RouterImpl.check_output(mock_output)
 
@@ -845,7 +861,7 @@ class TestRouterImpl(unittest.TestCase):
             mock_output = Mock(
                 token_ids=np.array([1, 2], dtype=np.uint32),
                 eos_info=np.array([-1, 0], dtype=np.int32),
-                num_top_tokens=np.array([2], dtype=np.int32)
+                num_top_tokens=np.array([2], dtype=np.int32),
             )
             RouterImpl.check_output(mock_output)
 
@@ -853,7 +869,7 @@ class TestRouterImpl(unittest.TestCase):
             mock_output = Mock(
                 token_ids=np.array([1, 2], dtype=np.uint32),
                 eos_info=np.array([4294967296, 0], dtype=np.uint64),
-                num_top_tokens=np.array([2], dtype=np.int32)
+                num_top_tokens=np.array([2], dtype=np.int32),
             )
             RouterImpl.check_output(mock_output)
 
@@ -885,7 +901,7 @@ class TestRouterImpl(unittest.TestCase):
         mock_output = Mock(
             token_ids=np.array([[1, 2, 3]], dtype=np.uint32),
             eos_info=np.array([[0, 0, 1]], dtype=np.uint32),
-            num_top_tokens=mock_num_top_tokens
+            num_top_tokens=mock_num_top_tokens,
         )
         self.mock_generator.generate_token.return_value = mock_output
 
@@ -903,7 +919,7 @@ class TestRouterImpl(unittest.TestCase):
 
         self.assertIsNone(result)
 
-    @patch.object(RouterImpl, 'check_output')
+    @patch.object(RouterImpl, "check_output")
     def test_handle_requests_inference_pause_skips_check_output(self, mock_check_output):
         """is_inference_pause 为 True 时应跳过 check_output"""
         self.router.is_inference_pause = True
@@ -951,10 +967,10 @@ class TestRouterImpl(unittest.TestCase):
 
         self.mock_generator.plugin_manager.set_clean_sequence_ids.assert_called_once_with([1, 2])
 
-    @patch('mindie_llm.connector.request_router.router_impl.convert_execute_model_request_to_input_metadata_composite')
-    @patch.object(RouterImpl, '_handle_requests')
-    @patch('mindie_llm.connector.request_router.router_impl.ExecuteResponseBuilder')
-    @patch('mindie_llm.connector.request_router.router_impl.send_model_execute_response')
+    @patch("mindie_llm.connector.request_router.router_impl.convert_execute_model_request_to_input_metadata_composite")
+    @patch.object(RouterImpl, "_handle_requests")
+    @patch("mindie_llm.connector.request_router.router_impl.ExecuteResponseBuilder")
+    @patch("mindie_llm.connector.request_router.router_impl.send_model_execute_response")
     def test_generate_other_rank(self, mock_send, mock_builder, mock_handle, mock_convert):
         self.router.local_rank = 3
         self.router.tp_size = 2
@@ -962,7 +978,7 @@ class TestRouterImpl(unittest.TestCase):
         self.mock_output = Mock(
             token_ids=np.array([[1, 2, 3]], dtype=np.uint32),
             eos_info=np.array([[0, 0, 1]], dtype=np.uint32),
-            num_top_tokens=np.array([3], dtype=np.int32)
+            num_top_tokens=np.array([3], dtype=np.int32),
         )
         self.mock_composite = Mock()
         self.mock_composite.block_copy = None
@@ -980,10 +996,10 @@ class TestRouterImpl(unittest.TestCase):
         mock_builder.build_from_generate_output.assert_called_once_with(None, self.mock_request.execute_type)
         mock_send.assert_called_once_with(mock_proto)
 
-    @patch('mindie_llm.connector.request_router.router_impl.convert_execute_model_request_to_input_metadata_composite')
-    @patch.object(RouterImpl, '_handle_requests')
-    @patch('mindie_llm.connector.request_router.router_impl.ExecuteResponseBuilder')
-    @patch('mindie_llm.connector.request_router.router_impl.send_model_execute_response')
+    @patch("mindie_llm.connector.request_router.router_impl.convert_execute_model_request_to_input_metadata_composite")
+    @patch.object(RouterImpl, "_handle_requests")
+    @patch("mindie_llm.connector.request_router.router_impl.ExecuteResponseBuilder")
+    @patch("mindie_llm.connector.request_router.router_impl.send_model_execute_response")
     def test_generate_err_msg_send(self, mock_send, mock_builder, mock_handle, mock_convert):
         """_handle_requests 抛出 ErrorCodeException 时应先发送 err_msg 再发送空响应"""
         mock_builder.build_from_err_msg.side_effect = lambda msg: RealExecuteResponseBuilder.build_from_err_msg(msg)
@@ -1010,10 +1026,10 @@ class TestRouterImpl(unittest.TestCase):
         err_proto = mock_send.call_args_list[0][0][0]
         self.assertEqual(err_proto.msg_type, ExecuteType.EXECUTE_ERROR)
 
-    @patch('mindie_llm.connector.request_router.router_impl.convert_execute_model_request_to_input_metadata_composite')
-    @patch.object(RouterImpl, '_handle_requests')
-    @patch('mindie_llm.connector.request_router.router_impl.ExecuteResponseBuilder')
-    @patch('mindie_llm.connector.request_router.router_impl.send_model_execute_response')
+    @patch("mindie_llm.connector.request_router.router_impl.convert_execute_model_request_to_input_metadata_composite")
+    @patch.object(RouterImpl, "_handle_requests")
+    @patch("mindie_llm.connector.request_router.router_impl.ExecuteResponseBuilder")
+    @patch("mindie_llm.connector.request_router.router_impl.send_model_execute_response")
     def test_generate_block_copy(self, mock_send, mock_builder, mock_handle, mock_convert):
         """input_metadata_composite.block_copy 有值时应调用 copy_blocks"""
         self.router.local_rank = 0
@@ -1043,15 +1059,12 @@ class TestRouterImpl(unittest.TestCase):
         self.router._generate(mock_request, is_prefill=False, is_mix=False)
 
         self.mock_generator.copy_blocks.assert_called_once()
-        np.testing.assert_array_equal(
-            self.mock_generator.copy_blocks.call_args[0][0],
-            np.array([[1, 2]])
-        )
+        np.testing.assert_array_equal(self.mock_generator.copy_blocks.call_args[0][0], np.array([[1, 2]]))
 
-    @patch('mindie_llm.connector.request_router.router_impl.convert_execute_model_request_to_input_metadata_composite')
-    @patch.object(RouterImpl, '_handle_requests')
-    @patch('mindie_llm.connector.request_router.router_impl.ExecuteResponseBuilder')
-    @patch('mindie_llm.connector.request_router.router_impl.send_model_execute_response')
+    @patch("mindie_llm.connector.request_router.router_impl.convert_execute_model_request_to_input_metadata_composite")
+    @patch.object(RouterImpl, "_handle_requests")
+    @patch("mindie_llm.connector.request_router.router_impl.ExecuteResponseBuilder")
+    @patch("mindie_llm.connector.request_router.router_impl.send_model_execute_response")
     def test_generate_rank(self, mock_send, mock_builder, mock_handle, mock_convert):
         self.router.local_rank = 2
         self.router.tp_size = 2
@@ -1060,7 +1073,7 @@ class TestRouterImpl(unittest.TestCase):
             token_ids=np.array([[1, 2, 3]], dtype=np.uint32),
             eos_info=np.array([[0, 0, 1]], dtype=np.uint32),
             num_top_tokens=np.array([3], dtype=np.int32),
-            sequence_ids=np.array([1, 2, 3], dtype=np.int32)
+            sequence_ids=np.array([1, 2, 3], dtype=np.int32),
         )
         self.mock_composite = Mock()
         self.mock_composite.block_copy = None
@@ -1075,40 +1088,32 @@ class TestRouterImpl(unittest.TestCase):
 
         self.router._generate(self.mock_request, is_prefill=False, is_mix=True)
 
-        mock_builder.build_from_generate_output.assert_called_once_with(self.mock_output,
-                                                                        self.mock_request.execute_type)
+        mock_builder.build_from_generate_output.assert_called_once_with(
+            self.mock_output, self.mock_request.execute_type
+        )
         mock_send.assert_called_once_with(mock_proto)
 
-    @patch('mindie_llm.connector.request_listener.shared_mem_communication.SharedMemCommunication')
+    @patch("mindie_llm.connector.request_listener.shared_mem_communication.SharedMemCommunication")
     def test_send_model_execute_response(self, mock_shared_mem):
-        test_proto = ExecuteResponse(
-            msg_type=1,
-            status=0
-        )
+        test_proto = ExecuteResponse(msg_type=1, status=0)
         send_model_execute_response(test_proto)
         mock_shared_mem.send_model_execute_response_cls.assert_called_once_with(test_proto)
 
-    @patch('mindie_llm.connector.request_listener.shared_mem_communication.SharedMemCommunication')
+    @patch("mindie_llm.connector.request_listener.shared_mem_communication.SharedMemCommunication")
     def test_send_transfer_response(self, mock_shared_mem):
-        test_proto = ExecuteResponse(
-            msg_type=1,
-            status=0
-        )
+        test_proto = ExecuteResponse(msg_type=1, status=0)
         send_transfer_response(test_proto)
         mock_shared_mem.send_transfer_response_cls.assert_called_once_with(test_proto)
 
-    @patch('mindie_llm.connector.request_listener.shared_mem_communication.SharedMemCommunication')
+    @patch("mindie_llm.connector.request_listener.shared_mem_communication.SharedMemCommunication")
     def test_send_command_response(self, mock_shared_mem):
-        test_proto = ExecuteResponse(
-            msg_type=1,
-            status=0
-        )
+        test_proto = ExecuteResponse(msg_type=1, status=0)
         send_command_response(test_proto)
         mock_shared_mem.send_command_response_cls.assert_called_once_with(test_proto)
 
-    @patch('mindie_llm.connector.request_router.router_impl.send_model_execute_response')
-    @patch('mindie_llm.connector.request_router.router_impl.ExecuteResponseBuilder')
-    @patch('mindie_llm.connector.request_router.router_impl.convert_execute_model_request_to_input_metadata_composite')
+    @patch("mindie_llm.connector.request_router.router_impl.send_model_execute_response")
+    @patch("mindie_llm.connector.request_router.router_impl.ExecuteResponseBuilder")
+    @patch("mindie_llm.connector.request_router.router_impl.convert_execute_model_request_to_input_metadata_composite")
     def test_generate_layerwise_disaggregated(self, mock_metadata_composite, mock_response_builder, mock_send):
         self.router.layerwise_disaggregated = True
         mock_metadata_composite.side_effect = lambda *args, **kwargs: Mock(spec=InputMetadataComposite)
@@ -1126,11 +1131,11 @@ class TestRouterImpl(unittest.TestCase):
 
         metadata = LwdMetadata(1, 1, False, 0, True, False, 0, 0, 1024)
         lwd_metadata_manager.set_metadata(metadata)
-        self.router._generate(execute_request,False, False)
+        self.router._generate(execute_request, False, False)
 
-    @patch('mindie_llm.connector.request_router.router_impl.send_model_execute_response')
-    @patch('mindie_llm.connector.request_router.router_impl.ExecuteResponseBuilder')
-    @patch('mindie_llm.connector.request_router.router_impl.convert_execute_model_request_to_input_metadata_composite')
+    @patch("mindie_llm.connector.request_router.router_impl.send_model_execute_response")
+    @patch("mindie_llm.connector.request_router.router_impl.ExecuteResponseBuilder")
+    @patch("mindie_llm.connector.request_router.router_impl.convert_execute_model_request_to_input_metadata_composite")
     def test_mix(self, mock_metadata_composite, mock_response_builder, mock_send):
         execute_request = Mock(spec=ExecuteRequest)
         execute_request.execute_model_request = Mock()
@@ -1153,5 +1158,6 @@ class TestRouterImpl(unittest.TestCase):
         execute_request.execute_model_request.seq_group_metadata_list = [seq_group_metadata]
         self.router._mix(execute_request)
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     unittest.main()

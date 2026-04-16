@@ -11,11 +11,15 @@
 # See the Mulan PSL v2 for more details.
 
 from mindie_llm.connector.common.model_execute_data_pb2 import ExecuteType
-from mindie_llm.connector.common.model_execute_data_pb2 import ExecuteResponse, PullKVResponse
+from mindie_llm.connector.common.model_execute_data_pb2 import (
+    ExecuteResponse,
+    PullKVResponse,
+)
 from mindie_llm.connector.common.model_execute_data_pb2 import SequenceOutput
-from mindie_llm.connector.common.model_execute_data_pb2 import CompletionSequenceGroupOutput
+from mindie_llm.connector.common.model_execute_data_pb2 import (
+    CompletionSequenceGroupOutput,
+)
 from mindie_llm.utils.prof.profiler import span_start, span_end, span_attr
-from mindie_llm.utils.log.logging import logger
 
 DEFAULT_BLOCK_SIZE = 128
 
@@ -44,7 +48,7 @@ class ExecuteResponseBuilder:
                     block_size=int(block_size),
                     compression_ratio=int(compression_ratio),
                     npu_block_num=int(npu_block_num),
-                    cache_type=int(cache_type)
+                    cache_type=int(cache_type),
                 )
         return proto_response
 
@@ -52,6 +56,7 @@ class ExecuteResponseBuilder:
     def build_from_generate_output_use_cpp(generate_output) -> bytes:
         prof = span_start("parse_generate_cpp", domain="connector")
         from _mindie_llm_connector import convert_generate_output
+
         proto_response_binary = convert_generate_output(generate_output)
         span_end(prof)
         return proto_response_binary
@@ -60,6 +65,7 @@ class ExecuteResponseBuilder:
     def lwd_build_from_generate_output_use_cpp(generate_output, is_prefill) -> bytes:
         prof = span_start("parse_generate_cpp", domain="connector")
         from _mindie_llm_connector import lwd_convert_generate_output
+
         proto_response_binary = lwd_convert_generate_output(generate_output, is_prefill)
         span_end(prof)
         return proto_response_binary
@@ -72,7 +78,6 @@ class ExecuteResponseBuilder:
 
     @staticmethod
     def build_from_generate_output(generate_output, event_type) -> ExecuteResponse:
-
         if generate_output is None:
             return ExecuteResponseBuilder.EMPTY
 
@@ -90,11 +95,11 @@ class ExecuteResponseBuilder:
             truncations = generate_output.truncation_indices[start_index:end_index].ravel()
             cum_log_probs = generate_output.cumulative_logprobs[start_index:end_index].ravel()
             top_token_ids = generate_output.top_token_ids[start_index:end_index][
-                            :, :, : generate_output.num_top_tokens[start_index]
-                            ]
+                :, :, : generate_output.num_top_tokens[start_index]
+            ]
             top_log_probs = generate_output.top_logprobs[start_index:end_index][
-                            :, :, : generate_output.num_top_tokens[start_index]
-                            ]
+                :, :, : generate_output.num_top_tokens[start_index]
+            ]
 
             sequence_outputs = [
                 SequenceOutput(
@@ -125,17 +130,17 @@ class ExecuteResponseBuilder:
         proto_response = ExecuteResponse(
             msg_type=ExecuteType.KV_TRANSFER,
             status=status,
-            pull_kv_response=PullKVResponse()
+            pull_kv_response=PullKVResponse(),
         )
         for key, value in pull_kv_response_list.items():
-            proto_response.pull_kv_response.pull_kv_results.append(PullKVResponse.PullKVResult(
-                request_id=str(key),
-                pd_error_code=value.value
-            ))
+            proto_response.pull_kv_response.pull_kv_results.append(
+                PullKVResponse.PullKVResult(request_id=str(key), pd_error_code=value.value)
+            )
         return proto_response
 
     @staticmethod
     def build_from_recover_command_result(responses_dict: str, command: str):
+        msg_type = None
         if command == "CMD_PAUSE_ENGINE":
             msg_type = ExecuteType.PAUSE_COMMAND_EXEC
         elif command == "CMD_PAUSE_ENGINE_ROCE":

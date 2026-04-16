@@ -60,9 +60,7 @@ class CacheEngine:
         elif len(self.token_map[map_id][lst_token]) < self.guess_set_size:
             self.token_map[map_id][lst_token].append(tup)
         else:
-            self.token_map[map_id][lst_token] = self.token_map[map_id][lst_token][
-                1:
-            ] + [tup]
+            self.token_map[map_id][lst_token] = self.token_map[map_id][lst_token][1:] + [tup]
         return
 
     def allocate_map_id(self, req_id):
@@ -101,10 +99,7 @@ class CacheEngine:
 
     def initiate_past_tokens_with_prompt(self, map_id, prompt_tokens, seed):
         self.past_tokens[map_id] = [
-            [
-                self.set_token(prompt_tokens, seed)
-                for _ in range(self.level + self.window - 3)
-            ]
+            [self.set_token(prompt_tokens, seed) for _ in range(self.level + self.window - 3)]
         ] + [None for _ in range(self.level - 2)]
         return
 
@@ -240,12 +235,8 @@ DEFAULT_MASK_START_SIZE = 200
 
 
 def make_triangle_mask(mask, device):
-    mask_cond = tensor_backend.tensor(
-        np.arange(tensor_backend.shape(mask, -1)), device=device
-    )
-    return tensor_backend.masked_fill(
-        mask, mask_cond < (mask_cond + 1).view(tensor_backend.shape(mask, -1), 1), 0
-    )
+    mask_cond = tensor_backend.tensor(np.arange(tensor_backend.shape(mask, -1)), device=device)
+    return tensor_backend.masked_fill(mask, mask_cond < (mask_cond + 1).view(tensor_backend.shape(mask, -1), 1), 0)
 
 
 def make_triangle_mask_numpy(mask):
@@ -270,9 +261,7 @@ def make_single_mask(level, window, line, guess_set_size, device):
     mask = tensor_backend.full((tgt_len, tgt_len), min_num, dtype=dtype, device=device)
     for guess_index in range(guess_set_size):
         start_guess = guess_len * guess_index + 1
-        mask[
-            start_guess : start_guess + guess_len, start_guess : start_guess + guess_len
-        ] = make_triangle_mask(
+        mask[start_guess : start_guess + guess_len, start_guess : start_guess + guess_len] = make_triangle_mask(
             mask[
                 start_guess : start_guess + guess_len,
                 start_guess : start_guess + guess_len,
@@ -335,28 +324,21 @@ MIN_GUESS_SET_SIZE = 1
 
 
 class DecodingPolicy:
-    def __init__(
-        self, kwargs, infer_context, model_wrapper, log_enable, block_size, eos_token_id
-    ):
+    def __init__(self, kwargs, infer_context, model_wrapper, log_enable, block_size, eos_token_id):
         self.level = kwargs.get("level", 4)
         self.window = kwargs.get("window", 5)
         self.guess_set_size = kwargs.get("guess_set_size", 5)
         if self.level > MAX_LEVEL_VALUE:
-            logger.warning(
-                f"The value of level is larger than max value {MAX_LEVEL_VALUE}, run with max value!"
-            )
+            logger.warning(f"The value of level is larger than max value {MAX_LEVEL_VALUE}, run with max value!")
             self.level = MAX_LEVEL_VALUE
 
         if self.window > MAX_WINDOW_VALUE:
-            logger.warning(
-                f"The value of window is larger than max value {MAX_WINDOW_VALUE}, run with max value!"
-            )
+            logger.warning(f"The value of window is larger than max value {MAX_WINDOW_VALUE}, run with max value!")
             self.window = MAX_WINDOW_VALUE
 
         if self.guess_set_size > MAX_GUESS_SET_SIZE:
             logger.warning(
-                f"The value of guess_set_size is larger than max value {MAX_GUESS_SET_SIZE},"
-                " run with max value!"
+                f"The value of guess_set_size is larger than max value {MAX_GUESS_SET_SIZE}, run with max value!"
             )
             self.guess_set_size = MAX_GUESS_SET_SIZE
 
@@ -395,16 +377,12 @@ class DecodingPolicy:
         self.dtype = self.model_wrapper.model_runner.dtype
         self.device = self.model_wrapper.device
 
-        self.default_mask = make_default_mask(
-            self.level, self.window, self.guess_set_size, self.device
-        )
+        self.default_mask = make_default_mask(self.level, self.window, self.guess_set_size, self.device)
         self.eos_token_id = eos_token_id
 
         self.request_stats_list = None
         if log_enable:
-            self.request_stats_list = RequestStatsList(
-                self.level, self.window, self.guess_set_size
-            )
+            self.request_stats_list = RequestStatsList(self.level, self.window, self.guess_set_size)
 
         self.cu_seq_len = None
         self.mt = None
@@ -419,9 +397,7 @@ class DecodingPolicy:
         if prep_guess_token is not None:
             for _, guess in enumerate(prep_guess_token):
                 flatten_input_token.extend(guess)
-                flatten_position.extend(
-                    list(range(lst_position_id + 1, lst_position_id + 1 + len(guess)))
-                )
+                flatten_position.extend(list(range(lst_position_id + 1, lst_position_id + 1 + len(guess))))
 
         for line, past_token_line in enumerate(past_token):
             if past_token_line is None:
@@ -472,9 +448,7 @@ class DecodingPolicy:
         max_extend_len = 0
         for batch in range(batch_size):
             this_extend_len = 0
-            this_extend_len += self.cal_extend_len_with_guess_tokens(
-                guess_tokens, batch
-            )
+            this_extend_len += self.cal_extend_len_with_guess_tokens(guess_tokens, batch)
             this_extend_len += self.cal_extend_len_with_past_tokens(past_tokens, batch)
             sum_extend_len += this_extend_len
             max_extend_len = max(max_extend_len, this_extend_len)
@@ -495,9 +469,7 @@ class DecodingPolicy:
             for i, length in enumerate(input_metadata.batch_seq_len):
                 input_ids = input_metadata.input_ids[start : start + length]
                 start += length
-                self.la_cache.save_tail_tokens(
-                    input_metadata.all_sequence_ids[i], input_ids
-                )
+                self.la_cache.save_tail_tokens(input_metadata.all_sequence_ids[i], input_ids)
                 self.la_cache.set_input_len(input_metadata.all_sequence_ids[i], length)
             model_inputs = raw_model_inputs
             self.position_list = [0] * input_metadata.batch_size
@@ -505,20 +477,14 @@ class DecodingPolicy:
         else:
             seed_array = input_metadata.batch_seeds
             self.position_list = raw_model_inputs.position_ids.tolist()
-            input_len_list = self.la_cache.get_input_lens(
-                input_metadata.all_sequence_ids
-            )
+            input_len_list = self.la_cache.get_input_lens(input_metadata.all_sequence_ids)
             for batch, position in enumerate(self.position_list):
                 self.position_list[batch] = position + 1 - input_len_list[batch]
-            model_inputs, attention_mask = self.la_preprocess(
-                raw_model_inputs, input_metadata, seed_array
-            )
+            model_inputs, attention_mask = self.la_preprocess(raw_model_inputs, input_metadata, seed_array)
             q_len = (self.cu_seq_len[1:] - self.cu_seq_len[:-1]).tolist()
         return model_inputs, q_len, attention_mask
 
-    def make_attention_mask(
-        self, input_len, last_gen_len, is_prefill, past_token, prep_guess_token
-    ):
+    def make_attention_mask(self, input_len, last_gen_len, is_prefill, past_token, prep_guess_token):
         dtype = np.float16
         cur_window = len(past_token[0]) if past_token is not None else 0
         if is_prefill:
@@ -528,9 +494,7 @@ class DecodingPolicy:
             tri_len = triangle_mask.shape[0]
             if tri_len < tgt_len:
                 self.default_mask[-1] = np.array([])
-                add_default_size_time = (
-                    (tgt_len - tri_len) // DEFAULT_MASK_START_SIZE
-                ) + 1
+                add_default_size_time = ((tgt_len - tri_len) // DEFAULT_MASK_START_SIZE) + 1
                 triangle_mask = np.full(
                     (
                         tri_len + DEFAULT_MASK_START_SIZE * add_default_size_time,
@@ -561,15 +525,11 @@ class DecodingPolicy:
         triangle_mask = self.default_mask[-1]
         if triangle_mask.shape[0] < mask_length:
             self.default_mask[-1] = np.array([])
-            add_default_size_time = (
-                (mask_length - triangle_mask.shape[0]) // DEFAULT_MASK_START_SIZE
-            ) + 1
+            add_default_size_time = ((mask_length - triangle_mask.shape[0]) // DEFAULT_MASK_START_SIZE) + 1
             triangle_mask = np.full(
                 (
-                    triangle_mask.shape[0]
-                    + DEFAULT_MASK_START_SIZE * add_default_size_time,
-                    triangle_mask.shape[0]
-                    + DEFAULT_MASK_START_SIZE * add_default_size_time,
+                    triangle_mask.shape[0] + DEFAULT_MASK_START_SIZE * add_default_size_time,
+                    triangle_mask.shape[0] + DEFAULT_MASK_START_SIZE * add_default_size_time,
                 ),
                 np.finfo(dtype).min,
                 dtype=dtype,
@@ -579,9 +539,7 @@ class DecodingPolicy:
         mask = triangle_mask[past_length:mask_length, :mask_length].copy()
         if tgt_len >= 0:
             default_mask = self.default_mask[line - 1]
-            mask[last_gen_len:, mask_length - tgt_len : mask_length] = default_mask[
-                -tgt_len:, -tgt_len:
-            ]
+            mask[last_gen_len:, mask_length - tgt_len : mask_length] = default_mask[-tgt_len:, -tgt_len:]
         return mask
 
     def insert_slots(self, start, last_gen_len, extend_seq_len, block_tables):
@@ -597,9 +555,7 @@ class DecodingPolicy:
             next_length = min(block_rest, remain)
             block_num = block_tables[block_idx].item()
             slots = self.infer_context.block_table_to_slots(block_num)
-            new_slots[pos_now : pos_now + next_length] = slots[
-                slot_start : slot_start + next_length
-            ].tolist()
+            new_slots[pos_now : pos_now + next_length] = slots[slot_start : slot_start + next_length].tolist()
             slot_start += next_length
             block_idx += slot_start // block_size
             slot_start = slot_start % block_size
@@ -608,13 +564,9 @@ class DecodingPolicy:
 
         return new_slots
 
-    def update_decode_model_inputs_prepare(
-        self, model_inputs, past_tokens, prep_guess_tokens, last_gen_tokens
-    ):
+    def update_decode_model_inputs_prepare(self, model_inputs, past_tokens, prep_guess_tokens, last_gen_tokens):
         batch_size = model_inputs.context_length.shape[0]
-        sum_extend_len, max_extend_len = self.count_extend_len(
-            batch_size, prep_guess_tokens, past_tokens
-        )
+        sum_extend_len, max_extend_len = self.count_extend_len(batch_size, prep_guess_tokens, past_tokens)
         input_size = self.get_last_gen_size(batch_size, last_gen_tokens)
         input_ids_tensor = np.zeros(sum_extend_len + input_size, dtype=np.int64)
         position_ids_tensor = np.zeros(sum_extend_len + input_size, dtype=np.int64)
@@ -643,9 +595,7 @@ class DecodingPolicy:
 
         return res
 
-    def update_decode_model_inputs(
-        self, model_inputs, past_tokens, prep_guess_tokens, last_gen_tokens
-    ):
+    def update_decode_model_inputs(self, model_inputs, past_tokens, prep_guess_tokens, last_gen_tokens):
         (
             batch_size,
             last_tokens,
@@ -655,9 +605,7 @@ class DecodingPolicy:
             is_prefill,
             batch_mask,
             max_seq_len,
-        ) = self.update_decode_model_inputs_prepare(
-            model_inputs, past_tokens, prep_guess_tokens, last_gen_tokens
-        )
+        ) = self.update_decode_model_inputs_prepare(model_inputs, past_tokens, prep_guess_tokens, last_gen_tokens)
         total_seq_len = 0
         mask_pos = 0
         for batch in range(batch_size):
@@ -683,28 +631,16 @@ class DecodingPolicy:
                 model_inputs.block_tables[batch],
             )
 
-            input_ids_tensor[total_seq_len : total_seq_len + last_gen_len] = (
-                last_gen_token
-            )
-            gen_position_id = list(
-                range(lst_position_id - last_gen_len + 1, lst_position_id + 1)
-            )
-            position_ids_tensor[total_seq_len : total_seq_len + last_gen_len] = (
-                gen_position_id
-            )
+            input_ids_tensor[total_seq_len : total_seq_len + last_gen_len] = last_gen_token
+            gen_position_id = list(range(lst_position_id - last_gen_len + 1, lst_position_id + 1))
+            position_ids_tensor[total_seq_len : total_seq_len + last_gen_len] = gen_position_id
 
-            slots_tensor[
-                total_seq_len : total_seq_len + last_gen_len + extend_seq_len
-            ] = new_slot_tensor
+            slots_tensor[total_seq_len : total_seq_len + last_gen_len + extend_seq_len] = new_slot_tensor
             total_seq_len += last_gen_len
 
             if extend_seq_len > 0:
-                input_ids_tensor[total_seq_len : total_seq_len + extend_seq_len] = (
-                    flatten_input_tensor
-                )
-                position_ids_tensor[total_seq_len : total_seq_len + extend_seq_len] = (
-                    flatten_position_tensor
-                )
+                input_ids_tensor[total_seq_len : total_seq_len + extend_seq_len] = flatten_input_tensor
+                position_ids_tensor[total_seq_len : total_seq_len + extend_seq_len] = flatten_position_tensor
 
             model_inputs.context_length[batch] = new_seq_len
             max_seq_len = max(max_seq_len, new_seq_len)
@@ -717,9 +653,7 @@ class DecodingPolicy:
             attention_mask = self.make_attention_mask(
                 seq_len, last_gen_len, if_la_first_round, past_token, prep_guess_token
             )
-            batch_mask[
-                mask_pos : mask_pos + attention_mask.shape[0], : attention_mask.shape[1]
-            ] = attention_mask
+            batch_mask[mask_pos : mask_pos + attention_mask.shape[0], : attention_mask.shape[1]] = attention_mask
             mask_pos += attention_mask.shape[0]
         self.last_tokens = last_tokens
         model_inputs.input_ids = input_ids_tensor[:total_seq_len]
@@ -727,9 +661,7 @@ class DecodingPolicy:
         model_inputs.slots = slots_tensor[:total_seq_len]
         model_inputs.max_seq_len = max_seq_len
         self.cu_seq_len = tensor_backend.tensor(is_prefill, device=self.device)
-        batch_mask = tensor_backend.tensor(
-            batch_mask, dtype=self.dtype, device=self.device
-        )
+        batch_mask = tensor_backend.tensor(batch_mask, dtype=self.dtype, device=self.device)
         return model_inputs, batch_mask[:mask_pos, :max_seq_len]
 
     def la_preprocess(self, model_inputs, meta_data, seed_array: np.ndarray):
@@ -749,15 +681,11 @@ class DecodingPolicy:
                 batch_past_token = self.la_cache.get_past_tokens(req_id)
             else:
                 lst_token = model_inputs.input_ids[batch].item()
-                prep_guess_tokens.append(
-                    self.la_cache.get_guess_token(req_id, lst_token)
-                )
+                prep_guess_tokens.append(self.la_cache.get_guess_token(req_id, lst_token))
                 last_gen_tokens.append(self.la_cache.get_gen_tokens(req_id))
             past_tokens.append(batch_past_token)
         self.store_guess_tokens = prep_guess_tokens
-        return self.update_decode_model_inputs(
-            model_inputs, past_tokens, prep_guess_tokens, last_gen_tokens
-        )
+        return self.update_decode_model_inputs(model_inputs, past_tokens, prep_guess_tokens, last_gen_tokens)
 
     def handle_eos(self, req_id):
         self.la_cache.del_req_cache(req_id)
@@ -787,9 +715,7 @@ class DecodingPolicy:
 
         return total_logits_nums, logits_num_per_batch
 
-    def get_input_ids_pad_process_guess(
-        self, index, input_ids_pad, guess_index, input_ids_len
-    ):
+    def get_input_ids_pad_process_guess(self, index, input_ids_pad, guess_index, input_ids_len):
         if not self.store_guess_tokens:
             return True
         guess_tokens = self.store_guess_tokens[index]
@@ -797,8 +723,8 @@ class DecodingPolicy:
             return False
         for guess_set in guess_tokens:
             for idx, _ in enumerate(guess_set):
-                input_ids_pad[guess_index, input_ids_len : input_ids_len + idx + 1] = (
-                    np.array(list(guess_set[: idx + 1]))
+                input_ids_pad[guess_index, input_ids_len : input_ids_len + idx + 1] = np.array(
+                    list(guess_set[: idx + 1])
                 )
                 guess_index += 1
         return True
@@ -808,41 +734,31 @@ class DecodingPolicy:
         logits_num_per_batch = [1] * batch_size
         guess_tokens_num_per_batch = [0] * batch_size
         input_ids_pad = None
-        total_logits_nums, logits_num_per_batch = (
-            self.get_input_ids_pad_preprocess_guess(
-                batch_size,
-                total_logits_nums,
-                logits_num_per_batch,
-                guess_tokens_num_per_batch,
-            )
+        total_logits_nums, logits_num_per_batch = self.get_input_ids_pad_preprocess_guess(
+            batch_size,
+            total_logits_nums,
+            logits_num_per_batch,
+            guess_tokens_num_per_batch,
         )
 
         if sampling_data.all_token_ids is None:
             return input_ids_pad
         input_ids_len = tensor_backend.shape(sampling_data.all_token_ids, -1)
 
-        input_ids_pad = np.zeros(
-            (total_logits_nums, input_ids_len + (self.level - 1)), dtype=np.int64
-        )
+        input_ids_pad = np.zeros((total_logits_nums, input_ids_len + (self.level - 1)), dtype=np.int64)
         index = 0
         for batch in range(batch_size):
             input_ids = np.expand_dims(
-                tensor_backend.numpy(
-                    tensor_backend.cpu(sampling_data.all_token_ids[batch])
-                ),
+                tensor_backend.numpy(tensor_backend.cpu(sampling_data.all_token_ids[batch])),
                 axis=0,
             )
-            input_ids_pad[
-                index : index + logits_num_per_batch[batch], :input_ids_len
-            ] = np.repeat(input_ids, logits_num_per_batch[batch], axis=0)
-            input_ids_pad[
-                index : index + logits_num_per_batch[batch], input_ids_len:
-            ] = input_ids[0][0]
+            input_ids_pad[index : index + logits_num_per_batch[batch], :input_ids_len] = np.repeat(
+                input_ids, logits_num_per_batch[batch], axis=0
+            )
+            input_ids_pad[index : index + logits_num_per_batch[batch], input_ids_len:] = input_ids[0][0]
             guess_index = index + 1
             index += logits_num_per_batch[batch]
-            guess_flag = self.get_input_ids_pad_process_guess(
-                batch, input_ids_pad, guess_index, input_ids_len
-            )
+            guess_flag = self.get_input_ids_pad_process_guess(batch, input_ids_pad, guess_index, input_ids_len)
             if not guess_flag:
                 continue
         input_ids_pad = tensor_backend.tensor(
@@ -855,16 +771,12 @@ class DecodingPolicy:
 
         past_token = self.la_cache.get_past_tokens(req_id)
         if past_token is not None:
-            past_token_out_len = (
-                len(past_token[0]) if past_token[1] is None else len(past_token[0]) + 1
-            )
+            past_token_out_len = len(past_token[0]) if past_token[1] is None else len(past_token[0]) + 1
             past_logits = model_outputs[start_pos - past_token_out_len : start_pos]
 
         return past_logits
 
-    def la_verify_greedy_one_batch(
-        self, verify_guess_tokens, next_guess_tokens, next_guess_indices
-    ):
+    def la_verify_greedy_one_batch(self, verify_guess_tokens, next_guess_tokens, next_guess_indices):
         need_cal_kv = False
         if verify_guess_tokens is None:
             return [next_guess_indices[0]], need_cal_kv
@@ -878,9 +790,7 @@ class DecodingPolicy:
         guess_results = next_guess_tokens[1:]
         for eg, guess_tokens in enumerate(verify_guess_tokens):
             egx = eg * guess_size
-            correct_indices = [next_guess_indices[0]] + guess_indices[
-                egx : egx + guess_size
-            ]
+            correct_indices = [next_guess_indices[0]] + guess_indices[egx : egx + guess_size]
             correct = [first_guess] + guess_results[egx : egx + guess_size].tolist()
             my_guess = guess_tokens
             gg = 0
@@ -895,16 +805,9 @@ class DecodingPolicy:
                     need_cal_kv = True
         return hits, need_cal_kv
 
-    def truncate_token_ids(
-        self, cache_ids, metadata, sampling_output, next_tokens_indices
-    ):
-        output_token_len = self.infer_context.get_output_len_count(cache_ids)[
-            sampling_output.repeating_indices
-        ]
-        output_space_left = (
-            metadata.batch_max_output_lens[sampling_output.repeating_indices]
-            - output_token_len
-        )
+    def truncate_token_ids(self, cache_ids, metadata, sampling_output, next_tokens_indices):
+        output_token_len = self.infer_context.get_output_len_count(cache_ids)[sampling_output.repeating_indices]
+        output_space_left = metadata.batch_max_output_lens[sampling_output.repeating_indices] - output_token_len
         for idx, token_indices in enumerate(next_tokens_indices):
             num_new_tokens = len(token_indices)
             seq_token_ids = sampling_output.token_ids[token_indices]
@@ -924,21 +827,15 @@ class DecodingPolicy:
 
     def la_update(self, metadata, sampling_output, inp_tokens_batch):
         for idx, seq_token_ids in enumerate(sampling_output.token_ids):
-            verify_guess_tokens = (
-                self.store_guess_tokens[idx] if not metadata.is_prefill else None
-            )
+            verify_guess_tokens = self.store_guess_tokens[idx] if not metadata.is_prefill else None
             seq_id = sampling_output.sequence_ids[idx]
             guess_size = self.level - 1
 
             if not metadata.is_prefill:
                 lst_token = self.last_tokens[idx]
                 if inp_tokens_batch:
-                    self.la_cache.update_new_results(
-                        seq_id, lst_token, inp_tokens_batch[idx]
-                    )
-                self.la_cache.append_new_generated_pool(
-                    seq_id, seq_token_ids, sampling_output.num_new_tokens[idx]
-                )
+                    self.la_cache.update_new_results(seq_id, lst_token, inp_tokens_batch[idx])
+                self.la_cache.append_new_generated_pool(seq_id, seq_token_ids, sampling_output.num_new_tokens[idx])
             if self.request_stats_list is not None:
                 total_guess_len = 0
                 if verify_guess_tokens is not None:

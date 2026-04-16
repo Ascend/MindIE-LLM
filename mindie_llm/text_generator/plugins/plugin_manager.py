@@ -98,9 +98,7 @@ class PluginManager:
 
         self.plugin_list = plugin_list
         self.async_inference = self.infer_context.context_params.async_infer
-        self.max_generated_tokens = (
-            self.infer_context.context_params.max_generated_tokens
-        )
+        self.max_generated_tokens = self.infer_context.context_params.max_generated_tokens
         kwargs.update({"model_role": model_role})
         self.kwargs = kwargs
 
@@ -108,9 +106,7 @@ class PluginManager:
             self.input_queue = queue.Queue()
             self.output_queue = queue.Queue()
             self.output_queue.put(ModelOutputWrapper.make_empty())
-            self.forward_thread = CoreThread(
-                target=self.forward_loop, daemon=True, name="async_forward"
-            )
+            self.forward_thread = CoreThread(target=self.forward_loop, daemon=True, name="async_forward")
             self.forward_thread.start()
             self.execution_stream = torch.npu.current_stream()
         self.last_sequence_ids = None
@@ -129,31 +125,18 @@ class PluginManager:
         if ENV.model_runner_exp and ENV.async_inference:
             sampling_output.token_ids = torch.unsqueeze(sampling_output.token_ids, 1)
             sampling_output.logprobs = torch.unsqueeze(sampling_output.logprobs, 1)
-            sampling_output.top_token_ids = torch.unsqueeze(
-                sampling_output.top_token_ids, 1
-            )
-            sampling_output.top_logprobs = torch.unsqueeze(
-                sampling_output.top_logprobs, 1
-            )
+            sampling_output.top_token_ids = torch.unsqueeze(sampling_output.top_token_ids, 1)
+            sampling_output.top_logprobs = torch.unsqueeze(sampling_output.top_logprobs, 1)
         else:
             sampling_output.token_ids = np.expand_dims(sampling_output.token_ids, 1)
             sampling_output.logprobs = np.expand_dims(sampling_output.logprobs, 1)
-            sampling_output.top_token_ids = np.expand_dims(
-                sampling_output.top_token_ids, 1
-            )
-            sampling_output.top_logprobs = np.expand_dims(
-                sampling_output.top_logprobs, 1
-            )
+            sampling_output.top_token_ids = np.expand_dims(sampling_output.top_token_ids, 1)
+            sampling_output.top_logprobs = np.expand_dims(sampling_output.top_logprobs, 1)
 
     @staticmethod
-    def filter_splitfuse_token_ids(
-        input_metadata: InputMetadata, sampling_output: SamplingOutput
-    ):
+    def filter_splitfuse_token_ids(input_metadata: InputMetadata, sampling_output: SamplingOutput):
         # splitfuse非最后一块prefill的token_ids都需要置为-1
-        if (
-            input_metadata.batch_is_prefill is not None
-            and input_metadata.batch_last_prompt is not None
-        ):
+        if input_metadata.batch_is_prefill is not None and input_metadata.batch_last_prompt is not None:
             batch_is_prefill = input_metadata.batch_is_prefill
             batch_last_prompt = input_metadata.batch_last_prompt
             if sampling_output.repeating_indices is not None:
@@ -180,13 +163,9 @@ class PluginManager:
         if self.is_mix_model:
             from .splitfuse.splitfuse_plugin import SplitfusePlugin
 
-            self.mix_preprocess = SplitfusePlugin(
-                self.model_wrapper, self.kvcache_settings, self.infer_context
-            )
+            self.mix_preprocess = SplitfusePlugin(self.model_wrapper, self.kvcache_settings, self.infer_context)
         for plugin in self.plugin_list:
-            cls_name = (
-                "".join([word.capitalize() for word in plugin.split("_")]) + "Plugin"
-            )
+            cls_name = "".join([word.capitalize() for word in plugin.split("_")]) + "Plugin"
             plugin_path = f"mindie_llm.text_generator.plugins.{plugin}.{plugin}_plugin"
             plugin_module = importlib.import_module(plugin_path)
             plugin_cls = getattr(plugin_module, f"{cls_name}")
@@ -211,9 +190,7 @@ class PluginManager:
             if self.prefix_cache.save_event.wait(timeout=timeout_t):
                 logger.info(f"Save finished in {(time.time() - start_t) * 1000:.1f} ms")
             else:
-                logger.error(
-                    f"[TIMEOUT] Save unfinished after {timeout_t} seconds. Exit"
-                )
+                logger.error(f"[TIMEOUT] Save unfinished after {timeout_t} seconds. Exit")
 
     def mem_det_trigger_counter_acc(self):
         if self.mem_det_trigger_counter < MEM_DETECT_INTERVAL:
@@ -222,34 +199,24 @@ class PluginManager:
             self.mem_det_trigger_counter = 0
 
     @timer.track_time_async("generate_token")
-    def generate_token(
-        self, input_metadata: InputMetadata, warmup=False
-    ) -> GenerationOutput:
+    def generate_token(self, input_metadata: InputMetadata, warmup=False) -> GenerationOutput:
         try:
             prof = span_start("preprocess")
-            cache_ids, model_inputs, sampling_metadata, trace_ids = self.preprocess(
-                input_metadata, warmup=warmup
-            )
+            cache_ids, model_inputs, sampling_metadata, trace_ids = self.preprocess(input_metadata, warmup=warmup)
             if not self.is_mix_model:
                 self.plugin_data_param.q_len = None
                 self.plugin_data_param.mask = None
             model_inputs, qlen, mask = self.model_inputs_update_manager(
                 model_inputs, input_metadata, sampling_metadata, cache_ids
             )
-            self.plugin_data_param.q_len = (
-                qlen if qlen is not None else self.plugin_data_param.q_len
-            )
-            self.plugin_data_param.mask = (
-                mask if mask is not None else self.plugin_data_param.mask
-            )
+            self.plugin_data_param.q_len = qlen if qlen is not None else self.plugin_data_param.q_len
+            self.plugin_data_param.mask = mask if mask is not None else self.plugin_data_param.mask
             if (
                 not warmup
                 and "prefix_cache" in self.plugin_list
                 and self.prefix_cache.mempool_type == MemPoolType.ASYNC_WRITE
             ):
-                self.prefix_cache.async_put_prefix_kvcache_to_mempool(
-                    input_metadata, cache_ids
-                )
+                self.prefix_cache.async_put_prefix_kvcache_to_mempool(input_metadata, cache_ids)
             span_end(prof)
             self.watcher.watch_npu_mem(
                 self.rank,
@@ -268,9 +235,7 @@ class PluginManager:
                 forward_extra_kwargs["warmup_is_end"] = False
             else:
                 self.model_wrapper.model_runner.clear_internal_tensors()
-            if (
-                self.plugin_list and "mtp" not in self.plugin_list
-            ) or self.is_mix_model:
+            if (self.plugin_list and "mtp" not in self.plugin_list) or self.is_mix_model:
                 result = self.generator_backend.forward(
                     model_inputs,
                     q_lens=self.plugin_data_param.q_len,
@@ -296,32 +261,22 @@ class PluginManager:
             if warmup:
                 torch.npu.synchronize()
                 torch.npu.empty_cache()
-            self.watcher.watch_npu_mem(
-                self.rank, "After forward", trigger_count=self.mem_det_trigger_counter
-            )
+            self.watcher.watch_npu_mem(self.rank, "After forward", trigger_count=self.mem_det_trigger_counter)
 
             prof = span_start("sample")
-            draft_filtered_logits = self.sample_preprocess_manager(
-                logits, result, sampling_metadata, input_metadata
-            )
-            sampling_output = self.generator_backend.sample(
-                draft_filtered_logits, sampling_metadata
-            )
+            draft_filtered_logits = self.sample_preprocess_manager(logits, result, sampling_metadata, input_metadata)
+            sampling_output = self.generator_backend.sample(draft_filtered_logits, sampling_metadata)
             if not warmup:
                 self.model_wrapper.model_runner.clear_internal_tensors()
             span_end(prof)
-            self.watcher.watch_npu_mem(
-                self.rank, "After sample", trigger_count=self.mem_det_trigger_counter
-            )
+            self.watcher.watch_npu_mem(self.rank, "After sample", trigger_count=self.mem_det_trigger_counter)
             logger.info("sample end", extra={"handler_ids": HandlerType.TOKEN})
             prof = span_start("postprocess")
             if self.mempool_type == MemPoolType.SYNC_WRITE:
                 self.put_prefix_kvcache_to_mempool(input_metadata, cache_ids)
             elif not warmup and self.mempool_type == MemPoolType.ASYNC_WRITE:
                 self.wait_put_finish(input_metadata)
-            generation_output = self.postprocess(
-                cache_ids, input_metadata, result, sampling_metadata, sampling_output
-            )
+            generation_output = self.postprocess(cache_ids, input_metadata, result, sampling_metadata, sampling_output)
             generation_output.trace_ids = trace_ids
             generation_output.simulator_ids = input_metadata.simulator_ids
             span_end(prof)
@@ -335,14 +290,10 @@ class PluginManager:
 
         except Exception as e:
             if self.is_inference_pause:
-                logger.info(
-                    f"Mocking response due to inference pause for trace_ids={trace_ids}."
-                )
+                logger.info(f"Mocking response due to inference pause for trace_ids={trace_ids}.")
                 # Check for FORCE STOP exception and notify generator_backend if it's GeneratorTorch
                 if is_force_stop_exception(e):
-                    logger.info(
-                        f"FORCE STOP exception detected in plugin_manager.generate_token: {e}"
-                    )
+                    logger.info(f"FORCE STOP exception detected in plugin_manager.generate_token: {e}")
                     self.generator_backend.notify_force_stop_exception()
                 return GenerationOutput.make_empty()
             logger.exception(
@@ -351,9 +302,7 @@ class PluginManager:
             )
             raise e
 
-    def generate_token_async(
-        self, input_metadata: InputMetadata, warmup=False
-    ) -> GenerationOutput:
+    def generate_token_async(self, input_metadata: InputMetadata, warmup=False) -> GenerationOutput:
         with self.generator_backend.get_new_stream():
             prof = span_start("preprocess")
             hit_mask = np.isin(input_metadata.all_sequence_ids, self.last_sequence_ids)
@@ -377,9 +326,7 @@ class PluginManager:
 
             prof = span_start("prepare_model_inputs")
 
-            if (
-                self.plugin_list and "mtp" not in self.plugin_list
-            ) or self.is_mix_model:
+            if (self.plugin_list and "mtp" not in self.plugin_list) or self.is_mix_model:
                 model_input, model_kwargs = self.generator_backend.prepare_model_inputs(
                     model_input,
                     q_lens=self.plugin_data_param.q_len,
@@ -402,22 +349,15 @@ class PluginManager:
                 self.warmup_is_end = False
 
             if self.generator_backend.dp > 1:
-                cur_dp_rank_id_per_token_mask = (
-                    model_input.dp_rank_ids
-                    == self.generator_backend.mapping.attn_dp.rank
-                )
-                current_dp_sequence_ids = input_metadata.all_sequence_ids[
-                    cur_dp_rank_id_per_token_mask
-                ]
+                cur_dp_rank_id_per_token_mask = model_input.dp_rank_ids == self.generator_backend.mapping.attn_dp.rank
+                current_dp_sequence_ids = input_metadata.all_sequence_ids[cur_dp_rank_id_per_token_mask]
                 current_dp_batch_is_prefill = (
                     input_metadata.batch_is_prefill[cur_dp_rank_id_per_token_mask]
                     if input_metadata.batch_is_prefill is not None
                     else None
                 )
                 current_dp_token_num_per_seq = (
-                    self._get_token_num_per_seq(input_metadata)[
-                        cur_dp_rank_id_per_token_mask
-                    ]
+                    self._get_token_num_per_seq(input_metadata)[cur_dp_rank_id_per_token_mask]
                     if self.is_mix_model
                     else None
                 )
@@ -425,9 +365,7 @@ class PluginManager:
                 current_dp_sequence_ids = input_metadata.all_sequence_ids
                 current_dp_batch_is_prefill = input_metadata.batch_is_prefill
                 current_dp_token_num_per_seq = (
-                    self._get_token_num_per_seq(input_metadata)
-                    if self.is_mix_model
-                    else None
+                    self._get_token_num_per_seq(input_metadata) if self.is_mix_model else None
                 )
 
             filling_masks = self._prepare_masks_for_filling(
@@ -471,19 +409,10 @@ class PluginManager:
                     )
                 span_end(prof)
             else:
-                model_input_wrapper.model_inputs.input_ids.record_stream(
-                    self.execution_stream
-                )
-                model_input_wrapper.model_inputs.position_ids.record_stream(
-                    self.execution_stream
-                )
-                model_input_wrapper.model_inputs.forward_context.record_stream(
-                    self.execution_stream
-                )
-                if (
-                    model_input_wrapper.model_inputs.forward_context.sub_forward_context
-                    is not None
-                ):
+                model_input_wrapper.model_inputs.input_ids.record_stream(self.execution_stream)
+                model_input_wrapper.model_inputs.position_ids.record_stream(self.execution_stream)
+                model_input_wrapper.model_inputs.forward_context.record_stream(self.execution_stream)
+                if model_input_wrapper.model_inputs.forward_context.sub_forward_context is not None:
                     model_input_wrapper.model_inputs.forward_context.sub_forward_context.record_stream(
                         self.execution_stream
                     )
@@ -497,23 +426,17 @@ class PluginManager:
                 and "prefix_cache" in self.plugin_list
                 and self.prefix_cache.mempool_type == MemPoolType.ASYNC_WRITE
             ):
-                self.prefix_cache.async_put_prefix_kvcache_to_mempool(
-                    input_metadata, cache_ids
-                )
+                self.prefix_cache.async_put_prefix_kvcache_to_mempool(input_metadata, cache_ids)
 
             prof = span_start("put_into_input_queue")
             self.input_queue.put(model_input_wrapper)
             span_end(prof)
 
-            if not input_metadata.is_prefill and (
-                ENV.model_runner_exp or not self.previous_batch_is_prefill
-            ):
+            if not input_metadata.is_prefill and (ENV.model_runner_exp or not self.previous_batch_is_prefill):
                 prof = span_start("wait_to_postprocess")
                 if model_output_wrapper.launch_done is not None:
                     if not self.is_inference_pause:
-                        if not model_output_wrapper.launch_done.wait(
-                            timeout=LAUNCH_DONE_TIMEOUT
-                        ):
+                        if not model_output_wrapper.launch_done.wait(timeout=LAUNCH_DONE_TIMEOUT):
                             logger.warning("Timeout waiting for launch_done signal.")
                     else:  # branch for quick recovery
                         if not model_output_wrapper.launch_done.wait(timeout=1):
@@ -598,10 +521,8 @@ class PluginManager:
             self.plugin_data_param.q_len = q_len
             self.plugin_data_param.mask = attention_mask
         else:
-            (model_inputs, sampling_metadata, trace_ids) = (
-                self.infer_context.compose_model_inputs(
-                    input_metadata, cache_ids, warmup=warmup, hit_mask=hit_mask
-                )
+            (model_inputs, sampling_metadata, trace_ids) = self.infer_context.compose_model_inputs(
+                input_metadata, cache_ids, warmup=warmup, hit_mask=hit_mask
             )
 
         if not self.async_inference and self._structured_output_manager is not None:
@@ -614,11 +535,7 @@ class PluginManager:
                 input_metadata, sampling_metadata, cache_ids, response_format_array
             )
 
-        if (
-            sampling_metadata is not None
-            and ENV.model_runner_exp
-            and not sampling_metadata.is_prefill
-        ):
+        if sampling_metadata is not None and ENV.model_runner_exp and not sampling_metadata.is_prefill:
             for plugin in self.plugin_list:
                 plugin_instance = getattr(self, plugin, None)
                 method = getattr(plugin_instance, "compose_model_inputs_exp", None)
@@ -628,9 +545,7 @@ class PluginManager:
         return res
 
     @timer.track_time("stop")
-    def postprocess(
-        self, cache_ids, input_metadata, result, sampling_metadata, sampling_output
-    ):
+    def postprocess(self, cache_ids, input_metadata, result, sampling_metadata, sampling_output):
         if isinstance(result, tuple):
             logits = result[0]
         else:
@@ -648,11 +563,9 @@ class PluginManager:
         if not self.async_inference:
             self.plugin_verify_manager(sampling_output, cache_ids, result)
             if self._structured_output_manager is not None:
-                is_structured_accepted = (
-                    self._structured_output_manager.compute_structured_output_accepted(
-                        cache_ids=cache_ids,
-                        token_ids=sampling_output.token_ids,
-                    )
+                is_structured_accepted = self._structured_output_manager.compute_structured_output_accepted(
+                    cache_ids=cache_ids,
+                    token_ids=sampling_output.token_ids,
                 )
             else:
                 is_structured_accepted = None
@@ -661,26 +574,19 @@ class PluginManager:
             batch_size = len(cache_ids) if cache_ids is not None else 0
             is_structured_accepted = np.ones(batch_size, dtype=bool)
 
-        finish_reason, filtered_indices, truncation_indices = (
-            self.output_filter.filter_finished_sequences(
-                cache_ids, input_metadata, sampling_output, is_structured_accepted
-            )
+        finish_reason, filtered_indices, truncation_indices = self.output_filter.filter_finished_sequences(
+            cache_ids, input_metadata, sampling_output, is_structured_accepted
         )
 
         # If best_of sampling or beam search is open, get new cache ids
         if sampling_metadata is not None:
-            best_of_sampling = (
-                sampling_metadata.best_of_array is not None
-                and sampling_metadata.is_prefill
-            )
+            best_of_sampling = sampling_metadata.best_of_array is not None and sampling_metadata.is_prefill
             has_beam_search = sampling_metadata.use_beam_search_array is not None
             if best_of_sampling or has_beam_search:
                 cache_ids = self.infer_context.fork_context(sampling_output)
 
         la_cache_input = (result, sampling_metadata)
-        self.plugin_cache_update_manager(
-            cache_ids, sampling_output, la_cache_input, input_metadata.is_prefill
-        )
+        self.plugin_cache_update_manager(cache_ids, sampling_output, la_cache_input, input_metadata.is_prefill)
 
         metadata = (input_metadata, sampling_metadata)
         finished_cache_ids, finished_sequence_ids = self.infer_context.update_context(
@@ -690,9 +596,7 @@ class PluginManager:
         sequence_ids_to_clear = np.array([], dtype=np.int64)
         # 不清理dummy batch 的 cache id
         if not input_metadata.is_dummy_batch:
-            sequence_ids_to_clear = self.infer_context.clear_finished_context(
-                finished_sequence_ids, finished_cache_ids
-            )
+            sequence_ids_to_clear = self.infer_context.clear_finished_context(finished_sequence_ids, finished_cache_ids)
             if has_sampling and sequence_ids_to_clear.size != 0:
                 self.sampler.clear_cache(sequence_ids_to_clear)
             self.plugin_cache_clear_manager(cache_ids, finish_reason)
@@ -727,9 +631,7 @@ class PluginManager:
             generation_output.remove(sequence_ids_to_clear)
         return generation_output
 
-    def model_inputs_update_manager(
-        self, model_inputs, input_metadata, sampling_metadata, cache_ids, **kwargs
-    ):
+    def model_inputs_update_manager(self, model_inputs, input_metadata, sampling_metadata, cache_ids, **kwargs):
         if not self.is_mix_model:
             self.plugin_data_param.q_len = None
             self.plugin_data_param.mask = None
@@ -749,26 +651,15 @@ class PluginManager:
             )
         (q_len, spec_mask) = input_len_mask
         # 需要确保虚推 context_length 至少为 1，否则会导致模型内部维度计算错误 (coreDim = 0)
-        if (
-            input_metadata.all_sequence_ids is not None
-            and not input_metadata.is_prefill
-        ):
-            has_simulate = any(
-                sid == SIMULATE_SEQUENCE_ID for sid in input_metadata.all_sequence_ids
-            )
+        if input_metadata.all_sequence_ids is not None and not input_metadata.is_prefill:
+            has_simulate = any(sid == SIMULATE_SEQUENCE_ID for sid in input_metadata.all_sequence_ids)
             if has_simulate and model_inputs.context_length[0] == 0:
                 model_inputs.context_length[0] = 1
-        self.plugin_data_param.q_len = (
-            q_len if q_len is not None else self.plugin_data_param.q_len
-        )
-        self.plugin_data_param.mask = (
-            spec_mask if spec_mask is not None else self.plugin_data_param.mask
-        )
+        self.plugin_data_param.q_len = q_len if q_len is not None else self.plugin_data_param.q_len
+        self.plugin_data_param.mask = spec_mask if spec_mask is not None else self.plugin_data_param.mask
         return model_inputs, q_len, spec_mask
 
-    def sample_preprocess_manager(
-        self, logits, result, sampling_metadata, input_metadata
-    ):
+    def sample_preprocess_manager(self, logits, result, sampling_metadata, input_metadata):
         for plugin in self.plugin_list:
             plugin_instance = getattr(self, plugin, None)
             method = getattr(plugin_instance, "sample_preprocess", None)
@@ -786,9 +677,7 @@ class PluginManager:
         if len(sampling_output.token_ids.shape) != 2:
             self.unsqueeze_sampling_output(sampling_output)
 
-    def plugin_cache_update_manager(
-        self, cache_ids, sampling_output, la_cache_input, is_prefill
-    ):
+    def plugin_cache_update_manager(self, cache_ids, sampling_output, la_cache_input, is_prefill):
         for plugin in self.plugin_list:
             plugin_instance = getattr(self, plugin, None)
             method = getattr(plugin_instance, "plugin_cache_update", None)
@@ -820,9 +709,7 @@ class PluginManager:
                 response_format_array = (
                     input_metadata_for_batch.batch_response_format
                     if input_metadata_for_batch.is_prefill
-                    else self.infer_context.get_response_format(
-                        model_input_wrapper.cache_ids
-                    )
+                    else self.infer_context.get_response_format(model_input_wrapper.cache_ids)
                 )
                 self._structured_output_manager.build_and_assign_structured_guided_bitmask(
                     input_metadata_for_batch,
@@ -835,9 +722,7 @@ class PluginManager:
             if ENV.model_runner_exp:
                 prof = span_start("fill_in_model_result")
                 if model_output_wrapper is not None:
-                    self._fill_in_model_result_exp(
-                        model_input_wrapper, model_output_wrapper
-                    )
+                    self._fill_in_model_result_exp(model_input_wrapper, model_output_wrapper)
                 span_end(prof)
             try:
                 prof = span_start("forward")
@@ -896,9 +781,7 @@ class PluginManager:
                             model_input_wrapper.cache_ids,
                         )
                     span_end(prof)
-                elif (
-                    self.warmup_is_end and self.mempool_type == MemPoolType.ASYNC_WRITE
-                ):
+                elif self.warmup_is_end and self.mempool_type == MemPoolType.ASYNC_WRITE:
                     self.wait_put_finish(model_input_wrapper.input_metadata)
 
                 launch_done = threading.Event()
@@ -918,18 +801,14 @@ class PluginManager:
 
                 # Check for FORCE STOP exception and notify generator_backend if it's GeneratorTorch
                 if is_force_stop_exception(e):
-                    logger.info(
-                        f"FORCE STOP exception detected in plugin_manager.forward_loop: {e}"
-                    )
+                    logger.info(f"FORCE STOP exception detected in plugin_manager.forward_loop: {e}")
                     self.generator_backend.notify_force_stop_exception()
 
                 error_code = convert_exception_to_error_code(str(e))
 
                 # Handle PyTorch OOM(Only supports Torch >= 2.6 native exception)
                 # If torch version is 2.1 or lower, please check exception message directly.
-                if hasattr(torch, "OutOfMemoryError") and isinstance(
-                    e, torch.OutOfMemoryError
-                ):
+                if hasattr(torch, "OutOfMemoryError") and isinstance(e, torch.OutOfMemoryError):
                     error_msg = (
                         "Device out of memory (OOM) reported by PyTorch, but it can possibly triggered by HCCL. "
                         "Enable logs: export ASCEND_SLOG_PRINT_TO_STDOUT=1, "
@@ -941,13 +820,8 @@ class PluginManager:
                 if error_code is not None:
                     self.error_code_collected_in_async = error_code
 
-                if (
-                    self.is_inference_pause
-                    or self.error_code_collected_in_async is not None
-                ):
-                    logger.info(
-                        f"Mocking response due to inference pause for trace_ids={trace_ids}."
-                    )
+                if self.is_inference_pause or self.error_code_collected_in_async is not None:
+                    logger.info(f"Mocking response due to inference pause for trace_ids={trace_ids}.")
                     if self.error_code_collected_in_async and launch_done is not None:
                         launch_done.set()
                     model_output_wrapper = ModelOutputWrapper(
@@ -998,9 +872,7 @@ class PluginManager:
             hit_sequence_ids_mask = filling_masks.get("hit_sequence_ids_mask")
             if hit_sequence_ids_mask is not None:
                 hit_indices_tensor = filling_masks.get("hit_indices_tensor")
-                true_token_ids = sampling_output.token_ids.index_select(
-                    dim=0, index=hit_indices_tensor
-                ).flatten()
+                true_token_ids = sampling_output.token_ids.index_select(dim=0, index=hit_indices_tensor).flatten()
                 # splitfuse: one row per token in flattened input_ids; must use per-token mask
                 hit_mask_per_token = filling_masks.get("hit_mask_per_token")
                 if hit_mask_per_token is not None:
@@ -1011,21 +883,13 @@ class PluginManager:
                 ones_int64 = filling_masks.get("ones_int64")
                 if len(update_indices) > 0:
                     model_inputs.input_ids.scatter_(0, update_indices, true_token_ids)
-                    model_inputs.position_ids.scatter_add_(
-                        0, update_indices, ones_int64
-                    )
-                    model_inputs.input_lengths.scatter_add_(
-                        0, update_indices, ones_int32
-                    )
+                    model_inputs.position_ids.scatter_add_(0, update_indices, ones_int64)
+                    model_inputs.input_lengths.scatter_add_(0, update_indices, ones_int32)
                 model_inputs.context_length[hit_sequence_ids_mask] += 1
                 model_inputs.max_seq_len = max(model_inputs.context_length)
-                model_inputs.forward_context.attn_metadata.max_seq_len = (
-                    model_inputs.max_seq_len
-                )
+                model_inputs.forward_context.attn_metadata.max_seq_len = model_inputs.max_seq_len
                 if model_inputs.q_lens is not None:
-                    actual_seq_lengths_query = torch.cumsum(
-                        model_inputs.q_lens, dim=0, dtype=torch.int32
-                    )
+                    actual_seq_lengths_query = torch.cumsum(model_inputs.q_lens, dim=0, dtype=torch.int32)
                 else:
                     actual_seq_lengths_query = torch.cumsum(
                         torch.ones_like(model_inputs.input_lengths, dtype=torch.int32),
@@ -1033,15 +897,9 @@ class PluginManager:
                         dtype=torch.int32,
                     )
 
-                model_inputs.forward_context.attn_metadata.actual_seq_lengths_query = (
-                    actual_seq_lengths_query
-                )
-                model_inputs.forward_context.attn_metadata.actual_seq_lengths_kv = (
-                    model_inputs.input_lengths
-                )
-                model_inputs.forward_context.attn_metadata.seq_lens = (
-                    model_inputs.input_lengths
-                )
+                model_inputs.forward_context.attn_metadata.actual_seq_lengths_query = actual_seq_lengths_query
+                model_inputs.forward_context.attn_metadata.actual_seq_lengths_kv = model_inputs.input_lengths
+                model_inputs.forward_context.attn_metadata.seq_lens = model_inputs.input_lengths
 
     def _init_structured_output_manager(self) -> None:
         if not self._structured_output_enabled:
@@ -1065,9 +923,7 @@ class PluginManager:
                     vocab_size = tokenizer.vocab_size
 
             if tokenizer is None or vocab_size is None:
-                logger.warning(
-                    "Cannot initialize structured output manager: tokenizer or vocab_size not available"
-                )
+                logger.warning("Cannot initialize structured output manager: tokenizer or vocab_size not available")
                 self._structured_output_enabled = False
                 return
 
@@ -1083,9 +939,7 @@ class PluginManager:
                 vocab_size=vocab_size,
                 config=config,
             )
-            self.infer_context.set_structured_output_manager(
-                self._structured_output_manager
-            )
+            self.infer_context.set_structured_output_manager(self._structured_output_manager)
 
         except ImportError as e:
             logger.warning(f"Failed to import structured output module: {e}")
@@ -1121,9 +975,7 @@ class PluginManager:
             )
         else:
             masks = {}
-            hit_sequence_ids_mask = np.isin(
-                current_dp_sequence_ids, self.last_sequence_ids
-            )
+            hit_sequence_ids_mask = np.isin(current_dp_sequence_ids, self.last_sequence_ids)
             if current_dp_batch_is_prefill is not None:
                 hit_sequence_ids_mask[current_dp_batch_is_prefill] = False
             elif input_metadata.is_prefill:
@@ -1134,35 +986,19 @@ class PluginManager:
                     token_num_per_seq = current_dp_token_num_per_seq
                     if token_num_per_seq is None:
                         token_num_per_seq = self._get_token_num_per_seq(input_metadata)
-                    repeating_indices = np.repeat(
-                        np.arange(len(token_num_per_seq)), token_num_per_seq
-                    )
+                    repeating_indices = np.repeat(np.arange(len(token_num_per_seq)), token_num_per_seq)
                     hit_mask_per_token = hit_sequence_ids_mask[repeating_indices]
-                    masks["hit_mask_per_token"] = self.generator_backend.to_tensor(
-                        hit_mask_per_token
-                    )
-                hit_indices = np.where(
-                    hit_sequence_ids[:, None] == self.last_sequence_ids[None, :]
-                )[1]
+                    masks["hit_mask_per_token"] = self.generator_backend.to_tensor(hit_mask_per_token)
+                hit_indices = np.where(hit_sequence_ids[:, None] == self.last_sequence_ids[None, :])[1]
                 masks["hit_sequence_ids_mask"] = hit_sequence_ids_mask
-                hit_sequence_ids_mask_tensor = self.generator_backend.to_tensor(
-                    hit_sequence_ids_mask
-                )
+                hit_sequence_ids_mask_tensor = self.generator_backend.to_tensor(hit_sequence_ids_mask)
                 masks["hit_sequence_ids_mask_tensor"] = hit_sequence_ids_mask_tensor
                 masks["hit_indices"] = hit_indices
-                masks["hit_indices_tensor"] = self.generator_backend.to_tensor(
-                    hit_indices
-                )
+                masks["hit_indices_tensor"] = self.generator_backend.to_tensor(hit_indices)
                 if ENV.model_runner_exp:
-                    update_indices = hit_sequence_ids_mask_tensor.nonzero(
-                        as_tuple=True
-                    )[0]
-                    ones_int32 = torch.ones(
-                        (len(update_indices),), device="npu", dtype=torch.int32
-                    )
-                    ones_int64 = torch.ones(
-                        (len(update_indices),), device="npu", dtype=torch.int64
-                    )
+                    update_indices = hit_sequence_ids_mask_tensor.nonzero(as_tuple=True)[0]
+                    ones_int32 = torch.ones((len(update_indices),), device="npu", dtype=torch.int32)
+                    ones_int64 = torch.ones((len(update_indices),), device="npu", dtype=torch.int64)
                     masks["update_indices"] = update_indices
                     masks["ones_int32"] = ones_int32
                     masks["ones_int64"] = ones_int64
@@ -1197,21 +1033,15 @@ class PluginManager:
             hit_sequence_ids_mask = filling_masks.get("hit_sequence_ids_mask")
             if hit_sequence_ids_mask is not None:
                 hit_indices = filling_masks.get("hit_indices")
-                hit_sequence_ids_mask_tensor = filling_masks.get(
-                    "hit_sequence_ids_mask_tensor"
-                )
-                true_token_ids = (
-                    sampling_output.token_ids[hit_indices].reshape(-1).astype(np.int64)
-                )
+                hit_sequence_ids_mask_tensor = filling_masks.get("hit_sequence_ids_mask_tensor")
+                true_token_ids = sampling_output.token_ids[hit_indices].reshape(-1).astype(np.int64)
                 hit_mask_per_token = filling_masks.get("hit_mask_per_token")
                 if hit_mask_per_token is not None:
-                    model_inputs.input_ids[hit_mask_per_token] = (
-                        self.generator_backend.to_tensor(true_token_ids)
-                    )
+                    model_inputs.input_ids[hit_mask_per_token] = self.generator_backend.to_tensor(true_token_ids)
                     model_inputs.position_ids[hit_mask_per_token] += 1
                 else:
-                    model_inputs.input_ids[hit_sequence_ids_mask_tensor] = (
-                        self.generator_backend.to_tensor(true_token_ids)
+                    model_inputs.input_ids[hit_sequence_ids_mask_tensor] = self.generator_backend.to_tensor(
+                        true_token_ids
                     )
                     model_inputs.position_ids[hit_sequence_ids_mask_tensor] += 1
                 if not self.generator_backend.mapping.has_attn_cp():
@@ -1220,23 +1050,17 @@ class PluginManager:
                     model_inputs.max_seq_len = max(model_inputs.context_length)
 
     def _get_token_num_per_seq(self, input_metadata: InputMetadata):
-        batch_seq_len = (
-            input_metadata.split_end_position - input_metadata.split_start_position
-        )
+        batch_seq_len = input_metadata.split_end_position - input_metadata.split_start_position
         # computed_blocks为None时prefixcache无命中，batch_seq_len即为q_len
         if input_metadata.computed_blocks is None:
             token_num_per_seq = batch_seq_len
         # computed_blocks非None时prefixcache有命中，需从batch_seq_len中减去命中token
         else:
             token_num_per_seq = np.where(
-                input_metadata.batch_is_prefill
-                & (input_metadata.split_start_position == 0),
-                batch_seq_len
-                - self.generator_backend.block_size * input_metadata.computed_blocks,
+                input_metadata.batch_is_prefill & (input_metadata.split_start_position == 0),
+                batch_seq_len - self.generator_backend.block_size * input_metadata.computed_blocks,
                 batch_seq_len,
             ).astype(np.int64)
-            cache_len_equal_mask = input_metadata.batch_is_prefill & (
-                token_num_per_seq == 0
-            )
+            cache_len_equal_mask = input_metadata.batch_is_prefill & (token_num_per_seq == 0)
             token_num_per_seq[cache_len_equal_mask] = self.generator_backend.block_size
         return token_num_per_seq

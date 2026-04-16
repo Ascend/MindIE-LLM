@@ -20,10 +20,14 @@ from mindie_llm.runtime.utils.helpers.env import ENV
 from mindie_llm.runtime.utils.cpu.affinity import bind_cpus
 from mindie_llm.runtime.utils.npu.device_utils import get_npu_hbm_info
 from mindie_llm.runtime.models import get_router_ins
-from mindie_llm.runtime.model_runner.forward_context_exp import create_forward_context, set_forward_context, \
-    get_forward_context, BatchDescriptor, ForwardContext, set_mc2_token_capacity
+from mindie_llm.runtime.model_runner.forward_context_exp import (
+    create_forward_context,
+    set_forward_context,
+    BatchDescriptor,
+    ForwardContext,
+    set_mc2_token_capacity,
+)
 from mindie_llm.runtime.model_runner.forward_metadata.attn_metadata import build_layerwise_attn_metadata
-from mindie_llm.runtime.model_runner.forward_metadata.dp_metadata import DPMetadata
 from mindie_llm.runtime.utils.torch_utils import set_default_torch_dtype
 from mindie_llm.runtime.utils.loader.default_model_loader import DefaultModelLoader
 from mindie_llm.runtime.utils.distributed import get_parallel_info_manager, init_distributed
@@ -48,13 +52,14 @@ torch.npu.config.allow_internal_format = True
 
 class KVCacheInfo:
     """Information about KV cache state.
-    
+
     Attributes:
         kcache_id: ID of the key cache tensor.
         vcache_id: ID of the value cache tensor.
         kcache_shape: Shape of the key cache tensor.
         vcache_shape: Shape of the value cache tensor.
     """
+
     kcache_id: Optional[int] = None
     vcache_id: Optional[int] = None
     kcache_shape: Optional[torch.Size] = None
@@ -62,10 +67,10 @@ class KVCacheInfo:
 
     def check_diff(self, kv_caches: list) -> bool:
         """Check if KV cache has changed.
-        
+
         Args:
             kv_caches: List of KV cache tuples.
-            
+
         Returns:
             True if cache has changed, False otherwise.
         """
@@ -81,14 +86,14 @@ class KVCacheInfo:
 @auto_speculative_method_router(selector_fn=speculative_worker_selector)
 class ModelRunnerExp:
     """Experimental model runner for inference.
-    
+
     This class handles model loading, initialization, and forward passes
     for experimental features.
     """
 
     # Let main and draft model runner share the same warmup status.
     _is_warmup_completed = False
-    
+
     def __init__(
         self,
         model_name_or_path: str,
@@ -101,10 +106,10 @@ class ModelRunnerExp:
         tokenizer_path: Optional[str] = None,
         llm_config_path: Optional[str] = None,
         models_dict: Optional[dict] = None,
-        **kwargs
+        **kwargs,
     ) -> None:
         """Initialize the model runner.
-        
+
         Args:
             model_name_or_path: Path or name of the model.
             rank: Process rank in distributed setup.
@@ -119,7 +124,7 @@ class ModelRunnerExp:
             **kwargs: Additional keyword arguments.
         """
         self._model_name_or_path = model_name_or_path
-        self.num_speculative_tokens = kwargs.get('num_speculative_tokens', 0)
+        self.num_speculative_tokens = kwargs.get("num_speculative_tokens", 0)
         self._max_batch_size = kwargs.get("max_batch_size", -1) * (self.num_speculative_tokens + 1)
         self._max_num_token = self._max_batch_size
         local_rank = local_rank if local_rank is not None else rank
@@ -144,7 +149,7 @@ class ModelRunnerExp:
             except ValueError as e:
                 print_log(rank, logger.info, e)
             except Exception as _:
-                print_log(rank, logger.info, 'Skip binding cpu.')
+                print_log(rank, logger.info, "Skip binding cpu.")
 
         # NOTE: `max_position_embeddings` should be deleted later
         load_config_dict = {
@@ -156,7 +161,7 @@ class ModelRunnerExp:
             "llm_config_path": llm_config_path,
             "models_dict": models_dict,
         }
-        
+
         load_config = LoadConfig.from_dict(load_config_dict)
         router_ins = get_router_ins(load_config)
         self._model_cls = router_ins.draft_cls if self.is_draft_model else router_ins.model_cls
@@ -168,7 +173,7 @@ class ModelRunnerExp:
         self.input_builder = router_ins.input_builder
         self.config_dict = router_ins.config_dict
         self.llm_config = router_ins.llm_config
-        self.enable_nz = False # NOTE: This feature should be decided by models, this will be refactored later.
+        self.enable_nz = False  # NOTE: This feature should be decided by models, this will be refactored later.
         init_distributed(rank, world_size, local_rank, llm_config=self.llm_config, server_config=kwargs)
         self.head_size = self.config.head_dim
         self.num_heads = self.config.get_num_attention_heads_per_rank()
@@ -183,12 +188,13 @@ class ModelRunnerExp:
         self.adapter_manager = None
         self.lora_adapter = None
         self.model = None
-        self.num_speculative_tokens = kwargs.get('num_speculative_tokens', 0)
+        self.num_speculative_tokens = kwargs.get("num_speculative_tokens", 0)
         self.attn_mask = None
 
         self._mindie_llm_config = MindIELLMConfig(
             self._model_name_or_path,
-            self.config, self.llm_config,
+            self.config,
+            self.llm_config,
             router_ins.generation_config,
             speculative_config=SpeculativeConfig(self.num_speculative_tokens),
         )
@@ -196,17 +202,16 @@ class ModelRunnerExp:
         # NOTE: default mask and rotary_emb will be refactored later.
         self._mask = torch.triu(torch.ones(2048, 2048), diagonal=1).to(torch.int8).npu()
 
-
         self._kv_cache_info = KVCacheInfo()
 
-        self.role = kwargs.get('role', 'standard')
-        # False: eager mode, True: AclGraph mode; 
+        self.role = kwargs.get("role", "standard")
+        # False: eager mode, True: AclGraph mode;
         # prefill node in pd disaggregated mode do not need acl graph currently.
-        self._is_aclgraph_enabled = (self.role != 'prefill')
+        self._is_aclgraph_enabled = self.role != "prefill"
 
         self.is_draft_model = kwargs.get("is_draft_model", False)
 
-        sampler_config = kwargs.get('sampler_config', None)
+        sampler_config = kwargs.get("sampler_config", None)
         if ENV_utils.async_inference:
             self.sampler = Sampler(sampler_config)
         set_mc2_token_capacity(self._max_batch_size, self.num_speculative_tokens + 1)
@@ -218,8 +223,10 @@ class ModelRunnerExp:
 
         # load model
         if self._max_seq_len > self._mindie_llm_config.hf_config.rope_scaling.max_position_embeddings:
-            _msg = (f"`max_seq_len` cannot be larger than `max_position_embeddings` "
-                    f"or `original_max_position_embeddings`*`scaling_factor` when scaling.")
+            _msg = (
+                "`max_seq_len` cannot be larger than `max_position_embeddings` "
+                "or `original_max_position_embeddings`*`scaling_factor` when scaling."
+            )
             logger.error(_msg)
             raise ValueError(_msg)
         with set_default_torch_dtype(self.config.torch_dtype):
@@ -233,7 +240,7 @@ class ModelRunnerExp:
         self.index_head_dim = getattr(self._mindie_llm_config.hf_config, "index_head_dim", None)
         self.num_index_heads = getattr(self._mindie_llm_config.hf_config, "index_n_heads", None)
         # not equal k v length for mla
-        if hasattr(self.model, 'kv_lora_rank') and hasattr(self.model, 'qk_rope_head_dim'):   # deepseekv2/v3/r1
+        if hasattr(self.model, "kv_lora_rank") and hasattr(self.model, "qk_rope_head_dim"):  # deepseekv2/v3/r1
             self.num_kv_heads = 1
             if self.index_head_dim is not None:
                 self.num_index_heads = 1
@@ -245,7 +252,7 @@ class ModelRunnerExp:
 
         self.attn_mask = getattr(self.model, "attn_mask", None)
 
-        logger.info(f'model:\n {self.model}')
+        logger.info(f"model:\n {self.model}")
 
         if self._is_aclgraph_enabled:
             self.model = AclGraphBackend(self.model, self._max_batch_size)
@@ -254,7 +261,7 @@ class ModelRunnerExp:
 
     def compile(self, kv_caches: list):
         """Capture graph when aclgraph is enabled.
-        
+
         Args:
             kv_caches: List of KV cache tuples.
         """
@@ -267,19 +274,19 @@ class ModelRunnerExp:
         kv_caches: list,
         input_ids: torch.Tensor,
         position_ids: torch.Tensor,
-        forward_context: 'ForwardContext',
+        forward_context: "ForwardContext",
         mtp_step: int = 0,
-        **kwargs
+        **kwargs,
     ) -> torch.Tensor | tuple[torch.Tensor, torch.Tensor]:
         """Perform forward pass through the model.
-        
+
         Args:
             kv_caches: List of KV cache tuples.
             input_ids: Input token IDs.
             position_ids: Position IDs.
             forward_context: Forward context containing metadata.
             mtp_step: The step of mtp draft model, default is 0.
-            
+
         Returns:
             Logits tensor, or tuple of (logits, hidden_states) if speculative tokens enabled.
         """
@@ -297,7 +304,8 @@ class ModelRunnerExp:
         # Do operations like D2D to prepare for the forward function
         if self._is_aclgraph_enabled and not forward_context.is_prefill and mtp_step < 1:
             input_ids, position_ids, forward_context = self._padding_forward_context(
-                input_ids, position_ids, forward_context)
+                input_ids, position_ids, forward_context
+            )
 
         # build layerwise attn_metadata for eager mode
         attn_metadata = forward_context.attn_metadata
@@ -305,7 +313,7 @@ class ModelRunnerExp:
         forward_context.attn_metadata_dict = attn_metadata_dict
 
         set_forward_context(forward_context)
-        
+
         hidden_states = self.model(input_ids, position_ids)
         if get_parallel_info_manager().get(ParallelType.ATTN_DP).is_enabled():
             dp_metadata = forward_context.dp_metadata
@@ -321,20 +329,19 @@ class ModelRunnerExp:
             return logits, hidden_states
         return logits
 
-    def build_forward_context(self, model_inputs: ModelInput, **kwargs) -> 'ForwardContext':
+    def build_forward_context(self, model_inputs: ModelInput, **kwargs) -> "ForwardContext":
         """Build forward context from model inputs.
-        
+
         Do operations like H2D to prepare for the forward function.
         It will be used by eager mode and aclgraph mode.
-        
+
         Args:
             model_inputs: Model input data.
-            
+
         Returns:
             Forward context.
         """
-        forward_context = create_forward_context(
-            model_inputs, self._mask, self.num_speculative_tokens)
+        forward_context = create_forward_context(model_inputs, self._mask, self.num_speculative_tokens)
         padding_tokens = forward_context.num_actual_tokens
         if get_parallel_info_manager().get(ParallelType.ATTN_DP).is_enabled():
             padding_tokens = forward_context.dp_metadata.max_tokens_across_dp_cpu
@@ -342,18 +349,19 @@ class ModelRunnerExp:
             num_tokens = self.model.get_padded_graph_size(padding_tokens)
         else:
             num_tokens = forward_context.num_actual_tokens
-        forward_context.batch_descriptor = BatchDescriptor(num_tokens,
-            forward_context.batch_descriptor.is_flash_comm_enabled)
+        forward_context.batch_descriptor = BatchDescriptor(
+            num_tokens, forward_context.batch_descriptor.is_flash_comm_enabled
+        )
         forward_context.attn_metadata.num_tokens = num_tokens
         forward_context.to_device(self.device)
         return forward_context
 
     def generate_position_ids(self, input_ids: np.ndarray) -> Iterable:
         """Generate position ids.
-        
+
         Args:
             input_ids: Input token IDs.
-            
+
         Returns:
             Position IDs.
         """
@@ -365,33 +373,30 @@ class ModelRunnerExp:
 
         Args:
             is_eager_mode_with_padding: bool, whether to enable eager mode with padding
-        
+
         """
         if self._is_aclgraph_enabled:
             self.model.set_eager_mode_with_padding(is_eager_mode_with_padding)
 
     def clear_internal_tensors(self) -> None:
         """Clear internal tensors.
-        
+
         NOTE: This function is only implemented in atbgraph and will be depreciated.
         """
         pass
 
     def _padding_forward_context(
-        self,
-        input_ids: torch.Tensor,
-        position_ids: torch.Tensor,
-        forward_context: 'ForwardContext'
+        self, input_ids: torch.Tensor, position_ids: torch.Tensor, forward_context: "ForwardContext"
     ) -> tuple[torch.Tensor, torch.Tensor]:
         """Pad forward context for graph mode.
-        
+
         Do operations like D2D to prepare for the forward function.
         It will be used by aclgraph mode only.
-        
+
         Args:
             input_ids: Input token IDs.
             position_ids: Position IDs.
-            
+
         Returns:
             Tuple of (padded_input_ids, padded_position_ids).
         """
@@ -402,8 +407,7 @@ class ModelRunnerExp:
         num_tokens = forward_context.batch_descriptor.num_tokens
 
         if num_tokens > self._max_num_token:
-            logger.info(f"Current batch size {num_tokens} is larger than {self._max_num_token},"
-                        " using eager mode.")
+            logger.info(f"Current batch size {num_tokens} is larger than {self._max_num_token}, using eager mode.")
             return input_ids, position_ids, forward_context
 
         # do d2d operation for data not in atten_metadata
@@ -421,42 +425,43 @@ class ModelRunnerExp:
 
     def _init_buffer(self) -> None:
         """Initialize input buffers for graph mode."""
-        ForwardContext.register(self._max_num_token, self.device, self._mindie_llm_config.hf_config,
-            self._max_block_per_seq)
+        ForwardContext.register(
+            self._max_num_token, self.device, self._mindie_llm_config.hf_config, self._max_block_per_seq
+        )
         input_buffer.register("input_ids", torch.zeros(self._max_num_token, dtype=torch.int32, device=self.device))
         input_buffer.register("position_ids", torch.zeros(self._max_num_token, dtype=torch.int64, device=self.device))
 
     def _warm_up_and_compile(self) -> None:
         """Warm up and compile graphs for different batch sizes."""
         max_memory = get_npu_hbm_info().get_hbm_capacity()
-        current_memory = int(max_memory * get_npu_hbm_info().get_hbm_usage()) / (1024 ** 3)
+        current_memory = int(max_memory * get_npu_hbm_info().get_hbm_usage()) / (1024**3)
         logger.info(f"Before capturing, {current_memory=}")
         set_aclgraph_capturing_enabled(True)
         for num_tokens in tqdm(
             list(reversed(self.model.capture_sizes)),
             desc="Capturing acl graph",
-            disable=get_parallel_info_manager().rank
+            disable=get_parallel_info_manager().rank,
         ):
             self._dummy_run(num_tokens)
         set_aclgraph_capturing_enabled(False)
 
-        current_memory = int(max_memory * get_npu_hbm_info().get_hbm_usage()) / (1024 ** 3)
+        current_memory = int(max_memory * get_npu_hbm_info().get_hbm_usage()) / (1024**3)
         logger.info(f"After capturing, {current_memory=}")
 
         output_buffer_hbm = 0
         for k in self.model.output_buffer:
             v = self.model.output_buffer[k]
             if torch.is_tensor(v):
-                tmp = v.numel() * v.element_size() / (1024 ** 2)
+                tmp = v.numel() * v.element_size() / (1024**2)
                 output_buffer_hbm += tmp
         logger.info(f"After capturing, {output_buffer_hbm=} MB")
 
     def _dummy_run(self, num_tokens: int) -> None:
         """Run dummy forward pass for graph compilation.
-        
+
         Args:
             num_tokens: Number of tokens for dummy run.
-            
+
         Raises:
             ValueError: If num_tokens exceeds max_num_token.
         """
@@ -467,10 +472,10 @@ class ModelRunnerExp:
 
     def _generate_dummy_inputs(self, num_tokens: int) -> tuple[torch.Tensor, torch.Tensor]:
         """Generate dummy inputs for graph compilation.
-        
+
         Args:
             num_tokens: Number of tokens.
-            
+
         Returns:
             Tuple of (input_ids, position_ids).
         """
@@ -483,7 +488,7 @@ class ModelRunnerExp:
         seq_lens_list = seq_lens.cpu().tolist()
 
         model_inputs = ModelInput(
-            is_prefill=is_prefill,   
+            is_prefill=is_prefill,
             input_ids=input_ids,
             position_ids=position_ids,
             block_tables=block_tables,
@@ -497,13 +502,13 @@ class ModelRunnerExp:
         )
 
         # capturing is True to set address for capturing
-        forward_context = create_forward_context(
-            model_inputs, self._mask, self.num_speculative_tokens)
+        forward_context = create_forward_context(model_inputs, self._mask, self.num_speculative_tokens)
         forward_context.batch_descriptor = BatchDescriptor(
-            num_tokens, get_parallel_info_manager().get(ParallelType.ATTN_TP).is_enabled())
+            num_tokens, get_parallel_info_manager().get(ParallelType.ATTN_TP).is_enabled()
+        )
         # This parameter will be calculated during D2D operation in the formal inference.
         forward_context.attn_metadata.seq_lens_list = seq_lens_list
-        if hasattr(forward_context.attn_metadata, 'prepare_dummy_input'): 
+        if hasattr(forward_context.attn_metadata, "prepare_dummy_input"):
             forward_context.attn_metadata.prepare_dummy_input(num_tokens)
 
         attn_metadata_dict = build_layerwise_attn_metadata(forward_context.attn_metadata)
@@ -514,9 +519,9 @@ class ModelRunnerExp:
 
     def _bind_kv_cache(self, kv_caches: list) -> None:
         """Bind KV cache to attention layers.
-        
+
         NOTE: The location of this function will be adjusted in the future.
-        
+
         Args:
             kv_caches: List of KV cache tuples.
         """

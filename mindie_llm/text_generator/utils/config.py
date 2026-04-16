@@ -280,9 +280,7 @@ class CacheConfig:
         if isinstance(self.bos_token_id, int):
             self.bos_token_id = bos_token_id
 
-    def set_eos_token_id(
-        self, eos_token_id: Union[int, List[Union[int, List[int]]]]
-    ) -> None:
+    def set_eos_token_id(self, eos_token_id: Union[int, List[Union[int, List[int]]]]) -> None:
         is_valid = True
         if isinstance(eos_token_id, int):
             eos_token_id = [eos_token_id]
@@ -305,9 +303,7 @@ class CacheConfig:
                 "weights."
             )
             logger.error(message, ErrorCode.TEXT_GENERATOR_EOS_TOKEN_ID_TYPE_INVALID)
-            raise ValueError(
-                "eos_token_id must be Union[int, List[Union[int, List[int]]]]"
-            )
+            raise ValueError("eos_token_id must be Union[int, List[Union[int, List[int]]]]")
         self.eos_token_id = eos_token_id
 
     def set_pad_token_id(self, pad_token_id: int) -> None:

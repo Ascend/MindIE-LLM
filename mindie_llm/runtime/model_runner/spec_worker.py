@@ -15,7 +15,9 @@ from typing import Callable, Any, Dict, Type, Optional
 import torch
 
 from mindie_llm.runtime.model_runner.input_buffer import input_buffer
-from mindie_llm.runtime.model_runner.forward_metadata.attn_metadata import build_layerwise_attn_metadata
+from mindie_llm.runtime.model_runner.forward_metadata.attn_metadata import (
+    build_layerwise_attn_metadata,
+)
 from mindie_llm.runtime.utils.distributed import get_parallel_info_manager
 from mindie_llm.utils.env import ENV
 from mindie_llm.utils.log.logging import logger
@@ -23,7 +25,6 @@ from mindie_llm.runtime.utils.distributed.parallel_info_manager import ParallelT
 
 
 class BaseWorkerProxy(ABC):
-
     @abstractmethod
     def __getattr__(self, name):
         pass
@@ -40,8 +41,9 @@ class MtpWorker(BaseWorkerProxy):
     This class handles the forward process during both the prefill and decode stages by coordinating interactions
     between the main model runner and the draft model runner.
     """
+
     def __init__(self, target_cls: Type, *args, **kwargs):
-        self.num_speculative_tokens = kwargs.get('num_speculative_tokens', None)
+        self.num_speculative_tokens = kwargs.get("num_speculative_tokens", None)
         logger.info(f"The number of sepculative tokens is {self.num_speculative_tokens}. Init MtpWorker...")
         self.main_model_runner = self.create_main_model_runner(target_cls, *args, **kwargs)
         self.draft_model_runner = self.create_draft_model_runner(target_cls, *args, **kwargs)
@@ -50,14 +52,14 @@ class MtpWorker(BaseWorkerProxy):
         # When is_dp_and_server_centralized = True, it indicates that mtp logits and mtp hidden states
         # will be reprocessed for the next MTP stage."""
         self.is_dp_and_server_centralized = self.mapping.has_dp() and not self.distributed_enable
-  
+
     def __getattr__(self, name):
         return getattr(self.main_model_runner, name)
 
     @staticmethod
     def create_main_model_runner(target_cls, *args, **kwargs):
         return target_cls(*args, **kwargs)
-    
+
     @staticmethod
     def create_draft_model_runner(target_cls, *args, **kwargs):
         kwargs["is_draft_model"] = True
@@ -69,19 +71,14 @@ class MtpWorker(BaseWorkerProxy):
         """
         self.main_model_runner.load_weights()
         self.draft_model_runner.load_weights()
-    
-    def update_roll_mtp_model_args(self,
-                                   input_ids,
-                                   positions,
-                                   **kwargs):
+
+    def update_roll_mtp_model_args(self, input_ids, positions, **kwargs):
         logits_mtp = kwargs["logits_mtp"]
         hidden_states_mtp = kwargs["hidden_states_mtp"]
         seq_lens = kwargs["seq_lens"]
         lm_head_indices = kwargs.get("lm_head_indices", None)
         next_token = logits_mtp.argmax(dim=-1)
-        if lm_head_indices is not None:
-            lm_head_indices = lm_head_indices
-        else:
+        if lm_head_indices is None:
             cumsum_indices = torch.cumsum(seq_lens, dim=0)
             lm_head_indices = cumsum_indices - 1
         input_ids_mtp = torch.roll(input_ids, shifts=-1, dims=0)
@@ -95,25 +92,26 @@ class MtpWorker(BaseWorkerProxy):
             positions,
             logits_mtp=logits_mtp,
             hidden_states_mtp=hidden_states_mtp,
-            seq_lens=seq_lens)
+            seq_lens=seq_lens,
+        )
 
         return input_ids_mtp, positions_mtp, last_hidden_states
-    
+
     def get_dp_logits_and_hiddenstates_and_lmhead_indices(self, logits, hidden_states, kwargs):
         """
-        Extract the logits and hidden_states by lmhead when dp > 1 and not distributed, 
+        Extract the logits and hidden_states by lmhead when dp > 1 and not distributed,
         """
         dummy_data = False
         dp_logits = logits
         dp_hidden_states = hidden_states
         if self.is_dp_and_server_centralized:
-            mtp_logits_gather_indices = kwargs.get('mtp_logits_gather_indices')
+            mtp_logits_gather_indices = kwargs.get("mtp_logits_gather_indices")
             if mtp_logits_gather_indices.numel() > 0:
                 dp_logits = logits[mtp_logits_gather_indices]
             else:
                 dummy_data = True
 
-            shard_effective_token_indices = kwargs.get('shard_effective_token_indices')
+            shard_effective_token_indices = kwargs.get("shard_effective_token_indices")
             dp_hidden_states = hidden_states[shard_effective_token_indices]
 
         return dummy_data, dp_logits, dp_hidden_states
@@ -128,20 +126,26 @@ class MtpWorker(BaseWorkerProxy):
         """
         # main model forward
         logits, hidden_states = self.main_model_runner.forward(**kwargs)
-        hidden_states_return = hidden_states[kwargs.get('lm_head_indices')]
+        hidden_states_return = hidden_states[kwargs.get("lm_head_indices")]
 
         torch.npu.synchronize()
         seq_lens = kwargs.get("input_lengths")
         input_ids = kwargs.get("input_ids")
         positions = kwargs.get("position_ids")
         # update mtp args
-        is_dummy_data, dp_logits, dp_hidden_states = \
-            self.get_dp_logits_and_hiddenstates_and_lmhead_indices(logits, hidden_states, kwargs)
+        is_dummy_data, dp_logits, dp_hidden_states = self.get_dp_logits_and_hiddenstates_and_lmhead_indices(
+            logits, hidden_states, kwargs
+        )
         if is_dummy_data:
-            input_ids_mtp, positions_mtp, hidden_states = input_ids, positions, dp_hidden_states
+            input_ids_mtp, positions_mtp, hidden_states = (
+                input_ids,
+                positions,
+                dp_hidden_states,
+            )
         else:
-            input_ids_mtp, positions_mtp, hidden_states = \
-                self.update_mtp_args(input_ids, positions, dp_logits, dp_hidden_states, seq_lens)
+            input_ids_mtp, positions_mtp, hidden_states = self.update_mtp_args(
+                input_ids, positions, dp_logits, dp_hidden_states, seq_lens
+            )
         # draft forward for updating cache.
         kwargs.update({"input_ids": input_ids_mtp})
         kwargs.update({"position_ids": positions_mtp})
@@ -212,17 +216,20 @@ class MtpWorker(BaseWorkerProxy):
             if mtp_idx < self.num_speculative_tokens - 1:
                 is_dummy_data = False
                 if self.is_dp_and_server_centralized:
-                    shard_effective_token_indices = draft_kwargs.get('shard_effective_token_indices')
-                    mtp_logits_gather_indices = draft_kwargs.get('mtp_logits_gather_indices')
+                    shard_effective_token_indices = draft_kwargs.get("shard_effective_token_indices")
+                    mtp_logits_gather_indices = draft_kwargs.get("mtp_logits_gather_indices")
                     if mtp_logits_gather_indices.numel() > 0:
                         logits_mtp = logits_mtp[mtp_logits_gather_indices]
-                        hidden_states_mtp = hidden_states_mtp[shard_effective_token_indices]                       
+                        hidden_states_mtp = hidden_states_mtp[shard_effective_token_indices]
                     else:
                         is_dummy_data = True
 
                 if not is_dummy_data:
-                    lm_head_indices_for_dp_update = draft_kwargs.get('lm_head_local_dp', None) \
-                        if self.is_dp_and_server_centralized else lm_head_indices
+                    lm_head_indices_for_dp_update = (
+                        draft_kwargs.get("lm_head_local_dp", None)
+                        if self.is_dp_and_server_centralized
+                        else lm_head_indices
+                    )
 
                     input_ids_mtp, positions_mtp, hidden_states_mtp = self.update_roll_mtp_model_args(
                         input_ids_mtp,
@@ -230,39 +237,38 @@ class MtpWorker(BaseWorkerProxy):
                         logits_mtp=logits_mtp,
                         hidden_states_mtp=hidden_states_mtp,
                         seq_lens=q_lens,
-                        lm_head_indices=lm_head_indices_for_dp_update)
-                    
+                        lm_head_indices=lm_head_indices_for_dp_update,
+                    )
+
                     hidden_states_mtp_input = hidden_states_mtp
 
         if self.num_speculative_tokens > 1:
             all_logits_mtp = torch.stack(all_logits_mtp, dim=1)
             all_logits_mtp = all_logits_mtp.view(-1, all_logits_mtp.shape[-1])
         else:
-            
             all_logits_mtp = all_logits_mtp[0][lm_head_indices]
 
         return all_logits_mtp
 
-    def update_model_input_ids_by_draft(self, 
-                                        input_ids, 
-                                        input_ids_draft_out, 
-                                        kwargs) -> tuple[torch.Tensor, torch.Tensor]:
+    def update_model_input_ids_by_draft(
+        self, input_ids, input_ids_draft_out, kwargs
+    ) -> tuple[torch.Tensor, torch.Tensor]:
         """
         Update the input token id of main model by draft model output.
 
         Args:
-            input_ids (torch.Tensor): Origin input token IDs tensor 
+            input_ids (torch.Tensor): Origin input token IDs tensor
             input_ids_draft_out (torch.Tensor): Input token IDs generated by draft model
- 
+
         Returns:
-            tuple[torch.Tensor, torch.Tensor]: 
+            tuple[torch.Tensor, torch.Tensor]:
                 - torch.Tensor: Origin input token IDs with draft out token IDs
                 - torch.Tensor: Input token IDs generated by draft model
         """
         # 'draft_token_indices' indicates that the index of token for current dp group.
         # This flag will be removed after support for deploying DP-in-and-DP-out is implemented.
         if self.is_dp_and_server_centralized:
-            dp_rank_ids = kwargs.get('dp_rank_ids')
+            dp_rank_ids = kwargs.get("dp_rank_ids")
             draft_token_indices = torch.where(dp_rank_ids == self.mapping.attn_dp.rank)[0]
             if draft_token_indices.numel() == 0:
                 # It indicates the current device is running Dummy Data.
@@ -275,7 +281,7 @@ class MtpWorker(BaseWorkerProxy):
             input_ids_draft_out_reshaped = input_ids_draft_out_reshaped[draft_token_indices]
         input_ids_reshaped[:, 1:] = input_ids_draft_out_reshaped
         input_ids = input_ids_reshaped.flatten()
-        return input_ids, input_ids_draft_out 
+        return input_ids, input_ids_draft_out
 
     def forward_mtp_decode(self, **kwargs) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         """
@@ -293,10 +299,9 @@ class MtpWorker(BaseWorkerProxy):
 
         all_logits_mtp = self.forward_draft_decode(**kwargs)
         input_ids_draft_out = torch.argmax(all_logits_mtp, dim=-1)
-            
+
         # update args and main model forward
-        input_ids, input_ids_draft_out = \
-            self.update_model_input_ids_by_draft(input_ids, input_ids_draft_out, kwargs)
+        input_ids, input_ids_draft_out = self.update_model_input_ids_by_draft(input_ids, input_ids_draft_out, kwargs)
 
         kwargs.update({"input_ids": input_ids})
 
@@ -304,8 +309,7 @@ class MtpWorker(BaseWorkerProxy):
 
         lm_head_indices = kwargs.get("lm_head_indices", None)
         if lm_head_indices is None:
-            lm_head_indices = torch.tensor(range(input_ids.shape[0]),
-                                            dtype=torch.int64, device=input_ids.device)
+            lm_head_indices = torch.tensor(range(input_ids.shape[0]), dtype=torch.int64, device=input_ids.device)
         hidden_states = hidden_states[lm_head_indices]
         return (logits, hidden_states, input_ids_draft_out)
 
@@ -327,8 +331,9 @@ class MtpWorkerExp(BaseWorkerProxy):
     This class handles the forward process during both the prefill and decode stages by coordinating interactions
     between the main model runner and the draft model runner.
     """
+
     def __init__(self, target_cls: Type, *args, **kwargs):
-        self.num_speculative_tokens = kwargs.get('num_speculative_tokens', None)
+        self.num_speculative_tokens = kwargs.get("num_speculative_tokens", None)
         logger.info(f"The number of sepculative tokens is {self.num_speculative_tokens}. Init MtpWorker...")
         self.main_model_runner = self.create_main_model_runner(target_cls, *args, **kwargs)
         self.draft_model_runner = self.create_draft_model_runner(target_cls, *args, **kwargs)
@@ -348,7 +353,7 @@ class MtpWorkerExp(BaseWorkerProxy):
     @staticmethod
     def create_main_model_runner(target_cls, *args, **kwargs):
         return target_cls(*args, **kwargs)
-    
+
     @staticmethod
     def create_draft_model_runner(target_cls, *args, **kwargs):
         kwargs["is_draft_model"] = True
@@ -360,7 +365,7 @@ class MtpWorkerExp(BaseWorkerProxy):
         """
         self.main_model_runner.load_weights()
         self.draft_model_runner.load_weights()
-    
+
     def compile(self, kv_caches):
         self.main_model_runner.compile(kv_caches)
         self.draft_model_runner.compile(kv_caches)
@@ -368,51 +373,42 @@ class MtpWorkerExp(BaseWorkerProxy):
     def set_eager_mode_with_padding(self, is_eager_mode_with_padding: bool):
         self.main_model_runner.set_eager_mode_with_padding(is_eager_mode_with_padding)
         self.draft_model_runner.set_eager_mode_with_padding(is_eager_mode_with_padding)
-    
-    def update_roll_mtp_model_args(self,
-                                input_ids,
-                                positions,
-                                **kwargs):
+
+    def update_roll_mtp_model_args(self, input_ids, positions, **kwargs):
         logits_mtp = kwargs["logits_mtp"]
         hidden_states_mtp = kwargs["hidden_states_mtp"]
         seq_lens = kwargs["seq_lens"]
         lm_head_indices = kwargs.get("lm_head_indices", None)
         next_token = logits_mtp.argmax(dim=-1)
-        if lm_head_indices is not None:
-            lm_head_indices = lm_head_indices
-        else:
+        if lm_head_indices is None:
             cumsum_indices = torch.cumsum(seq_lens, dim=0)
             lm_head_indices = cumsum_indices - 1
         input_ids_mtp = torch.roll(input_ids, shifts=-1, dims=0)
         input_ids_mtp[lm_head_indices] = next_token
         positions_mtp = positions + 1
         return input_ids_mtp, positions_mtp, hidden_states_mtp
-    
+
     def get_dp_logits_and_hiddenstates_and_lmhead_indices(self, logits, hidden_states, kwargs):
         """
-        Extract the logits and hidden_states by lmhead when dp > 1 and not distributed, 
+        Extract the logits and hidden_states by lmhead when dp > 1 and not distributed,
         """
         dummy_data = False
         dp_logits = logits
         dp_hidden_states = hidden_states
         if self.is_dp_and_server_centralized:
-            mtp_logits_gather_indices = kwargs.get('mtp_logits_gather_indices')
+            mtp_logits_gather_indices = kwargs.get("mtp_logits_gather_indices")
             if mtp_logits_gather_indices.numel() > 0:
                 dp_logits = logits[mtp_logits_gather_indices]
             else:
                 dummy_data = True
 
-            shard_effective_token_indices = kwargs.get('shard_effective_token_indices')
+            shard_effective_token_indices = kwargs.get("shard_effective_token_indices")
             dp_hidden_states = hidden_states[shard_effective_token_indices]
 
         return dummy_data, dp_logits, dp_hidden_states
 
-    def forward_mtp_prefill(self,
-        npu_cache,
-        input_ids,
-        position_ids,
-        forward_context,
-        **kwargs
+    def forward_mtp_prefill(
+        self, npu_cache, input_ids, position_ids, forward_context, **kwargs
     ) -> tuple[torch.Tensor, torch.Tensor]:
         """
         Forward pass of the prefill stage of MtpWork.
@@ -422,25 +418,35 @@ class MtpWorkerExp(BaseWorkerProxy):
         Only return the logits and hidden_states of main model.
         """
         # main model forward
-        logits, hidden_states = self.main_model_runner.forward(
-            npu_cache, input_ids, position_ids, forward_context)
+        logits, hidden_states = self.main_model_runner.forward(npu_cache, input_ids, position_ids, forward_context)
         hidden_states_return = hidden_states[forward_context.lm_head_indices]
 
         torch.npu.synchronize()
         seq_lens = forward_context.attn_metadata.seq_lens
 
         # update mtp args
-        is_dummy_data, dp_logits, dp_hidden_states = \
-            self.get_dp_logits_and_hiddenstates_and_lmhead_indices(logits, hidden_states, kwargs)
+        is_dummy_data, dp_logits, dp_hidden_states = self.get_dp_logits_and_hiddenstates_and_lmhead_indices(
+            logits, hidden_states, kwargs
+        )
         if is_dummy_data:
-            input_ids_mtp, positions_mtp, hidden_states = input_ids, position_ids, dp_hidden_states
+            input_ids_mtp, positions_mtp, hidden_states = (
+                input_ids,
+                position_ids,
+                dp_hidden_states,
+            )
         else:
             input_ids_mtp, positions_mtp, hidden_states = self.update_roll_mtp_model_args(
-                input_ids, position_ids, logits_mtp=dp_logits, hidden_states_mtp=dp_hidden_states, seq_lens=seq_lens)
+                input_ids,
+                position_ids,
+                logits_mtp=dp_logits,
+                hidden_states_mtp=dp_hidden_states,
+                seq_lens=seq_lens,
+            )
         # draft forward for updating cache.
         forward_context.sub_forward_context.mtp_metadata.last_hidden_states = hidden_states
         _, _ = self.draft_model_runner.forward(
-            npu_cache, input_ids_mtp, positions_mtp, forward_context.sub_forward_context)
+            npu_cache, input_ids_mtp, positions_mtp, forward_context.sub_forward_context
+        )
         return (logits, hidden_states_return)
 
     def mtp_iter_slot_calc(self, slot_input):
@@ -501,7 +507,13 @@ class MtpWorkerExp(BaseWorkerProxy):
                 # First draft model's forward needs to pad the inputs.
                 forward_context.attn_metadata.slot_mapping = slot_mapping
                 logits_mtp, hidden_states_mtp = self.draft_model_runner.forward(
-                    npu_cache, input_ids_mtp, positions_mtp, forward_context, mtp_step=mtp_idx, **draft_kwargs)
+                    npu_cache,
+                    input_ids_mtp,
+                    positions_mtp,
+                    forward_context,
+                    mtp_step=mtp_idx,
+                    **draft_kwargs,
+                )
             else:
                 # If an input is not changed, we can skip padding.
                 if get_parallel_info_manager().get(ParallelType.ATTN_DP).is_enabled():
@@ -517,31 +529,40 @@ class MtpWorkerExp(BaseWorkerProxy):
 
                 forward_context.mtp_metadata.last_hidden_states = hidden_states_mtp_input
                 forward_context.mtp_metadata.copy(num_actual_tokens, num_tokens)
-                
+
                 input_buffer.get("input_ids")[:num_actual_tokens].copy_(input_ids_mtp[:num_actual_tokens])
                 input_buffer.get("position_ids")[:num_actual_tokens].copy_(positions_mtp[:num_actual_tokens])
                 input_ids_mtp_ = input_buffer.get("input_ids")[:num_tokens]
                 positions_mtp_ = input_buffer.get("position_ids")[:num_tokens]
-                
+
                 logits_mtp, hidden_states_mtp = self.draft_model_runner.forward(
-                    npu_cache, input_ids_mtp_, positions_mtp_, forward_context, mtp_step=mtp_idx, **draft_kwargs)
+                    npu_cache,
+                    input_ids_mtp_,
+                    positions_mtp_,
+                    forward_context,
+                    mtp_step=mtp_idx,
+                    **draft_kwargs,
+                )
 
             all_logits_mtp.append(logits_mtp)
 
             if mtp_idx < self.num_speculative_tokens - 1:
                 is_dummy_data = False
                 if self.is_dp_and_server_centralized:
-                    shard_effective_token_indices = draft_kwargs.get('shard_effective_token_indices')
-                    mtp_logits_gather_indices = draft_kwargs.get('mtp_logits_gather_indices')
+                    shard_effective_token_indices = draft_kwargs.get("shard_effective_token_indices")
+                    mtp_logits_gather_indices = draft_kwargs.get("mtp_logits_gather_indices")
                     if mtp_logits_gather_indices.numel() > 0:
                         logits_mtp = logits_mtp[mtp_logits_gather_indices]
-                        hidden_states_mtp = hidden_states_mtp[shard_effective_token_indices]                       
+                        hidden_states_mtp = hidden_states_mtp[shard_effective_token_indices]
                     else:
                         is_dummy_data = True
 
                 if not is_dummy_data:
-                    lm_head_indices_for_dp_update = draft_kwargs.get('lm_head_local_dp', None) \
-                        if self.is_dp_and_server_centralized else lm_head_indices
+                    lm_head_indices_for_dp_update = (
+                        draft_kwargs.get("lm_head_local_dp", None)
+                        if self.is_dp_and_server_centralized
+                        else lm_head_indices
+                    )
 
                     input_ids_mtp, positions_mtp, hidden_states_mtp = self.update_roll_mtp_model_args(
                         input_ids_mtp,
@@ -549,32 +570,31 @@ class MtpWorkerExp(BaseWorkerProxy):
                         logits_mtp=logits_mtp,
                         hidden_states_mtp=hidden_states_mtp,
                         seq_lens=q_lens,
-                        lm_head_indices=lm_head_indices_for_dp_update)
-                    
+                        lm_head_indices=lm_head_indices_for_dp_update,
+                    )
+
                     hidden_states_mtp_input = hidden_states_mtp
 
         if self.num_speculative_tokens > 1:
             all_logits_mtp = torch.stack(all_logits_mtp, dim=1)
             all_logits_mtp = all_logits_mtp.view(-1, all_logits_mtp.shape[-1])
         else:
-            
             all_logits_mtp = all_logits_mtp[0][lm_head_indices]
 
         return all_logits_mtp
 
-    def update_model_input_ids_by_draft(self, 
-                                        input_ids, 
-                                        input_ids_draft_out, 
-                                        forward_context) -> tuple[torch.Tensor, torch.Tensor]:
+    def update_model_input_ids_by_draft(
+        self, input_ids, input_ids_draft_out, forward_context
+    ) -> tuple[torch.Tensor, torch.Tensor]:
         """
         Update the input token id of main model by draft model output.
 
         Args:
-            input_ids (torch.Tensor): Origin input token IDs tensor 
+            input_ids (torch.Tensor): Origin input token IDs tensor
             input_ids_draft_out (torch.Tensor): Input token IDs generated by draft model
 
         Returns:
-            tuple[torch.Tensor, torch.Tensor]: 
+            tuple[torch.Tensor, torch.Tensor]:
                 - torch.Tensor: Origin input token IDs with draft out token IDs
                 - torch.Tensor: Input token IDs generated by draft model
         """
@@ -583,23 +603,19 @@ class MtpWorkerExp(BaseWorkerProxy):
         if self.is_dp_and_server_centralized:
             if forward_context.mtp_metadata.draft_token_indices.shape[0] == 0:
                 return input_ids, input_ids_draft_out
-        
+
         input_ids_reshaped = input_ids.view(-1, self.num_speculative_tokens + 1)
         input_ids_draft_out_reshaped = input_ids_draft_out.view(-1, self.num_speculative_tokens)
         if forward_context.mtp_metadata.draft_token_indices is not None:
-            input_ids_draft_out_reshaped = \
-                input_ids_draft_out_reshaped[forward_context.mtp_metadata.draft_token_indices]
+            input_ids_draft_out_reshaped = input_ids_draft_out_reshaped[
+                forward_context.mtp_metadata.draft_token_indices
+            ]
         input_ids_reshaped[:, 1:] = input_ids_draft_out_reshaped
         input_ids = input_ids_reshaped.flatten()
         return input_ids, input_ids_draft_out
 
     def forward_mtp_decode(
-        self,
-        npu_cache,
-        input_ids,
-        position_ids,
-        forward_context,
-        **kwargs
+        self, npu_cache, input_ids, position_ids, forward_context, **kwargs
     ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         """
         Forward pass of the decode stage of MtpWork.
@@ -610,25 +626,22 @@ class MtpWorkerExp(BaseWorkerProxy):
 
         if sub_model_inputs is None:
             # Note: This code is hard for warm up currently.
-            logits, hidden_states = self.main_model_runner.forward(
-                npu_cache, input_ids, position_ids, forward_context)
+            logits, hidden_states = self.main_model_runner.forward(npu_cache, input_ids, position_ids, forward_context)
             return (logits, hidden_states)
 
-        all_logits_mtp = self.forward_draft_decode(
-            npu_cache, forward_context.sub_forward_context, **kwargs)
+        all_logits_mtp = self.forward_draft_decode(npu_cache, forward_context.sub_forward_context, **kwargs)
         input_ids_draft_out = torch.argmax(all_logits_mtp, dim=-1)
-            
-        # update args and main model forward
-        input_ids, input_ids_draft_out = \
-            self.update_model_input_ids_by_draft(input_ids, input_ids_draft_out, forward_context)
 
-        logits, hidden_states = self.main_model_runner.forward(
-            npu_cache, input_ids, position_ids, forward_context)
+        # update args and main model forward
+        input_ids, input_ids_draft_out = self.update_model_input_ids_by_draft(
+            input_ids, input_ids_draft_out, forward_context
+        )
+
+        logits, hidden_states = self.main_model_runner.forward(npu_cache, input_ids, position_ids, forward_context)
 
         lm_head_indices = forward_context.lm_head_indices
         if lm_head_indices is None:
-            lm_head_indices = torch.tensor(range(input_ids.shape[0]),
-                                            dtype=torch.int64, device=input_ids.device)
+            lm_head_indices = torch.tensor(range(input_ids.shape[0]), dtype=torch.int64, device=input_ids.device)
         hidden_states = hidden_states[lm_head_indices]
         return (logits, hidden_states, input_ids_draft_out)
 
@@ -643,21 +656,19 @@ class MtpWorkerExp(BaseWorkerProxy):
             return self.forward_mtp_decode(npu_cache, input_ids, position_ids, forward_context, **kwargs)
 
     def build_forward_context(self, model_inputs, **kwargs):
-        '''
+        """
         Do operations like H2D to prepare for the forward function.
         It will be used by eager mode and aclgraph mode
-        '''
+        """
         forward_context = self.main_model_runner.build_forward_context(model_inputs)
         sub_forward_context = self.draft_model_runner.build_forward_context(model_inputs)
         forward_context.sub_forward_context = sub_forward_context
         if self.is_dp_and_server_centralized:
-            dp_rank_ids = kwargs.get('dp_rank_ids')
-            forward_context.mtp_metadata.draft_token_indices = \
-                torch.where(dp_rank_ids == self.mapping.attn_dp.rank)[0]
+            dp_rank_ids = kwargs.get("dp_rank_ids")
+            forward_context.mtp_metadata.draft_token_indices = torch.where(dp_rank_ids == self.mapping.attn_dp.rank)[0]
         else:
             forward_context.mtp_metadata.draft_token_indices = None
         return forward_context
-
 
 
 SelectorType = Callable[[Dict[str, Any]], Optional[Type[BaseWorkerProxy]]]
@@ -669,24 +680,26 @@ def auto_speculative_method_router(selector_fn: SelectorType):
 
     Instead of directly instantiating the original class, it first runs the selector.
 
-    If the selector returns a proxy class, it passes the original class plus parameters 
-    
+    If the selector returns a proxy class, it passes the original class plus parameters
+
     to the proxy class for instantiation.
     """
+
     def decorator(original_class):
-        
         @functools.wraps(original_class, updated=())
         def factory(*args, **kwargs):
             proxy_class = selector_fn(kwargs)
-            
+
             if proxy_class:
                 return proxy_class(original_class, *args, **kwargs)
             else:
                 return original_class(*args, **kwargs)
+
         for attr in dir(original_class):
             if not attr.startswith("__") and not callable(getattr(original_class, attr)):
                 setattr(factory, attr, getattr(original_class, attr))
         return factory
+
     return decorator
 
 
@@ -698,8 +711,8 @@ def speculative_worker_selector(kwargs):
 
     Otherwise, it returns `None`, indicating that the default worker should be used.
     """
-    num_speculative_tokens = kwargs.get('num_speculative_tokens')
-    
+    num_speculative_tokens = kwargs.get("num_speculative_tokens")
+
     if ENV.model_runner_exp and num_speculative_tokens > 0:
         return MtpWorkerExp
     if num_speculative_tokens > 0:

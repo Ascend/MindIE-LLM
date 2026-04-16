@@ -38,18 +38,12 @@ class MemoryDecodingPlugin(Plugin):
         self.device = self.model_wrapper.device
         self.decoding_length = kwargs.get("decoding_length", 16)
         if self.decoding_length > MAX_DECODING_LEN:
-            logger.warning(
-                f"decoding_length is larger than max value {MAX_DECODING_LEN}, run with max value!"
-            )
+            logger.warning(f"decoding_length is larger than max value {MAX_DECODING_LEN}, run with max value!")
             self.decoding_length = MAX_DECODING_LEN
         if self.decoding_length < MIN_DECODING_LEN:
-            logger.warning(
-                f"decoding_length is smaller than min value {MIN_DECODING_LEN}, run with min value!"
-            )
+            logger.warning(f"decoding_length is smaller than min value {MIN_DECODING_LEN}, run with min value!")
             self.decoding_length = MIN_DECODING_LEN
-        self.decoding_policy = DecodingPolicy(
-            kwargs, self.infer_context, self.decoding_length
-        )
+        self.decoding_policy = DecodingPolicy(kwargs, self.infer_context, self.decoding_length)
         self.memory_decoding_decoding_ids = None
         self.input_metadata = None
 
@@ -73,13 +67,11 @@ class MemoryDecodingPlugin(Plugin):
             atten_mask = atten_mask * -10000.0
         return atten_mask
 
-    def calc_decoding_info(
-        self, input_metadata, model_inputs, cache_ids, q_lens, decoding_masks
-    ):
+    def calc_decoding_info(self, input_metadata, model_inputs, cache_ids, q_lens, decoding_masks):
         decoding_ids = None
         if not input_metadata.is_prefill:
-            model_inputs, decoding_ids, decoding_masks = (
-                self.decoding_policy.update_infer_input(model_inputs, cache_ids)
+            model_inputs, decoding_ids, decoding_masks = self.decoding_policy.update_infer_input(
+                model_inputs, cache_ids
             )
             q_lens = [len(x) for x in decoding_ids]
             kv_dtype = self.kvcache_settings.dtype
@@ -100,40 +92,32 @@ class MemoryDecodingPlugin(Plugin):
         res = (model_inputs, decoding_ids, decoding_masks, q_lens)
         return res
 
-    def all_token_ids_padding(
-        self, sampling_metadata, next_guess_logits_num_per_batch, batch_size
-    ):
+    def all_token_ids_padding(self, sampling_metadata, next_guess_logits_num_per_batch, batch_size):
         if sampling_metadata.all_token_ids is None:
             return None
         max_len = max(next_guess_logits_num_per_batch)
         total_logits_num = sum(next_guess_logits_num_per_batch)
 
         input_ids_len = tensor_backend.shape(sampling_metadata.all_token_ids, -1)
-        input_ids_pad = np.zeros(
-            (total_logits_num, input_ids_len + max_len), dtype=np.int64
-        )
+        input_ids_pad = np.zeros((total_logits_num, input_ids_len + max_len), dtype=np.int64)
         index = 0
         for batch in range(batch_size):
             input_ids = np.expand_dims(
-                tensor_backend.numpy(
-                    tensor_backend.cpu(sampling_metadata.all_token_ids[batch])
-                ),
+                tensor_backend.numpy(tensor_backend.cpu(sampling_metadata.all_token_ids[batch])),
                 axis=0,
             )
-            input_ids_pad[
-                index : index + next_guess_logits_num_per_batch[batch], :input_ids_len
-            ] = np.repeat(input_ids, next_guess_logits_num_per_batch[batch], axis=0)
-            input_ids_pad[
-                index : index + next_guess_logits_num_per_batch[batch], input_ids_len:
-            ] = -1
+            input_ids_pad[index : index + next_guess_logits_num_per_batch[batch], :input_ids_len] = np.repeat(
+                input_ids, next_guess_logits_num_per_batch[batch], axis=0
+            )
+            input_ids_pad[index : index + next_guess_logits_num_per_batch[batch], input_ids_len:] = -1
             guess_index = index + 1
             index += next_guess_logits_num_per_batch[batch]
             if len(self.memory_decoding_decoding_ids[batch]) > 1:
                 guess_set = self.memory_decoding_decoding_ids[batch]
                 for idx in range(len(guess_set) - 1):
-                    input_ids_pad[
-                        guess_index, input_ids_len : input_ids_len + idx + 1
-                    ] = np.array(list(guess_set[1 : idx + 2]))
+                    input_ids_pad[guess_index, input_ids_len : input_ids_len + idx + 1] = np.array(
+                        list(guess_set[1 : idx + 2])
+                    )
                     guess_index += 1
         input_ids_pad = tensor_backend.tensor(
             input_ids_pad,
@@ -160,41 +144,25 @@ class MemoryDecodingPlugin(Plugin):
 
         logits_num_per_batch = self.plugin_data_param.q_len
 
-        input_ids_pad = self.all_token_ids_padding(
-            sampling_metadata, logits_num_per_batch, batch_size
-        )
+        input_ids_pad = self.all_token_ids_padding(sampling_metadata, logits_num_per_batch, batch_size)
         sampling_metadata.all_token_ids = input_ids_pad
 
-        req_id_new = np.concatenate(
-            [[req_id] * n for req_id, n in zip(all_sequence_ids, logits_num_per_batch)]
-        )
+        req_id_new = np.concatenate([[req_id] * n for req_id, n in zip(all_sequence_ids, logits_num_per_batch)])
         sampling_metadata.all_sequence_ids = req_id_new
         sampling_metadata.parent_sequence_ids = req_id_new
 
         if sampling_metadata is not None:
-            top_k_idx = self.repeat_sample_param(
-                sampling_metadata.top_k_idx, logits_num_per_batch
-            )
+            top_k_idx = self.repeat_sample_param(sampling_metadata.top_k_idx, logits_num_per_batch)
             sampling_metadata.top_k_idx = top_k_idx
-            top_k_disabled_mask = self.repeat_sample_param(
-                sampling_metadata.top_k_disabled_mask, logits_num_per_batch
-            )
+            top_k_disabled_mask = self.repeat_sample_param(sampling_metadata.top_k_disabled_mask, logits_num_per_batch)
             sampling_metadata.top_k_disabled_mask = top_k_disabled_mask
-            repetition_penalty = self.repeat_sample_param(
-                sampling_metadata.repetition_penalty, logits_num_per_batch
-            )
+            repetition_penalty = self.repeat_sample_param(sampling_metadata.repetition_penalty, logits_num_per_batch)
             sampling_metadata.repetition_penalty = repetition_penalty
-            frequency_penalty = self.repeat_sample_param(
-                sampling_metadata.frequency_penalty, logits_num_per_batch
-            )
+            frequency_penalty = self.repeat_sample_param(sampling_metadata.frequency_penalty, logits_num_per_batch)
             sampling_metadata.frequency_penalty = frequency_penalty
-            presence_penalty = self.repeat_sample_param(
-                sampling_metadata.presence_penalty, logits_num_per_batch
-            )
+            presence_penalty = self.repeat_sample_param(sampling_metadata.presence_penalty, logits_num_per_batch)
             sampling_metadata.presence_penalty = presence_penalty
-            temperature = self.repeat_sample_param(
-                sampling_metadata.temperature, logits_num_per_batch
-            )
+            temperature = self.repeat_sample_param(sampling_metadata.temperature, logits_num_per_batch)
             sampling_metadata.temperature = temperature
 
         return logits
@@ -233,16 +201,10 @@ class MemoryDecodingPlugin(Plugin):
             )
             self.reshape_speculative_outputs(sampling_output, next_tokens_indices)
 
-    def plugin_cache_update(
-        self, cache_ids, sampling_output, la_cache_input, is_prefill=False
-    ):
+    def plugin_cache_update(self, cache_ids, sampling_output, la_cache_input, is_prefill=False):
         for i, cache_id in enumerate(cache_ids):
-            seq_token_ids = sampling_output.token_ids[i][
-                : sampling_output.num_new_tokens[i]
-            ].tolist()
-            self.decoding_policy.prefix_ids[cache_id] = (
-                list(self.decoding_policy.prefix_ids[cache_id]) + seq_token_ids
-            )
+            seq_token_ids = sampling_output.token_ids[i][: sampling_output.num_new_tokens[i]].tolist()
+            self.decoding_policy.prefix_ids[cache_id] = list(self.decoding_policy.prefix_ids[cache_id]) + seq_token_ids
 
             if self.decoding_policy.dynamic_algo:
                 self.decoding_policy.tokens_knowledge_base_cache.output_add(
@@ -255,10 +217,7 @@ class MemoryDecodingPlugin(Plugin):
             else:
                 self.decoding_policy.tokens_knowledge_base_cache.output_add(
                     seq_token_ids,
-                    search_size=self.decoding_policy.tokens_knowledge_base_param[
-                        "branch_length"
-                    ]
-                    + 1,
+                    search_size=self.decoding_policy.tokens_knowledge_base_param["branch_length"] + 1,
                     final=False,
                     pattern="output",
                     use_batch=cache_id,

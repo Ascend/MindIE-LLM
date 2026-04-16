@@ -105,8 +105,7 @@ struct HcclOpConfig {
     uint32_t retryHoldTime;
     uint32_t retryIntervalTime;
     bool interHccsDisable = false;
-    rtFloatOverflowMode_t floatOverflowMode =
-        rtFloatOverflowMode_t::RT_OVERFLOW_MODE_UNDEF;
+    rtFloatOverflowMode_t floatOverflowMode = rtFloatOverflowMode_t::RT_OVERFLOW_MODE_UNDEF;
     uint32_t multiQpThreshold = 512;
 };
 
@@ -178,13 +177,7 @@ struct HcclOpResParam {
 };
 
 // Transport
-enum class HcclAiRMAMemType : uint32_t {
-    LOCAL_INPUT = 0,
-    REMOTE_INPUT,
-    LOCAL_OUTPUT,
-    REMOTE_OUTPUT,
-    MAX_NUM
-};
+enum class HcclAiRMAMemType : uint32_t { LOCAL_INPUT = 0, REMOTE_INPUT, LOCAL_OUTPUT, REMOTE_OUTPUT, MAX_NUM };
 
 struct HcclAiRMAMemInfo {
     uint32_t memMaxNum{0};
@@ -208,24 +201,21 @@ struct HcclAiRMAInfo {
 };
 
 struct HcclA2CombineOpParam {
-    uint64_t workSpace;  // Address for communication between client and server,
-                         // hccl requests and clears
-    uint64_t
-        workSpaceSize;  // Space for communication between client and server
-    uint32_t rankId;    // id of this rank
-    uint32_t rankNum;   // num of ranks in this comm group
-    uint64_t winSize;   // size of each windows memory
-    uint64_t
-        windowsIn[AscendC::HCCL_MAX_RANK_NUM];  // windows address for input,
-                                                // windowsIn[rankId] corresponds
-                                                // to the local card address,
-                                                // and others are cross-card
-                                                // mapping addresses.
-    uint64_t windowsOut
-        [AscendC::HCCL_MAX_RANK_NUM];  // windows address for output,
-                                       // windowsOut[rankId] corresponds to the
-                                       // local card address, and others are
-                                       // cross-card mapping addresses.
+    uint64_t workSpace;                               // Address for communication between client and server,
+                                                      // hccl requests and clears
+    uint64_t workSpaceSize;                           // Space for communication between client and server
+    uint32_t rankId;                                  // id of this rank
+    uint32_t rankNum;                                 // num of ranks in this comm group
+    uint64_t winSize;                                 // size of each windows memory
+    uint64_t windowsIn[AscendC::HCCL_MAX_RANK_NUM];   // windows address for input,
+                                                      // windowsIn[rankId] corresponds
+                                                      // to the local card address,
+                                                      // and others are cross-card
+                                                      // mapping addresses.
+    uint64_t windowsOut[AscendC::HCCL_MAX_RANK_NUM];  // windows address for output,
+                                                      // windowsOut[rankId] corresponds to the
+                                                      // local card address, and others are
+                                                      // cross-card mapping addresses.
     uint8_t res[8328];
     uint8_t multiFlag;
     __gm__ AscendC::IbVerbsData* data;
@@ -276,21 +266,16 @@ struct hns_roce_lite_wqe_data_seg {
     uint64_t localVA;
 };
 
-__aicore__ inline void cacheWriteThrough(__gm__ uint8_t* sourceAddr,
-                                         uint64_t length) {
+__aicore__ inline void cacheWriteThrough(__gm__ uint8_t* sourceAddr, uint64_t length) {
     __gm__ uint8_t* start =
-        (__gm__ uint8_t*)((uint64_t)sourceAddr / AscendC::CACHE_LINE_SIZE *
-                          AscendC::CACHE_LINE_SIZE);
+        (__gm__ uint8_t*)((uint64_t)sourceAddr / AscendC::CACHE_LINE_SIZE * AscendC::CACHE_LINE_SIZE);
     __gm__ uint8_t* end =
-        (__gm__ uint8_t*)(((uint64_t)sourceAddr + length) /
-                          AscendC::CACHE_LINE_SIZE * AscendC::CACHE_LINE_SIZE);
+        (__gm__ uint8_t*)(((uint64_t)sourceAddr + length) / AscendC::CACHE_LINE_SIZE * AscendC::CACHE_LINE_SIZE);
     AscendC::GlobalTensor<uint8_t> global;
     global.SetGlobalBuffer(start);
     for (uint32_t i = 0; i <= end - start; i += AscendC::CACHE_LINE_SIZE) {
-        AscendC::DataCacheCleanAndInvalid<uint8_t,
-                                          AscendC::CacheLine::SINGLE_CACHE_LINE,
-                                          AscendC::DcciDst::CACHELINE_OUT>(
-            global[i]);
+        AscendC::DataCacheCleanAndInvalid<uint8_t, AscendC::CacheLine::SINGLE_CACHE_LINE,
+                                          AscendC::DcciDst::CACHELINE_OUT>(global[i]);
     }
 }
 

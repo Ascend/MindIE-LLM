@@ -12,3 +12,6 @@ exclude = '''
   | dist
 )/
 '''
+
+[tool.codespell]
+skip = "examples/atb_models/requirements/*"

@@ -19,12 +19,10 @@
 namespace mindie_llm {
 
 // 不支持的插件类型
-const std::vector<std::string> ConfigInteraction::UNSUPPORTED_PLUGINS = {
-    "mtp", "la", "memory_decoding"};
+const std::vector<std::string> ConfigInteraction::UNSUPPORTED_PLUGINS = {"mtp", "la", "memory_decoding"};
 
-bool ConfigInteraction::UpdatePluginEnabledStatus(
-    const std::vector<ModelDeployConfig> &modelDeployConfigs,
-    ServerConfigManager &serverConfigManager) {
+bool ConfigInteraction::UpdatePluginEnabledStatus(const std::vector<ModelDeployConfig> &modelDeployConfigs,
+                                                  ServerConfigManager &serverConfigManager) {
     // 获取当前pluginEnabled状态
     bool originalPluginEnabled = serverConfigManager.GetParam().pluginEnabled;
     bool newPluginEnabled = false;
@@ -43,9 +41,8 @@ bool ConfigInteraction::UpdatePluginEnabledStatus(
     return true;
 }
 
-bool ConfigInteraction::UpdateMtpEnabledStatus(
-    const std::vector<ModelDeployConfig> &modelDeployConfigs,
-    ServerConfigManager &serverConfigManager) {
+bool ConfigInteraction::UpdateMtpEnabledStatus(const std::vector<ModelDeployConfig> &modelDeployConfigs,
+                                               ServerConfigManager &serverConfigManager) {
     bool originalMtpEnabled = serverConfigManager.GetParam().mtpEnabled;
     bool newMtpEnabled = false;
 
@@ -59,12 +56,10 @@ bool ConfigInteraction::UpdateMtpEnabledStatus(
     return true;
 }
 
-bool ConfigInteraction::UpdateDeepseekEnabledStatus(
-    const std::vector<ModelDeployConfig> &modelDeployConfigs,
-    ServerConfigManager &serverConfigManager) {
+bool ConfigInteraction::UpdateDeepseekEnabledStatus(const std::vector<ModelDeployConfig> &modelDeployConfigs,
+                                                    ServerConfigManager &serverConfigManager) {
     // 获取当前deepseekEnabled状态
-    bool originalDeepseekEnabled =
-        serverConfigManager.GetParam().deepseekEnabled;
+    bool originalDeepseekEnabled = serverConfigManager.GetParam().deepseekEnabled;
     bool newDeepseekEnabled = false;
 
     if (modelDeployConfigs.empty()) {
@@ -82,8 +77,7 @@ bool ConfigInteraction::UpdateDeepseekEnabledStatus(
     return true;
 }
 
-bool ConfigInteraction::CheckPluginEnabled(
-    const std::vector<ModelDeployConfig> &modelDeployConfigs) {
+bool ConfigInteraction::CheckPluginEnabled(const std::vector<ModelDeployConfig> &modelDeployConfigs) {
     if (modelDeployConfigs.empty()) {
         return false;
     }
@@ -102,8 +96,7 @@ bool ConfigInteraction::CheckPluginEnabled(
     return false;
 }
 
-bool ConfigInteraction::CheckMtpEnabled(
-    const std::vector<ModelDeployConfig> &modelDeployConfigs) {
+bool ConfigInteraction::CheckMtpEnabled(const std::vector<ModelDeployConfig> &modelDeployConfigs) {
     if (modelDeployConfigs.empty()) {
         return false;
     }
@@ -129,8 +122,7 @@ bool ConfigInteraction::CheckMtpEnabled(
     return false;
 }
 
-bool ConfigInteraction::CheckModelTypeDeepseek(
-    const std::vector<ModelDeployConfig> &modelDeployConfigs) {
+bool ConfigInteraction::CheckModelTypeDeepseek(const std::vector<ModelDeployConfig> &modelDeployConfigs) {
     for (size_t i = 0; i < modelDeployConfigs.size(); ++i) {
         const auto &model = modelDeployConfigs[i];
         std::string modelType = model.modelType;
@@ -139,8 +131,7 @@ bool ConfigInteraction::CheckModelTypeDeepseek(
         }
 
         std::string lowerModelType = modelType;
-        std::transform(lowerModelType.begin(), lowerModelType.end(),
-                       lowerModelType.begin(), ::tolower);
+        std::transform(lowerModelType.begin(), lowerModelType.end(), lowerModelType.begin(), ::tolower);
 
         if (lowerModelType.rfind("deepseek", 0) == 0) {
             return true;
@@ -165,8 +156,7 @@ bool ConfigInteraction::HasMtpInPluginParams(const std::string &pluginParams) {
     if (pluginParams.empty()) {
         return false;
     }
-    static const std::regex mtpRegex(
-        R"x(\\?"plugin_type\\?"\s*:\s*\\?"[^"\\]*(?:mtp))x");
+    static const std::regex mtpRegex(R"x(\\?"plugin_type\\?"\s*:\s*\\?"[^"\\]*(?:mtp))x");
     return std::regex_search(pluginParams, mtpRegex);
 }
 

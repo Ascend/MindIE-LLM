@@ -33,7 +33,6 @@ def get_generator_backend(model_config):
         message = 'Unsupported backend type. The `backend_type` field only supports either "atb" or "torch".'
         logger.error(message, ErrorCode.TEXT_GENERATOR_GENERATOR_BACKEND_INVALID)
         raise NotImplementedError(
-            f"{backend_type} not implemented, "
-            f"supported backends `{BackendType.__members__.values()}`"
+            f"{backend_type} not implemented, supported backends `{BackendType.__members__.values()}`"
         )
     return generator_cls(model_config)

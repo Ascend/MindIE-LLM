@@ -32,6 +32,7 @@
 结构化输出（xgrammar）约束解码时，将 token bitmask 应用到 logits 的工具函数。
 仅被 PTA/MS 的 GuidedDecodingLogitsHandler 调用。
 """
+
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -43,8 +44,8 @@ if TYPE_CHECKING:
 
 
 def apply_token_bitmask_inplace_npu(
-    logits: 'torch.Tensor',
-    bitmask: 'torch.Tensor',
+    logits: "torch.Tensor",
+    bitmask: "torch.Tensor",
     vocab_size: int,
 ) -> None:
     """在 NPU 上原地将 bitmask 应用到 logits（将不允许的 token 置为 -inf）。"""
@@ -63,7 +64,7 @@ def apply_token_bitmask_inplace_npu(
 
 
 def apply_token_bitmask_inplace(
-    logits: 'torch.Tensor',
+    logits: "torch.Tensor",
     bitmask: np.ndarray,
     vocab_size: int,
 ) -> None:
@@ -81,9 +82,7 @@ def apply_token_bitmask_inplace(
     try:
         import torch
 
-        bitmask_tensor = torch.from_numpy(
-            np.asarray(bitmask, dtype=np.int32, order="C")
-        ).to(logits.device)
+        bitmask_tensor = torch.from_numpy(np.asarray(bitmask, dtype=np.int32, order="C")).to(logits.device)
         apply_token_bitmask_inplace_npu(logits, bitmask_tensor, vocab_size)
 
     except Exception as e:

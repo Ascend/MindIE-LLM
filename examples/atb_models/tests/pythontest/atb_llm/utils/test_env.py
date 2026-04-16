@@ -349,9 +349,7 @@ class TestEnvVarCheckRanktable(unittest.TestCase):
         with self.assertRaises(ValueError) as context:
             env_var.check_ranktable("/path/to/invalid_ranktable.json")
 
-        self.assertIn(
-            "rank_id should be a number less than world size", str(context.exception)
-        )
+        self.assertIn("rank_id should be a number less than world size", str(context.exception))
 
     @patch("atb_llm.utils.file_utils.safe_open")
     def test_check_ranktable_with_invalid_device_ip(self, mock_safe_open):

@@ -22,13 +22,13 @@ from mindie_llm.runtime.layers.attention import get_global_attn_dict
 from mindie_llm.utils.log.logging import logger
 
 NZ_KV_CACHE_FORMAT = 16  # NZ排布的KVCache做了16位对齐
-GroupKey = namedtuple('group', ['ratio', 'block_size', 'type'])
+GroupKey = namedtuple("group", ["ratio", "block_size", "type"])
 
 
 class ModelCachePool:
     _instance = None
     _lock = threading.Lock()
-    
+
     def __new__(cls):
         if cls._instance is None:
             with cls._lock:
@@ -36,7 +36,7 @@ class ModelCachePool:
                     cls._instance = super().__new__(cls)
                     cls._instance.initialized = False
         return cls._instance
-    
+
     def __init__(self):
         self._groups = None
         self._caches = None
@@ -46,7 +46,7 @@ class ModelCachePool:
         self._group_keys = None
         self._max_batch_size = None
         self.initialized = False
-    
+
     @staticmethod
     def _clear() -> None:
         attn_dict = get_global_attn_dict()
@@ -58,7 +58,7 @@ class ModelCachePool:
     def _create_aligned_tensor(target_shape, dtype, device, acl_format):
         from functools import reduce
         import operator
-        
+
         if acl_format == 2:  # 2: ND
             element_size = torch.tensor([], dtype=dtype).element_size()
             desired_num_elements = reduce(operator.mul, target_shape, 1)
@@ -76,7 +76,7 @@ class ModelCachePool:
                 cut_size = 0
             # 切片对齐 tensor
             cut_elements = cut_size // element_size
-            aligned_tensor = kv_tensor[cut_elements: cut_elements + desired_num_elements]
+            aligned_tensor = kv_tensor[cut_elements : cut_elements + desired_num_elements]
             aligned_tensor = aligned_tensor.contiguous()
             aligned_tensor = aligned_tensor.view(*target_shape)
             return aligned_tensor
@@ -91,16 +91,11 @@ class ModelCachePool:
                 base_addr_aligned_kb=additional_memory_kb,
             )
             return kv_tensor
-        
-    def initialize(
-        self,
-        model,
-        device,
-        max_batch_size: int = 8
-    ):
+
+    def initialize(self, model, device, max_batch_size: int = 8):
         if self.initialized:
             return
-        
+
         self._groups: dict[GroupKey, CacheGroupInfo] = {}
         # 储存每一层的cacheInfo，[num_blocks, tuple[block_size, num_heads, head_dim], group_id, dtype, acl_format]
         self._caches: list[list[tuple[int, tuple[int, int, int], int, int, int]]] = []
@@ -115,13 +110,13 @@ class ModelCachePool:
 
     def get_caches_info(self):
         return self._caches
-    
+
     def get_caches_addrs(self) -> list[list[int]]:
         return self._device_caches_addrs
 
     def get_groups_info(self):
         return list(self._groups.values())
-    
+
     def warmup_device_cache(self, device_mem) -> int:
         cache_size = 0  # bytes
         attn_dict = get_global_attn_dict()
@@ -133,12 +128,16 @@ class ModelCachePool:
                 num_blocks, shape, _, dtype, acl_format = cache_info
                 cache_size += math.prod(shape) * dtype.itemsize  # 计算num_blocks=1时的最小cache
                 if acl_format == 29:
-                    shape = (math.ceil(math.prod(shape) / shape[0] / NZ_KV_CACHE_FORMAT), shape[0], NZ_KV_CACHE_FORMAT)
+                    shape = (
+                        math.ceil(math.prod(shape) / shape[0] / NZ_KV_CACHE_FORMAT),
+                        shape[0],
+                        NZ_KV_CACHE_FORMAT,
+                    )
                 cache = torch_npu.empty_with_format(
                     size=(num_blocks, *shape),
                     dtype=dtype,
                     device=self._device,
-                    acl_format=acl_format
+                    acl_format=acl_format,
                 )
                 cache.fill_(0)
                 layer_caches.append(cache)
@@ -162,20 +161,26 @@ class ModelCachePool:
                 _, shape, group_id, dtype, acl_format = cache_info
                 group_key = self._group_keys[group_id]
                 num_blocks = self._groups.get(group_key).num_blocks
-                self._caches[layer_id][cache_id] = (num_blocks, shape, group_id, dtype, acl_format)  # update num_blocks
+                self._caches[layer_id][cache_id] = (
+                    num_blocks,
+                    shape,
+                    group_id,
+                    dtype,
+                    acl_format,
+                )  # update num_blocks
                 if is_dmi:
                     cache = self._create_aligned_tensor(
                         target_shape=(num_blocks, *shape),
                         dtype=dtype,
                         device=self._device,
-                        format=acl_format
+                        acl_format=acl_format,
                     )
                 else:
                     cache = torch_npu.empty_with_format(
                         size=(num_blocks, *shape),
                         dtype=dtype,
                         device=self._device,
-                        acl_format=acl_format
+                        acl_format=acl_format,
                     )
                 cache.fill_(0)
                 layer_caches.append(cache)
@@ -210,7 +215,7 @@ class ModelCachePool:
                 cache_group_info.num_blocks = 12 * self._max_batch_size
             groups_info.append(cache_group_info)
         return groups_info
-    
+
     def _update_caches_info(self):
         attn_dict = get_global_attn_dict()
         for attn in attn_dict.values():
@@ -218,10 +223,7 @@ class ModelCachePool:
             cache_info = []
             acl_format = cache_spec.format
             for ratio, cache_type, dtype, shape in zip(
-                cache_spec.ratio, 
-                cache_spec.type, 
-                cache_spec.dtype, 
-                cache_spec.shape
+                cache_spec.ratio, cache_spec.type, cache_spec.dtype, cache_spec.shape
             ):
                 group_key = GroupKey(ratio=ratio, type=cache_type, block_size=shape[0])
                 if group_key not in self._groups.keys():
@@ -229,8 +231,10 @@ class ModelCachePool:
                     group_id = len(self._group_keys) - 1
                 else:
                     group_id = self._group_keys.index(group_key)
-                group_info = self._groups.setdefault(group_key, CacheGroupInfo(
-                    ratio=ratio, block_size=shape[0], type=cache_type))
+                group_info = self._groups.setdefault(
+                    group_key,
+                    CacheGroupInfo(ratio=ratio, block_size=shape[0], type=cache_type),
+                )
                 group_info.bytes_of_blocks += math.prod(shape) * dtype.itemsize
                 num_blocks = self._groups[group_key].num_blocks
                 cache_info.append((num_blocks, shape, group_id, dtype, acl_format))
@@ -263,13 +267,13 @@ class ModelCachePool:
                 if num_blocks <= 0:
                     logger.error(
                         f"Npu out of memory, OOM.\n"
-                        f"The calculated num_blocks is a negative number: {num_blocks}.\n" 
+                        f"The calculated num_blocks is a negative number: {num_blocks}.\n"
                         f"Please check if: 1) the available NPU memory is sufficient or the mem_allocate_ratio is \
                             appropriate, 2) the max_batch_size is appropriate."
                     )
                     raise RuntimeError(
                         f"Npu out of memory, OOM.\n"
-                        f"The calculated num_blocks is a negative number: {num_blocks}.\n" 
+                        f"The calculated num_blocks is a negative number: {num_blocks}.\n"
                         f"Please check if: 1) the available NPU memory is sufficient or the mem_allocate_ratio is \
                             appropriate, 2) the max_batch_size is appropriate."
                     )
@@ -282,7 +286,7 @@ class ModelCachePool:
 
 def get_model_cache_pool(model=None, device=None, max_batch_size=None) -> ModelCachePool:
     instance = ModelCachePool()
-    
+
     if not instance.initialized:
         instance.initialize(model, device, max_batch_size)
     return ModelCachePool()

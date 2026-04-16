@@ -27,14 +27,18 @@ ASCEND_310B = 240
 
 
 class ATBModelWrapper(ModelWrapper):
-    def __init__(self,
-                 rank, local_rank, world_size, npu_device_id,
-                 model_id: str,
-                 **kwargs,
-                 ):
+    def __init__(
+        self,
+        rank,
+        local_rank,
+        world_size,
+        npu_device_id,
+        model_id: str,
+        **kwargs,
+    ):
         self.model_id = model_id
-        self.model_name = kwargs.get('model_name')
-        self.soc_version = kwargs.get('soc_version', None)
+        self.model_name = kwargs.get("model_name")
+        self.soc_version = kwargs.get("soc_version", None)
         if self.soc_version is not None and self.soc_version == ASCEND_310B:
             is_flash_causal_lm = False
             enable_edge = True
@@ -52,16 +56,16 @@ class ATBModelWrapper(ModelWrapper):
             world_size=world_size,
             is_flash_causal_lm=is_flash_causal_lm,
             enable_edge=enable_edge,
-            trust_remote_code=kwargs.get('trust_remote_code', False),
-            load_tokenizer=kwargs.get('load_tokenizer', True),
-            tokenizer_path=kwargs.get('tokenizer_path', None),
+            trust_remote_code=kwargs.get("trust_remote_code", False),
+            load_tokenizer=kwargs.get("load_tokenizer", True),
+            tokenizer_path=kwargs.get("tokenizer_path", None),
             inference_mode=kwargs.get("inference_mode", InferenceMode.REGRESSION),
             max_position_embeddings=kwargs.get("max_position_embeddings", None),
             lora_modules=kwargs.get("lora_modules", None),
-            max_loras=kwargs.get('max_loras', 0),
-            max_lora_rank=kwargs.get('max_lora_rank', 0),
-            plugin_params=kwargs.get('plugin_params', None),
-            num_speculative_tokens=kwargs.get('num_speculative_tokens', None),
+            max_loras=kwargs.get("max_loras", 0),
+            max_lora_rank=kwargs.get("max_lora_rank", 0),
+            plugin_params=kwargs.get("plugin_params", None),
+            num_speculative_tokens=kwargs.get("num_speculative_tokens", None),
             dp=kwargs.get("dp", -1),
             tp=kwargs.get("tp", -1),
             sp=kwargs.get("attn_inner_sp", -1),
@@ -73,19 +77,19 @@ class ATBModelWrapper(ModelWrapper):
             models_dict=kwargs.get("models", None),
             num_lccl_comm_shards=kwargs.get("num_lccl_comm_shards", 1),
             lccl_comm_shard_id=kwargs.get("lccl_comm_shard_id", 0),
-            model_role=kwargs.get('role', 'standard'),
+            model_role=kwargs.get("role", "standard"),
             layerwise_disaggregated=self.layerwise_disaggregated,
             layerwise_disaggregated_role_type=kwargs.get("layerwise_disaggregated_role_type", ""),
-            tls_enable=kwargs.get("interNodeTLSEnabled", '0'),
+            tls_enable=kwargs.get("interNodeTLSEnabled", "0"),
             tls_ca_path=kwargs.get("interNodeTlsCaPath", ""),
             tls_ca_file=kwargs.get("interNodeTlsCaFiles", ""),
             tls_cert=kwargs.get("interNodeTlsCert", ""),
             tls_pk=kwargs.get("interNodeTlsPk", ""),
             tls_crl_path=kwargs.get("interNodeTlsCrlPath", ""),
             tls_crl_files=kwargs.get("interNodeTlsCrlFiles", ""),
-            batch_p_num=2 if kwargs.get('lwdNextPHeadPrior', False) else 1,
-            lwd_comm_args=kwargs.get('lwd_comm_args', None),
-            mempool_type=kwargs.get('mempool_type', MemPoolType.DISABLED)
+            batch_p_num=2 if kwargs.get("lwdNextPHeadPrior", False) else 1,
+            lwd_comm_args=kwargs.get("lwd_comm_args", None),
+            mempool_type=kwargs.get("mempool_type", MemPoolType.DISABLED),
         )
         self.config = self.model_runner.config
         self.config_dict = self.model_runner.config_dict
@@ -98,10 +102,12 @@ class ATBModelWrapper(ModelWrapper):
         self.cp_size = self.mapping.attn_cp.group_size
 
         if self.layerwise_disaggregated:
-            self.in_holder = torch.tensor([0.], device='npu')
+            self.in_holder = torch.tensor([0.0], device="npu")
 
-        logger.debug(f"Enter ATBModelWrapper initialization. The current rank is {self.rank}. "
-                     f"The size of process group is {self.process_group.size()}.")
+        logger.debug(
+            f"Enter ATBModelWrapper initialization. The current rank is {self.rank}. "
+            f"The size of process group is {self.process_group.size()}."
+        )
         self.device = self.model_runner.device
 
         logger.debug(f"[Config]\t>>> rank:{self.rank} load weight start...")
@@ -113,23 +119,25 @@ class ATBModelWrapper(ModelWrapper):
         logger.debug(f"[Config]\t>>> rank:{self.rank} load weight finish")
 
         enable_nz = self.model_runner.enable_nz
-        self.model_info = ModelInfo(self.model_runner.device,
-                                    self.model_runner.kv_cache_dtype,
-                                    torch.tensor([], dtype=self.model_runner.kv_cache_dtype).element_size(),
-                                    self.model_runner.num_layers,
-                                    self.model_runner.num_kv_heads,
-                                    self.model_runner.head_size,
-                                    k_head_size=self.model_runner.k_head_size,
-                                    v_head_size=self.model_runner.v_head_size,
-                                    enable_nz=enable_nz,
-                                    kvcache_quant_layers=self.model_runner.kvcache_quant_layers)
+        self.model_info = ModelInfo(
+            self.model_runner.device,
+            self.model_runner.kv_cache_dtype,
+            torch.tensor([], dtype=self.model_runner.kv_cache_dtype).element_size(),
+            self.model_runner.num_layers,
+            self.model_runner.num_kv_heads,
+            self.model_runner.head_size,
+            k_head_size=self.model_runner.k_head_size,
+            v_head_size=self.model_runner.v_head_size,
+            enable_nz=enable_nz,
+            kvcache_quant_layers=self.model_runner.kvcache_quant_layers,
+        )
         self.max_position_embeddings = self.model_runner.max_position_embeddings
         self.soc_info = self.model_runner.soc_info
         self.adapter_manager = self.model_runner.adapter_manager
         eplb_level = getattr(self.model_runner.model, "eplb_level", 0)
         if eplb_level == EPLBType.DYNAMIC_EPLB:
-            module = import_module('atb_llm.models.deepseekv2.eplb.eplb_planner.eplb_worker')
-            EplbWorker = getattr(module, 'EplbWorker')
+            module = import_module("atb_llm.models.deepseekv2.eplb.eplb_planner.eplb_worker")
+            EplbWorker = getattr(module, "EplbWorker")
             self.eplb_worker = EplbWorker(self.model_runner, self.rank, self.model_id, self.device)
 
         self.model = self.model_runner.model
@@ -155,7 +163,7 @@ class ATBModelWrapper(ModelWrapper):
         Returns:
             torch.Tensor: logits.
         """
-        kwargs['layerwise_disaggregated_exe_stage'] = model_inputs.layerwise_disaggregated_exe_stage
+        kwargs["layerwise_disaggregated_exe_stage"] = model_inputs.layerwise_disaggregated_exe_stage
         model_inputs, kwargs = self.prepare_model_inputs(model_inputs, **kwargs)
         result = self.forward_from_model_inputs(model_inputs, npu_cache, **kwargs)
         return result
@@ -163,20 +171,43 @@ class ATBModelWrapper(ModelWrapper):
     def prepare_model_inputs(self, model_inputs, **kwargs):
         """Do operations like H2D to prepare for the forward function."""
         model_inputs.block_tables_array = model_inputs.block_tables
-        if not self.layerwise_disaggregated \
-           or model_inputs.layerwise_disaggregated_exe_stage is None \
-           or model_inputs.layerwise_disaggregated_exe_stage.start_exec_layer == 0:
+        block_tables = None
+        input_ids = None
+        input_lengths = None
+        lm_head_indices = None
+        position_ids = None
+        slots = None
+        if (
+            not self.layerwise_disaggregated
+            or model_inputs.layerwise_disaggregated_exe_stage is None
+            or model_inputs.layerwise_disaggregated_exe_stage.start_exec_layer == 0
+        ):
             input_ids = torch.tensor(model_inputs.input_ids).to(self.device)
             position_ids = torch.tensor(model_inputs.position_ids, dtype=torch.int64).to(self.device)
             block_tables = torch.tensor(model_inputs.block_tables, dtype=torch.int32).to(self.device)
             slots = torch.tensor(model_inputs.slots).to(self.device)
             input_lengths = torch.tensor(model_inputs.context_length).to(self.device)
-            lm_head_indices = torch.tensor(
-                model_inputs.prefill_head_indices, dtype=torch.int32).to(self.device) \
-                if model_inputs.prefill_head_indices is not None else None
+            lm_head_indices = (
+                torch.tensor(model_inputs.prefill_head_indices, dtype=torch.int32).to(self.device)
+                if model_inputs.prefill_head_indices is not None
+                else None
+            )
         elif self.layerwise_disaggregated and model_inputs.layerwise_disaggregated_exe_stage.start_exec_layer != 0:
-            input_ids, position_ids, block_tables, slots, input_lengths, lm_head_indices = \
-                self.in_holder, self.in_holder, self.in_holder, self.in_holder, self.in_holder, self.in_holder
+            (
+                input_ids,
+                position_ids,
+                block_tables,
+                slots,
+                input_lengths,
+                lm_head_indices,
+            ) = (
+                self.in_holder,
+                self.in_holder,
+                self.in_holder,
+                self.in_holder,
+                self.in_holder,
+                self.in_holder,
+            )
 
         token_size_per_dp_group = kwargs.get("token_size_per_dp_group")
         if token_size_per_dp_group is not None:
@@ -203,17 +234,18 @@ class ATBModelWrapper(ModelWrapper):
         if max_dp_batch_size is not None:
             kwargs["max_dp_batch_size"] = torch.tensor(max_dp_batch_size).to(self.device)
 
-
         if model_inputs.sp_computed_slots_padding_idx is not None:
-            kwargs["sp_computed_slots_padding_idx"] = \
-                torch.tensor(model_inputs.sp_computed_slots_padding_idx).to(self.device)
+            kwargs["sp_computed_slots_padding_idx"] = torch.tensor(model_inputs.sp_computed_slots_padding_idx).to(
+                self.device
+            )
         if model_inputs.sp_computed_slots_order is not None:
             kwargs["sp_computed_slots_order"] = torch.tensor(model_inputs.sp_computed_slots_order).to(self.device)
         if model_inputs.all_rank_prefix_lens is not None:
             kwargs["all_rank_prefix_lens"] = model_inputs.all_rank_prefix_lens.tolist()
         if model_inputs.per_rank_prefix_lens is not None:
-            kwargs["per_rank_prefix_lens"] = \
-                torch.tensor(model_inputs.per_rank_prefix_lens, dtype=torch.int32).to(self.device)
+            kwargs["per_rank_prefix_lens"] = torch.tensor(model_inputs.per_rank_prefix_lens, dtype=torch.int32).to(
+                self.device
+            )
 
         sub_model_inputs = kwargs.get("sub_model_inputs")
         if sub_model_inputs is not None:
@@ -221,9 +253,11 @@ class ATBModelWrapper(ModelWrapper):
             sub_position_ids = torch.tensor(sub_model_inputs.position_ids, dtype=torch.int64).to(self.device)
             sub_slots = torch.tensor(sub_model_inputs.slots).to(self.device)
             sub_input_lengths = torch.tensor(sub_model_inputs.context_length).to(self.device)
-            sub_lm_head_indices = torch.tensor(
-                sub_model_inputs.prefill_head_indices, dtype=torch.int32).to(self.device) \
-                if sub_model_inputs.prefill_head_indices is not None else None
+            sub_lm_head_indices = (
+                torch.tensor(sub_model_inputs.prefill_head_indices, dtype=torch.int32).to(self.device)
+                if sub_model_inputs.prefill_head_indices is not None
+                else None
+            )
             sub_block_tables = torch.tensor(sub_model_inputs.block_tables, dtype=torch.int32).to(self.device)
             sub_model_inputs.input_ids = sub_input_ids
             sub_model_inputs.position_ids = sub_position_ids
@@ -267,19 +301,27 @@ class ATBModelWrapper(ModelWrapper):
         return result
 
     def forward_tensor(
-            self,
-            input_ids: torch.Tensor,
-            position_ids: torch.Tensor,
-            is_prefill: bool,
-            kv_cache: List[Tuple[torch.Tensor, torch.Tensor]],
-            block_tables: torch.Tensor,
-            slots: torch.Tensor,
-            input_lengths: torch.Tensor,
-            max_seq_len: int,
-            lm_head_indices: Optional[torch.Tensor] = None,
-            is_need_mask: Optional[List[int]] = None,
-            **kwargs):
-        from mindie_llm.utils.prof.profiler import span_start, span_end, span_attr, tensor_attr, Level
+        self,
+        input_ids: torch.Tensor,
+        position_ids: torch.Tensor,
+        is_prefill: bool,
+        kv_cache: List[Tuple[torch.Tensor, torch.Tensor]],
+        block_tables: torch.Tensor,
+        slots: torch.Tensor,
+        input_lengths: torch.Tensor,
+        max_seq_len: int,
+        lm_head_indices: Optional[torch.Tensor] = None,
+        is_need_mask: Optional[List[int]] = None,
+        **kwargs,
+    ):
+        from mindie_llm.utils.prof.profiler import (
+            span_start,
+            span_end,
+            span_attr,
+            tensor_attr,
+            Level,
+        )
+
         prof = span_start(name="forward_tensor", level=Level.DETAILED)
         prof = span_attr(prof, "input_ids", lambda: tensor_attr(input_ids, False))
         prof = span_attr(prof, "position_ids", lambda: tensor_attr(position_ids, False))
@@ -288,11 +330,15 @@ class ATBModelWrapper(ModelWrapper):
         prof = span_attr(prof, "slots", lambda: tensor_attr(slots, False))
         prof = span_attr(prof, "input_lengths", lambda: tensor_attr(input_lengths, False))
         prof = span_attr(prof, "max_seq_len", int(max_seq_len))
-        prof = span_attr(prof, "lm_head_indices", None if lm_head_indices is None else tensor_attr(lm_head_indices, False))
+        prof = span_attr(
+            prof,
+            "lm_head_indices",
+            None if lm_head_indices is None else tensor_attr(lm_head_indices, False),
+        )
 
         if self.soc_version is not None and self.soc_version == ASCEND_310B:
-            attention_mask = kwargs.get('spec_mask', None)
-            past_key_values = kwargs.get('past_key_values', None)
+            attention_mask = kwargs.get("spec_mask", None)
+            past_key_values = kwargs.get("past_key_values", None)
             if is_prefill:
                 past_key_values = None
             try:
@@ -300,7 +346,7 @@ class ATBModelWrapper(ModelWrapper):
                     input_ids=input_ids.unsqueeze(0),
                     attention_mask=attention_mask,
                     position_ids=position_ids.unsqueeze(0),
-                    past_key_values=past_key_values
+                    past_key_values=past_key_values,
                 )
             except Exception as e:
                 logger.error(f"Error in forward_tensor: {e}")
@@ -316,8 +362,8 @@ class ATBModelWrapper(ModelWrapper):
                     is_prefill=is_prefill,
                     kv_cache=kv_cache,
                     block_tables=block_tables,
-                slots=slots,
-                input_lengths=input_lengths,
+                    slots=slots,
+                    input_lengths=input_lengths,
                     max_seq_len=max_seq_len,
                     lm_head_indices=lm_head_indices,
                     is_need_mask=is_need_mask,
@@ -331,30 +377,36 @@ class ATBModelWrapper(ModelWrapper):
                 EplbExpertDataCollect().accumulation_expert_cumsum(is_prefill=is_prefill)
                 if is_prefill:
                     save_eplb_data(
-                                self.rank,
-                                EplbExpertDataCollect().get_prefill_token_num_per_expert(),
-                                "prefill", EplbExpertDataCollect().prefill_forward_count
-                                )
+                        self.rank,
+                        EplbExpertDataCollect().get_prefill_token_num_per_expert(),
+                        "prefill",
+                        EplbExpertDataCollect().prefill_forward_count,
+                    )
                 else:
                     save_eplb_data(
-                                self.rank,
-                                EplbExpertDataCollect().get_decode_token_num_per_expert(),
-                                "decode", EplbExpertDataCollect().decode_forward_count
-                                )
+                        self.rank,
+                        EplbExpertDataCollect().get_decode_token_num_per_expert(),
+                        "decode",
+                        EplbExpertDataCollect().decode_forward_count,
+                    )
             topk_output = getattr(self.model_runner.model, "topk_output", False)
             if topk_output:
                 if is_prefill:
                     save_eplb_data(
-                                self.rank,
-                                EplbExpertDataCollect().get_topk(),
-                                "prefill", EplbExpertDataCollect().prefill_forward_count, True
-                                )
+                        self.rank,
+                        EplbExpertDataCollect().get_topk(),
+                        "prefill",
+                        EplbExpertDataCollect().prefill_forward_count,
+                        True,
+                    )
                 else:
                     save_eplb_data(
-                                self.rank,
-                                EplbExpertDataCollect().get_topk(),
-                                "decode", EplbExpertDataCollect().decode_forward_count, True
-                                )
+                        self.rank,
+                        EplbExpertDataCollect().get_topk(),
+                        "decode",
+                        EplbExpertDataCollect().decode_forward_count,
+                        True,
+                    )
             if eplb_level == EPLBType.DYNAMIC_EPLB:
                 self.eplb_worker.eplb_forwarder.do_aggregate()
 
@@ -380,10 +432,12 @@ class ATBModelWrapper(ModelWrapper):
             slots.append(torch.tensor(model_inputs.slots).to(self.device))
             input_lengths.append(torch.tensor(model_inputs.context_length).to(self.device))
             max_seq_len.append(model_inputs.max_seq_len)
-            lm_head_indices.append(torch.tensor(
-                model_inputs.prefill_head_indices, dtype=torch.int32).to(self.device) \
-                if model_inputs.prefill_head_indices is not None else None)
-            kwargs['adapter_ids'] = model_inputs.adapter_ids
+            lm_head_indices.append(
+                torch.tensor(model_inputs.prefill_head_indices, dtype=torch.int32).to(self.device)
+                if model_inputs.prefill_head_indices is not None
+                else None
+            )
+            kwargs["adapter_ids"] = model_inputs.adapter_ids
 
             token_size_per_dp_group = kwargs.get("token_size_per_dp_group")
             if token_size_per_dp_group is not None:

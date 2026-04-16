@@ -40,9 +40,7 @@ def set_mc2_token_capacity(max_num_reqs, uniform_decode_query_len):
         max_num_tokens_per_device = (max_num_tokens_per_device + cp_size - 1) // cp_size
     # TP + flash_comm
     if (
-        parallel_mgr.get(
-            ParallelType.ATTN_DP
-        ).is_enabled()  # check if flash_comm enabled
+        parallel_mgr.get(ParallelType.ATTN_DP).is_enabled()  # check if flash_comm enabled
         and parallel_mgr.get(ParallelType.ATTN_TP).is_enabled()
     ):
         tp_size = parallel_mgr.get(ParallelType.ATTN_TP).group_size
@@ -134,9 +132,7 @@ class ForwardContext:
             self.attn_metadata.to_device(device)
         if self.dp_metadata is not None:
             self.dp_metadata.to_device(device)
-        self.lm_head_indices = torch.tensor(
-            self.lm_head_indices, dtype=torch.int64, device=device
-        )
+        self.lm_head_indices = torch.tensor(self.lm_head_indices, dtype=torch.int64, device=device)
 
     def record_stream(self, stream: torch.npu.Stream) -> None:
         """Record the stream for all tensors in the context.
@@ -188,10 +184,7 @@ def get_forward_context() -> ForwardContext:
         RuntimeError: If forward context is not set.
     """
     if _forward_context is None:
-        raise RuntimeError(
-            "Forward context is not set. "
-            "Please use `set_forward_context` to set the forward context."
-        )
+        raise RuntimeError("Forward context is not set. Please use `set_forward_context` to set the forward context.")
     return _forward_context
 
 
@@ -206,9 +199,7 @@ def set_forward_context(context: ForwardContext) -> None:
 
 
 # NOTE: This API will be refactored
-def create_forward_context(
-    model_inputs: any, mask: torch.Tensor, num_speculative_tokens: int = 0
-) -> ForwardContext:
+def create_forward_context(model_inputs: any, mask: torch.Tensor, num_speculative_tokens: int = 0) -> ForwardContext:
     """Create a forward context from model inputs.
 
     Args:
@@ -224,9 +215,7 @@ def create_forward_context(
     attn_backend = attn_layer.get_attn_backend()
     metadata_cls = attn_backend.get_builder_cls().get_metadata_cls()
     # NOTE: This API will be refactored
-    attn_metadata = metadata_cls.from_model_input(
-        model_inputs, mask, num_speculative_tokens
-    )
+    attn_metadata = metadata_cls.from_model_input(model_inputs, mask, num_speculative_tokens)
 
     dp_metadata = DPMetadata.from_model_input(model_inputs)
 
@@ -239,9 +228,7 @@ def create_forward_context(
     if model_inputs.prefill_head_indices is not None:
         lm_head_indices = model_inputs.prefill_head_indices
     else:
-        lm_head_indices = torch.arange(
-            model_inputs.input_ids.shape[0], device=model_inputs.input_ids.device
-        )
+        lm_head_indices = torch.arange(model_inputs.input_ids.shape[0], device=model_inputs.input_ids.device)
 
     return ForwardContext(
         is_prefill=model_inputs.is_prefill,

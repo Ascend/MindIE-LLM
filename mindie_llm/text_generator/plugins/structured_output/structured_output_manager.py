@@ -60,21 +60,22 @@ _xgrammar_import_attempted = False
 def _get_xgrammar_module():
     """
     获取 xgrammar 模块（如果可用）
-    
+
     Returns:
         xgrammar 模块，如果不可用则返回 None
     """
     global _xgrammar_module, _xgrammar_import_attempted
-    
+
     # 如果已经尝试过导入，直接返回缓存的结果
     if _xgrammar_import_attempted:
         return _xgrammar_module
-    
+
     # 尝试导入
     logger.debug("Attempting to import xgrammar module")
     _xgrammar_import_attempted = True
     try:
         import xgrammar as xgr
+
         _xgrammar_module = xgr
         logger.debug("Successfully imported xgrammar module")
         return xgr
@@ -86,7 +87,9 @@ def _get_xgrammar_module():
 
 class GuidedDecodingBackendType(str, Enum):
     """约束解码后端类型"""
+
     XGRAMMAR = "xgrammar"
+
 
 _DEFAULT_BITMASK_PREALLOC_BATCH = 64
 _DEFAULT_GRAMMAR_CACHE_SIZE = 100
@@ -95,8 +98,9 @@ _DEFAULT_GRAMMAR_CACHE_SIZE = 100
 @dataclass
 class StructuredOutputConfig:
     """结构化输出配置"""
+
     backend: GuidedDecodingBackendType = GuidedDecodingBackendType.XGRAMMAR
-    xgrammar_any_whitespace: bool = False 
+    xgrammar_any_whitespace: bool = False
     grammar_cache_size: int = _DEFAULT_GRAMMAR_CACHE_SIZE
     bitmask_prealloc_batch: int = _DEFAULT_BITMASK_PREALLOC_BATCH
 
@@ -104,13 +108,13 @@ class StructuredOutputConfig:
 class GrammarBackend:
     """
     Grammar 后端封装
-    
+
     负责：
     1. 初始化后端库（xgrammar）
     2. 编译 JSON Schema → Grammar
     3. 创建 GrammarMatcher（每个请求独立的 FSM 状态）
     """
-    
+
     def __init__(
         self,
         backend_type: GuidedDecodingBackendType,
@@ -120,7 +124,7 @@ class GrammarBackend:
     ):
         """
         初始化后端
-        
+
         Args:
             backend_type: 后端类型
             tokenizer: HuggingFace tokenizer
@@ -131,27 +135,26 @@ class GrammarBackend:
         self.tokenizer = tokenizer
         self.vocab_size = vocab_size
         self.config = config
-        
+
         # 后端特定的对象
         self._xgr = None
         self._xgr_tokenizer_info = None
         self._xgr_compiler = None
-        
+
         # 初始化后端
         logger.debug(
-            f"[StructuredOutput|Backend|Diagnose] "
-            f"GrammarBackend.__init__() called, about to call _init_backend()"
+            "[StructuredOutput|Backend|Diagnose] GrammarBackend.__init__() called, about to call _init_backend()"
         )
         self._init_backend()
-    
+
     @staticmethod
-    def create_grammar(compiled: 'CompiledGrammar') -> StructuredOutputGrammar:
+    def create_grammar(compiled: "CompiledGrammar") -> StructuredOutputGrammar:
         """
         从编译后的 Grammar 创建状态追踪器
-        
+
         Args:
             compiled: 编译后的 Grammar
-            
+
         Returns:
             StructuredOutputGrammar 实例（带独立状态）
         """
@@ -167,48 +170,39 @@ class GrammarBackend:
         self,
         output_type: StructuredOutputType,
         grammar_spec: str,
-    ) -> 'CompiledGrammar':
+    ) -> "CompiledGrammar":
         """
         编译 Grammar
-        
+
         Args:
             output_type: 请求类型（json_object / json_schema）
             grammar_spec: Grammar 规范字符串
-            
+
         Returns:
             CompiledGrammar 对象
         """
         return self._compile_xgrammar(output_type, grammar_spec)
-    
+
     def _init_backend(self) -> None:
         """初始化后端库"""
         self._init_xgrammar()
-    
+
     def _init_xgrammar(self) -> None:
         """初始化 xgrammar 后端"""
         logger.debug("[StructuredOutput|Backend] Initializing xgrammar backend...")
-        
+
         xgr = _get_xgrammar_module()
         if xgr is None:
-            logger.error(
-                f"[StructuredOutput|Backend] "
-                f"_get_xgrammar_module() returned None, xgrammar is not installed!"
-            )
-            raise ImportError(
-                "xgrammar is not installed. Please install it with: pip install xgrammar"
-            )
+            logger.error("[StructuredOutput|Backend] _get_xgrammar_module() returned None, xgrammar is not installed!")
+            raise ImportError("xgrammar is not installed. Please install it with: pip install xgrammar")
         self._xgr = xgr
         xgr_ver = xgr.__version__ if hasattr(xgr, "__version__") else "unknown"
-        logger.debug(
-            f"[StructuredOutput|Backend] xgrammar module loaded (version: {xgr_ver})"
-        )
-        
+        logger.debug(f"[StructuredOutput|Backend] xgrammar module loaded (version: {xgr_ver})")
+
         # 创建 TokenizerInfo
         try:
             logger.debug("[StructuredOutput|Backend] Creating TokenizerInfo from HuggingFace tokenizer...")
-            self._xgr_tokenizer_info = xgr.TokenizerInfo.from_huggingface(
-                self.tokenizer, vocab_size=self.vocab_size
-            )
+            self._xgr_tokenizer_info = xgr.TokenizerInfo.from_huggingface(self.tokenizer, vocab_size=self.vocab_size)
             logger.debug("[StructuredOutput|Backend] TokenizerInfo created from HuggingFace")
         except Exception as e:
             logger.error(
@@ -219,24 +213,21 @@ class GrammarBackend:
                 "Cannot initialize xgrammar: TokenizerInfo.from_huggingface failed. "
                 "Ensure the tokenizer is compatible with xgrammar."
             ) from e
-        
+
         # 创建 GrammarCompiler（可复用）
         logger.debug("[StructuredOutput|Backend] Creating GrammarCompiler...")
         self._xgr_compiler = xgr.GrammarCompiler(self._xgr_tokenizer_info)
-        
-        logger.debug(
-            f"[StructuredOutput|Backend] xgrammar backend initialized: "
-            f"vocab_size={self.vocab_size}"
-        )
-    
+
+        logger.debug(f"[StructuredOutput|Backend] xgrammar backend initialized: vocab_size={self.vocab_size}")
+
     def _compile_xgrammar(
         self,
         output_type: StructuredOutputType,
         grammar_spec: str,
-    ) -> 'CompiledGrammar':
+    ) -> "CompiledGrammar":
         """使用 xgrammar 编译"""
         xgr = self._xgr
-        
+
         if output_type in (StructuredOutputType.JSON_SCHEMA, StructuredOutputType.JSON_OBJECT):
             # JSON Schema → CompiledGrammar
             logger.debug(
@@ -244,16 +235,15 @@ class GrammarBackend:
                 f"Compiling JSON schema with type={output_type.value}, "
                 f"any_whitespace={self.config.xgrammar_any_whitespace}"
             )
-            
+
             ctx = self._xgr_compiler.compile_json_schema(
-                grammar_spec,
-                any_whitespace=self.config.xgrammar_any_whitespace
+                grammar_spec, any_whitespace=self.config.xgrammar_any_whitespace
             )
-            
+
             logger.debug("[StructuredOutput|XGrammar] JSON schema compiled to FSM")
         else:
             raise ValueError(f"Unsupported request type for xgrammar: {output_type}")
-        
+
         result = CompiledGrammar(
             backend_type=GuidedDecodingBackendType.XGRAMMAR,
             ctx=ctx,
@@ -261,15 +251,16 @@ class GrammarBackend:
             xgr_module=xgr,
         )
         return result
-    
+
 
 @dataclass
 class CompiledGrammar:
     """
     编译后的 Grammar
-    
+
     可以被多个请求复用（每个请求创建独立的 Matcher）
     """
+
     backend_type: GuidedDecodingBackendType
     ctx: Any  # xgr.CompiledGrammar
     vocab_size: int
@@ -285,7 +276,7 @@ class StructuredOutputManager:
     ):
         """
         初始化管理器
-        
+
         Args:
             tokenizer: HuggingFace tokenizer
             vocab_size: 词表大小
@@ -294,24 +285,22 @@ class StructuredOutputManager:
         self.tokenizer = tokenizer
         self.vocab_size = vocab_size
         self.config = config or StructuredOutputConfig()
-        
+
         # 后端（延迟初始化）
         self._backend: Optional[GrammarBackend] = None
-        
+
         # Grammar 缓存：short_key → (grammar_spec, CompiledGrammar)，value 存 spec 用于碰撞校验
         self._grammar_cache: Dict[str, Tuple[str, CompiledGrammar]] = {}
-        
+
         # 运行态状态：state_key(当前由 context_handle 承担) → StructuredOutputGrammar
         self._request_grammars: Dict[int, StructuredOutputGrammar] = {}
-        
+
         # 预分配的 bitmask 缓冲区
         self._bitmask_buffer: Optional[np.ndarray] = None
         self._init_bitmask_buffer()
-        
+
         logger.debug(
-            f"StructuredOutputManager initialized: "
-            f"backend={self.config.backend.value}, "
-            f"vocab_size={vocab_size}"
+            f"StructuredOutputManager initialized: backend={self.config.backend.value}, vocab_size={vocab_size}"
         )
 
     @staticmethod
@@ -322,7 +311,7 @@ class StructuredOutputManager:
             return any(response_format is not None for response_format in response_format_array)
         except TypeError:
             return response_format_array is not None
-    
+
     @staticmethod
     def _get_cache_key(
         output_type: StructuredOutputType,
@@ -362,7 +351,10 @@ class StructuredOutputManager:
         if dropped_count > 0:
             logger.debug(
                 "[StructuredOutput][ReplaySanitize] state_key=%s source=%s dropped_invalid=%s raw_count=%s",
-                state_key, source, dropped_count, len(replay_tokens),
+                state_key,
+                source,
+                dropped_count,
+                len(replay_tokens),
             )
         return valid_tokens
 
@@ -382,8 +374,15 @@ class StructuredOutputManager:
         logger.debug(
             "[StructuredOutput][Accept] state_key=%s tokens=%s ok=%s "
             "tried %s→%s accepted %s→%s terminated_before=%s terminated_after=%s",
-            state_key, tokens, ok, tried_before, tried_after, accepted_before,
-            accepted_after, terminated_before, grammar.is_terminated(),
+            state_key,
+            tokens,
+            ok,
+            tried_before,
+            tried_after,
+            accepted_before,
+            accepted_after,
+            terminated_before,
+            grammar.is_terminated(),
         )
         return ok
 
@@ -403,7 +402,7 @@ class StructuredOutputManager:
             if valid_all_tokens.size > 0:
                 return [int(token_id) for token_id in valid_all_tokens.tolist()]
         return []
-    
+
     def grammar_init(
         self,
         state_key: int,
@@ -411,11 +410,11 @@ class StructuredOutputManager:
     ) -> Optional[StructuredOutputGrammar]:
         """
         为请求初始化 Grammar
-        
+
         Args:
             state_key: 当前运行态状态 key
             structured_output_request: 结构化输出请求
-            
+
         Returns:
             Grammar 实例，或 None（如果不需要约束）
         """
@@ -426,23 +425,14 @@ class StructuredOutputManager:
             structured_output_request.grammar = existing_grammar
             return existing_grammar
         try:
-            logger.debug(
-                f"[StructuredOutput] "
-                f"state_key={state_key}, compiling schema..."
-            )
+            logger.debug(f"[StructuredOutput] state_key={state_key}, compiling schema...")
             compiled = self._compile_grammar(
                 structured_output_request.output_type,
                 structured_output_request.grammar_spec,
             )
-            logger.debug(
-                f"[StructuredOutput] "
-                f"state_key={state_key} Schema compiled, creating grammar matcher..."
-            )
+            logger.debug(f"[StructuredOutput] state_key={state_key} Schema compiled, creating grammar matcher...")
             grammar = GrammarBackend.create_grammar(compiled)
-            logger.debug(
-                f"[StructuredOutput] "
-                f"state_key={state_key} Grammar matcher created"
-            )
+            logger.debug(f"[StructuredOutput] state_key={state_key} Grammar matcher created")
             self._request_grammars[state_key] = grammar
             total_grammars = len(self._request_grammars)
             grammar_keys = list(self._request_grammars.keys())
@@ -456,12 +446,9 @@ class StructuredOutputManager:
             return grammar
 
         except Exception as e:
-            logger.error(
-                f"[StructuredOutput] "
-                f"state_key={state_key} ✗ Exception: {e}"
-            )
+            logger.error(f"[StructuredOutput] state_key={state_key} ✗ Exception: {e}")
             return None
-    
+
     def grammar_bitmask(
         self,
         cache_ids: List[int],
@@ -469,11 +456,11 @@ class StructuredOutputManager:
     ) -> Optional[np.ndarray]:
         """
         批量生成 token bitmask
-        
+
         Args:
             cache_ids: 状态 key 列表
             apply_bitmask_flags: 每个请求是否应用 bitmask（可选）
-            
+
         Returns:
             bitmask 数组 [batch_size, vocab_size // 32]，或 None（如果没有需要约束的请求）
         """
@@ -504,12 +491,17 @@ class StructuredOutputManager:
                 continue
             try:
                 grammar.fill_bitmask(bitmask, idx)
-                allowed_tokens = parse_bitmask_allowed_tokens(bitmask[idx:idx + 1], self.vocab_size)
+                allowed_tokens = parse_bitmask_allowed_tokens(bitmask[idx : idx + 1], self.vocab_size)
                 logger.debug(
                     "[StructuredOutput][Bitmask] state_key=%s tried=%s accepted=%s terminated=%s "
-                    "allowed_token_count=%s/%s allowed_tokens=%s", state_key, grammar.num_tried_tokens,
-                    grammar.num_processed_tokens, grammar.is_terminated(), len(allowed_tokens),
-                    self.vocab_size, allowed_tokens,
+                    "allowed_token_count=%s/%s allowed_tokens=%s",
+                    state_key,
+                    grammar.num_tried_tokens,
+                    grammar.num_processed_tokens,
+                    grammar.is_terminated(),
+                    len(allowed_tokens),
+                    self.vocab_size,
+                    allowed_tokens,
                 )
             except Exception as e:
                 logger.warning(f"Failed to fill bitmask for state_key {state_key}: {e}")
@@ -523,13 +515,13 @@ class StructuredOutputManager:
     ) -> bool:
         """
         接受 token 并更新 FSM 状态
-        
+
         在采样后调用，推进 FSM 状态。
-        
+
         Args:
             state_key: 当前运行态状态 key
             tokens: 采样得到的 token 列表
-            
+
         Returns:
             是否成功接受 token
         """
@@ -538,16 +530,16 @@ class StructuredOutputManager:
             return True  # 没有约束，直接返回成功
 
         return self._accept_tokens_on_grammar(state_key, grammar, tokens)
-    
+
     def should_advance(self, state_key: int) -> bool:
         """
         检查是否应该推进 FSM 状态
-        
+
         用于判断请求是否有约束且未终止
-        
+
         Args:
             state_key: 当前运行态状态 key
-            
+
         Returns:
             是否应该调用 accept_tokens
         """
@@ -555,14 +547,14 @@ class StructuredOutputManager:
         if grammar is None:
             return False
         return not grammar.is_terminated()
-    
+
     def is_terminated(self, state_key: int) -> bool:
         """
         检查请求是否已完成约束生成
-        
+
         Args:
             state_key: 当前运行态状态 key
-            
+
         Returns:
             是否已终止
         """
@@ -570,14 +562,14 @@ class StructuredOutputManager:
         if grammar is None:
             return True  # 没有约束，视为已完成
         return grammar.is_terminated()
-    
+
     def clear_requests(self, cache_ids: List[int]) -> None:
         for state_key in cache_ids:
             self._request_grammars.pop(state_key, None)
-    
+
     def get_request_grammar(self, state_key: int) -> Optional[StructuredOutputGrammar]:
         return self._request_grammars.get(state_key)
-    
+
     def has_structured_output(self, state_key: int) -> bool:
         return state_key in self._request_grammars
 
@@ -587,9 +579,9 @@ class StructuredOutputManager:
     def shutdown(self) -> None:
         self._request_grammars.clear()
         self._grammar_cache.clear()
-        
+
         logger.debug("StructuredOutputManager shutdown")
-    
+
     def process_batch_for_generation(
         self,
         cache_ids: List[int],
@@ -613,8 +605,7 @@ class StructuredOutputManager:
                 if not has_grammar:
                     success = self._init_grammar_from_response_format(normalized_state_key, response_format_array[i])
                     if not success:
-                        logger.warning(f"[StructuredOutput] Failed to init grammar for state_key" \
-                                       f"{normalized_state_key}")
+                        logger.warning(f"[StructuredOutput] Failed to init grammar for state_key{normalized_state_key}")
                     else:
                         grammar_init_count += 1
                 state_key_list.append(normalized_state_key)
@@ -630,11 +621,7 @@ class StructuredOutputManager:
         token_ids: Any,
     ) -> Optional[np.ndarray]:
         """刷新结构化输出 FSM 状态，返回与 cache_ids 对齐的 is_accepted 数组。"""
-        if (
-            cache_ids is None or
-            token_ids is None or
-            not self.has_any_structured_output(cache_ids)
-        ):
+        if cache_ids is None or token_ids is None or not self.has_any_structured_output(cache_ids):
             return None
         return self.update_states_after_sampling(
             cache_ids=cache_ids,
@@ -686,22 +673,25 @@ class StructuredOutputManager:
             )
         if bitmask is not None:
             per_seq_allowed = [
-                parse_bitmask_allowed_tokens(bitmask[i:i + 1], self.vocab_size)
-                for i in range(bitmask.shape[0])
+                parse_bitmask_allowed_tokens(bitmask[i : i + 1], self.vocab_size) for i in range(bitmask.shape[0])
             ]
             per_seq_counts = [len(t) for t in per_seq_allowed]
             constrained_count = sum(1 for c in per_seq_counts if c < self.vocab_size)
             logger.debug(
                 "[StructuredOutput][BitmaskAssign] is_prefill=%s cache_ids=%s "
                 "bitmask_shape=%s constrained_seq_count=%s allowed_counts_per_seq=%s",
-                input_metadata.is_prefill, list(cache_ids), bitmask.shape,
-                constrained_count, per_seq_counts,
+                input_metadata.is_prefill,
+                list(cache_ids),
+                bitmask.shape,
+                constrained_count,
+                per_seq_counts,
             )
             sampling_metadata.guided_bitmask = bitmask
         else:
             logger.debug(
                 "[StructuredOutput][BitmaskAssign] is_prefill=%s cache_ids=%s bitmask=None (no constraint applied)",
-                input_metadata.is_prefill, list(cache_ids),
+                input_metadata.is_prefill,
+                list(cache_ids),
             )
 
     def update_states_after_sampling(
@@ -741,11 +731,11 @@ class StructuredOutputManager:
                 logger.warning(f"[StructuredOutput] Exception updating state_key {normalized_state_key}: {e}")
                 is_accepted_array[i] = False
         return is_accepted_array
-        
+
     def clear_finished_requests(self, cache_ids: np.ndarray) -> None:
         """
         清理已完成的请求
-        
+
         Args:
             cache_ids: 需要清理的状态 key 数组
         """
@@ -834,7 +824,10 @@ class StructuredOutputManager:
                     logger.debug(
                         "[StructuredOutput][DecodeSync] state_key=%s grammar replay_pos=%s exceeds replay_count=%s "
                         "(source=%s), keep current grammar to avoid rollback",
-                        normalized_state_key, replay_position, len(replay_tokens), source,
+                        normalized_state_key,
+                        replay_position,
+                        len(replay_tokens),
+                        source,
                     )
                     continue
                 # 增量推进：从 replay_position（游标）起切片，而非从 accepted_count 起。
@@ -849,20 +842,32 @@ class StructuredOutputManager:
                         status = "accepted" if new_accepted > accepted_count else "rejected"
                         logger.debug(
                             "[StructuredOutput][DecodeSync] state_key=%s cursor %s→%s %s %s→%s (%s)",
-                            normalized_state_key, replay_position, new_replay_pos, status,
-                            accepted_count, new_accepted, source,
+                            normalized_state_key,
+                            replay_position,
+                            new_replay_pos,
+                            status,
+                            accepted_count,
+                            new_accepted,
+                            source,
                         )
                         continue
                     logger.debug(
                         "[StructuredOutput][DecodeSync] state_key=%s cursor no-advance (%s) pos=%s acc=%s",
-                        normalized_state_key, source, replay_position, accepted_count,
+                        normalized_state_key,
+                        source,
+                        replay_position,
+                        accepted_count,
                     )
                     continue
                 logger.debug(
                     "[StructuredOutput][DecodeSync] state_key=%s pos=%s != replay_len=%s (%s), rebuild "
                     "grammar_before=(tried=%s, accepted=%s)",
-                    normalized_state_key, replay_position, len(replay_tokens), source,
-                    replay_position, accepted_count,
+                    normalized_state_key,
+                    replay_position,
+                    len(replay_tokens),
+                    source,
+                    replay_position,
+                    accepted_count,
                 )
                 self._request_grammars.pop(normalized_state_key, None)
 
@@ -870,7 +875,9 @@ class StructuredOutputManager:
             logger.debug(
                 "[StructuredOutput][DecodeSync] state_key=%s rebuild start: "
                 "replay_tokens_len=%s source=%s grammar_was_none=%s",
-                normalized_state_key, len(replay_tokens), source,
+                normalized_state_key,
+                len(replay_tokens),
+                source,
                 normalized_state_key not in self._request_grammars,
             )
             replay_count = self._build_and_replay_structured_output_state(
@@ -926,7 +933,9 @@ class StructuredOutputManager:
 
         logger.debug(
             "[StructuredOutput][Replay] step=rebuild_accept state_key=%s replay_len=%s replay_tokens=%s",
-            state_key, len(replay_tokens), replay_tokens,
+            state_key,
+            len(replay_tokens),
+            replay_tokens,
         )
         # 优先完整重放；accept_tokens 是逐 token 推进的，失败时 FSM 已停在合法的部分状态。
         if self.accept_tokens(state_key, replay_tokens):
@@ -963,53 +972,37 @@ class StructuredOutputManager:
     ) -> bool:
         """
         从 response_format 字符串初始化 grammar
-        
+
         Args:
             state_key: 当前运行态状态 key
             response_format: response_format JSON 字符串
-            
+
         Returns:
             是否成功初始化
         """
-        
+
         try:
-            logger.debug(
-                f"[StructuredOutput|Parse] "
-                f"state_key={state_key}, parsing response_format..."
-            )
+            logger.debug(f"[StructuredOutput|Parse] state_key={state_key}, parsing response_format...")
             # 解析 response_format
             structured_output = StructuredOutputRequest.from_response_format(response_format)
-            
+
             if structured_output is None:
-                logger.warning(
-                    f"[StructuredOutput] "
-                    f"state_key={state_key} ✗ Failed to parse response_format"
-                )
+                logger.warning(f"[StructuredOutput] state_key={state_key} ✗ Failed to parse response_format")
                 return False  # 无效的 response_format
-            
-            
+
             # 初始化 grammar
             logger.debug(f"[StructuredOutput|Compile] state_key={state_key}, compiling grammar...")
             grammar = self.grammar_init(state_key, structured_output)
-            
+
             if grammar is None:
-                logger.warning(
-                    f"[StructuredOutput] "
-                    f"state_key={state_key} Failed to compile grammar"
-                )
+                logger.warning(f"[StructuredOutput] state_key={state_key} Failed to compile grammar")
                 return False
-            
-            logger.debug(
-                f"[StructuredOutput|Compile] "
-                f"state_key={state_key} Grammar compiled and initialized"
-            )
+
+            logger.debug(f"[StructuredOutput|Compile] state_key={state_key} Grammar compiled and initialized")
             return True
-            
+
         except Exception as e:
-            logger.error(
-                f"[StructuredOutput] "
-                f"state_key={state_key} Exception: {e}"
-            )
+            logger.error(f"[StructuredOutput] state_key={state_key} Exception: {e}")
             return False
 
     def _init_bitmask_buffer(self) -> None:
@@ -1017,12 +1010,9 @@ class StructuredOutputManager:
         # bitmask 形状：[max_batch_size, vocab_size // 32]
         # 每个 int32 存储 32 个 bit
         self._bitmask_width = (self.vocab_size + 31) // 32
-        self._bitmask_buffer = np.zeros(
-            (self.config.bitmask_prealloc_batch, self._bitmask_width),
-            dtype=np.int32
-        )
+        self._bitmask_buffer = np.zeros((self.config.bitmask_prealloc_batch, self._bitmask_width), dtype=np.int32)
         self._full_mask = -1  # 0xFFFFFFFF，允许所有 token
-    
+
     def _ensure_backend(self) -> GrammarBackend:
         """确保后端已初始化"""
         if self._backend is None:
@@ -1036,10 +1026,7 @@ class StructuredOutputManager:
                 vocab_size=self.vocab_size,
                 config=self.config,
             )
-            logger.debug(
-                f"[StructuredOutput|Backend|Diagnose] "
-                f" Backend initialized successfully"
-            )
+            logger.debug("[StructuredOutput|Backend|Diagnose]  Backend initialized successfully")
         return self._backend
 
     def _compile_grammar(
@@ -1053,30 +1040,21 @@ class StructuredOutputManager:
         if cache_key in self._grammar_cache:
             stored_spec, compiled = self._grammar_cache[cache_key]
             if stored_spec == grammar_spec:
-                logger.debug(
-                    f"[StructuredOutput|Compile] "
-                    f"✓ Cache hit for type={output_type.value}"
-                )
+                logger.debug(f"[StructuredOutput|Compile] ✓ Cache hit for type={output_type.value}")
                 return compiled
             # 哈希碰撞，按未命中处理，下方会重新编译并覆盖
 
         logger.debug(
-            f"[StructuredOutput|Compile] "
-            f"Compiling new grammar: type={output_type.value}, "
-            f"spec_len={len(grammar_spec)}"
+            f"[StructuredOutput|Compile] Compiling new grammar: type={output_type.value}, spec_len={len(grammar_spec)}"
         )
         backend = self._ensure_backend()
         compiled = backend.compile_grammar(output_type, grammar_spec)
-        logger.debug(
-            f"[StructuredOutput|Compile] "
-            f" Grammar compiled successfully"
-        )
+        logger.debug("[StructuredOutput|Compile]  Grammar compiled successfully")
 
         if len(self._grammar_cache) >= self.config.grammar_cache_size:
             first_key = next(iter(self._grammar_cache))
             del self._grammar_cache[first_key]
-            logger.debug(f"[StructuredOutput|Compile] Cache evicted oldest entry")
+            logger.debug("[StructuredOutput|Compile] Cache evicted oldest entry")
         self._grammar_cache[cache_key] = (grammar_spec, compiled)
         logger.debug(f"[StructuredOutput|Compile] Grammar cached (total: {len(self._grammar_cache)})")
         return compiled
-    

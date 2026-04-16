@@ -1805,7 +1805,7 @@ bool LlmManagerImpl::LlmManagerImpl::QueryPDLinkStatus(model_execute_data::PDLin
         response.mutable_failed_link_info()->MergeFrom(executorResponse.failed_link_info());
         response.mutable_success_link_info()->MergeFrom(executorResponse.success_link_info());
         response.mutable_running_link_info()->MergeFrom(executorResponse.running_link_info());
-        response.mutable_waitting_link_info()->MergeFrom(executorResponse.waitting_link_info());
+        response.mutable_waiting_link_info()->MergeFrom(executorResponse.waiting_link_info());
     }
 
     MINDIE_LLM_LOG_INFO(

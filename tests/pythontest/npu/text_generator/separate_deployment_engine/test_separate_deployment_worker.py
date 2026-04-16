@@ -13,7 +13,9 @@ from unittest.mock import MagicMock, patch, call
 
 from llm_datadist import DataType, RegisterMemStatus, LLMStatusCode, LLMException
 from mindie_llm.text_generator.utils.separate_deployment_engine import (
-    SeparateDeploymentWorker, SeparateDeploymentEngine, LinkResult
+    SeparateDeploymentWorker,
+    SeparateDeploymentEngine,
+    LinkResult,
 )
 from mindie_llm.utils.log.logging import logger
 from mindie_llm.utils.log.error_code import ErrorCode
@@ -22,7 +24,6 @@ from mindie_llm.utils.status import MindieLlmStatusCode
 
 class TestSeparateDeploymentWorker(unittest.TestCase):
     def setUp(self):
-
         self.test_name = self._testMethodName  # 获取当前用例名称
         self.class_name = self.__class__.__name__  # 获取当前类名
         logger.info("=" * 80)
@@ -58,14 +59,14 @@ class TestSeparateDeploymentWorker(unittest.TestCase):
 
         # 创建 SeparateDeploymentWorker 实例（参数可随意设置，只要符合业务要求）
         self.worker = SeparateDeploymentWorker(
-            role='decoder',
+            role="decoder",
             local_logic_device_id=0,
             local_physical_device_id=1,
             local_cluster_id=0,
             local_device_ip="192.168.1.1",
             local_host_ip="127.0.0.1",
             local_super_pod_id=0,
-            local_super_device_id=8716291
+            local_super_device_id=8716291,
         )
         # 保证 worker 内部使用的是我们的 mock 实例
         self.worker.separate_deployment_engine = self.mock_llm_data_dist_instance
@@ -75,7 +76,7 @@ class TestSeparateDeploymentWorker(unittest.TestCase):
     def test_init_invalid_role(self):
         with self.assertRaises(Exception) as context:
             _ = SeparateDeploymentWorker(
-                role='invalid',
+                role="invalid",
                 local_logic_device_id=0,
                 local_physical_device_id=1,
                 local_cluster_id=0,
@@ -83,7 +84,7 @@ class TestSeparateDeploymentWorker(unittest.TestCase):
                 local_host_ip="127.0.0.1",
                 local_super_pod_id=0,
                 local_super_device_id=8716291,
-                kv_link_timeout=0
+                kv_link_timeout=0,
             )
         self.assertIn("SeparateDeploymentEngine: not support role.", str(context.exception))
 
@@ -147,79 +148,88 @@ class TestSeparateDeploymentWorker(unittest.TestCase):
         # 模拟 link 返回成功
         self.mock_llm_data_dist_instance.link.return_value = {
             "status": MindieLlmStatusCode.SUCCESS,
-            "comm_id": 200
+            "comm_id": 200,
         }
         self.mock_llm_data_dist_instance.query_register_mem_status.return_value = RegisterMemStatus.OK
 
         # 构造 link 参数
         link_params = {
-            'remote_cluster_ids': {0: [1]},
-            'remote_physical_device_ids': {0: [2]},
-            'remote_device_ips': {0: ['192.168.1.0']},
-            'host_ips': {0: ['192.168.1.100']},
-            'remote_super_device_ids': {0: [8650754]},
-            'remote_super_pod_ids': {0: [0]}
+            "remote_cluster_ids": {0: [1]},
+            "remote_physical_device_ids": {0: [2]},
+            "remote_device_ips": {0: ["192.168.1.0"]},
+            "host_ips": {0: ["192.168.1.100"]},
+            "remote_super_device_ids": {0: [8650754]},
+            "remote_super_pod_ids": {0: [0]},
         }
 
         self.worker.link(**link_params)
-        time.sleep(0.2) # 等待异步线程执行完成
+        time.sleep(0.2)  # 等待异步线程执行完成
         link_status = self.worker.query_link_status()
 
         self.assertIn(1, self.worker.cluster_comm_map)
         self.assertEqual(self.worker.cluster_comm_map[1], 200)
 
-        self.assertIn('192.168.1.0', link_status['success'])
-        self.assertEqual(len(link_status['waitting']), 0)
-        self.assertEqual(len(link_status['running']), 0)
-        self.assertEqual(len(link_status['failed']), 0)
+        self.assertIn("192.168.1.0", link_status["success"])
+        self.assertEqual(len(link_status["waiting"]), 0)
+        self.assertEqual(len(link_status["running"]), 0)
+        self.assertEqual(len(link_status["failed"]), 0)
 
     def test_link_success_with_different_host_ip(self):
         """测试 link 方法，当远程主机 IP 与本地不同时的连接情况"""
         self.mock_llm_data_dist_instance.link.return_value = {
             "status": MindieLlmStatusCode.SUCCESS,
-            "comm_id": 200
+            "comm_id": 200,
         }
         self.mock_llm_data_dist_instance.query_register_mem_status.return_value = RegisterMemStatus.OK
 
         # 构造 link 参数，使用不同的 host_ip
         link_params = {
-            'remote_cluster_ids': {0: [1]},
-            'remote_physical_device_ids': {0: [2]},
-            'remote_device_ips': {0: ['192.168.1.2']},
-            'host_ips': {0: ['127.0.0.2']},  # 远程主机 IP 与本地的不同
-            'remote_super_device_ids': {0: [8650754]},
-            'remote_super_pod_ids': {0: [0]}
+            "remote_cluster_ids": {0: [1]},
+            "remote_physical_device_ids": {0: [2]},
+            "remote_device_ips": {0: ["192.168.1.2"]},
+            "host_ips": {0: ["127.0.0.2"]},  # 远程主机 IP 与本地的不同
+            "remote_super_device_ids": {0: [8650754]},
+            "remote_super_pod_ids": {0: [0]},
         }
-        
+
         self.worker.link(**link_params)
         time.sleep(0.2)
         link_status = self.worker.query_link_status()
-        
+
         # 检查连接信息是否正确记录
         self.assertIn(1, self.worker.cluster_comm_map)
         self.assertEqual(self.worker.cluster_comm_map[1], 200)
-        self.assertIn('192.168.1.2', link_status['success'])
-        self.assertEqual(len(link_status['failed']), 0)
+        self.assertIn("192.168.1.2", link_status["success"])
+        self.assertEqual(len(link_status["failed"]), 0)
 
     def test_link_summary_multiple_success(self):
         """测试多条链路全部成功时 [Link_Summary] 日志输出（INFO级）"""
         # 1. Mock 所有链路建立成功（按调用顺序返回不同 comm_id，模拟多条链路）
         link_responses = [
-            {"status": MindieLlmStatusCode.SUCCESS, "comm_id": 200},  # 第1条链路（192.168.1.2）成功
-            {"status": MindieLlmStatusCode.SUCCESS, "comm_id": 201},  # 第2条链路（192.168.1.3）成功
-            {"status": MindieLlmStatusCode.SUCCESS, "comm_id": 202}   # 第3条链路（192.168.1.4）成功
+            {
+                "status": MindieLlmStatusCode.SUCCESS,
+                "comm_id": 200,
+            },  # 第1条链路（192.168.1.2）成功
+            {
+                "status": MindieLlmStatusCode.SUCCESS,
+                "comm_id": 201,
+            },  # 第2条链路（192.168.1.3）成功
+            {
+                "status": MindieLlmStatusCode.SUCCESS,
+                "comm_id": 202,
+            },  # 第3条链路（192.168.1.4）成功
         ]
         self.mock_llm_data_dist_instance.link.side_effect = link_responses
         self.mock_llm_data_dist_instance.query_register_mem_status.return_value = RegisterMemStatus.OK
 
         # 2. 构造3条链路参数（模拟多条成功链路场景）
         link_params = {
-            'remote_cluster_ids': {0: [1, 2, 3]},
-            'remote_physical_device_ids': {0: [2, 3, 4]},
-            'remote_device_ips': {0: ['192.168.1.2', '192.168.1.3', '192.168.1.4']},
-            'host_ips': {0: ['192.168.1.100', '192.168.1.101', '192.168.1.102']},
-            'remote_super_device_ids': {0: [8650754, 8650755, 8650756]},
-            'remote_super_pod_ids': {0: [0, 0, 0]}
+            "remote_cluster_ids": {0: [1, 2, 3]},
+            "remote_physical_device_ids": {0: [2, 3, 4]},
+            "remote_device_ips": {0: ["192.168.1.2", "192.168.1.3", "192.168.1.4"]},
+            "host_ips": {0: ["192.168.1.100", "192.168.1.101", "192.168.1.102"]},
+            "remote_super_device_ids": {0: [8650754, 8650755, 8650756]},
+            "remote_super_pod_ids": {0: [0, 0, 0]},
         }
 
         self.worker.link(**link_params)
@@ -230,29 +240,29 @@ class TestSeparateDeploymentWorker(unittest.TestCase):
         self.assertEqual(self.worker.cluster_comm_map.get(1), 200)  # 第1条链路 comm_id
         self.assertEqual(self.worker.cluster_comm_map.get(2), 201)  # 第2条链路 comm_id
         self.assertEqual(self.worker.cluster_comm_map.get(3), 202)  # 第3条链路 comm_id
-        
+
         #  断言三个IP全部在success队列
-        self.assertIn('192.168.1.2', link_status['success'])
-        self.assertIn('192.168.1.3', link_status['success'])
-        self.assertIn('192.168.1.4', link_status['success'])
-        self.assertEqual(len(link_status['success']), 3)
+        self.assertIn("192.168.1.2", link_status["success"])
+        self.assertIn("192.168.1.3", link_status["success"])
+        self.assertIn("192.168.1.4", link_status["success"])
+        self.assertEqual(len(link_status["success"]), 3)
 
     def test_link_failed(self):
         """测试 link 方法失败的情况"""
         # 模拟 link 返回失败
         self.mock_llm_data_dist_instance.link.return_value = {
             "status": ErrorCode.TEXT_GENERATOR_PD_LINK_ERROR,
-            "comm_id": None
+            "comm_id": None,
         }
         self.mock_llm_data_dist_instance.query_register_mem_status.return_value = RegisterMemStatus.FAILED
 
         link_params = {
-            'remote_cluster_ids': {0: [1]},
-            'remote_physical_device_ids': {0: [2]},
-            'remote_device_ips': {0: ['192.168.1.2']},
-            'host_ips': {0: ['192.168.1.100']},
-            'remote_super_device_ids': {0: [8650754]},
-            'remote_super_pod_ids': {0: [0]}
+            "remote_cluster_ids": {0: [1]},
+            "remote_physical_device_ids": {0: [2]},
+            "remote_device_ips": {0: ["192.168.1.2"]},
+            "host_ips": {0: ["192.168.1.100"]},
+            "remote_super_device_ids": {0: [8650754]},
+            "remote_super_pod_ids": {0: [0]},
         }
 
         self.worker.link(**link_params)
@@ -261,37 +271,37 @@ class TestSeparateDeploymentWorker(unittest.TestCase):
 
         # 验证连接信息未被记录
         self.assertNotIn(1, self.worker.cluster_comm_map)
-        
+
         # 断言IP在失败队列，成功队列为空
-        self.assertIn('192.168.1.2', link_status['failed'])
-        self.assertEqual(len(link_status['success']), 0)
+        self.assertIn("192.168.1.2", link_status["failed"])
+        self.assertEqual(len(link_status["success"]), 0)
 
     def test_link_summary_multiple_failed(self):
         """测试多链路全部失败 - LinkResult多IP失败断言"""
         self.mock_llm_data_dist_instance.link.return_value = {
             "status": ErrorCode.TEXT_GENERATOR_PD_LINK_ERROR,
-            "comm_id": None
+            "comm_id": None,
         }
         self.mock_llm_data_dist_instance.query_register_mem_status.return_value = RegisterMemStatus.FAILED
 
         # 2. 构造3条链路参数
         link_params = {
-            'remote_cluster_ids': {0: [1, 2, 3]},
-            'remote_physical_device_ids': {0: [2, 3, 4]},
-            'remote_device_ips': {0: ['192.168.1.10', '192.168.1.11', '192.168.1.12']},
-            'host_ips': {0: ['192.168.1.100', '192.168.1.101', '192.168.1.102']},
-            'remote_super_device_ids': {0: [8650754, 8650755, 8650756]},
-            'remote_super_pod_ids': {0: [0, 0, 0]}
+            "remote_cluster_ids": {0: [1, 2, 3]},
+            "remote_physical_device_ids": {0: [2, 3, 4]},
+            "remote_device_ips": {0: ["192.168.1.10", "192.168.1.11", "192.168.1.12"]},
+            "host_ips": {0: ["192.168.1.100", "192.168.1.101", "192.168.1.102"]},
+            "remote_super_device_ids": {0: [8650754, 8650755, 8650756]},
+            "remote_super_pod_ids": {0: [0, 0, 0]},
         }
 
         self.worker.link(**link_params)
         time.sleep(0.2)
         link_status = self.worker.query_link_status()
-        
-        self.assertIn('192.168.1.10', link_status['failed'])
-        self.assertIn('192.168.1.11', link_status['failed'])
-        self.assertIn('192.168.1.12', link_status['failed'])
-        self.assertEqual(len(link_status['failed']), 3)
+
+        self.assertIn("192.168.1.10", link_status["failed"])
+        self.assertIn("192.168.1.11", link_status["failed"])
+        self.assertIn("192.168.1.12", link_status["failed"])
+        self.assertEqual(len(link_status["failed"]), 3)
 
     def test_unlink(self):
         """测试 unlink 方法，确保调用了引擎的 unlink 方法，并清除 cluster_comm_map 中对应记录"""
@@ -324,11 +334,9 @@ class TestSeparateDeploymentWorker(unittest.TestCase):
 
 
 class TestSeparateDeploymentEngine(unittest.TestCase):
-
-    @patch('mindie_llm.text_generator.utils.separate_deployment_engine.LLMDataDist')
-    @patch('mindie_llm.text_generator.utils.separate_deployment_engine.LLMDataDistConfig')
+    @patch("mindie_llm.text_generator.utils.separate_deployment_engine.LLMDataDist")
+    @patch("mindie_llm.text_generator.utils.separate_deployment_engine.LLMDataDistConfig")
     def setUp(self, mock_llm_data_dist_config, mock_llm_data_dist):
-
         self.test_name = self._testMethodName  # 获取当前用例名称
         self.class_name = self.__class__.__name__  # 获取当前类名
         logger.info("=" * 80)
@@ -339,124 +347,124 @@ class TestSeparateDeploymentEngine(unittest.TestCase):
         self.mock_llm_data_dist_config = mock_llm_data_dist_config
 
         self.engine = SeparateDeploymentEngine(
-            role='decoder',
+            role="decoder",
             local_cluster_id=0,
             local_logic_device_id=0,
             kv_trans_timeout=1,
             kv_rdma_sl=-1,
-            kv_rdma_tc=-1
+            kv_rdma_tc=-1,
         )
-    
-    @patch('mindie_llm.text_generator.utils.separate_deployment_engine.LLMDataDist')
-    @patch('mindie_llm.text_generator.utils.separate_deployment_engine.LLMDataDistConfig')
+
+    @patch("mindie_llm.text_generator.utils.separate_deployment_engine.LLMDataDist")
+    @patch("mindie_llm.text_generator.utils.separate_deployment_engine.LLMDataDistConfig")
     def test_init_prefill(self, mock_llm_data_dist_config, mock_llm_data_dist):
         engine = SeparateDeploymentEngine(
-            role='prefill',
+            role="prefill",
             local_cluster_id=0,
             local_logic_device_id=0,
             kv_trans_timeout=0,
             kv_rdma_sl=-1,
-            kv_rdma_tc=-1
+            kv_rdma_tc=-1,
         )
 
-        self.assertEqual(engine.role, 'prefill')
-    
-    @patch('mindie_llm.text_generator.utils.separate_deployment_engine.LLMDataDist')
-    @patch('mindie_llm.text_generator.utils.separate_deployment_engine.LLMDataDistConfig')
+        self.assertEqual(engine.role, "prefill")
+
+    @patch("mindie_llm.text_generator.utils.separate_deployment_engine.LLMDataDist")
+    @patch("mindie_llm.text_generator.utils.separate_deployment_engine.LLMDataDistConfig")
     def test_init_decoder(self, mock_llm_data_dist_config, mock_llm_data_dist):
         engine = SeparateDeploymentEngine(
-            role='decoder',
+            role="decoder",
             local_cluster_id=0,
             local_logic_device_id=0,
             kv_trans_timeout=1,
             kv_rdma_sl=7,
-            kv_rdma_tc=255
+            kv_rdma_tc=255,
         )
 
-        self.assertEqual(engine.role, 'decoder')
-    
-    def test_init_invalid_role(self):
-        with self.assertRaises(Exception) as context:
-            _ = SeparateDeploymentEngine(
-                role='invalid',
-                local_cluster_id=0,
-                local_logic_device_id=0,
-                kv_trans_timeout=1,
-                kv_rdma_sl=-1,
-                kv_rdma_tc=-1
-            )
-
+        self.assertEqual(engine.role, "decoder")
 
     def test_init_invalid_kv_rdma_sl(self):
         with self.assertRaises(Exception) as context:
             _ = SeparateDeploymentEngine(
-                role='prefill',
+                role="prefill",
                 local_cluster_id=0,
                 local_logic_device_id=0,
                 kv_trans_timeout=1,
                 kv_rdma_sl=8,
-                kv_rdma_tc=255
+                kv_rdma_tc=255,
             )
 
-        self.assertIn("SeparateDeploymentEngine: kv_rdma_sl only support: 0-7.", str(context.exception))
-    
+        self.assertIn(
+            "SeparateDeploymentEngine: kv_rdma_sl only support: 0-7.",
+            str(context.exception),
+        )
+
     def test_init_invalid_kv_rdma_tc(self):
         with self.assertRaises(Exception) as context:
             _ = SeparateDeploymentEngine(
-                role='decoder',
+                role="decoder",
                 local_cluster_id=0,
                 local_logic_device_id=0,
                 kv_trans_timeout=1,
                 kv_rdma_sl=7,
-                kv_rdma_tc=256
+                kv_rdma_tc=256,
             )
 
-        self.assertIn("SeparateDeploymentEngine: kv_rdma_tc only support: 0-255.", str(context.exception))
-    
+        self.assertIn(
+            "SeparateDeploymentEngine: kv_rdma_tc only support: 0-255.",
+            str(context.exception),
+        )
+
     def test_link(self):
         cluster_rank_info = {0: 0}
         rank_table = '{"server_count": "1", "server_list": [{"device": [{"device_ip": "192.168.1.1"}, {"device_ip": "192.168.1.2"}]}]}'
         self.engine.separate_deployment_engine.link.return_value = 12345
         result = self.engine.link(cluster_rank_info, rank_table, 1, 0)
-        self.assertEqual(result, {'status': MindieLlmStatusCode.SUCCESS, 'comm_id': 12345})
-    
+        self.assertEqual(result, {"status": MindieLlmStatusCode.SUCCESS, "comm_id": 12345})
+
     def test_link_server_count_2(self):
         cluster_rank_info = {0: 0}
         rank_table = '{"server_count": "2", "server_list": [{"device": [{"device_ip": "192.168.1.2"}]}, {"device": [{"device_ip": "192.168.1.1"}]}]}'
         self.engine.separate_deployment_engine.link.return_value = 12345
         result = self.engine.link(cluster_rank_info, rank_table, 2, 0)
-        self.assertEqual(result, {'status': MindieLlmStatusCode.SUCCESS, 'comm_id': 12345})
-    
+        self.assertEqual(result, {"status": MindieLlmStatusCode.SUCCESS, "comm_id": 12345})
+
     def test_link_already_linked(self):
         cluster_rank_info = {0: 0}
         rank_table = '{"server_count": "1", "server_list": [{"device": [{"device_ip": "192.168.1.1"}, {"device_ip": "192.168.1.2"}]}]}'
         self.engine.separate_deployment_engine.link.return_value = LLMStatusCode.LLM_ALREADY_LINK
         result = self.engine.link(cluster_rank_info, rank_table, 3, 1)
-        self.assertEqual(result, {'status': MindieLlmStatusCode.TEXT_GENERATOR_PD_ALREADY_LINK, 'comm_id': None})
-    
+        self.assertEqual(
+            result,
+            {
+                "status": MindieLlmStatusCode.TEXT_GENERATOR_PD_ALREADY_LINK,
+                "comm_id": None,
+            },
+        )
+
     def test_link_exception(self):
         cluster_rank_info = {0: 0}
         rank_table = '{"server_count": "1", "server_list": [{"device": [{"device_ip": "192.168.1.1"}, {"device_ip": "192.168.1.2"}]}]}'
         self.engine.separate_deployment_engine.link.side_effect = LLMException("Link failed", status_code=100)
         result = self.engine.link(cluster_rank_info, rank_table, 4, 0)
-        self.assertEqual(result, {'status': ErrorCode.TEXT_GENERATOR_PD_LINK_ERROR, 'comm_id': None})
-    
+        self.assertEqual(result, {"status": ErrorCode.TEXT_GENERATOR_PD_LINK_ERROR, "comm_id": None})
+
     def test_unlink(self):
         self.engine.separate_deployment_engine.unlink.return_value = None
         result = self.engine.unlink(12345)
         self.assertEqual(result, MindieLlmStatusCode.SUCCESS)
-    
+
     def test_unlink_exception(self):
         self.engine.separate_deployment_engine.unlink.side_effect = LLMException("Unlink failed")
         result = self.engine.unlink(12345)
         self.assertEqual(result, ErrorCode.TEXT_GENERATOR_PD_UNLINK_ERROR)
-    
+
     def test_set_npu_cache(self):
         model_id = 1
         npu_cache = [1, 2, 3]
         self.engine.set_npu_cache(model_id, npu_cache)
         self.assertEqual(self.engine.npu_cache_map[model_id], npu_cache)
-    
+
     def test_pull_kv(self):
         model_id = 1
         src_block_table = [1, 2, 3]
@@ -466,7 +474,7 @@ class TestSeparateDeploymentEngine(unittest.TestCase):
         self.engine.separate_deployment_engine.cache_manager.pull_blocks.return_value = None
         result = self.engine.pull_kv(model_id, src_block_table, dst_block_table, remote_cluster_id)
         self.assertEqual(result, MindieLlmStatusCode.SUCCESS)
-    
+
     def test_pull_kv_exception(self):
         model_id = 1
         src_block_table = [1, 2, 3]
@@ -476,21 +484,21 @@ class TestSeparateDeploymentEngine(unittest.TestCase):
         self.engine.separate_deployment_engine.cache_manager.pull_blocks.side_effect = LLMException("Pull kv failed")
         result = self.engine.pull_kv(model_id, src_block_table, dst_block_table, remote_cluster_id)
         self.assertEqual(result, ErrorCode.TEXT_GENERATOR_PD_PULL_KV_ERROR)
-    
+
     def test_register_blocks_cache(self):
-        cache_desc = 'cache_desc'
+        cache_desc = "cache_desc"
         npu_addrs = [1, 2, 3]
-        cache_key = 'cache_key'
+        cache_key = "cache_key"
         self.engine.separate_deployment_engine.cache_manager.register_blocks_cache.return_value = None
         result = self.engine.register_blocks_cache(cache_desc, npu_addrs, cache_key)
         self.assertIsNone(result)
-    
+
     def test_query_register_mem_status(self):
         comm_id = 12345
         self.engine.separate_deployment_engine.query_register_mem_status.return_value = True
         result = self.engine.query_register_mem_status(comm_id)
         self.assertTrue(result)
-    
+
     def test_finalize(self):
         self.engine.separate_deployment_engine.finalize.return_value = None
         self.engine.finalize()

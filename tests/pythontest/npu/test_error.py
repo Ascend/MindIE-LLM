@@ -77,13 +77,9 @@ class TestError(unittest.TestCase):
         log_bak = self._clear_log()
         with self.assertRaises(ValueError):
             selector_params = SelectorParams()
-            top_k_top_p_sampling_token_selector = TopKTopPSamplingTokenSelector(
-                selector_params
-            )
+            top_k_top_p_sampling_token_selector = TopKTopPSamplingTokenSelector(selector_params)
             sampling_metadata = SamplingMetadata.from_numpy(
-                batch_sequence_ids=self.test_logits_shape_params.get(
-                    "batch_sequence_ids"
-                ),
+                batch_sequence_ids=self.test_logits_shape_params.get("batch_sequence_ids"),
                 top_k=self.test_logits_shape_params.get("top_k"),
                 top_p=self.test_logits_shape_params.get("top_p"),
                 seeds=self.test_logits_shape_params.get("seed"),
@@ -93,9 +89,7 @@ class TestError(unittest.TestCase):
             )
             top_k_top_p_sampling_token_selector.configure(sampling_metadata)
             top_k_top_p_sampling_token_selector(
-                logits=tensor_backend.tensor(
-                    self.test_logits_shape_params.get("logits")
-                ),
+                logits=tensor_backend.tensor(self.test_logits_shape_params.get("logits")),
                 metadata=sampling_metadata,
             )
         top_k_top_p_sampling_token_selector.clear(sampling_metadata.all_sequence_ids)
@@ -119,9 +113,7 @@ class TestError(unittest.TestCase):
             model_info = ModelInfo(
                 device="cpu",
                 dtype=tensor_backend.get_backend().float16,
-                data_byte_size=tensor_backend.tensor(
-                    [], dtype=tensor_backend.get_backend().float16
-                ).element_size(),
+                data_byte_size=tensor_backend.tensor([], dtype=tensor_backend.get_backend().float16).element_size(),
                 num_layers=1,
                 num_kv_heads=8,
                 head_size=128,
@@ -162,9 +154,7 @@ class TestError(unittest.TestCase):
             )
             infer_context.get_batch_context_handles(input_metadata)
         log = self._read_log()
-        self.assertIn(
-            str(ErrorCode.TEXT_GENERATOR_MISSING_PREFILL_OR_INVALID_DECODE_REQ), log
-        )
+        self.assertIn(str(ErrorCode.TEXT_GENERATOR_MISSING_PREFILL_OR_INVALID_DECODE_REQ), log)
         self._recover_log(log_bak)
 
     def test_block_size(self):

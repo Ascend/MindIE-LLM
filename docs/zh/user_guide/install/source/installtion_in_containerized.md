@@ -11,7 +11,7 @@
 
 - 宿主机已参见[准备软件包和依赖](../source/preparing_software_and_dependencies.md)章节准备好需要安装的软件包和依赖。
 - 用户在宿主机自行安装Docker（版本要求大于或等于24_.x.x_）。Docker的安装可参见[安装Docker](../source/docker_installation.md)。
-- 配置源之前，请确保安装环境能够连接网络。  
+- 配置源之前，请确保安装环境能够连接网络。
 
 ## 操作步骤
 

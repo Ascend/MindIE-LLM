@@ -17,14 +17,8 @@ MAX_LOG_FILE_SIZE = 500 * MB
 
 
 def get_benchmark_filepath():
-    home_path = (
-        os.getenv("MINDIE_LLM_HOME_PATH")
-        if os.getenv("MINDIE_LLM_HOME_PATH") is not None
-        else ""
-    )
-    return os.getenv(
-        "MINDIE_LLM_BENCHMARK_FILEPATH", os.path.join(home_path, "logs/benchmark.jsonl")
-    )
+    home_path = os.getenv("MINDIE_LLM_HOME_PATH") if os.getenv("MINDIE_LLM_HOME_PATH") is not None else ""
+    return os.getenv("MINDIE_LLM_BENCHMARK_FILEPATH", os.path.join(home_path, "logs/benchmark.jsonl"))
 
 
 def get_benchmark_reserving_ratio():
@@ -58,13 +52,9 @@ def get_atb_llm_log_maxsize():
 
 
 def get_use_mb_swapper():
-    value = os.getenv(
-        "MINDIE_LLM_USE_MB_SWAPPER", os.getenv("MIES_USE_MB_SWAPPER", "0")
-    )
+    value = os.getenv("MINDIE_LLM_USE_MB_SWAPPER", os.getenv("MIES_USE_MB_SWAPPER", "0"))
     if value not in ["0", "1"]:
-        raise ValueError(
-            "MINDIE_LLM_USE_MB_SWAPPER and MIES_USE_MB_SWAPPER should be 0 or 1"
-        )
+        raise ValueError("MINDIE_LLM_USE_MB_SWAPPER and MIES_USE_MB_SWAPPER should be 0 or 1")
     if value == "1":
         return True
     else:
@@ -82,10 +72,7 @@ def get_visible_devices():
     try:
         return list(map(int, value.split(",")))
     except ValueError as e:
-        raise ValueError(
-            "ASCEND_RT_VISIBLE_DEVICES should be in format "
-            "{device_id},{device_id},...,{device_id}"
-        ) from e
+        raise ValueError("ASCEND_RT_VISIBLE_DEVICES should be in format {device_id},{device_id},...,{device_id}") from e
 
 
 @dataclass
@@ -95,30 +82,20 @@ class EnvVar:
     """
 
     # Size of dynamically allocated memory pool during model runtime (unit: GB)
-    reserved_memory_gb: int = field(
-        default_factory=lambda: _parse_int_env("RESERVED_MEMORY_GB", 0)
-    )
+    reserved_memory_gb: int = field(default_factory=lambda: _parse_int_env("RESERVED_MEMORY_GB", 0))
 
     # Which devices to use
     visible_devices: list[int] | None = field(default_factory=get_visible_devices)
     # Whether to bind CPU cores
     bind_cpu: bool = field(default_factory=lambda: os.getenv("BIND_CPU", "1") == "1")
 
-    memory_fraction: float = field(
-        default_factory=lambda: float(os.getenv("NPU_MEMORY_FRACTION", "0.8"))
-    )
+    memory_fraction: float = field(default_factory=lambda: float(os.getenv("NPU_MEMORY_FRACTION", "0.8")))
 
     # Whether to record performance data required for service benchmarking
-    benchmark_enable: bool = field(
-        default_factory=lambda: os.getenv("MINDIE_LLM_BENCHMARK_ENABLE", "0") == "1"
-    )
-    benchmark_enable_async: bool = field(
-        default_factory=lambda: os.getenv("MINDIE_LLM_BENCHMARK_ENABLE", "0") == "2"
-    )
+    benchmark_enable: bool = field(default_factory=lambda: os.getenv("MINDIE_LLM_BENCHMARK_ENABLE", "0") == "1")
+    benchmark_enable_async: bool = field(default_factory=lambda: os.getenv("MINDIE_LLM_BENCHMARK_ENABLE", "0") == "2")
     benchmark_filepath: str = field(default_factory=get_benchmark_filepath)
-    benchmark_reserving_ratio: float = field(
-        default_factory=get_benchmark_reserving_ratio
-    )
+    benchmark_reserving_ratio: float = field(default_factory=get_benchmark_reserving_ratio)
     # Log level
     log_file_level: str = field(default_factory=get_log_file_level)
     # Whether to enable logging to file
@@ -132,17 +109,13 @@ class EnvVar:
     # Maximum size and number of log rotations
     log_file_rotate: str = os.getenv("MINDIE_LOG_ROTATE", "")
     # Optional log content
-    log_verbose: str = field(
-        default_factory=lambda: str(os.getenv("MINDIE_LOG_VERBOSE", "1"))
-    )
+    log_verbose: str = field(default_factory=lambda: str(os.getenv("MINDIE_LOG_VERBOSE", "1")))
 
     # Whether to enable memory bridge based swapper optimization
     use_mb_swapper: bool = field(default_factory=get_use_mb_swapper)
 
     # Select post-processing acceleration mode
-    speed_mode_type: int = field(
-        default_factory=lambda: _parse_int_env("POST_PROCESSING_SPEED_MODE_TYPE", 0)
-    )
+    speed_mode_type: int = field(default_factory=lambda: _parse_int_env("POST_PROCESSING_SPEED_MODE_TYPE", 0))
 
     rank: int = field(default_factory=lambda: _parse_int_env("RANK", 0))
     local_rank: int = field(default_factory=lambda: _parse_int_env("LOCAL_RANK", 0))
@@ -152,62 +125,42 @@ class EnvVar:
 
     performance_prefix_tree: bool = field(default_factory=get_performance_prefix_tree)
 
-    async_inference: bool = field(
-        default_factory=lambda: os.getenv("MINDIE_ASYNC_SCHEDULING_ENABLE", "0") == "1"
-    )
+    async_inference: bool = field(default_factory=lambda: os.getenv("MINDIE_ASYNC_SCHEDULING_ENABLE", "0") == "1")
     # model_runner 是否为 exp
     model_runner_exp: bool = False
 
     def __post_init__(self):
         # Validation
         if self.reserved_memory_gb >= 64 or self.reserved_memory_gb < 0:
-            raise ValueError(
-                "RESERVED_MEMORY_GB should be in the range of 0 to 64, 64 is not inclusive."
-            )
+            raise ValueError("RESERVED_MEMORY_GB should be in the range of 0 to 64, 64 is not inclusive.")
 
         if self.memory_fraction <= 0 or self.memory_fraction > 1.0:
-            raise ValueError(
-                "NPU_MEMORY_FRACTION should be in the range of 0 to 1.0, 0.0 is not inclusive."
-            )
+            raise ValueError("NPU_MEMORY_FRACTION should be in the range of 0 to 1.0, 0.0 is not inclusive.")
 
         if self.world_size < 0:
             raise ValueError("WORLD_SIZE should not be a number less than 0.")
         if self.rank < 0 or self.rank >= self.world_size:
-            raise ValueError(
-                "RANK should be in the range of 0 to WORLD_SIZE, WORLD_SIZE is not inclusive."
-            )
+            raise ValueError("RANK should be in the range of 0 to WORLD_SIZE, WORLD_SIZE is not inclusive.")
         if self.local_rank < 0 or self.local_rank >= self.world_size:
-            raise ValueError(
-                "LOCAL_RANK should be in the range of 0 to WORLD_SIZE, WORLD_SIZE is not inclusive."
-            )
+            raise ValueError("LOCAL_RANK should be in the range of 0 to WORLD_SIZE, WORLD_SIZE is not inclusive.")
 
         if len(self.benchmark_filepath) > 1024:
-            raise ValueError(
-                "The path length of MINDIE_LLM_BENCHMARK_FILEPATH exceeds the limit 1024 characters."
-            )
+            raise ValueError("The path length of MINDIE_LLM_BENCHMARK_FILEPATH exceeds the limit 1024 characters.")
 
         if not pathlib.Path(self.benchmark_filepath).is_absolute():
-            raise ValueError(
-                "The path of MINDIE_LLM_BENCHMARK_FILEPATH must be absolute."
-            )
+            raise ValueError("The path of MINDIE_LLM_BENCHMARK_FILEPATH must be absolute.")
 
         if pathlib.Path(self.benchmark_filepath).is_dir():
-            raise ValueError(
-                "The path of MINDIE_LLM_BENCHMARK_FILEPATH is a directory and not a file."
-            )
+            raise ValueError("The path of MINDIE_LLM_BENCHMARK_FILEPATH is a directory and not a file.")
 
         if pathlib.Path(self.benchmark_filepath).exists():
             if not os.access(pathlib.Path(self.benchmark_filepath), os.R_OK):
-                raise PermissionError(
-                    "The path of MINDIE_LLM_BENCHMARK_FILEPATH is not permitted to be read."
-                )
+                raise PermissionError("The path of MINDIE_LLM_BENCHMARK_FILEPATH is not permitted to be read.")
 
         if self.atb_llm_log_maxsize is not None and (
             self.atb_llm_log_maxsize < 0 or self.atb_llm_log_maxsize > 524288000
         ):  # 500MB
-            raise ValueError(
-                "PYTHON_LOG_MAXSIZE should be a number in the range of 0 to 524288000 (500MB).\n"
-            )
+            raise ValueError("PYTHON_LOG_MAXSIZE should be a number in the range of 0 to 524288000 (500MB).\n")
 
 
 def _parse_int_env(var_name: str, default: int) -> int:
@@ -217,9 +170,7 @@ def _parse_int_env(var_name: str, default: int) -> int:
     except ValueError:
         from mindie_llm.utils.log.logging import logger
 
-        logger.error(
-            f"Environment variable {var_name} has an invalid value. Using default value {default}."
-        )
+        logger.error(f"Environment variable {var_name} has an invalid value. Using default value {default}.")
         return default
 
 

@@ -171,7 +171,7 @@ max_input_length长度设置可参考模型权重路径下config.json里的max_p
                   {
                       "type": "text",
                       "text": "Explain the contents of the picture."
-                  }                 
+                  }
               ]
     }],
     "max_tokens": 512,
@@ -232,7 +232,7 @@ max_input_length长度设置可参考模型权重路径下config.json里的max_p
   {
     "image": "/data/textvqa/train_images/003a8ae2ef43b901.jpg",
     "question": "what is the brand of this camera?",
-    "question_id": 34602, 
+    "question_id": 34602,
     "answer": "dakota"
   }
   ...
@@ -243,7 +243,7 @@ max_input_length长度设置可参考模型权重路径下config.json里的max_p
 - 打开benchmark工具打印开关
 
   ```shell
-  export MINDIE_LOG_TO_STDOUT="benchmark:1; client:1" 
+  export MINDIE_LOG_TO_STDOUT="benchmark:1; client:1"
   ```
 
 - 发送benchmark推理请求（若出现trust_remote_code相关报错，需将--TrustRemoteCode置为True，可能引入文件读取风险，请知悉）
@@ -290,7 +290,7 @@ max_input_length长度设置可参考模型权重路径下config.json里的max_p
 - 打开benchmark工具打印开关
 
   ```shell
-  export MINDIE_LOG_TO_STDOUT="benchmark:1; client:1" 
+  export MINDIE_LOG_TO_STDOUT="benchmark:1; client:1"
   ```
 
 - 发送benchmark推理请求（若出现trust_remote_code相关报错，需将--TrustRemoteCode置为True，可能引入文件读取风险，请知悉）
@@ -384,7 +384,7 @@ ais_bench --models vita_generate_chat --datasets videobench_gen --debug      # v
 - 打开benchmark工具打印开关
 
   ```shell
-  export MINDIE_LOG_TO_STDOUT="benchmark:1; client:1" 
+  export MINDIE_LOG_TO_STDOUT="benchmark:1; client:1"
   ```
 
 - 发送benchmark推理请求（若出现trust_remote_code相关报错，需将--TrustRemoteCode置为True，可能引入文件读取风险，请知悉）

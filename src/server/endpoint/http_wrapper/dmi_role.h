@@ -28,20 +28,15 @@
 using ordered_json = nlohmann::ordered_json;
 
 namespace mindie_llm {
-constexpr uint32_t DEFAULT_PD_ROLE_FLEX_P_PERCENTAGE =
-    50;  // pdRole flex p_percentage 默认值50
+constexpr uint32_t DEFAULT_PD_ROLE_FLEX_P_PERCENTAGE = 50;  // pdRole flex p_percentage 默认值50
 class FlexPPercentageProcessor {
    public:
     static FlexPPercentageProcessor &GetInstance() {
         static FlexPPercentageProcessor instance;
         return instance;
     }
-    uint32_t GetPdRoleFlexPPercentage() const {
-        return this->pdRoleFlexPPercentage;
-    }
-    void SetPdRoleFlexPPercentage(const uint32_t pPercentage) {
-        this->pdRoleFlexPPercentage = pPercentage;
-    }
+    uint32_t GetPdRoleFlexPPercentage() const { return this->pdRoleFlexPPercentage; }
+    void SetPdRoleFlexPPercentage(const uint32_t pPercentage) { this->pdRoleFlexPPercentage = pPercentage; }
 
    private:
     FlexPPercentageProcessor() = default;
@@ -59,10 +54,8 @@ class DmiRole {
     const std::map<uint64_t, std::vector<std::string>> &GetSuccessHostIp();
     const std::map<uint64_t, std::vector<DeviceInfo>> &GetLinkingLinkIp();
     const std::map<uint64_t, std::vector<std::string>> &GetLinkingHostIp();
-    const std::map<uint64_t, std::pair<std::string, bool>> &
-    GetRemoteNodeLinkStatus();
-    std::map<uint64_t, std::pair<std::string, bool>>
-    GetRemoteNodeLinkStatusV2();
+    const std::map<uint64_t, std::pair<std::string, bool>> &GetRemoteNodeLinkStatus();
+    std::map<uint64_t, std::pair<std::string, bool>> GetRemoteNodeLinkStatusV2();
     const std::map<uint32_t, std::string> &GetInstanceIdToServerIp();
     const uint32_t &GetLocalInstanceId();
     void ModifyPullKVFailId(const uint32_t &instanceId);
@@ -74,46 +67,31 @@ class DmiRole {
     static std::shared_ptr<DmiRole> GetInstance();
 
    private:
-    bool UpdatePDInfo(const std::string &roleName, const std::string &preRole,
-                      const ordered_json &body, GlobalIpInfo &globalIpInfo);
-    bool UpdatePDInfoV2(const std::string &roleName, const std::string &preRole,
-                        const ordered_json &body, GlobalIpInfo &globalIpInfo);
-    bool UpdatePDSwitchInfo(const std::string &roleName,
-                            const ordered_json &body,
-                            GlobalIpInfo &globalIpInfo, bool needInit);
-    bool UpdatePDSwitchInfoV2(const std::string &roleName,
-                              const ordered_json &body,
-                              GlobalIpInfo &globalIpInfo, bool needInit);
-    bool UpdatePDNotSwitchInfo(const std::string &roleName,
-                               const ordered_json &body,
-                               GlobalIpInfo &globalIpInfo);
-    bool UpdatePDNotSwitchInfoV2(const std::string &roleName,
-                                 const ordered_json &body,
-                                 GlobalIpInfo &globalIpInfo);
-    bool PDParseRequestBodyToJson(const ReqCtxPtr &reqCtx,
-                                  ordered_json &body) const noexcept;
+    bool UpdatePDInfo(const std::string &roleName, const std::string &preRole, const ordered_json &body,
+                      GlobalIpInfo &globalIpInfo);
+    bool UpdatePDInfoV2(const std::string &roleName, const std::string &preRole, const ordered_json &body,
+                        GlobalIpInfo &globalIpInfo);
+    bool UpdatePDSwitchInfo(const std::string &roleName, const ordered_json &body, GlobalIpInfo &globalIpInfo,
+                            bool needInit);
+    bool UpdatePDSwitchInfoV2(const std::string &roleName, const ordered_json &body, GlobalIpInfo &globalIpInfo,
+                              bool needInit);
+    bool UpdatePDNotSwitchInfo(const std::string &roleName, const ordered_json &body, GlobalIpInfo &globalIpInfo);
+    bool UpdatePDNotSwitchInfoV2(const std::string &roleName, const ordered_json &body, GlobalIpInfo &globalIpInfo);
+    bool PDParseRequestBodyToJson(const ReqCtxPtr &reqCtx, ordered_json &body) const noexcept;
     void ProcessInitInfo(const ordered_json &body, GlobalIpInfo &globalIpInfo);
-    void ProcessInitInfoV2(const ordered_json &body,
-                           GlobalIpInfo &globalIpInfo);
-    void UpdateIpInfo(
-        GlobalIpInfo &globalIpInfo,
-        std::map<uint64_t, std::vector<DeviceInfo>> &currentLinkIpInfo,
-        std::string &superPodId);
-    void ProcessAllUnlinks(
-        GlobalIpInfo &globalIpInfo,
-        const std::map<uint64_t, std::vector<DeviceInfo>> &currentLinkIpInfo,
-        const std::string &superPodId);
-    void ProcessNewLinks(
-        GlobalIpInfo &globalIpInfo,
-        const std::map<uint64_t, std::vector<DeviceInfo>> &currentLinkIpInfo);
-    void CleanupLinkingLinks(
-        const std::map<uint64_t, std::vector<DeviceInfo>> &currentLinkIpInfo);
+    void ProcessInitInfoV2(const ordered_json &body, GlobalIpInfo &globalIpInfo);
+    void UpdateIpInfo(GlobalIpInfo &globalIpInfo, std::map<uint64_t, std::vector<DeviceInfo>> &currentLinkIpInfo,
+                      std::string &superPodId);
+    void ProcessAllUnlinks(GlobalIpInfo &globalIpInfo,
+                           const std::map<uint64_t, std::vector<DeviceInfo>> &currentLinkIpInfo,
+                           const std::string &superPodId);
+    void ProcessNewLinks(GlobalIpInfo &globalIpInfo,
+                         const std::map<uint64_t, std::vector<DeviceInfo>> &currentLinkIpInfo);
+    void CleanupLinkingLinks(const std::map<uint64_t, std::vector<DeviceInfo>> &currentLinkIpInfo);
     void CleanupRemoteNodeStatus();
-    void UpdateHostIpInfo(
-        GlobalIpInfo &globalIpInfo,
-        std::map<uint64_t, std::vector<std::string>> &currentLinkHostIpInfo);
-    void ProcessPDRoleSwitch(const ReqCtxPtr &ctx, const std::string &roleName,
-                             GlobalIpInfo &globalIpInfo);
+    void UpdateHostIpInfo(GlobalIpInfo &globalIpInfo,
+                          std::map<uint64_t, std::vector<std::string>> &currentLinkHostIpInfo);
+    void ProcessPDRoleSwitch(const ReqCtxPtr &ctx, const std::string &roleName, GlobalIpInfo &globalIpInfo);
     template <typename T>
     void ProcessFailedLinks(const T &failedLinks);
     template <typename T>

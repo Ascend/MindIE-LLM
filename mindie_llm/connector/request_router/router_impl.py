@@ -39,9 +39,9 @@ from mindie_llm.connector.common.model_execute_data_pb2 import (
     ForwardType,
     PDErrorCode,
     LoraOperationType,
-    ExecuteResponse, 
-    LoraOperationResponse, 
-    PDLinkStatusResponse
+    ExecuteResponse,
+    LoraOperationResponse,
+    PDLinkStatusResponse,
 )
 
 from mindie_llm.connector.common.input_metadata_composite import InputMetadataComposite
@@ -58,7 +58,10 @@ from mindie_llm.utils.log.logging_base import HandlerType
 from mindie_llm.utils.prof.profiler import span_start, span_end, span_req, span_attr
 
 from mindie_llm.utils.layerwise.request_metadata import lwd_metadata_manager
-from mindie_llm.utils.layerwise.input_metadata import EdgeCloudInputMetadata, pd_exec_matadata_instance
+from mindie_llm.utils.layerwise.input_metadata import (
+    EdgeCloudInputMetadata,
+    pd_exec_matadata_instance,
+)
 from mindie_llm.text_generator.utils.generation_output import GenerationOutput
 from mindie_llm.text_generator.utils.config import ResponseConfig
 from mindie_llm.utils.log.error_code import ErrorCode, ErrorCodeException
@@ -144,19 +147,19 @@ class RouterImpl:
 
     @staticmethod
     def parse_early_stopping_text(model_config):
-        early_stopping_text = ''
+        early_stopping_text = ""
         if not hasattr(model_config, "model_weight_path") or model_config.model_weight_path is None:
-            return ''
+            return ""
         model_config_dict = {**model_config.model_config}
         config_dict = safe_get_config_dict(model_config.model_weight_path)
-        model_type = config_dict['model_type'].lower()
-        if 'models' in model_config_dict:
-            json_obj = json.loads(model_config_dict['models'])
-            if model_type in json_obj and 'early_stopping_text' in json_obj[model_type]:
-                early_stopping_text = json_obj[model_type]['early_stopping_text']
+        model_type = config_dict["model_type"].lower()
+        if "models" in model_config_dict:
+            json_obj = json.loads(model_config_dict["models"])
+            if model_type in json_obj and "early_stopping_text" in json_obj[model_type]:
+                early_stopping_text = json_obj[model_type]["early_stopping_text"]
                 if len(early_stopping_text) > MAX_EARLY_STOP_TEXT_LEN or len(early_stopping_text) == 0:
                     logger.warning("The length range of early_stopping_text is [1, 1024]")
-                    return ''
+                    return ""
         return early_stopping_text
 
     @staticmethod
@@ -170,8 +173,8 @@ class RouterImpl:
         if generate_output.token_ids.shape[0] == 0 or generate_output.eos_info.shape[0] == 0:
             logger.error("[MIE04E13030A] Token_ids's or eos_info's shape[0] must be not 0")
             raise ValueError("Token_ids's or eos_info's shape[0] must be not 0")
-        if not np.all((generate_output.token_ids >= -1) & (generate_output.token_ids < 2 ** 32)) or not np.all(
-                (generate_output.eos_info >= 0) & (generate_output.eos_info < 2 ** 32)
+        if not np.all((generate_output.token_ids >= -1) & (generate_output.token_ids < 2**32)) or not np.all(
+            (generate_output.eos_info >= 0) & (generate_output.eos_info < 2**32)
         ):
             logger.error("[MIE04E13030A] Token_ids or eos_info data must be uint32")
             raise ValueError("Token_ids or eos_info data must be uint32")
@@ -196,15 +199,15 @@ class RouterImpl:
                 else:
                     break
             id_to_block_table_map[inst_id][SRC_BLOCK_TABLE_KEY].extend(
-                src_block_table[start_src: start_src + valid_block_num]
+                src_block_table[start_src : start_src + valid_block_num]
             )
             id_to_block_table_map[inst_id][DST_BLOCK_TABLE_KEY].extend(
-                dst_block_table[start_dst: start_dst + valid_block_num]
+                dst_block_table[start_dst : start_dst + valid_block_num]
             )
             id_to_block_table_map[inst_id][REQ_INDEX].append(index)
             start_src += segment_len
             start_dst += valid_block_num
-        
+
     def initialize(self, model_config: DmiConfig) -> dict:
         self.config = model_config
         self.max_seq_len = model_config.max_seq_len
@@ -213,14 +216,18 @@ class RouterImpl:
         self.tp_size = model_config.tp_size
         self.dp_size = model_config.dp_size
         self.dp_rank_id = (self.rank // (self.cp_size * self.tp_size)) % self.dp_size
-        logger.info("global rank id %s get model config: %s", self.rank, model_config.model_config)
+        logger.info(
+            "global rank id %s get model config: %s",
+            self.rank,
+            model_config.model_config,
+        )
         self.generator = Generator(model_config={**model_config.model_config})
         self.config.enable_mtp = self.generator.enable_mtp
         self.is_mix_model = self.generator.is_mix_model
         self.block_size = model_config.cache_block_size
         logger.info(">>>global rank:%s done ibis manager to device", self.rank)
 
-        if hasattr(model_config, 'layerwise_disaggregated'):
+        if hasattr(model_config, "layerwise_disaggregated"):
             if model_config.layerwise_disaggregated is not None and model_config.layerwise_disaggregated == "true":
                 self.layerwise_disaggregated = True
 
@@ -237,7 +244,7 @@ class RouterImpl:
                 self.generator.max_position_embeddings,
                 model_config.model_weight_path,
             )
-        
+
         num_npu_blocks = self.generator.kvcache_settings.num_npu_blocks
         if hasattr(self.generator.model_wrapper, "mapping") and self.generator.model_wrapper.mapping.has_dp():
             num_npu_blocks = num_npu_blocks - 1
@@ -261,8 +268,11 @@ class RouterImpl:
         try:
             early_stopping_text = RouterImpl.parse_early_stopping_text(model_config)
             if len(early_stopping_text) > 0:
-                tokenizer = AutoTokenizer.from_pretrained(model_config.model_weight_path, local_files_only=True,
-                                                        trust_remote_code=model_config.trust_remote_code)
+                tokenizer = AutoTokenizer.from_pretrained(
+                    model_config.model_weight_path,
+                    local_files_only=True,
+                    trust_remote_code=model_config.trust_remote_code,
+                )
                 early_stopping_ids = tokenizer(early_stopping_text, return_attention_mask=False).input_ids
                 start_thinking_id = tokenizer.convert_tokens_to_ids("<think>")
                 stop_thinking_id = tokenizer.convert_tokens_to_ids("</think>")
@@ -270,10 +280,20 @@ class RouterImpl:
                 initialize_result["stopThinkingId"] = str(stop_thinking_id)
                 initialize_result["earlyStoppingIds"] = str(early_stopping_ids)[1:-1]
         except Exception as error:
-            logger.error(f'parse early_stopping_text in config.json failed {error=}')
-        logger.info("model init success, parent pid=%s, pid=%s, device_id=%s, global_rank_id=%s, local_rank_id=%s",
-                    os.getppid(), os.getpid(), self.config.npu_device_id, self.rank, self.config.local_rank)
-        logger.info(">>>global rank:%s: return initialize success result: %s", self.rank, initialize_result)
+            logger.error(f"parse early_stopping_text in config.json failed {error=}")
+        logger.info(
+            "model init success, parent pid=%s, pid=%s, device_id=%s, global_rank_id=%s, local_rank_id=%s",
+            os.getppid(),
+            os.getpid(),
+            self.config.npu_device_id,
+            self.rank,
+            self.config.local_rank,
+        )
+        logger.info(
+            ">>>global rank:%s: return initialize success result: %s",
+            self.rank,
+            initialize_result,
+        )
 
         return initialize_result
 
@@ -315,8 +335,11 @@ class RouterImpl:
 
     def transfer_data(self, execute_request: ExecuteRequest):
         input_metadata_composite: InputMetadataComposite = convert_pull_kv_request_to_input_metadata_composite(
-            execute_request.pull_kv_request, self.generator.kvcache_settings.num_npu_blocks, self.block_size,
-            self.config)
+            execute_request.pull_kv_request,
+            self.generator.kvcache_settings.num_npu_blocks,
+            self.block_size,
+            self.config,
+        )
         self._get_pull_kv_items(execute_request, input_metadata_composite)
 
         prof = span_start("PullKVCache", domain="PullKVCache")
@@ -324,7 +347,8 @@ class RouterImpl:
         span_attr(prof, "rank", self.rank)
 
         ret, failed_p_id = self.generator.pull_kv(
-            input_metadata_composite.input_metadata, input_metadata_composite.pull_kv_items
+            input_metadata_composite.input_metadata,
+            input_metadata_composite.pull_kv_items,
         )
 
         span_end(prof)
@@ -354,17 +378,16 @@ class RouterImpl:
         send_transfer_response(proto)
 
     def query_link_status(self, execute_request=None):
-
         logger.info("[Model]\t>>> global rank-%s enter query link status", self.rank)
         try:
             link_status = self.generator.query_link_status()
             logger.info(f"[Config]\t>>> rank: {self.rank} query link status result: {link_status}")
 
             pd_link_status_response = PDLinkStatusResponse()
-            
+
             if isinstance(link_status, dict):
-                if "waitting" in link_status:
-                    pd_link_status_response.waitting_link_info.extend(link_status["waitting"])
+                if "waiting" in link_status:
+                    pd_link_status_response.waiting_link_info.extend(link_status["waiting"])
                 if "running" in link_status:
                     pd_link_status_response.running_link_info.extend(link_status["running"])
                 if "success" in link_status:
@@ -373,22 +396,26 @@ class RouterImpl:
                     for failed_link in link_status["failed"]:
                         failed_info = PDLinkStatusResponse.FailedLinkInfo(
                             cluster_id=failed_link,
-                            pd_error_code=PDErrorCode.PD_LINK_ERROR
+                            pd_error_code=PDErrorCode.PD_LINK_ERROR,
                         )
                         pd_link_status_response.failed_link_info.append(failed_info)
-            
+
             return send_link_response(
-                ExecuteResponse(msg_type=ExecuteType.PD_LINK_STATUS_QUERY, 
-                            pd_link_status_response=pd_link_status_response)
+                ExecuteResponse(
+                    msg_type=ExecuteType.PD_LINK_STATUS_QUERY,
+                    pd_link_status_response=pd_link_status_response,
+                )
             )
         except Exception as e:
             _print_component_error_log(e)
             logger.error("[Model]\t>>> query link status failed.")
             logger.exception(f"[Model]\t>>> Exception:{e}")
             return send_link_response(
-                ExecuteResponse(msg_type=ExecuteType.PD_LINK_STATUS_QUERY,
-                                status=ModelWrapperErrorCode.PD_Link_QUERY_ERROR.value,
-                                pd_link_status_response=PDLinkStatusResponse())
+                ExecuteResponse(
+                    msg_type=ExecuteType.PD_LINK_STATUS_QUERY,
+                    status=ModelWrapperErrorCode.PD_Link_QUERY_ERROR.value,
+                    pd_link_status_response=PDLinkStatusResponse(),
+                )
             )
 
     def pd_role(self, execute_request):
@@ -398,7 +425,7 @@ class RouterImpl:
         logger.info("[Config]\t>>> start to process DMI link scenario.")
         # unlink
         logger.info(f"[Config] rank: {self.rank} Destroy all clusters kvcache link start...")
-        
+
         unlink_cluster_ids = set()
         if self.config.remote_unlink_cluster_id:
             for unlink_inst_cluster in set(self.config.remote_unlink_cluster_id):
@@ -408,16 +435,12 @@ class RouterImpl:
         if unlink_cluster_ids:
             try:
                 logger.info(
-                    f"[Config]\t>>> rank: {self.rank} "
-                    f"Batch destroy clusters start... cluster_ids: {unlink_cluster_ids}"
+                    f"[Config]\t>>> rank: {self.rank} Batch destroy clusters start... cluster_ids: {unlink_cluster_ids}"
                 )
 
-                batch_results = self.generator.unlink_batch(unlink_cluster_ids)  
+                batch_results = self.generator.unlink_batch(unlink_cluster_ids)
 
-                logger.info(
-                    f"[Config]\t>>> rank: {self.rank} "
-                    f"Batch unlink results: {batch_results}"
-                )
+                logger.info(f"[Config]\t>>> rank: {self.rank} Batch unlink results: {batch_results}")
 
                 logger.info(
                     f"[Config]\t>>> rank: {self.rank} "
@@ -455,18 +478,17 @@ class RouterImpl:
         elif lora_operation_type == LoraOperationType.UNLOAD:
             ret = self.generator.unload_lora(lora_name)
         else:
+            ret = None
             logger.error(
                 """[MIE04E13030A] [LORA]\t>>>
                 Unknown lora_operation_type: %s""",
                 lora_operation_type,
             )
-        proto_response = ExecuteResponse(msg_type=ExecuteType.LORA_OPERATION,
-                                         status=ModelWrapperErrorCode.SUCCESS.value,
-                                         lora_operation_response=LoraOperationResponse(
-                                             lora_name=lora_name,
-                                             lora_op_status=ret
-                                         )
-                                         )
+        proto_response = ExecuteResponse(
+            msg_type=ExecuteType.LORA_OPERATION,
+            status=ModelWrapperErrorCode.SUCCESS.value,
+            lora_operation_response=LoraOperationResponse(lora_name=lora_name, lora_op_status=ret),
+        )
         return send_command_response(proto_response)
 
     def recover_command_exec(self, execute_request):
@@ -482,30 +504,37 @@ class RouterImpl:
     def _execute_empty_batch(self, execute_request):
         lwd_exe_stage = lwd_metadata_manager.get_metadata() if self.layerwise_disaggregated else None
         dummy_input_metadata = make_dummy_input_metadata(
-            execute_request, self.generator.kvcache_settings.num_npu_blocks, self.config, lwd_exe_stage
+            execute_request,
+            self.generator.kvcache_settings.num_npu_blocks,
+            self.config,
+            lwd_exe_stage,
         )
         if self.config.infer_mode == "dmi" and self.config.role == "decoder":
             self.generator.input_metadata_queue.put(dummy_input_metadata)
-            dummy_input_metadata = make_dummy_input_metadata_dmi_decoder(dummy_input_metadata,
-                                                                         self.generator.kvcache_settings.num_npu_blocks,
-                                                                         self.config)
+            dummy_input_metadata = make_dummy_input_metadata_dmi_decoder(
+                dummy_input_metadata,
+                self.generator.kvcache_settings.num_npu_blocks,
+                self.config,
+            )
         logger.info(
             f"execute empty dummy batch with execute_type: {execute_request.execute_type}, "
             f"forward_type: {execute_request.execute_model_request.forward_type}",
-            extra={"handler_ids": HandlerType.TOKEN}
+            extra={"handler_ids": HandlerType.TOKEN},
         )
         err_msg = ""
         try:
             self.generator.generate_token(dummy_input_metadata)
         except ErrorCodeException as e:
-            logger.error(f'{e.error_code.name} fault happened when handling empty batch, '
-                         f'will be reported to executor with error code: {e.error_code.value}.')
+            logger.error(
+                f"{e.error_code.name} fault happened when handling empty batch, "
+                f"will be reported to executor with error code: {e.error_code.value}."
+            )
             err_msg = e.error_code.value
             proto = ExecuteResponseBuilder.build_from_err_msg(err_msg)
             logger.info(f"Send error response to rank {self.local_rank}, err_msg={err_msg}")
             send_model_execute_response(proto)
         except Exception as e:
-            logger.error(f'Unknown exception when handling empty batch, error: {e}')
+            logger.error(f"Unknown exception when handling empty batch, error: {e}")
             raise e
 
         proto = ExecuteResponse(msg_type=execute_request.execute_type)
@@ -530,13 +559,13 @@ class RouterImpl:
                 ConvertPara(is_prefill=is_prefill, is_mix=is_mix),
                 is_mix_model=self.is_mix_model,
                 layerwise_disaggregated_exe_stage=None,
-                config=self.config
+                config=self.config,
             )
             logger.info(
                 f"execute real batch with batch_size: {input_metadata_composite.input_metadata.batch_size}, "
                 f"execute_type: {execute_request.execute_type}, "
                 f"forward_type: {execute_request.execute_model_request.forward_type}",
-                extra={"handler_ids": HandlerType.TOKEN}
+                extra={"handler_ids": HandlerType.TOKEN},
             )
         else:
             layerwise_disaggregated_exe_stage = lwd_metadata_manager.get_metadata()
@@ -545,8 +574,11 @@ class RouterImpl:
             if EdgeCloudInputMetadata.have_input_metadata(layerwise_disaggregated_exe_stage):
                 pd_exec_matadata = pd_exec_matadata_instance
                 input_metadata_composite = copy.deepcopy(
-                    pd_exec_matadata.get_input_metadata(layerwise_disaggregated_exe_stage.is_prefill, 
-                                                        layerwise_disaggregated_exe_stage))
+                    pd_exec_matadata.get_input_metadata(
+                        layerwise_disaggregated_exe_stage.is_prefill,
+                        layerwise_disaggregated_exe_stage,
+                    )
+                )
                 # The exe_stage for P-end differs from that of P-begin, and similarly,
                 # the exe_stage for D-end differs from that of D-begin; these must be replaced accordingly.
                 lw_disag_exe_stage = layerwise_disaggregated_exe_stage
@@ -559,7 +591,7 @@ class RouterImpl:
                     ConvertPara(is_prefill=is_prefill, is_mix=is_mix),
                     is_mix_model=self.is_mix_model,
                     layerwise_disaggregated_exe_stage=layerwise_disaggregated_exe_stage,
-                    config=self.config
+                    config=self.config,
                 )
                 # For P-first, D-first, and first-block cloud-side P tasks, back up the computation result to provide
                 # for subsequent P-last, D-last, and non-first-block cloud-side P tasks.
@@ -567,27 +599,35 @@ class RouterImpl:
                     pd_exec_matadata = pd_exec_matadata_instance
                     exe_stage = layerwise_disaggregated_exe_stage
                     if exe_stage.is_prefill and exe_stage.is_long_seq:
-                        pd_exec_matadata.set_input_metadata(copy.deepcopy(input_metadata_composite),
-                                                    layerwise_disaggregated_exe_stage.is_prefill)
+                        pd_exec_matadata.set_input_metadata(
+                            copy.deepcopy(input_metadata_composite),
+                            layerwise_disaggregated_exe_stage.is_prefill,
+                        )
                     else:
-                        pd_exec_matadata.set_input_metadata(input_metadata_composite,
-                                                    layerwise_disaggregated_exe_stage.is_prefill)
+                        pd_exec_matadata.set_input_metadata(
+                            input_metadata_composite,
+                            layerwise_disaggregated_exe_stage.is_prefill,
+                        )
         span_end(convert_prof)
         if input_metadata_composite.block_copy:
             self.generator.copy_blocks(np.array(input_metadata_composite.block_copy))
-        
+
         err_msg = ""
         try:
             generate_output = self._handle_requests(input_metadata_composite)
         except ErrorCodeException as e:
-            logger.error(f'{e.error_code.name} fault happened when handling normal batch, '
-                         f'will be reported to executor with error code: {e.error_code.value}.')
+            logger.error(
+                f"{e.error_code.name} fault happened when handling normal batch, "
+                f"will be reported to executor with error code: {e.error_code.value}."
+            )
             err_msg = e.error_code.value
             sequence_ids = input_metadata_composite.input_metadata.all_sequence_ids
             parent_sequence_ids = input_metadata_composite.input_metadata.all_sequence_ids
             dim = len(sequence_ids)
-            finish_reason = np.zeros((dim), dtype=np.int32) + \
-                ERROR_CODE_TO_FINISH_REASON.get(e.error_code, ResponseConfig.EOS).value
+            finish_reason = (
+                np.zeros((dim), dtype=np.int32)
+                + ERROR_CODE_TO_FINISH_REASON.get(e.error_code, ResponseConfig.EOS).value
+            )
             generate_output = GenerationOutput(
                 sequence_ids=sequence_ids,
                 parent_sequence_ids=parent_sequence_ids,
@@ -601,14 +641,14 @@ class RouterImpl:
                 token_ids=np.zeros((dim, 1), dtype=np.int64),
                 finish_reason=finish_reason,
                 truncation_indices=np.zeros((dim), dtype=np.int_),
-                current_token_indices=np.zeros((dim), dtype=np.int_)
+                current_token_indices=np.zeros((dim), dtype=np.int_),
             )
             generate_output.collate()
             logger.info(f"Send response with error msg to rank {self.local_rank}, err_msg={err_msg}")
             proto = ExecuteResponseBuilder.build_from_err_msg(err_msg)
             send_model_execute_response(proto)
         except Exception as e:
-            logger.error(f'Unknown exception when handling normal batch, error: {e}')
+            logger.error(f"Unknown exception when handling normal batch, error: {e}")
             raise e
 
         # Only the first rank in each DP group will generate output.
@@ -619,12 +659,14 @@ class RouterImpl:
                     if not self.layerwise_disaggregated:
                         proto_binary = ExecuteResponseBuilder.build_from_generate_output_use_cpp(generate_output)
                     else:
-                        proto_binary = ExecuteResponseBuilder.lwd_build_from_generate_output_use_cpp(generate_output,
-                            is_prefill)
+                        proto_binary = ExecuteResponseBuilder.lwd_build_from_generate_output_use_cpp(
+                            generate_output, is_prefill
+                        )
                     send_model_execute_response(proto_binary, True)
                 else:
                     proto = ExecuteResponseBuilder.build_from_generate_output(
-                        generate_output, execute_request.execute_type)
+                        generate_output, execute_request.execute_type
+                    )
                     if self.layerwise_disaggregated:
                         proto.execute_model_response.layerwise_is_prefill = is_prefill
                     send_model_execute_response(proto)
@@ -634,7 +676,11 @@ class RouterImpl:
                 proto = ExecuteResponseBuilder.build_from_generate_output(None, execute_request.execute_type)
                 send_model_execute_response(proto)
 
-    def _get_pull_kv_items(self, execute_request: ExecuteRequest, input_metadata_composite: InputMetadataComposite):
+    def _get_pull_kv_items(
+        self,
+        execute_request: ExecuteRequest,
+        input_metadata_composite: InputMetadataComposite,
+    ):
         """获取pull_kv_items"""
         p_ip_block_table_map = {}
         batch_dst_block_tables = []

@@ -31,10 +31,7 @@ def cal_num_tokens_per_device(parallel_mgr, forward_ctx):
     else:
         num_tokens_per_device = forward_ctx.dp_metadata.max_tokens_across_dp_cpu
     # TP + flash_comm
-    if (
-        parallel_mgr.get(ParallelType.ATTN_TP).is_enabled()
-        and forward_ctx.batch_descriptor.is_flash_comm_enabled
-    ):
+    if parallel_mgr.get(ParallelType.ATTN_TP).is_enabled() and forward_ctx.batch_descriptor.is_flash_comm_enabled:
         tp_size = parallel_mgr.get(ParallelType.ATTN_TP).group_size
         num_tokens_per_device = (num_tokens_per_device + tp_size - 1) // tp_size
     return num_tokens_per_device
@@ -134,10 +131,7 @@ class MC2Strategy(MoECommStrategyBase):
 
         elif device_type == DeviceType.ASCEND_910_93:
             # 910C: strict capacity check
-            if (
-                num_tokens_per_device > get_mc2_token_capacity()
-                or num_experts_per_ep_rank > 24
-            ):
+            if num_tokens_per_device > get_mc2_token_capacity() or num_experts_per_ep_rank > 24:
                 return False
         else:
             return False

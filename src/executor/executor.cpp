@@ -1,35 +1,37 @@
 /**
  * Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
  * MindIE is licensed under Mulan PSL v2.
- * You can use this software according to the terms and conditions of the Mulan PSL v2.
- * You may obtain a copy of Mulan PSL v2 at:
+ * You can use this software according to the terms and conditions of the Mulan
+ * PSL v2. You may obtain a copy of Mulan PSL v2 at:
  *          http://license.coscl.org.cn/MulanPSL2
- * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
- * EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
- * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
- * See the Mulan PSL v2 for more details.
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY
+ * KIND, EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
+ * NON-INFRINGEMENT, MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE. See the
+ * Mulan PSL v2 for more details.
  */
 
-#include <cstring>
-#include <csignal>
-#include <vector>
-#include <sys/wait.h>
-#include <unistd.h>
-#include "log.h"
-#include "string_utils.h"
-#include "math_utils.h"
-#include "common_util.h"
-#include "msServiceProfiler/msServiceProfiler.h"
 #include "executor.h"
 
+#include <sys/wait.h>
+#include <unistd.h>
+
+#include <csignal>
+#include <cstring>
+#include <vector>
+
+#include "common_util.h"
+#include "log.h"
+#include "math_utils.h"
+#include "msServiceProfiler/msServiceProfiler.h"
+#include "string_utils.h"
+
 namespace mindie_llm {
-static std::set<std::string> requiredModelConfigKeys = {"globalWorldSize", "globalRankIds",    "model_instance_type",
-                                                        "world_size",      "npu_device_ids",   "deploy_type",
+static std::set<std::string> requiredModelConfigKeys = {"globalWorldSize", "globalRankIds",      "model_instance_type",
+                                                        "world_size",      "npu_device_ids",     "deploy_type",
                                                         "executor_type",   "asyncBatchscheduler"};
 
 void Executor::LayerwiseParseFromModelConfig(std::unordered_map<std::string, std::string> &config,
-                                             ModelLaunchConfig &modelLaunchConfig) const
-{
+                                             ModelLaunchConfig &modelLaunchConfig) const {
     if ((config.count("layerwiseDisaggregated") != 0) && (config.at("layerwiseDisaggregated") == "true")) {
         modelLaunchConfig.layerwiseDisaggregated = true;
         if (config.count("layerwiseDisaggregatedRoleType") != 0) {
@@ -49,8 +51,7 @@ void Executor::LayerwiseParseFromModelConfig(std::unordered_map<std::string, std
 }
 
 bool Executor::ParseFromModelConfig(std::unordered_map<std::string, std::string> &config,
-                                    ModelLaunchConfig &modelLaunchConfig, bool isMultiNodesInfer) const
-{
+                                    ModelLaunchConfig &modelLaunchConfig, bool isMultiNodesInfer) const {
     for (auto &key : requiredModelConfigKeys) {
         if (config.find(key) == config.end()) {
             MINDIE_LLM_LOG_ERROR("Invalid model config without key " << key);
@@ -58,8 +59,8 @@ bool Executor::ParseFromModelConfig(std::unordered_map<std::string, std::string>
         }
     }
     LayerwiseParseFromModelConfig(config, modelLaunchConfig);
-    bool lwdCloudMultiNodesInfer = modelLaunchConfig.lwdMultiNodesEnable &&
-        modelLaunchConfig.layerwiseDisaggregatedRoleType == "slave";
+    bool lwdCloudMultiNodesInfer =
+        modelLaunchConfig.lwdMultiNodesEnable && modelLaunchConfig.layerwiseDisaggregatedRoleType == "slave";
     modelLaunchConfig.globalRankIds.clear();
     modelLaunchConfig.npuDeviceIds.clear();
     modelLaunchConfig.slaveIPs.clear();
@@ -89,14 +90,16 @@ bool Executor::ParseFromModelConfig(std::unordered_map<std::string, std::string>
     uint32_t sp = (config.count("sp") > 0) ? std::stoul(config.at("sp")) : 1;
     modelLaunchConfig.scp = cp * sp;
     if (tp > std::numeric_limits<uint32_t>::max() / cp) {
-        MINDIE_LLM_LOG_ERROR("ParseFromModelConfig failed: tp * cp is out of range uint32_t, it should be worldSize/dp.");
+        MINDIE_LLM_LOG_ERROR(
+            "ParseFromModelConfig failed: tp * cp is out of range uint32_t, it "
+            "should be worldSize/dp.");
         return false;
     }
     modelLaunchConfig.npuNumPerDP = (config.count("tp") > 0) ? tp * cp : modelLaunchConfig.npuNumPerNode;
     modelLaunchConfig.dp = (config.count("dp") > 0) ? std::stoul(config.at("dp")) : 1;
-    // Calculate the number of IPC communicators needed: ceil(npuNumPerNode / npuNumPerDP)
-    modelLaunchConfig.ipcCommunicatorNum =
-        CeilDiv(modelLaunchConfig.npuNumPerNode, modelLaunchConfig.npuNumPerDP);
+    // Calculate the number of IPC communicators needed: ceil(npuNumPerNode /
+    // npuNumPerDP)
+    modelLaunchConfig.ipcCommunicatorNum = CeilDiv(modelLaunchConfig.npuNumPerNode, modelLaunchConfig.npuNumPerDP);
     if (modelLaunchConfig.deployType != "INTER_PROCESS") {
         MINDIE_LLM_LOG_ERROR("Supported deploy_type list should be [INTER_PROCESS], rather than "
                              << modelLaunchConfig.deployType << ", please check model config");
@@ -106,8 +109,7 @@ bool Executor::ParseFromModelConfig(std::unordered_map<std::string, std::string>
 }
 
 bool Executor::ExecutorInstanceInit(std::map<std::string, std::string> &configFromManager, bool isMultiNodesInfer,
-                                    size_t rankIdx)
-{
+                                    size_t rankIdx) {
     if (!ExecutorParseConfigAndInitGRPC(configFromManager, isMultiNodesInfer, rankIdx)) {
         MINDIE_LLM_LOG_ERROR("Failed to initialize Executor with GRPC.");
         return false;
@@ -120,8 +122,7 @@ bool Executor::ExecutorInstanceInit(std::map<std::string, std::string> &configFr
 }
 
 bool Executor::ExecutorParseConfigAndInitGRPC(std::map<std::string, std::string> &configFromManager,
-                                              bool isMultiNodesInfer, size_t rankIdx)
-{
+                                              bool isMultiNodesInfer, size_t rankIdx) {
     isMultiNodesInfer_ = isMultiNodesInfer;
     dpRankIdx_ = rankIdx;
     configFromManager_ =
@@ -155,7 +156,9 @@ bool Executor::ExecutorParseConfigAndInitGRPC(std::map<std::string, std::string>
         uint32_t grpcCommunicatorNum = GetGRPCCommunicatorNum(modelLaunchConfig_, intraNodeTP);
         ResponseHandler asyncResponseHandler = std::bind(&Executor::AsyncResponseHandler, this, std::placeholders::_1);
         if (!communicator_->InitGRPCCommunicator(configFromManager_, asyncResponseHandler, grpcCommunicatorNum)) {
-            MINDIE_LLM_LOG_ERROR("Failed to initialize GRPC communicator for multi-nodes inference.");
+            MINDIE_LLM_LOG_ERROR(
+                "Failed to initialize GRPC communicator for multi-nodes "
+                "inference.");
             return false;
         }
         isGRPCInit_ = true;
@@ -163,10 +166,9 @@ bool Executor::ExecutorParseConfigAndInitGRPC(std::map<std::string, std::string>
     return true;
 }
 
-bool Executor::LwdMasterAndSlaveSync()
-{
-    MINDIE_LLM_LOG_INFO("[layerwiseDisaggregated|executor] "
-                        <<"Start to synchronize model initialization between Master and Slave nodes.");
+bool Executor::LwdMasterAndSlaveSync() {
+    MINDIE_LLM_LOG_INFO("[layerwiseDisaggregated|executor] " << "Start to synchronize model initialization between "
+                                                                "Master and Slave nodes.");
     // Master node receives init response from slave
     if (modelLaunchConfig_.layerwiseDisaggregatedRoleType == "master" && modelLaunchConfig_.dp > 1) {
         if (!modelLaunchConfig_.lwdMultiNodesEnable && dpRankIdx_ > 0) {
@@ -188,17 +190,18 @@ bool Executor::LwdMasterAndSlaveSync()
                 return false;
             }
         }
-    } else if (!SlaveSendInitResponseToMaster()) { // Slave node sends init response to master
+    } else if (!SlaveSendInitResponseToMaster()) {  // Slave node sends init
+                                                    // response to master
         MINDIE_LLM_LOG_ERROR("Failed to send initialization response to master node.");
         return false;
     }
-    MINDIE_LLM_LOG_INFO("Successfully synchronize model initialization between Master and"
+    MINDIE_LLM_LOG_INFO(
+        "Successfully synchronize model initialization between Master and"
         " Slave nodes in layerwise disaggregated scenario.");
     return true;
 }
 
-bool Executor::ExecutorModelInitAndSync()
-{
+bool Executor::ExecutorModelInitAndSync() {
     // Initialize IPC communicator and launch model if needed.
     if (dpRankIdx_ < modelLaunchConfig_.ipcCommunicatorNum) {
         if (!InitIPCAndLaunchModel()) {
@@ -210,10 +213,13 @@ bool Executor::ExecutorModelInitAndSync()
         return LwdMasterAndSlaveSync();
     } else if (isMultiNodesInfer_ && isGRPCInit_) {
         // 以下是集中式场景下，Master和Slave节点之间的同步逻辑
-        if (modelLaunchConfig_.isMasterNode) { // Master node receives init response from slave
-            // For intraNodeTP scenario(where one GRPC message is broadcasted to multiple slaves),
-            // master needs to receive responses from all slaves and aggregate the results.
-            // Otherwise, one executor instance corresponds to one slave and only one response is expected.
+        if (modelLaunchConfig_.isMasterNode) {  // Master node receives init
+                                                // response from slave
+            // For intraNodeTP scenario(where one GRPC message is broadcasted to
+            // multiple slaves), master needs to receive responses from all
+            // slaves and aggregate the results. Otherwise, one executor
+            // instance corresponds to one slave and only one response is
+            // expected.
             size_t numExpectedResponses = modelLaunchConfig_.intraNodeTP ? modelLaunchConfig_.slaveIPs.size() : 1;
             for (int i = 0; i < numExpectedResponses; ++i) {
                 ExecuteResponse rawSlaveResponse;
@@ -223,7 +229,7 @@ bool Executor::ExecutorModelInitAndSync()
                     return false;
                 }
             }
-        } else { // Slave node sends init response to master
+        } else {  // Slave node sends init response to master
             if (!SlaveSendInitResponseToMaster()) {
                 MINDIE_LLM_LOG_ERROR("Failed to send initialization response to master node.");
                 return false;
@@ -234,8 +240,7 @@ bool Executor::ExecutorModelInitAndSync()
     return true;
 }
 
-bool Executor::InitIPCAndLaunchModel()
-{
+bool Executor::InitIPCAndLaunchModel() {
     // Set the shared memory name and semaphore name prefix to pid.
     uint64_t ipcInitId = ipcInitCounter_.fetch_add(1, std::memory_order_relaxed);
     std::string sharedMemPrefix = "/" + std::to_string(getpid()) + "_" + std::to_string(ipcInitId);
@@ -258,8 +263,7 @@ bool Executor::InitIPCAndLaunchModel()
     return true;
 }
 
-bool Executor::InitModelExecution(std::unordered_map<std::string, std::string> &config)
-{
+bool Executor::InitModelExecution(std::unordered_map<std::string, std::string> &config) {
     ExecuteRequest request;
     request.set_execute_type(MODEL_INIT);
     for (const auto &[key, value] : config) {
@@ -282,11 +286,11 @@ bool Executor::InitModelExecution(std::unordered_map<std::string, std::string> &
     return true;
 }
 
-bool Executor::MasterAndSlaveModelInit(const std::map<std::string, std::string> &pdInfo)
-{
+bool Executor::MasterAndSlaveModelInit(const std::map<std::string, std::string> &pdInfo) {
     configFromManager_.insert(pdInfo.begin(), pdInfo.end());
 
-    // If the pdRole is not PnD, we need to send a request to the remote slave node.
+    // If the pdRole is not PnD, we need to send a request to the remote slave
+    // node.
     if (isMultiNodesInfer_ && modelLaunchConfig_.isMasterNode && isGRPCInit_) {
         if (!MasterSendPDInfoToSlave(pdInfo)) {
             MINDIE_LLM_LOG_ERROR("Failed to send PD role to remote slave node.");
@@ -296,8 +300,7 @@ bool Executor::MasterAndSlaveModelInit(const std::map<std::string, std::string> 
     return ExecutorModelInitAndSync();
 }
 
-bool Executor::MasterSendPDInfoToSlave(const std::map<std::string, std::string> &pdInfo)
-{
+bool Executor::MasterSendPDInfoToSlave(const std::map<std::string, std::string> &pdInfo) {
     ExecuteRequest request;
     request.set_execute_type(REMOTE_MODEL_INIT);
     auto *initSlaveModelReq = request.mutable_remote_model_init_request();
@@ -311,8 +314,7 @@ bool Executor::MasterSendPDInfoToSlave(const std::map<std::string, std::string> 
     return true;
 }
 
-bool Executor::SlaveSendInitResponseToMaster()
-{
+bool Executor::SlaveSendInitResponseToMaster() {
     ExecuteResponse response;
     response.set_msg_type(REMOTE_MODEL_INIT);
 
@@ -330,15 +332,16 @@ bool Executor::SlaveSendInitResponseToMaster()
     return true;
 }
 
-bool Executor::MasterHandleSlaveInitResponse(ExecuteResponse &response) const
-{
+bool Executor::MasterHandleSlaveInitResponse(ExecuteResponse &response) const {
     if (response.msg_type() != REMOTE_MODEL_INIT || !response.has_remote_model_init_results()) {
         MINDIE_LLM_LOG_ERROR("Invalid model init info response from slave node.");
         return false;
     }
     auto &slaveInfo = response.remote_model_init_results();
     if (slaveInfo.kv_cache_descs_size() == 0) {
-        MINDIE_LLM_LOG_ERROR("Invalid model init info response from slave node: missing kv_cache_descs.");
+        MINDIE_LLM_LOG_ERROR(
+            "Invalid model init info response from slave node: missing "
+            "kv_cache_descs.");
         return false;
     }
     const uint32_t npuBlockNum = static_cast<uint32_t>(slaveInfo.kv_cache_descs(0).npu_block_num());
@@ -351,19 +354,21 @@ bool Executor::MasterHandleSlaveInitResponse(ExecuteResponse &response) const
         if (slaveInfo.kv_cache_descs_size() > 0) {
             std::vector<KVCacheOverview::KVCacheDesc> descs = ParseProtoKvCacheDescs(response);
             if (!IExecutor::kvCacheOverview_.UpdateKvCacheDescsIfEmptyOrEqual(descs)) {
-                MINDIE_LLM_LOG_WARN("KV cache descs mismatch between master and slave; keep existing master descs.");
+                MINDIE_LLM_LOG_WARN(
+                    "KV cache descs mismatch between master and slave; keep "
+                    "existing master descs.");
             }
         }
     }
-    MINDIE_LLM_LOG_INFO("[Executor::MasterHandleSlaveInitResponse]: Updated KV cache overview from slave: CPU blocks = "
-                        << IExecutor::kvCacheOverview_.cpuBlockNum
-                        << ", NPU blocks = " << IExecutor::kvCacheOverview_.npuBlockNum
-                        << ", MaxPosEmb = " << IExecutor::kvCacheOverview_.maxPositionEmbeddings);
+    MINDIE_LLM_LOG_INFO(
+        "[Executor::MasterHandleSlaveInitResponse]: Updated KV cache overview "
+        "from slave: CPU blocks = "
+        << IExecutor::kvCacheOverview_.cpuBlockNum << ", NPU blocks = " << IExecutor::kvCacheOverview_.npuBlockNum
+        << ", MaxPosEmb = " << IExecutor::kvCacheOverview_.maxPositionEmbeddings);
     return true;
 }
 
-std::vector<KVCacheOverview::KVCacheDesc> Executor::ParseProtoKvCacheDescs(const ExecuteResponse &response) const
-{
+std::vector<KVCacheOverview::KVCacheDesc> Executor::ParseProtoKvCacheDescs(const ExecuteResponse &response) const {
     std::vector<KVCacheOverview::KVCacheDesc> descs;
     const ::google::protobuf::RepeatedPtrField<model_execute_data::KVCacheDesc> *protoDescs = nullptr;
 
@@ -388,8 +393,7 @@ std::vector<KVCacheOverview::KVCacheDesc> Executor::ParseProtoKvCacheDescs(const
 }
 
 bool Executor::AsyncExecuteModel(ExecuteModelRequestPtr &modelRequest,
-                                 std::function<void(ModelBatchResultSPtr)> executeModelResponseHandler)
-{
+                                 std::function<void(ModelBatchResultSPtr)> executeModelResponseHandler) {
     if (modelRequest == nullptr) {
         MINDIE_LLM_LOG_ERROR("Inference model request is null.");
         return false;
@@ -408,8 +412,7 @@ bool Executor::AsyncExecuteModel(ExecuteModelRequestPtr &modelRequest,
     return true;
 }
 
-bool Executor::AsyncTGCleanup(TGCleanupRequestPtr &TGCleanupRequest)
-{
+bool Executor::AsyncTGCleanup(TGCleanupRequestPtr &TGCleanupRequest) {
     ExecuteRequest request;
     request.set_execute_type(TEXT_GENERATOR_CLEANUP);
     request.mutable_text_generator_cleanup_request()->CopyFrom(*TGCleanupRequest);
@@ -422,13 +425,12 @@ bool Executor::AsyncTGCleanup(TGCleanupRequestPtr &TGCleanupRequest)
     return true;
 }
 
-bool Executor::AsyncEOSCleanup(TGCleanupRequestPtr &TGCleanupRequest)
-{
+bool Executor::AsyncEOSCleanup(TGCleanupRequestPtr &TGCleanupRequest) {
     ExecuteRequest request;
     request.set_execute_type(EOS_CLEANUP);
     request.mutable_text_generator_cleanup_request()->CopyFrom(*TGCleanupRequest);
- 
-    MINDIE_LLM_LOG_DEBUG("[layerwiseDisaggregated|executor] "<<"Ready to execute clear cache requests.");
+
+    MINDIE_LLM_LOG_DEBUG("[layerwiseDisaggregated|executor] " << "Ready to execute clear cache requests.");
     if (!communicator_->SendAsyncRequest(request)) {
         MINDIE_LLM_LOG_ERROR("Failed to send clear cache message to local workers.");
         return false;
@@ -437,8 +439,7 @@ bool Executor::AsyncEOSCleanup(TGCleanupRequestPtr &TGCleanupRequest)
 }
 
 // SetupPDLink是同步的
-bool Executor::SetupPDLink(PDLinkRequest &pdLinkRequest)
-{
+bool Executor::SetupPDLink(PDLinkRequest &pdLinkRequest) {
     ExecuteRequest request;
     request.set_execute_type(PD_LINK);
     request.mutable_pd_link_request()->CopyFrom(pdLinkRequest);
@@ -451,8 +452,7 @@ bool Executor::SetupPDLink(PDLinkRequest &pdLinkRequest)
     return true;
 }
 
-bool Executor::QueryPDLinkStatus(PDLinkStatusRequest &pdLinkStatusRequest)
-{
+bool Executor::QueryPDLinkStatus(PDLinkStatusRequest &pdLinkStatusRequest) {
     ExecuteRequest request;
     request.set_execute_type(model_execute_data::PD_LINK_STATUS_QUERY);
     request.mutable_pd_link_status_request()->CopyFrom(pdLinkStatusRequest);
@@ -477,8 +477,7 @@ bool Executor::QueryPDLinkStatus(PDLinkStatusRequest &pdLinkStatusRequest)
     return true;
 }
 
-bool Executor::ExecuteKVTransfer(PullKVRequestPtr &pullKVRequest, PullKVResponseHandler pullKVResponseHandler)
-{
+bool Executor::ExecuteKVTransfer(PullKVRequestPtr &pullKVRequest, PullKVResponseHandler pullKVResponseHandler) {
     if (pullKVRequest == nullptr) {
         MINDIE_LLM_LOG_ERROR("Pull KV cache request is null.");
         return false;
@@ -498,8 +497,7 @@ bool Executor::ExecuteKVTransfer(PullKVRequestPtr &pullKVRequest, PullKVResponse
     return true;
 }
 
-bool Executor::ExecutorInstanceFinalize()
-{
+bool Executor::ExecutorInstanceFinalize() {
     ExecuteRequest request;
     request.set_execute_type(MODEL_FINALIZE);
 
@@ -519,7 +517,7 @@ bool Executor::ExecutorInstanceFinalize()
 
         constexpr int maxWaitMs = 500;
         constexpr int checkIntervalMs = 50;
-        constexpr int checkIntervalUs = checkIntervalMs * 1000; // 50ms
+        constexpr int checkIntervalUs = checkIntervalMs * 1000;  // 50ms
         constexpr int maxIterations = maxWaitMs / checkIntervalMs;
         for (int i = 0; i < maxIterations; ++i) {
             if (waitpid(pid, nullptr, WNOHANG) > 0) {
@@ -531,20 +529,19 @@ bool Executor::ExecutorInstanceFinalize()
 
     // 清空 PID 列表
     childPids_.clear();
-    JoinPipeThreads(); // Ensure all pipe threads are joined before finalizing
+    JoinPipeThreads();  // Ensure all pipe threads are joined before finalizing
     communicator_->CleanUp();
     MINDIE_LLM_LOG_DEBUG("Executor finalized and resources cleaned up.");
     return true;
 }
 
-bool Executor::HandleThinkingConfig(std::vector<ExecuteResponse> &responses)
-{
+bool Executor::HandleThinkingConfig(std::vector<ExecuteResponse> &responses) {
     if (responses.size() == 0) {
         return true;
     }
     const auto &initResults = responses[0].init_results().init_result_map();
     if (initResults.count("earlyStoppingIds") == 0 || initResults.count("startThinkingId") == 0 ||
-            initResults.count("stopThinkingId") == 0) {
+        initResults.count("stopThinkingId") == 0) {
         return true;
     }
     try {
@@ -553,16 +550,15 @@ bool Executor::HandleThinkingConfig(std::vector<ExecuteResponse> &responses)
         SplitTokensToVec(initResults.at("earlyStoppingIds"), ',', thinkingConfig_.earlyStoppingIds);
     } catch (const std::exception &e) {
         MINDIE_LLM_LOG_ERROR("Invalid init result format for startThinkingId: "
-                                << initResults.at("startThinkingId") << ", stopThinkingId: "
-                                << initResults.at("stopThinkingId") << ", earlyStoppingIds: "
-                                << initResults.at("earlyStoppingIds"));
+                             << initResults.at("startThinkingId")
+                             << ", stopThinkingId: " << initResults.at("stopThinkingId")
+                             << ", earlyStoppingIds: " << initResults.at("earlyStoppingIds"));
         return false;
     }
     return true;
 }
 
-bool Executor::HandleInitResult(std::vector<ExecuteResponse> &responses)
-{
+bool Executor::HandleInitResult(std::vector<ExecuteResponse> &responses) {
     if (!HandleThinkingConfig(responses)) {
         return false;
     }
@@ -580,20 +576,24 @@ bool Executor::HandleInitResult(std::vector<ExecuteResponse> &responses)
             return false;
         }
         try {
-            // npuBlockNum is no longer carried in init_result_map; use kv_cache_descs instead.
+            // npuBlockNum is no longer carried in init_result_map; use
+            // kv_cache_descs instead.
             if (responses[i].init_results().kv_cache_descs_size() == 0) {
-                MINDIE_LLM_LOG_ERROR("Init result error: kv_cache_descs is missing in response.");
+                MINDIE_LLM_LOG_ERROR(
+                    "Init result error: kv_cache_descs is missing in "
+                    "response.");
                 return false;
             }
             const uint32_t npuBlockNum =
                 static_cast<uint32_t>(responses[i].init_results().kv_cache_descs(0).npu_block_num());
-            IExecutor::kvCacheOverview_.UpdateIfSmaller(std::stoul(initResults.at("cpuBlockNum")),
-                                                        npuBlockNum,
+            IExecutor::kvCacheOverview_.UpdateIfSmaller(std::stoul(initResults.at("cpuBlockNum")), npuBlockNum,
                                                         std::stoul(initResults.at("maxPositionEmbeddings")));
 
             std::vector<KVCacheOverview::KVCacheDesc> descs = ParseProtoKvCacheDescs(responses[i]);
             if (!IExecutor::kvCacheOverview_.UpdateKvCacheDescsIfEmptyOrEqual(descs)) {
-                MINDIE_LLM_LOG_WARN("kv_cache_descs mismatch across init responses; keep existing descs.");
+                MINDIE_LLM_LOG_WARN(
+                    "kv_cache_descs mismatch across init responses; keep "
+                    "existing descs.");
             }
         } catch (const std::exception &e) {
             const auto itCpu = initResults.find("cpuBlockNum");
@@ -604,21 +604,20 @@ bool Executor::HandleInitResult(std::vector<ExecuteResponse> &responses)
                                  << (itCpu == initResults.end() ? "<missing>" : itCpu->second)
                                  << ", maxPositionEmbeddings="
                                  << (itMaxPos == initResults.end() ? "<missing>" : itMaxPos->second)
-                                 << ", kv_cache_descs_size=" << kvSize
-                                 << ", exception=" << e.what());
+                                 << ", kv_cache_descs_size=" << kvSize << ", exception=" << e.what());
             return false;
         }
     }
-    MINDIE_LLM_LOG_INFO("[Executor::HandleInitResult]: Initialized KV cache overview: CPU blocks = "
-                        << IExecutor::kvCacheOverview_.cpuBlockNum
-                        << ", NPU blocks = " << IExecutor::kvCacheOverview_.npuBlockNum
-                        << ", MaxPosEmb = " << IExecutor::kvCacheOverview_.maxPositionEmbeddings);
+    MINDIE_LLM_LOG_INFO(
+        "[Executor::HandleInitResult]: Initialized KV cache overview: CPU "
+        "blocks = "
+        << IExecutor::kvCacheOverview_.cpuBlockNum << ", NPU blocks = " << IExecutor::kvCacheOverview_.npuBlockNum
+        << ", MaxPosEmb = " << IExecutor::kvCacheOverview_.maxPositionEmbeddings);
     return true;
 }
 
 bool Executor::HandleRecoverCommandResult(RecoverCommandInfo &commandInfo,
-                                          std::vector<ExecuteResponse> &responses) const
-{
+                                          std::vector<ExecuteResponse> &responses) const {
     if (responses.empty()) {
         MINDIE_LLM_LOG_ERROR("Recover command result error: empty responses.");
         return false;
@@ -635,8 +634,7 @@ bool Executor::HandleRecoverCommandResult(RecoverCommandInfo &commandInfo,
     return true;
 }
 
-void Executor::HandleExecuteModelResponse(ExecuteResponse &modelExecuteResponse)
-{
+void Executor::HandleExecuteModelResponse(ExecuteResponse &modelExecuteResponse) {
     if (executeModelResponseHandler_ == nullptr) {
         MINDIE_LLM_LOG_ERROR("No response handler for ExecuteModelResponse.");
         return;
@@ -655,14 +653,15 @@ void Executor::HandleExecuteModelResponse(ExecuteResponse &modelExecuteResponse)
 }
 
 bool Executor::AggregatePDLinkStatusResponses(const std::vector<ExecuteResponse> &responseVec,
-                                              ExecuteResponse &aggregatedResponse) const
-{
+                                              ExecuteResponse &aggregatedResponse) const {
     aggregatedResponse.set_msg_type(PD_LINK_STATUS_QUERY);
     auto *aggregatedPDLinkStatus = aggregatedResponse.mutable_pd_link_status_response();
 
     for (const auto &singleResponse : responseVec) {
         if (singleResponse.msg_type() != PD_LINK_STATUS_QUERY || !singleResponse.has_pd_link_status_response()) {
-            MINDIE_LLM_LOG_ERROR("AggregatePDLinkStatusResponses: invalid response type or missing"
+            MINDIE_LLM_LOG_ERROR(
+                "AggregatePDLinkStatusResponses: invalid response type or "
+                "missing"
                 << " PDLinkStatusResponse field.");
             aggregatedResponse.Clear();
             return false;
@@ -682,16 +681,15 @@ bool Executor::AggregatePDLinkStatusResponses(const std::vector<ExecuteResponse>
         for (const auto &runningLinkInfo : runningLinkInfoItems) {
             aggregatedPDLinkStatus->add_running_link_info(runningLinkInfo);
         }
-        const auto &waittingLinkInfoItems = singleResponse.pd_link_status_response().waitting_link_info();
-        for (const auto &waittingLinkInfo : waittingLinkInfoItems) {
-            aggregatedPDLinkStatus->add_waitting_link_info(waittingLinkInfo);
+        const auto &waitingLinkInfoItems = singleResponse.pd_link_status_response().waiting_link_info();
+        for (const auto &waitingLinkInfo : waitingLinkInfoItems) {
+            aggregatedPDLinkStatus->add_waiting_link_info(waitingLinkInfo);
         }
     }
     return true;
 }
 
-bool Executor::HandlePDLinkStatusResponse(ExecuteResponse &executeResponse)
-{
+bool Executor::HandlePDLinkStatusResponse(ExecuteResponse &executeResponse) {
     if (!executeResponse.has_pd_link_status_response()) {
         MINDIE_LLM_LOG_ERROR("Invalid response: missing PDLinkStatusResponse field.");
         return false;
@@ -700,8 +698,7 @@ bool Executor::HandlePDLinkStatusResponse(ExecuteResponse &executeResponse)
     return true;
 }
 
-void Executor::HandleKVTransferResponse(ExecuteResponse &executeResponse)
-{
+void Executor::HandleKVTransferResponse(ExecuteResponse &executeResponse) {
     if (pullKVResponseHandler_ == nullptr) {
         MINDIE_LLM_LOG_ERROR("No response handler for TransferModelResponse.");
         return;
@@ -714,42 +711,40 @@ void Executor::HandleKVTransferResponse(ExecuteResponse &executeResponse)
     pullKVResponseHandler_(pullKVResponse);
 }
 
-bool Executor::AsyncResponseHandler(ExecuteResponse &response)
-{
+bool Executor::AsyncResponseHandler(ExecuteResponse &response) {
     auto executeType = response.msg_type();
     if (executeType == MODEL_INFER || executeType == EXECUTE_ERROR) {
-        // EXECUTE_ERROR: inference error with err_msg, same handling as MODEL_INFER
+        // EXECUTE_ERROR: inference error with err_msg, same handling as
+        // MODEL_INFER
         HandleExecuteModelResponse(response);
-    } else if (executeType == KV_TRANSFER) { // Handle KV cache transfer message.
+    } else if (executeType == KV_TRANSFER) {  // Handle KV cache transfer message.
         HandleKVTransferResponse(response);
     } else {
         MINDIE_LLM_LOG_ERROR("Receive wrong message type: " << executeType
-                             << ". You can ignore this warning if you are shutting down engine.");
+                                                            << ". You can ignore this warning if you are "
+                                                               "shutting down engine.");
         return false;
     }
     return true;
 }
 
-template <typename HandlerType> void RegisterHandler(HandlerType &memberHandler, HandlerType handler)
-{
+template <typename HandlerType>
+void RegisterHandler(HandlerType &memberHandler, HandlerType handler) {
     // If the handler is already registered, do not overwrite it.
     if (memberHandler == nullptr && handler != nullptr) {
         memberHandler = handler;
     }
 }
 
-void Executor::RegisterExecuteModelResponseHandler(ExecuteModelResponseHandler handler)
-{
+void Executor::RegisterExecuteModelResponseHandler(ExecuteModelResponseHandler handler) {
     RegisterHandler(executeModelResponseHandler_, handler);
 }
 
-void Executor::RegisterPullKVResponseHandler(PullKVResponseHandler handler)
-{
+void Executor::RegisterPullKVResponseHandler(PullKVResponseHandler handler) {
     RegisterHandler(pullKVResponseHandler_, handler);
 }
 
-uint32_t Executor::GetCpuBlockNum() const
-{
+uint32_t Executor::GetCpuBlockNum() const {
     if (IExecutor::kvCacheOverview_.cpuBlockNum == 0xFFFFFFFF) {
         MINDIE_LLM_LOG_ERROR("CPU block number is not initialized.");
         return 0;
@@ -757,8 +752,7 @@ uint32_t Executor::GetCpuBlockNum() const
     return IExecutor::kvCacheOverview_.cpuBlockNum;
 }
 
-uint32_t Executor::GetNpuBlockNum() const
-{
+uint32_t Executor::GetNpuBlockNum() const {
     if (IExecutor::kvCacheOverview_.npuBlockNum == 0xFFFFFFFF) {
         MINDIE_LLM_LOG_ERROR("NPU block number is not initialized.");
         return 0;
@@ -766,8 +760,7 @@ uint32_t Executor::GetNpuBlockNum() const
     return IExecutor::kvCacheOverview_.npuBlockNum;
 }
 
-uint32_t Executor::GetLwdCloudNpuBlockNum() const
-{
+uint32_t Executor::GetLwdCloudNpuBlockNum() const {
     if (IExecutor::kvCacheOverview_.lwdCloudNpuBlockNum == 0xFFFFFFFF) {
         MINDIE_LLM_LOG_ERROR("Cloud NPU block number is not initialized.");
         return 0;
@@ -775,13 +768,9 @@ uint32_t Executor::GetLwdCloudNpuBlockNum() const
     return IExecutor::kvCacheOverview_.lwdCloudNpuBlockNum;
 }
 
-ThinkingConfig Executor::GetThinkingConfig() const
-{
-    return thinkingConfig_;
-}
+ThinkingConfig Executor::GetThinkingConfig() const { return thinkingConfig_; }
 
-uint32_t Executor::GetMaxPositionEmbeddings() const
-{
+uint32_t Executor::GetMaxPositionEmbeddings() const {
     if (IExecutor::kvCacheOverview_.maxPositionEmbeddings == 0xFFFFFFFF) {
         MINDIE_LLM_LOG_ERROR("Max position embeddings is not initialized.");
         return 0;
@@ -791,17 +780,19 @@ uint32_t Executor::GetMaxPositionEmbeddings() const
 
 PDLinkStatusResponse Executor::GetPDLinkStatusResponse() const { return pdLinkStatusResponse_; };
 
-std::vector<std::string> Executor::BuildConnectorCommand(const ModelLaunchConfig &modelConfig, const std::string &sharedMemPrefix,
-                                                         uint32_t rankInDP) const
-{
+std::vector<std::string> Executor::BuildConnectorCommand(const ModelLaunchConfig &modelConfig,
+                                                         const std::string &sharedMemPrefix, uint32_t rankInDP) const {
     uint32_t rankInNode = rankInDP + dpRankIdx_ * modelConfig.npuNumPerDP;
     uint32_t globalRankId;
     // 云侧为真多机, 边侧为单机
-    bool lwdCloudMultiNodesInfer = modelConfig.lwdMultiNodesEnable &&
-        modelConfig.layerwiseDisaggregatedRoleType == "slave";
-    if ((modelConfig.isMultiNodesInfer || lwdCloudMultiNodesInfer) && (rankInNode >= modelConfig.globalRankIds.size() ||
-        !StrToUint32(globalRankId, modelConfig.globalRankIds[rankInNode]))) {
-        MINDIE_LLM_LOG_ERROR("Error: Failed to BuildConnectorCommand: could not get globalRankId.");
+    bool lwdCloudMultiNodesInfer =
+        modelConfig.lwdMultiNodesEnable && modelConfig.layerwiseDisaggregatedRoleType == "slave";
+    if ((modelConfig.isMultiNodesInfer || lwdCloudMultiNodesInfer) &&
+        (rankInNode >= modelConfig.globalRankIds.size() ||
+         !StrToUint32(globalRankId, modelConfig.globalRankIds[rankInNode]))) {
+        MINDIE_LLM_LOG_ERROR(
+            "Error: Failed to BuildConnectorCommand: could not get "
+            "globalRankId.");
         return std::vector<std::string>{};
     }
     if (rankInNode >= modelConfig.npuDeviceIds.size()) {
@@ -809,15 +800,19 @@ std::vector<std::string> Executor::BuildConnectorCommand(const ModelLaunchConfig
         return std::vector<std::string>{};
     }
     uint32_t globalRank = (modelConfig.isMultiNodesInfer || lwdCloudMultiNodesInfer) ? globalRankId : rankInNode;
-    std::vector<std::string> command = {
-        "mindie_llm_backend",
-        "--local_rank", std::to_string(rankInNode),
-        "--local_world_size", std::to_string(modelConfig.npuNumPerNode),
-        "--npu_num_per_dp", std::to_string(modelConfig.npuNumPerDP),
-        "--npu_device_id", modelConfig.npuDeviceIds[rankInNode],
-        "--parent_pid", std::to_string(getpid()),
-        "--shm_name_prefix", sharedMemPrefix
-    };
+    std::vector<std::string> command = {"mindie_llm_backend",
+                                        "--local_rank",
+                                        std::to_string(rankInNode),
+                                        "--local_world_size",
+                                        std::to_string(modelConfig.npuNumPerNode),
+                                        "--npu_num_per_dp",
+                                        std::to_string(modelConfig.npuNumPerDP),
+                                        "--npu_device_id",
+                                        modelConfig.npuDeviceIds[rankInNode],
+                                        "--parent_pid",
+                                        std::to_string(getpid()),
+                                        "--shm_name_prefix",
+                                        sharedMemPrefix};
 
     if (modelConfig.layerwiseDisaggregated) {
         command.push_back("--layerwise_disaggregated_role_type");
@@ -825,7 +820,7 @@ std::vector<std::string> Executor::BuildConnectorCommand(const ModelLaunchConfig
         command.push_back("--layerwise_disaggregated");
         command.push_back("true");
     }
-    
+
     if (modelConfig.isMultiNodesInfer || lwdCloudMultiNodesInfer) {
         command.push_back("--global_rank");
         command.push_back(std::to_string(globalRank));
@@ -836,8 +831,7 @@ std::vector<std::string> Executor::BuildConnectorCommand(const ModelLaunchConfig
     return command;
 }
 
-void Executor::JoinPipeThreads()
-{
+void Executor::JoinPipeThreads() {
     for (auto &thread : pipeThreads_) {
         if (thread.joinable()) {
             thread.join();
@@ -846,8 +840,7 @@ void Executor::JoinPipeThreads()
     pipeThreads_.clear();
 }
 
-void Executor::ConsumePipe(FILE *pipe)
-{
+void Executor::ConsumePipe(FILE *pipe) {
     pthread_setname_np(pthread_self(), "ConsumePipe");
     char buffer[256];
     while (fgets(buffer, sizeof(buffer), pipe) != nullptr) {
@@ -856,8 +849,7 @@ void Executor::ConsumePipe(FILE *pipe)
     pclose(pipe);
 }
 
-bool Executor::ExecuteCommand(const std::vector<std::string> &command)
-{
+bool Executor::ExecuteCommand(const std::vector<std::string> &command) {
     int pipefd[2];
     if (pipe(pipefd) == -1) {
         MINDIE_LLM_LOG_ERROR("Error: Failed to create pipe for backend process");
@@ -873,9 +865,10 @@ bool Executor::ExecuteCommand(const std::vector<std::string> &command)
     }
 
     if (pid == 0) {
-        // Reset signal dispositions to default so child won't run parent's handlers
+        // Reset signal dispositions to default so child won't run parent's
+        // handlers
         signal(SIGTERM, SIG_DFL);
-        signal(SIGINT,  SIG_DFL);
+        signal(SIGINT, SIG_DFL);
         signal(SIGCHLD, SIG_DFL);
         signal(SIGSEGV, SIG_DFL);
         signal(SIGABRT, SIG_DFL);
@@ -886,8 +879,8 @@ bool Executor::ExecuteCommand(const std::vector<std::string> &command)
         dup2(pipefd[1], STDERR_FILENO);
         close(pipefd[1]);
 
-        std::vector<char*> argv;
-        for (auto& arg : command) {
+        std::vector<char *> argv;
+        for (auto &arg : command) {
             argv.push_back(strdup(arg.c_str()));
         }
         argv.push_back(nullptr);
@@ -898,7 +891,7 @@ bool Executor::ExecuteCommand(const std::vector<std::string> &command)
             std::free(ptr);
         }
         argv.clear();
-        
+
         return false;
     } else {
         if (pid > 0) {
@@ -906,7 +899,7 @@ bool Executor::ExecuteCommand(const std::vector<std::string> &command)
         }
         close(pipefd[1]);
 
-        FILE* pipe = fdopen(pipefd[0], "r");
+        FILE *pipe = fdopen(pipefd[0], "r");
         if (!pipe) {
             MINDIE_LLM_LOG_ERROR("Error: Failed to fdopen pipe for backend process");
             close(pipefd[0]);
@@ -919,8 +912,7 @@ bool Executor::ExecuteCommand(const std::vector<std::string> &command)
     }
 }
 
-void Executor::ExecuteRecoverCommand(RecoverCommandInfo &commandInfo)
-{
+void Executor::ExecuteRecoverCommand(RecoverCommandInfo &commandInfo) {
     // init npu command request
     ExecuteRequest request;
     if (commandInfo.command == "CMD_PAUSE_ENGINE") {
@@ -945,8 +937,7 @@ void Executor::ExecuteRecoverCommand(RecoverCommandInfo &commandInfo)
     HandleRecoverCommandResult(commandInfo, recoverCommandResponses);
 }
 
-bool Executor::InitWorkerProcesses(const ModelLaunchConfig &modelConfig, const std::string &sharedMemPrefix)
-{
+bool Executor::InitWorkerProcesses(const ModelLaunchConfig &modelConfig, const std::string &sharedMemPrefix) {
     // workerNum is npuNumPerDP, except in TP16 case where it's npuNumPerNode
     uint32_t workerNum = std::min(modelConfig.npuNumPerDP, modelConfig.npuNumPerNode);
     for (uint32_t rankInDP = 0; rankInDP < workerNum; ++rankInDP) {
@@ -967,10 +958,9 @@ bool Executor::InitWorkerProcesses(const ModelLaunchConfig &modelConfig, const s
     return true;
 }
 
-int Executor::GetRemoteDPRankIdx(ModelLaunchConfig &modelConfig, int rankIdx, bool intraNodeTP) const
-{
+int Executor::GetRemoteDPRankIdx(ModelLaunchConfig &modelConfig, int rankIdx, bool intraNodeTP) const {
     if (modelConfig.layerwiseDisaggregated) {
-        int remotedpRankId = 0; // 其实就是所在slaveIp数组的下标, 边云的matser节点中没有意义
+        int remotedpRankId = 0;  // 其实就是所在slaveIp数组的下标, 边云的matser节点中没有意义
         if (modelConfig.lwdMultiNodesEnable && modelConfig.layerwiseDisaggregatedRoleType == "slave" &&
             modelConfig.dp > 1) {
             // 当前这样只能适配双机, 更多机这里适配不了, 要使用别的变量来判断
@@ -1006,12 +996,11 @@ int Executor::GetRemoteDPRankIdx(ModelLaunchConfig &modelConfig, int rankIdx, bo
             return -1;
         }
         int slaveIdx = std::distance(modelConfig.slaveIPs.begin(), it);
-        return (slaveIdx + 1) * dpNumPerNode + rankIdx; // Connect to the corresponding DP rank in Master node.
+        return (slaveIdx + 1) * dpNumPerNode + rankIdx;  // Connect to the corresponding DP rank in Master node.
     }
 }
 
-uint32_t Executor::GetGRPCCommunicatorNum(ModelLaunchConfig &modelConfig, bool intraNodeTP) const
-{
+uint32_t Executor::GetGRPCCommunicatorNum(ModelLaunchConfig &modelConfig, bool intraNodeTP) const {
     uint32_t slaveCount = modelConfig.slaveIPs.size();
     if (modelConfig.layerwiseDisaggregated) {
         // 边侧起slaveIpNum个GRPC(比如双机起2个, 单机起1个), 云侧都是起一个
@@ -1024,7 +1013,8 @@ uint32_t Executor::GetGRPCCommunicatorNum(ModelLaunchConfig &modelConfig, bool i
     uint32_t nodeCount = slaveCount + 1;
 
     if (modelConfig.isMasterNode) {
-        // For Master, it uses dp/nodeCount*slaveCount communicators to connect to all Slaves.
+        // For Master, it uses dp/nodeCount*slaveCount communicators to connect
+        // to all Slaves.
         return modelConfig.dp / nodeCount * slaveCount;
     } else {
         // For Slave, it uses dp/nodeCount communicators to connect to Master.
@@ -1034,8 +1024,7 @@ uint32_t Executor::GetGRPCCommunicatorNum(ModelLaunchConfig &modelConfig, bool i
 
 LoraOperationResponse Executor::GetLoraOperationResponse() const { return loraOperationResponse_; };
 
-bool Executor::HandleLoraOperationResponse(ExecuteResponse &executeResponse)
-{
+bool Executor::HandleLoraOperationResponse(ExecuteResponse &executeResponse) {
     if (!executeResponse.has_lora_operation_response()) {
         MINDIE_LLM_LOG_ERROR("Invalid response: missing LoraOperationResponse field.");
         return false;
@@ -1044,8 +1033,7 @@ bool Executor::HandleLoraOperationResponse(ExecuteResponse &executeResponse)
     return true;
 }
 
-bool Executor::ExecutLoraRequest(LoraOperationRequest &loraOperationRequest)
-{
+bool Executor::ExecutLoraRequest(LoraOperationRequest &loraOperationRequest) {
     ExecuteRequest request;
     request.set_execute_type(LORA_OPERATION);
     request.mutable_lora_operation_request()->CopyFrom(loraOperationRequest);
@@ -1068,4 +1056,4 @@ bool Executor::ExecutLoraRequest(LoraOperationRequest &loraOperationRequest)
 
 IExecutorSPtr CreateExecutor() { return std::make_shared<Executor>(); }
 
-} // namespace mindie_llm
+}  // namespace mindie_llm

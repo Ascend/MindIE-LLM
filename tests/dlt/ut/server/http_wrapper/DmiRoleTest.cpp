@@ -100,30 +100,23 @@ const std::string RESPONSE_OK_BODY = "{\"result\":\"ok\"}";
 class DmiRoleTest : public testing::Test {
    protected:
     void SetUp() {
-        ConfigManager::CreateInstance(
-            GetParentDirectory() +
-            "/../../config_manager/conf/config_http.json");
-        EnvUtil::GetInstance().SetEnvVar(
-            "RANK_TABLE_FILE",
-            GetParentDirectory() + "/../../config_manager/conf/ranktable.json");
+        ConfigManager::CreateInstance(GetParentDirectory() + "/../../config_manager/conf/config_http.json");
+        EnvUtil::GetInstance().SetEnvVar("RANK_TABLE_FILE",
+                                         GetParentDirectory() + "/../../config_manager/conf/ranktable.json");
         EnvUtil::GetInstance().SetEnvVar("MIES_CONTAINER_IP", "127.0.0.1");
         EnvUtil::GetInstance().SetEnvVar("HOST_IP", "127.0.0.1");
-        EnvUtil::GetInstance().SetEnvVar("MINDIE_CHECK_INPUTFILES_PERMISSION",
-                                         "1");
-        rankTableStringV2 = LoadJsonFile(
-            GetParentDirectory() +
-            "/../../config_manager/conf/v2_role_cross_node_2p_2d.json");
+        EnvUtil::GetInstance().SetEnvVar("MINDIE_CHECK_INPUTFILES_PERMISSION", "1");
+        rankTableStringV2 =
+            LoadJsonFile(GetParentDirectory() + "/../../config_manager/conf/v2_role_cross_node_2p_2d.json");
         if (rankTableStringV2.empty()) {
             return;
         }
-        rankTableStringBefore = LoadJsonFile(
-            GetParentDirectory() + "/../../config_manager/conf/role_1.json");
+        rankTableStringBefore = LoadJsonFile(GetParentDirectory() + "/../../config_manager/conf/role_1.json");
         if (rankTableStringBefore.empty()) {
             return;
         }
 
-        rankTableStringAfter = LoadJsonFile(
-            GetParentDirectory() + "/../../config_manager/conf/role_2.json");
+        rankTableStringAfter = LoadJsonFile(GetParentDirectory() + "/../../config_manager/conf/role_2.json");
         if (rankTableStringAfter.empty()) {
             return;
         }
@@ -158,8 +151,7 @@ class DmiRoleTest : public testing::Test {
 
     void TearDown() {
         EnvUtil::GetInstance().ClearEnvVar("RANK_TABLE_FILE");
-        EnvUtil::GetInstance().ClearEnvVar(
-            "MINDIE_CHECK_INPUTFILES_PERMISSION");
+        EnvUtil::GetInstance().ClearEnvVar("MINDIE_CHECK_INPUTFILES_PERMISSION");
         EnvUtil::GetInstance().ClearEnvVar("MIES_CONTAINER_IP");
         EnvUtil::GetInstance().ClearEnvVar("HOST_IP");
         GlobalMockObject::verify();
@@ -179,8 +171,7 @@ class DmiRoleTest : public testing::Test {
             auto tabSize = 4;
             return j.dump(tabSize);  // Return the JSON as a formatted string
         } catch (const json::parse_error &e) {
-            std::cerr << "JSON Parse Error in file " << filePath << ": "
-                      << e.what() << std::endl;
+            std::cerr << "JSON Parse Error in file " << filePath << ": " << e.what() << std::endl;
             return "";  // Return empty string if parsing fails
         }
     }
@@ -190,8 +181,7 @@ class DmiRoleTest : public testing::Test {
         try {
             return std::filesystem::current_path().string();
         } catch (const std::filesystem::filesystem_error &e) {
-            std::cerr << "Error getting current directory: " << e.what()
-                      << std::endl;
+            std::cerr << "Error getting current directory: " << e.what() << std::endl;
             return "";
         }
     }
@@ -244,23 +234,18 @@ class DmiRoleTest : public testing::Test {
         serverConfig_.tokenTimeout = 5;
         serverConfig_.e2eTimeout = 5;
         serverConfig_.distDPServerEnabled = false;
-        MOCKER_CPP(GetServerConfig, const ServerConfig &(*)())
-            .stubs()
-            .will(returnValue(serverConfig_));
+        MOCKER_CPP(GetServerConfig, const ServerConfig &(*)()).stubs().will(returnValue(serverConfig_));
     }
 
     void MockBackendConfig() {
         backendConfig_.backendName = "mindieservice_llm_engine";
         backendConfig_.modelInstanceNumber = 2;
-        backendConfig_.npuDeviceIds = {{0, 1, 2, 3, 4, 5, 6, 7},
-                                       {0, 1, 2, 3, 4, 5, 6, 7}};
+        backendConfig_.npuDeviceIds = {{0, 1, 2, 3, 4, 5, 6, 7}, {0, 1, 2, 3, 4, 5, 6, 7}};
         backendConfig_.tokenizerProcessNumber = 2;
         backendConfig_.multiNodesInferEnabled = true;
         backendConfig_.multiNodesInferPort = 1120;
         backendConfig_.interNodeTLSEnabled = false;
-        MOCKER_CPP(GetBackendConfig, const BackendConfig &(*)())
-            .stubs()
-            .will(returnValue(backendConfig_));
+        MOCKER_CPP(GetBackendConfig, const BackendConfig &(*)()).stubs().will(returnValue(backendConfig_));
     }
 
     void MockModelDeployConfig() {
@@ -276,12 +261,10 @@ class DmiRoleTest : public testing::Test {
         modelDeployConfig_.maxSeqLen = 2560;
         modelDeployConfig_.maxInputTokenLen = 2048;
         modelDeployConfig_.truncation = false;
-        modelDeployConfig_.loraModules["llama_65b"] =
-            "../../config_manager/conf";
+        modelDeployConfig_.loraModules["llama_65b"] = "../../config_manager/conf";
 
         std::vector<ModelDeployConfig> modelConfig = {modelDeployConfig_};
-        MOCKER_CPP(GetModelDeployConfig,
-                   const std::vector<ModelDeployConfig> &(*)())
+        MOCKER_CPP(GetModelDeployConfig, const std::vector<ModelDeployConfig> &(*)())
             .stubs()
             .will(returnValue(modelConfig));
     }
@@ -315,8 +298,7 @@ TEST_F(DmiRoleTest, HandlePDRoleV1Init) {
 }
 
 TEST_F(DmiRoleTest, HandlePDRoleV1_PDParseRequestBodyToJsonFail) {
-    MOCKER_CPP(&DmiRole::PDParseRequestBodyToJson,
-               bool (*)(const ReqCtxPtr &, ordered_json &))
+    MOCKER_CPP(&DmiRole::PDParseRequestBodyToJson, bool (*)(const ReqCtxPtr &, ordered_json &))
         .stubs()
         .will(returnValue(false));
     httplib::Request req;
@@ -390,8 +372,7 @@ TEST_F(DmiRoleTest, HandlePDRoleV2Init_Success) {
 }
 
 TEST_F(DmiRoleTest, HandlePDRoleV2Init_PDParseRequestBodyToJsonFail) {
-    MOCKER_CPP(&DmiRole::PDParseRequestBodyToJson,
-               bool (*)(const ReqCtxPtr &, ordered_json &))
+    MOCKER_CPP(&DmiRole::PDParseRequestBodyToJson, bool (*)(const ReqCtxPtr &, ordered_json &))
         .stubs()
         .will(returnValue(false));
     const std::string validRequestBody = rankTableStringV2;
@@ -457,8 +438,7 @@ TEST_F(DmiRoleTest, HandlePDRoleV2RelinkFailure) {
     MOCKER(JsonParse::CheckPDRoleReqJson).stubs().will(returnValue(true));
 
     MOCKER_CPP(&DmiRole::UpdatePDInfoV2,
-               bool (*)(const std::string &, const std::string &,
-                        const ordered_json &, GlobalIpInfo &))
+               bool (*)(const std::string &, const std::string &, const ordered_json &, GlobalIpInfo &))
         .stubs()
         .will(returnValue(false));
 
@@ -479,9 +459,7 @@ TEST_F(DmiRoleTest, HandlePDRoleV2RelinkFailure) {
 
 TEST_F(DmiRoleTest, RunTaskThread) {
     GlobalIpInfo globalIpInfo;
-    auto task = [globalIpInfo = globalIpInfo]() mutable {
-        globalIpInfo.role = "test";
-    };
+    auto task = [globalIpInfo = globalIpInfo]() mutable { globalIpInfo.role = "test"; };
     dmiRole.taskQueue_.Push(std::move(task));
     dmiRole.taskTerminate_.store(true);
     dmiRole.RunTaskThread();
@@ -500,12 +478,9 @@ TEST_F(DmiRoleTest, ProcessInitInfoV2_NormalCase) {
 
     std::vector<std::string> expectedHostIps = {"192.168.1.10", "192.168.1.11"};
     std::vector<uint64_t> expectedDpInstIds = {1, 2};
-    std::vector<std::string> expectedDeviceIps = {"10.0.0.1", "10.0.0.2",
-                                                  "10.0.0.3"};
-    std::vector<std::string> expectedLogicalIds = {"logical-1", "logical-2",
-                                                   "logical-3"};
-    std::vector<std::string> expectedPhysicalIds = {"physical-1", "physical-2",
-                                                    "physical-3"};
+    std::vector<std::string> expectedDeviceIps = {"10.0.0.1", "10.0.0.2", "10.0.0.3"};
+    std::vector<std::string> expectedLogicalIds = {"logical-1", "logical-2", "logical-3"};
+    std::vector<std::string> expectedPhysicalIds = {"physical-1", "physical-2", "physical-3"};
     std::vector<std::string> expectedRankIds = {"0", "1", "2"};
     std::vector<std::string> expectedSuperDeviceIds = {"super-1"};
 
@@ -524,8 +499,7 @@ TEST_F(DmiRoleTest, ProcessInitInfoV2_MissingField) {
                            {{
                                {"host_ip", "192.168.1.10"},
                            }}}};
-    EXPECT_THROW(dmiRole.ProcessInitInfoV2(body1, globalIpInfo),
-                 std::runtime_error);
+    EXPECT_THROW(dmiRole.ProcessInitInfoV2(body1, globalIpInfo), std::runtime_error);
 }
 
 TEST_F(DmiRoleTest, GetInstanceIdToServerIp) {
@@ -539,8 +513,7 @@ TEST_F(DmiRoleTest, GetRemoteNodeLinkStatusV2) {
 }
 
 TEST_F(DmiRoleTest, SingleInstanceSingleDpInstance_Ok) {
-    std::map<uint64_t, std::pair<std::string, bool>> input = {
-        {10001, {"status1", true}}};
+    std::map<uint64_t, std::pair<std::string, bool>> input = {{10001, {"status1", true}}};
 
     auto result = GetInstanceStatus(input);
 
@@ -550,8 +523,7 @@ TEST_F(DmiRoleTest, SingleInstanceSingleDpInstance_Ok) {
 }
 
 TEST_F(DmiRoleTest, SingleInstanceSingleDpInstance_Error) {
-    std::map<uint64_t, std::pair<std::string, bool>> input = {
-        {10001, {"error1", false}}};
+    std::map<uint64_t, std::pair<std::string, bool>> input = {{10001, {"error1", false}}};
 
     auto result = GetInstanceStatus(input);
 
@@ -659,14 +631,12 @@ TEST_F(QueryLinkStatusTest, QueryLinkStatus_SkipWhenNoConnections) {
 
 TEST_F(QueryLinkStatusTest, QueryLinkStatus_SuccessfulLinks) {
     // Set up linking connections
-    std::vector<mindie_llm::DeviceInfo> deviceInfos = {{"192.168.1.1", 0, 100},
-                                                       {"192.168.1.2", 1, 101}};
+    std::vector<mindie_llm::DeviceInfo> deviceInfos = {{"192.168.1.1", 0, 100}, {"192.168.1.2", 1, 101}};
     dmiRole->linkingLinkIP_[1001] = deviceInfos;
     dmiRole->linkingHostIP_[1001] = {"192.168.1.10"};
 
     // Set up mock that returns OK status
-    MOCKER_CPP(&InferInstance::QueryPDLinkStatus,
-               Status(*)(model_execute_data::PDLinkStatusResponse &))
+    MOCKER_CPP(&InferInstance::QueryPDLinkStatus, Status(*)(model_execute_data::PDLinkStatusResponse &))
         .stubs()
         .will(returnValue(Status(Error::Code::OK)));
 
@@ -697,10 +667,8 @@ TEST_F(QueryLinkStatusTest, QueryLinkStatus_SuccessfulLinks) {
     EXPECT_EQ(successDevices.size(), deviceInfos.size());
     for (size_t i = 0; i < deviceInfos.size(); ++i) {
         EXPECT_EQ(successDevices[i].deviceIp, deviceInfos[i].deviceIp);
-        EXPECT_EQ(successDevices[i].devicePhysicalId,
-                  deviceInfos[i].devicePhysicalId);
-        EXPECT_EQ(successDevices[i].superDeviceId,
-                  deviceInfos[i].superDeviceId);
+        EXPECT_EQ(successDevices[i].devicePhysicalId, deviceInfos[i].devicePhysicalId);
+        EXPECT_EQ(successDevices[i].superDeviceId, deviceInfos[i].superDeviceId);
     }
     EXPECT_EQ(dmiRole->successHostIP_[1001].size(), 1);
     EXPECT_EQ(dmiRole->successHostIP_[1001][0], "192.168.1.10");
@@ -721,8 +689,7 @@ TEST_F(QueryLinkStatusTest, QueryLinkStatus_FailedLinks) {
     dmiRole->linkingHostIP_[1001] = {"192.168.1.10"};
 
     // Mock failed query response
-    MOCKER_CPP(&InferInstance::QueryPDLinkStatus,
-               Status(*)(model_execute_data::PDLinkStatusResponse &))
+    MOCKER_CPP(&InferInstance::QueryPDLinkStatus, Status(*)(model_execute_data::PDLinkStatusResponse &))
         .stubs()
         .will(returnValue(Status(Error::Code::OK)));
 
@@ -732,14 +699,11 @@ TEST_F(QueryLinkStatusTest, QueryLinkStatus_FailedLinks) {
     {
         std::lock_guard<std::mutex> lock(dmiRole->mtx_);
         // Simulate ProcessFailedLinks behavior
-        if (dmiRole->linkingLinkIP_.find(1001) !=
-            dmiRole->linkingLinkIP_.end()) {
+        if (dmiRole->linkingLinkIP_.find(1001) != dmiRole->linkingLinkIP_.end()) {
             dmiRole->linkingLinkIP_.erase(1001);
             dmiRole->linkingHostIP_.erase(1001);
             std::string failedReason =
-                "failed : " +
-                std::to_string(static_cast<int>(
-                    model_execute_data::PDErrorCode::PD_UNKNOWN_ERROR));
+                "failed : " + std::to_string(static_cast<int>(model_execute_data::PDErrorCode::PD_UNKNOWN_ERROR));
             dmiRole->remoteNodeLinkStatus_[1001] = {failedReason, true};
         }
     }
@@ -759,8 +723,7 @@ TEST_F(QueryLinkStatusTest, QueryLinkStatus_QueryFailure) {
     dmiRole->linkingLinkIP_[1001] = deviceInfos;
 
     // Mock query failure
-    MOCKER_CPP(&InferInstance::QueryPDLinkStatus,
-               Status(*)(model_execute_data::PDLinkStatusResponse &))
+    MOCKER_CPP(&InferInstance::QueryPDLinkStatus, Status(*)(model_execute_data::PDLinkStatusResponse &))
         .stubs()
         .will(returnValue(Status(Error::Code::ERROR, "Query failed")));
 
@@ -777,14 +740,11 @@ TEST_F(QueryLinkStatusTest, QueryLinkStatus_AllLinksCompleted) {
     // Mock empty response (no running or waiting connections)
     model_execute_data::PDLinkStatusResponse response;
 
-    MOCKER_CPP(&InferInstance::QueryPDLinkStatus,
-               Status(*)(model_execute_data::PDLinkStatusResponse &))
+    MOCKER_CPP(&InferInstance::QueryPDLinkStatus, Status(*)(model_execute_data::PDLinkStatusResponse &))
         .stubs()
         .will(returnValue(Status(Error::Code::OK)));
 
-    MOCKER_CPP(&InferInstance::SetPDRoleStatus, void (*)(PDRoleStatus))
-        .expects(once())
-        .with(eq(PDRoleStatus::READY));
+    MOCKER_CPP(&InferInstance::SetPDRoleStatus, void (*)(PDRoleStatus)).expects(once()).with(eq(PDRoleStatus::READY));
 
     dmiRole->QueryLinkStatus();
 
@@ -797,8 +757,7 @@ TEST_F(QueryLinkStatusTest, QueryLinkStatus_InvalidClusterId) {
     dmiRole->linkingLinkIP_[1001] = deviceInfos;
 
     // Mock failed response containing invalid cluster_id
-    MOCKER_CPP(&InferInstance::QueryPDLinkStatus,
-               Status(*)(model_execute_data::PDLinkStatusResponse &))
+    MOCKER_CPP(&InferInstance::QueryPDLinkStatus, Status(*)(model_execute_data::PDLinkStatusResponse &))
         .stubs()
         .will(returnValue(Status(Error::Code::OK)));
 
@@ -872,8 +831,7 @@ class ExecuteLinkTaskTest : public ::testing::Test {
 TEST_F(ExecuteLinkTaskTest, ExecuteLinkTask_SuccessfulAssignment) {
     // Prepare global IP info with link information
     mindie_llm::GlobalIpInfo globalIpInfo;
-    globalIpInfo.linkIpInfo[1001] = {{"192.168.1.1", 0, 100},
-                                     {"192.168.1.2", 1, 101}};
+    globalIpInfo.linkIpInfo[1001] = {{"192.168.1.1", 0, 100}, {"192.168.1.2", 1, 101}};
     globalIpInfo.hostIpInfo[1001] = {"192.168.1.10"};
 
     // Mock successful assignment
@@ -891,15 +849,11 @@ TEST_F(ExecuteLinkTaskTest, ExecuteLinkTask_SuccessfulAssignment) {
     EXPECT_EQ(dmiRole->linkingLinkIP_.size(), globalIpInfo.linkIpInfo.size());
     for (const auto &[instanceId, deviceInfos] : globalIpInfo.linkIpInfo) {
         EXPECT_TRUE(dmiRole->linkingLinkIP_.count(instanceId));
-        EXPECT_EQ(dmiRole->linkingLinkIP_[instanceId].size(),
-                  deviceInfos.size());
+        EXPECT_EQ(dmiRole->linkingLinkIP_[instanceId].size(), deviceInfos.size());
         for (size_t i = 0; i < deviceInfos.size(); ++i) {
-            EXPECT_EQ(dmiRole->linkingLinkIP_[instanceId][i].deviceIp,
-                      deviceInfos[i].deviceIp);
-            EXPECT_EQ(dmiRole->linkingLinkIP_[instanceId][i].devicePhysicalId,
-                      deviceInfos[i].devicePhysicalId);
-            EXPECT_EQ(dmiRole->linkingLinkIP_[instanceId][i].superDeviceId,
-                      deviceInfos[i].superDeviceId);
+            EXPECT_EQ(dmiRole->linkingLinkIP_[instanceId][i].deviceIp, deviceInfos[i].deviceIp);
+            EXPECT_EQ(dmiRole->linkingLinkIP_[instanceId][i].devicePhysicalId, deviceInfos[i].devicePhysicalId);
+            EXPECT_EQ(dmiRole->linkingLinkIP_[instanceId][i].superDeviceId, deviceInfos[i].superDeviceId);
         }
     }
     EXPECT_EQ(dmiRole->linkingHostIP_.size(), globalIpInfo.hostIpInfo.size());
@@ -924,8 +878,7 @@ class ProcessFailedLinksTest : public ::testing::Test {
     void SetUp() override {
         dmiRole = new mindie_llm::DmiRole();
         // Set up initial linking state
-        std::vector<mindie_llm::DeviceInfo> deviceInfos = {
-            {"192.168.1.1", 0, 100}, {"192.168.1.2", 1, 101}};
+        std::vector<mindie_llm::DeviceInfo> deviceInfos = {{"192.168.1.1", 0, 100}, {"192.168.1.2", 1, 101}};
         dmiRole->linkingLinkIP_[1001] = deviceInfos;
         dmiRole->linkingHostIP_[1001] = {"192.168.1.10"};
     }
@@ -984,9 +937,7 @@ TEST_F(ProcessFailedLinksTest, ProcessFailedLinks_NonExistentInstanceId) {
     // Create a mock failed link info for a different instance
     struct MockFailedLinkInfo {
         std::string cluster_id() const { return "2001"; }
-        model_execute_data::PDErrorCode pd_error_code() const {
-            return model_execute_data::PDErrorCode::PD_LINK_ERROR;
-        }
+        model_execute_data::PDErrorCode pd_error_code() const { return model_execute_data::PDErrorCode::PD_LINK_ERROR; }
     };
 
     std::vector<MockFailedLinkInfo> failedLinks = {MockFailedLinkInfo()};
@@ -1009,10 +960,8 @@ class ProcessSuccessfulLinksTest : public ::testing::Test {
     void SetUp() override {
         dmiRole = new mindie_llm::DmiRole();
         // Set up initial linking state
-        std::vector<mindie_llm::DeviceInfo> deviceInfos1 = {
-            {"192.168.1.1", 0, 100}, {"192.168.1.2", 1, 101}};
-        std::vector<mindie_llm::DeviceInfo> deviceInfos2 = {
-            {"192.168.1.3", 2, 102}};
+        std::vector<mindie_llm::DeviceInfo> deviceInfos1 = {{"192.168.1.1", 0, 100}, {"192.168.1.2", 1, 101}};
+        std::vector<mindie_llm::DeviceInfo> deviceInfos2 = {{"192.168.1.3", 2, 102}};
         dmiRole->linkingLinkIP_[1001] = deviceInfos1;
         dmiRole->linkingLinkIP_[1002] = deviceInfos2;
         dmiRole->linkingHostIP_[1001] = {"192.168.1.10"};
@@ -1051,8 +1000,7 @@ TEST_F(ProcessSuccessfulLinksTest, ProcessSuccessfulLinks_PartialSuccess) {
 
 TEST_F(ProcessSuccessfulLinksTest, ProcessSuccessfulLinks_AllSuccess) {
     // Mock successful links containing all device IPs
-    std::vector<std::string> successLinks = {"192.168.1.1", "192.168.1.2",
-                                             "192.168.1.3"};
+    std::vector<std::string> successLinks = {"192.168.1.1", "192.168.1.2", "192.168.1.3"};
 
     // Process successful links
     dmiRole->ProcessSuccessfulLinks(successLinks);
@@ -1114,8 +1062,7 @@ TEST_F(CheckAllLinksCompletedTest, CheckAllLinksCompleted_AllCompleted) {
     dmiRole->waitingLinkIP_.clear();
 
     // Mock SetPDRoleStatus to verify it's called
-    MOCKER_CPP(&InferInstance::SetPDRoleStatus, void (*)(PDRoleStatus))
-        .expects(once());
+    MOCKER_CPP(&InferInstance::SetPDRoleStatus, void (*)(PDRoleStatus)).expects(once());
 
     // Check all links completed
     EXPECT_NO_THROW(dmiRole->CheckAllLinksCompleted());
@@ -1128,8 +1075,7 @@ TEST_F(CheckAllLinksCompletedTest, CheckAllLinksCompleted_LinksStillLinking) {
     dmiRole->linkingLinkIP_[1002] = deviceInfos;  // Still linking
 
     // Mock SetPDRoleStatus to ensure it's NOT called
-    MOCKER_CPP(&InferInstance::SetPDRoleStatus, void (*)(PDRoleStatus))
-        .expects(never());
+    MOCKER_CPP(&InferInstance::SetPDRoleStatus, void (*)(PDRoleStatus)).expects(never());
 
     // Check all links completed
     EXPECT_NO_THROW(dmiRole->CheckAllLinksCompleted());
@@ -1145,8 +1091,7 @@ TEST_F(CheckAllLinksCompletedTest, CheckAllLinksCompleted_NoSuccessLinks) {
     dmiRole->linkingLinkIP_[1001] = deviceInfos;
 
     // Mock SetPDRoleStatus to ensure it's NOT called
-    MOCKER_CPP(&InferInstance::SetPDRoleStatus, void (*)(PDRoleStatus))
-        .expects(never());
+    MOCKER_CPP(&InferInstance::SetPDRoleStatus, void (*)(PDRoleStatus)).expects(never());
 
     // Check all links completed
     EXPECT_NO_THROW(dmiRole->CheckAllLinksCompleted());
@@ -1163,8 +1108,7 @@ TEST_F(CheckAllLinksCompletedTest, CheckAllLinksCompleted_RunningLinksExist) {
     dmiRole->runningLinkIP_.push_back("192.168.1.2");
 
     // Mock SetPDRoleStatus to ensure it's NOT called
-    MOCKER_CPP(&InferInstance::SetPDRoleStatus, void (*)(PDRoleStatus))
-        .expects(never());
+    MOCKER_CPP(&InferInstance::SetPDRoleStatus, void (*)(PDRoleStatus)).expects(never());
 
     // Check all links completed
     EXPECT_NO_THROW(dmiRole->CheckAllLinksCompleted());
@@ -1181,8 +1125,7 @@ TEST_F(CheckAllLinksCompletedTest, CheckAllLinksCompleted_WaitingLinksExist) {
     dmiRole->waitingLinkIP_.push_back("192.168.1.3");
 
     // Mock SetPDRoleStatus to ensure it's NOT called
-    MOCKER_CPP(&InferInstance::SetPDRoleStatus, void (*)(PDRoleStatus))
-        .expects(never());
+    MOCKER_CPP(&InferInstance::SetPDRoleStatus, void (*)(PDRoleStatus)).expects(never());
 
     // Check all links completed
     EXPECT_NO_THROW(dmiRole->CheckAllLinksCompleted());

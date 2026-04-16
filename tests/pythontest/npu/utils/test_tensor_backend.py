@@ -28,9 +28,7 @@ class TestTensorBackend(unittest.TestCase):
         tensor_backend.get_device(tensor)
         tensor_backend.masked_fill(
             tensor,
-            tensor_backend.to(
-                tensor_backend.tensor(np.array([[1]] * 16, dtype=np.bool_)), device
-            ),
+            tensor_backend.to(tensor_backend.tensor(np.array([[1]] * 16, dtype=np.bool_)), device),
             0,
         )
         tensor_backend.numpy(tensor)
@@ -39,16 +37,10 @@ class TestTensorBackend(unittest.TestCase):
         tensor_backend.scatter(tensor, 0, tensor, tensor)
         tensor_backend.shape(tensor, 0)
         tensor_backend.softmax(
-            tensor_backend.to(
-                tensor_backend.tensor(np.array([[1]] * 16, dtype=np.float16)), device
-            ),
+            tensor_backend.to(tensor_backend.tensor(np.array([[1]] * 16, dtype=np.float16)), device),
             0,
         )
-        tensor_backend.where(
-            tensor_backend.to(
-                tensor_backend.tensor(np.array([[1]] * 16, dtype=np.float32)), device
-            )
-        )
+        tensor_backend.where(tensor_backend.to(tensor_backend.tensor(np.array([[1]] * 16, dtype=np.float32)), device))
         tensor_backend.zeros((16,))
 
         tensor_list = [

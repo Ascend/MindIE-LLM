@@ -35,7 +35,7 @@ def register_class(name):
     return decorator
 
 
-@register_class('greedy_search')
+@register_class("greedy_search")
 class GreedySearchTokenSelector(TokenSelector):
     def __call__(self, logits: torch.Tensor, metadata: SamplingMetadata) -> SamplingOutput:
         batch_size = len(logits)
@@ -62,12 +62,12 @@ class GreedySearchTokenSelector(TokenSelector):
             top_logprobs=top_logprobs,
             cumulative_logprobs=np.zeros(batch_size, dtype=np.float32),
             num_new_tokens=np.ones(batch_size, dtype=np.int64),
-            num_top_tokens=metadata.num_top_tokens if metadata is not None else None
+            num_top_tokens=metadata.num_top_tokens if metadata is not None else None,
         )
         return sampling_output
 
 
-@register_class('sampling')
+@register_class("sampling")
 class SamplingTokenSelector(TokenSelector):
     def __call__(self, logits: torch.Tensor, metadata: SamplingMetadata):
         do_sample_array = metadata.do_sample_array
@@ -99,7 +99,7 @@ class SamplingTokenSelector(TokenSelector):
         return selected_token_ids
 
 
-@register_class('beam_search')
+@register_class("beam_search")
 class BeamSearchTokenSelector(TokenSelector):
     def __init__(self, selector_params):
         super().__init__(selector_params)
@@ -109,11 +109,7 @@ class BeamSearchTokenSelector(TokenSelector):
         self.filter_value = self.params.filter_value
         self.splitfuse_enabled = self.params.splitfuse_enabled
 
-    def __call__(
-        self,
-        logits: torch.Tensor,
-        metadata: SamplingMetadata
-    ) -> SamplingOutput:
+    def __call__(self, logits: torch.Tensor, metadata: SamplingMetadata) -> SamplingOutput:
         info = torch.finfo(logits.dtype)
         if torch.isinf(logits).any():
             logits[logits == torch.inf] = info.max
@@ -122,15 +118,15 @@ class BeamSearchTokenSelector(TokenSelector):
         if nan_mask.any():
             logits[nan_mask] = 0
         if metadata.output_lengths is None or (metadata.output_lengths < 0).any():
-            raise ValueError('A certain output length of beam search is invalid.')
+            raise ValueError("A certain output length of beam search is invalid.")
         min_num_candidates = (self.num_eos + 1) * min(metadata.beam_width_array)
         max_num_candidates = (self.num_eos + 1) * metadata.max_beam_width
         max_needed_tokens = max(metadata.max_logprobs, max_num_candidates)
 
         logprobs = torch.log_softmax(logits, dim=1)
         top_logprobs, top_token_ids = torch.topk(logprobs, max_needed_tokens, dim=1)
-        top_logprobs = top_logprobs.to(torch.float32).to('cpu', non_blocking=True)
-        top_token_ids = top_token_ids.to(torch.int64).to('cpu', non_blocking=True)
+        top_logprobs = top_logprobs.to(torch.float32).to("cpu", non_blocking=True)
+        top_token_ids = top_token_ids.to(torch.int64).to("cpu", non_blocking=True)
 
         group_width = []
         group_beam_width = []
@@ -146,8 +142,9 @@ class BeamSearchTokenSelector(TokenSelector):
         top_logprobs = top_logprobs.numpy()
         top_token_ids = top_token_ids.numpy()
         # 要求metadata.cumulative_logprobs数量与seqs数量一致，然后广播
-        average_logprobs = (metadata.cumulative_logprobs[:, None] + top_logprobs) \
-            / (metadata.output_lengths[:, None] + 1)
+        average_logprobs = (metadata.cumulative_logprobs[:, None] + top_logprobs) / (
+            metadata.output_lengths[:, None] + 1
+        )
 
         num_seqs = len(logits)
         # Deep copy is neccessary only when the maximum number of logprobs is larger than the minimum beam width.
@@ -219,19 +216,25 @@ class BeamSearchTokenSelector(TokenSelector):
         is_all_prefill = not self.splitfuse_enabled and is_prefill
         if is_mix_has_prefill or is_all_prefill:
             sequence_ids = []
-            first_prefill_idx = -sum(is_seq_prefill) if self.splitfuse_enabled else -len(metadata.all_sequence_ids)            
+            first_prefill_idx = -sum(is_seq_prefill) if self.splitfuse_enabled else -len(metadata.all_sequence_ids)
             for i in range(first_prefill_idx, 0):
                 original_sequence_ids = metadata.batch_sequence_ids[i]
-                sequence_group = [np.full((num_eos_array[i]), -1),
-                                  original_sequence_ids,
-                                  metadata.reserved_sequence_ids[i]]
+                sequence_group = [
+                    np.full((num_eos_array[i]), -1),
+                    original_sequence_ids,
+                    metadata.reserved_sequence_ids[i],
+                ]
                 sequence_ids.extend(sequence_group)
             prefill_seq_ids = np.concatenate(sequence_ids)
         # 混合+纯d请求
         is_mix_has_decode = self.splitfuse_enabled and False in is_seq_prefill
         is_all_decode = not self.splitfuse_enabled and not is_prefill
         if is_mix_has_decode or is_all_decode:
-            decode_req_last_idx = -sum(is_seq_prefill) if is_seq_prefill is not None and sum(is_seq_prefill) != 0 else len(parent_sequence_ids)
+            decode_req_last_idx = (
+                -sum(is_seq_prefill)
+                if is_seq_prefill is not None and sum(is_seq_prefill) != 0
+                else len(parent_sequence_ids)
+            )
             decode_valid_mask = valid_mask[:decode_req_last_idx]
             decode_last_idx = sum(decode_valid_mask.flatten())
             new_seq_mask = np.zeros_like(parent_sequence_ids[:decode_last_idx], dtype=np.bool_)
@@ -245,8 +248,10 @@ class BeamSearchTokenSelector(TokenSelector):
                     new_seq_mask[i] = False
                     used_ids.add(seq_id)
             beam_indices = row_ids[:decode_req_last_idx][beam_mask[:decode_req_last_idx]]
-            children_indices = row_ids[:decode_req_last_idx][valid_mask[:decode_req_last_idx]]            
-            children_indices[new_seq_mask] = np.arange(num_seqs)[:decode_req_last_idx][~np.isin(np.arange(num_seqs)[:decode_req_last_idx], beam_indices)]
+            children_indices = row_ids[:decode_req_last_idx][valid_mask[:decode_req_last_idx]]
+            children_indices[new_seq_mask] = np.arange(num_seqs)[:decode_req_last_idx][
+                ~np.isin(np.arange(num_seqs)[:decode_req_last_idx], beam_indices)
+            ]
             decode_seq_ids = metadata.all_sequence_ids[children_indices]
 
         # get sequence ids
@@ -261,7 +266,6 @@ class BeamSearchTokenSelector(TokenSelector):
 
         output_eos_mask = average_cumulative_logprobs == 1
         average_cumulative_logprobs[output_eos_mask] = eos_average_logprobs
-        output_eos_mask = output_eos_mask
         sequence_ids[output_eos_mask] = -1
 
         # get group indices
@@ -282,6 +286,6 @@ class BeamSearchTokenSelector(TokenSelector):
             top_logprobs=top_logprobs,
             cumulative_logprobs=average_cumulative_logprobs,
             num_new_tokens=np.ones(len(parent_sequence_ids), dtype=np.int64),
-            num_top_tokens=metadata.num_top_tokens[parent_indices] if metadata.num_top_tokens is not None else None
+            num_top_tokens=metadata.num_top_tokens[parent_indices] if metadata.num_top_tokens is not None else None,
         )
         return sampling_output

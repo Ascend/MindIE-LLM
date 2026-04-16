@@ -45,15 +45,9 @@ class SplitFusePreprocess:
                     start = model_inputs.context_length[i] - q_lens[i]
                     end = model_inputs.context_length[i]
                     if self.async_inference and (hit_mask is None):
-                        message = (
-                            "Inference requires 'hit_mask' to be provided, but got None"
-                        )
+                        message = "Inference requires 'hit_mask' to be provided, but got None"
                         raise ValueError(message)
-                    if (
-                        self.async_inference
-                        and hit_mask[i]
-                        and not input_metadata.batch_is_prefill[i]
-                    ):
+                    if self.async_inference and hit_mask[i] and not input_metadata.batch_is_prefill[i]:
                         start += 1
                         end += 1
                     req_mask_list.append(atten_mask[start:end])
@@ -61,25 +55,17 @@ class SplitFusePreprocess:
 
                 req_mask = torch.cat(req_mask_list, 0)
             else:
-                req_mask = self.model_wrapper.model_runner.attn_mask.get_splitfuse_mask(
-                    kv_device
-                )
+                req_mask = self.model_wrapper.model_runner.attn_mask.get_splitfuse_mask(kv_device)
         return req_mask
 
     @timer.track_time("preprocess")
-    def splitfuse_preprocess(
-        self, input_metadata: InputMetadata, warmup=False, hit_mask=None
-    ):
+    def splitfuse_preprocess(self, input_metadata: InputMetadata, warmup=False, hit_mask=None):
         cache_ids = self.infer_context.get_batch_context_handles(input_metadata)
 
-        model_inputs, sampling_metadata, q_len, trace_ids = (
-            self.infer_context.splitfuse_concatenate(
-                input_metadata, cache_ids, warmup=warmup, hit_mask=hit_mask
-            )
+        model_inputs, sampling_metadata, q_len, trace_ids = self.infer_context.splitfuse_concatenate(
+            input_metadata, cache_ids, warmup=warmup, hit_mask=hit_mask
         )
-        attention_mask = self.make_attention_mask(
-            model_inputs, input_metadata, q_len, hit_mask=hit_mask
-        )
+        attention_mask = self.make_attention_mask(model_inputs, input_metadata, q_len, hit_mask=hit_mask)
         res = (
             model_inputs,
             cache_ids,
