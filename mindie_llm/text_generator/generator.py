@@ -563,21 +563,15 @@ class Generator(PDInterface):
         self.copy_blocks_ops.copy_blocks(src_dst_map)
 
     def check_batch_size_limit(self, is_prefill: bool, is_mix: bool, batch_size: int) -> None:
-        if not is_mix:
-            if is_prefill:
-                max_allowed = self.max_prefill_batch_size
-                stage_name = "prefill"
-            else:
-                max_allowed = self.max_batch_size
-                stage_name = "Decode"
-        else:
+        if is_mix or not is_prefill:
             max_allowed = self.max_batch_size
-            stage_name = "is_mix"
+        else:
+            max_allowed = self.max_prefill_batch_size
 
         if batch_size > max_allowed:
             message = (
-                f"The `batch_size` is {batch_size} but 'max_{stage_name}_batch_size' is {max_allowed}. "
-                f"The `batch_size` should be less than 'max_{stage_name}_batch_size'."
+                f"The `batch_size` is {batch_size} but max batchsize is {max_allowed}. "
+                f"The `batch_size` should be less than max batchsize."
             )
             logger.warning(message)
 
