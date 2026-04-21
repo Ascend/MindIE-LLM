@@ -327,6 +327,11 @@ class Generator(PDInterface):
         if kv_pool_async_write and "splitfuse" in model_config.get("plugin_params", ""):
             raise ValueError("Async mempool does not support plugin_type: splitfuse!")
 
+        if self.pd_config.model_role == DmiModeNodeRole.DECODER and "prefix_cache" in model_config.get(
+            "plugin_params", ""
+        ):
+            raise ValueError("Prefix Cache is not supported on D nodes under PD separation!")
+
         self.layerwise_disaggregated = parse_config(
             model_config,
             "layerwiseDisaggregated",
