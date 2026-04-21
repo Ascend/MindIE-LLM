@@ -104,12 +104,12 @@ torchrun --nnodes=2 --nproc_per_node 8 --node_rank=1 --master_addr="主节点IP"
              "modelInstanceType" : "Standard",
              "modelName" : "DeepSeek-R1_w8a8",
              "modelWeightPath" : "切分后权重文件保存路径",
-             "worldSize" : 8,
+             "worldSize" : 16,
              "cpuMemSize" : 5,
              "npuMemSize" : -1,
              "backendType" : "atb",
-             "trustRemoteCode" : false,
+             "trustRemoteCode" : false
           }
        ]
-    },
+    }
     ```

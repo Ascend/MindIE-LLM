@@ -28,7 +28,7 @@
 
 |配置项|取值类型|取值范围|配置说明|
 |--|--|--|--|
-|kvPoolConfig|std::string|{"backend"："*kv_pool_backend_name*", <br>"configPath":"*/path/to/your/config/file*"，<br>"asyncWrite":false}|<li>backend为指定的KV Cache池化后端。<ul><li>设置为“”，表示关闭KV Cache池化。</li><li>设置为对应池化后端的名称，表示开启KV Cache池化。</li></ul></li><li>configPath为传入池化后端所需的配置文件路径。</li><li>asyncWrite为池化KV Cache异步写开关。<ul><li>不设置或设置为false，表示关闭KV Cache的异步写。</li><li>设置为true，表示开启KV Cache的异步写。</li></ul></li>|
+|kvPoolConfig|std::string|{"backend":"*kv_pool_backend_name*", <br>"configPath":"*/path/to/your/config/file*"，<br>"asyncWrite":false}|<li>backend为指定的KV Cache池化后端。<ul><li>设置为""，表示关闭KV Cache池化。</li><li>设置为对应池化后端的名称，表示开启KV Cache池化。</li></ul></li><li>configPath为传入池化后端所需的配置文件路径。</li><li>asyncWrite为池化KV Cache异步写开关。<ul><li>不设置或设置为false，表示关闭KV Cache的异步写。</li><li>设置为true，表示开启KV Cache的异步写。</li></ul></li>|
 
 ## 执行推理
 
@@ -60,7 +60,7 @@
             "interNodeTlsPk" : "security/grpc/keys/server.key.pem",
             "interNodeTlsCrlPath" : "security/grpc/certs/",
             "interNodeTlsCrlFiles" : ["server_crl.pem"],
-            "kvPoolConfig" : {"backend"："kv_pool_backend_name", "configPath":"/path/to/your/config/file"},
+            "kvPoolConfig" : {"backend":"kv_pool_backend_name", "configPath":"/path/to/your/config/file"},
         "ModelDeployConfig" :
             {
                 "maxSeqLen" : 20000,

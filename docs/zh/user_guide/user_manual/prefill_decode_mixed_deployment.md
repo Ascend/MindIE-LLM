@@ -5,17 +5,9 @@
 ### 前提条件
 
 - 服务器或容器环境上已经安装好NPU驱动和固件、CANN包、PyTorch、ATB Models和MindIE。
-
 - 若开启HTTPS双向认证，需要提前准备好服务证书、服务器私钥和验签证书等。
 - 若使用容器化部署启动，要求共享内存设置不小于1GB。
-- Server对于Python的环境要求为Python3.11.x。此处以Python3.11为例，如果环境中的Python3.11不是默认版本，需要参考如下方法添加环境变量（Python路径根据实际路径进行修改）。
-
-   ```bash
-
-   export LD_LIBRARY_PATH=/usr/local/python3.11/lib:$LD_LIBRARY_PATH
-   export PATH=/usr/local/python3.11/bin:$PATH
-
-   ```
+- Server对于Python的环境要求为Python3.11.x。
 
 ### 操作步骤
 
@@ -28,20 +20,7 @@
 2. 确认目录文件权限是否如下所示，若存在不匹配项，则参考以下命令修改权限。
 
     ```bash
-    chmod 750 mindie-service
-    chmod -R 550 mindie-service/bin
-    chmod -R 500 mindie-service/bin/mindie_llm_backend_connector
-    chmod 550 mindie-service/lib
-    chmod 440 mindie-service/lib/*
-    chmod 550 mindie-service/lib/grpc
-    chmod 440 mindie-service/lib/grpc/*
-    chmod -R 550 mindie-service/include
-    chmod -R 550 mindie-service/scripts
-    chmod 750 mindie-service/logs
-    chmod 750 mindie-service/conf
-    chmod 640 mindie-service/conf/config.json
-    chmod 700 mindie-service/security
-    chmod -R 700 mindie-service/security/*
+    chmod 640 mindie_llm/conf/config.json
     ```
 
     > [!NOTE]说明
@@ -76,144 +55,39 @@
 
    a. 进入conf目录，打开“config.json”文件。
 
-         ```bash
-         cd mindie_llm/conf
-         vim config.json
-         ```
+    ```bash
+    cd mindie_llm/conf
+    vim config.json
+    ```
 
    b. 按“i”进入编辑模式，根据用户需要修改配置参数，参数详情请参见[配置参数说明（服务化）](service_parameter_configuration.md)”章节。
-
-     配置文件config.json格式如下：
-
-            ```json
-            {
-            "Version": "2.2.RC1",
-            "ServerConfig" :
-            {
-                "ipAddress" : "127.0.0.1",
-                "managementIpAddress": "127.0.0.2",
-                "port" : 1025,
-                "managementPort" : 1026,
-                "metricsPort" : 1027,
-                "allowAllZeroIpListening" : false,
-                "maxLinkNum" : 1000,
-                "httpsEnabled" : true,
-                "fullTextEnabled" : false,
-                "tlsCaPath" : "security/ca/",
-                "tlsCaFile" : ["ca.pem"],
-                "tlsCert" : "security/certs/server.pem",
-                "tlsPk" : "security/keys/server.key.pem",
-                "tlsCrlPath" : "security/certs/",
-                "tlsCrlFiles" : ["server_crl.pem"],
-                "managementTlsCaFile" : ["management_ca.pem"],
-                "managementTlsCert" : "security/certs/management/server.pem",
-                "managementTlsPk" : "security/keys/management/server.key.pem",
-                "managementTlsCrlPath" : "security/management/certs/",
-                "managementTlsCrlFiles" : ["server_crl.pem"],
-                "inferMode" : "standard",
-                "interCommTLSEnabled" : true,
-                "interCommPort" : 1121,
-                "interCommTlsCaPath" : "security/grpc/ca/",
-                "interCommTlsCaFiles" : ["ca.pem"],
-                "interCommTlsCert" : "security/grpc/certs/server.pem",
-                "interCommPk" : "security/grpc/keys/server.key.pem",
-                "interCommTlsCrlPath" : "security/grpc/certs/",
-                "interCommTlsCrlFiles" : ["server_crl.pem"],
-                "openAiSupport" : "vllm",
-                "tokenTimeout" : 600,
-                "e2eTimeout" : 600,
-                "distDPServerEnabled": false
-            },
-
-            "BackendConfig": {
-                "backendName" : "mindieservice_llm_engine",
-                "modelInstanceNumber" : 1,
-                "npuDeviceIds" : [[0,1,2,3]],
-                "tokenizerProcessNumber" : 8,
-                "multiNodesInferEnabled": false,
-                "multiNodesInferPort": 1120,
-                "interNodeTLSEnabled": true,
-                "interNodeTlsCaPath": "security/grpc/ca/",
-                "interNodeTlsCaFiles": ["ca.pem"],
-                "interNodeTlsCert": "security/grpc/certs/server.pem",
-                "interNodeTlsPk": "security/grpc/keys/server.key.pem",
-                "interNodeTlsCrlPath" : "security/grpc/certs/",
-                "interNodeTlsCrlFiles" : ["server_crl.pem"],
-                "ModelDeployConfig":
-                {
-                    "maxSeqLen" : 2560,
-                    "maxInputTokenLen" : 2048,
-                    "truncation" : 0,
-                    "ModelConfig" : [
-                        {
-                            "modelInstanceType": "Standard",
-                            "modelName" : "llama_65b",
-                            "modelWeightPath" : "/data/atb_testdata/weights/llama1-65b-safetensors",
-                            "worldSize" : 4,
-                            "cpuMemSize" : 5,
-                            "npuMemSize" : -1,
-                            "backendType": "atb",
-                            "trustRemoteCode": false,
-                            "async_scheduler_wait_time": 120,
-                            "kv_trans_timeout" : 10,
-                            "kv_link_timeout" : 1080
-                        }
-                    ]
-                },
-
-                "ScheduleConfig":
-                {
-                    "templateType": "Standard",
-                    "templateName" : "Standard_LLM",
-                    "cacheBlockSize" : 128,
-                    "maxPrefillBatchSize" : 50,
-                    "maxPrefillTokens" : 8192,
-                    "prefillTimeMsPerReq" : 150,
-                    "prefillPolicyType" : 0,
-                    "decodeTimeMsPerReq" : 50,
-                    "decodePolicyType" : 0,
-                    "maxBatchSize" : 200,
-                    "maxIterTimes" : 512,
-                    "maxPreemptCount" : 0,
-                    "supportSelectBatch" : false,
-                    "maxQueueDelayMicroseconds" : 5000,
-                    "maxFirstTokenWaitTime": 2500
-                }
-            },
-            "LogConfig": {
-                "dynamicLogLevel" : "",
-                "dynamicLogLevelValidHours" : 2,
-                "dynamicLogLevelValidTime" : ""
-            }
-            }
-            ```
 
    c. 按“Esc”键，输入`:wq!`，按“Enter”保存并退出编辑。
 
 4. （可选）若开启了HTTPS认证（即“httpsEnabled” : true时，默认开启）。
 
-   a. 则使用Service的证书导入脚本导入证书，各证书信息如[表1](#table1)所示。
+   a. 使用Service的证书导入脚本导入证书，各证书信息如[表1](#table1)所示。
 
     > [!NOTE]说明
     > - HTTPS使用三面隔离时，HTTPS的业务面和管理面不建议使用同一套安全证书，使用同一套安全证书会存在较高的网络安全风险。
     > - HTTPS和GRPC不建议使用同一套安全证书，使用同一套安全证书会存在较高的网络安全风险。
     > - 导入证书时，对于用户导入CA证书的脚本权限要求为600，服务证书的脚本权限要求为600，私钥证书的脚本权限要求为400，吊销列表证书的脚本权限要求为600。
     > - Service的证书导入脚本请参见《MindIE Motor开发指南》中的“配套工具 > MindIE Service Tools > <a href="https://www.hiascend.com/document/detail/zh/mindie/22RC1/mindieservice/servicedev/mindie_service0312.html">CertTools</a>”章节。
-    > - 如果导入证书超时，请参考<a href="https://www.hiascend.com/document/detail/zh/mindie/22RC1/envdeployment/instg/mindie_instg_0088.html">启动haveged服务</a>处理。
+    > - 如果导入证书超时，请参考[启动haveged服务](../install/faq_and_appendixes/starting_the_haveged_service.md)处理。
 
       表1 证书文件清单  <a id="table1"></a>
 
       | 证书文件               | 默认目标路径                                             | 说明                                              |
-      | ---------------------- | -------------------------------------------------------- | ------------------------------------------------- |
-      | 根证书                 | *{MindIE安装目录}*/latest/mindie-service/security/ca/    | 支持多个CA证书。<br/><br/>开启HTTPS后必选。       |
-      | 服务证书               | *{MindIE安装目录}*/latest/mindie-service/security/certs/ | 开启HTTPS后必选。                                 |
-      | 服务证书私钥           | *{MindIE安装目录}*/latest/mindie-service/security/keys/  | 支持私钥文件加密场景。<br/><br/>开启HTTPS后必选。 |
-      | 服务证书吊销列表       | {MindIE安装目录}/latest/mindie-service/security/certs/   | 开启HTTPS后可选。                                 |
-      | 服务证书私钥的加密口令 | *{MindIE安装目录}*/latest/mindie-service/security/pass/  | 可选。                                            |
+      | ---------------------- | -------------------------------------------------------| ------------------------------------------------- |
+      | 根证书                 | {MindIE安装目录}/latest/mindie-service/security/ca/    | 支持多个CA证书。<br/><br/>开启HTTPS后必选。       |
+      | 服务证书               | {MindIE安装目录}/latest/mindie-service/security/certs/ | 开启HTTPS后必选。                                 |
+      | 服务证书私钥            | {MindIE安装目录}/latest/mindie-service/security/keys/  | 支持私钥文件加密场景。<br/><br/>开启HTTPS后必选。 |
+      | 服务证书吊销列表        | {MindIE安装目录}/latest/mindie-service/security/certs/  | 开启HTTPS后可选。                                 |
+      | 服务证书私钥的加密口令  | {MindIE安装目录}/latest/mindie-service/security/pass/   | 可选。                                            |
 
    b. 在{MindIE安装目录}下执行以下命令修改证书文件的用户权限。
 
-      ```linux
+      ```bash
         chmod 400 mindie-service/security/ca/*
         chmod 400 mindie-service/security/certs/*
         chmod 400 mindie-service/security/keys/*
@@ -225,19 +99,21 @@
     ```shell
     source /usr/local/Ascend/ascend-toolkit/set_env.sh                                 # CANN
     source /usr/local/Ascend/nnal/atb/set_env.sh                                       # ATB
-    source /usr/local/Ascend/atb-models/set_env.sh                                # ATB Models
+    source /usr/local/lib/python3.11/site-packages/mindie_llm/set_env.sh               # ATB Models
     ```
 
-6. 将模型权重文件（由用户自行准备）拷贝到3.b中模型配置参数“modelWeightPath”指定的目录下。
+6. 将模型权重文件（由用户自行准备）拷贝到config.json中模型配置参数“modelWeightPath”指定的目录下。
 
     ``` shell
-    cp -r {模型权重文件所在路径} /data/atb_testdata/weights/llama1-65b-safetensors
+    cp -r {模型权重文件所在路径} {modelWeightPath}
     ```
 
-7. 加载环境变量。
+7. 配置ATB Models的运行环境变量。
 
     ```shell
-    source mindie_llm/set_env.sh
+    ATB_LLM_PATH=$(python3 -c "import atb_llm, os; print(os.path.dirname(atb_llm.__file__))")
+    export ATB_SPEED_HOME_PATH=${ATB_LLM_PATH}
+    export LD_LIBRARY_PATH=${ATB_LLM_PATH}/lib:${LD_LIBRARY_PATH}
     ```
 
 8. 启动服务。
@@ -261,7 +137,6 @@
  >
  > - Ascend-cann-toolkit工具会在执行服务启动的目录下生成kernel_meta_temp_xxxx目录，该目录为算子的cce文件保存目录。因此需要在当前用户拥有写权限目录下（例如Ascend-mindie-server_{version}_linux-{arch}_{abi}目录，或者用户在Ascend-mindie-server_{version}_linux-{arch}目录下自行创建临时目录）启动推理服务。
  > - 如需切换用户，请在切换用户后执行rm -f /dev/shm/*命令，删除由之前用户运行创建的共享文件。避免切换用户后，该用户没有之前用户创建的共享文件的读写权限，造成推理失败。
- > - bin目录按照安全要求，目录权限为550，没有写权限，不能直接在bin启动mindieservice_daemon。
  > - 标准输出流捕获到的文件output.log支持用户自定义文件和路径。
  > - 服务启动报缺失lib*.so依赖的错误时，处理方法请参见启动MindIE Motor服务时，出现找不到libboost_thread.so.1.82.0报错章节。
  > - 不建议在同一容器中反复拉起服务，重复拉起前请清理容器“/dev/shm/”目录下的*llm_backend_*和llm_tokenizer_shared_memory_*文件，参考命令如下：
@@ -279,10 +154,10 @@
 
 - Server对于Python的环境要求为Python3.11.x。此处以Python3.11为例，如果环境中的Python3.11不是默认版本，需要参考如下方法添加环境变量（Python路径根据实际路径进行修改）。
 
-      ```linux
-      export LD_LIBRARY_PATH=/usr/local/python3.11/lib:$LD_LIBRARY_PATH
-      export PATH=/usr/local/python3.11/bin:$PATH
-      ```
+    ```linux
+    export LD_LIBRARY_PATH=/usr/local/python3.11/lib:$LD_LIBRARY_PATH
+    export PATH=/usr/local/python3.11/bin:$PATH
+    ```
 
 - 服务器或容器环境上已经安装好NPU驱动和固件、CANN包、PyTorch、ATB Models和MindIE。
 
@@ -407,20 +282,7 @@ ranktable.json文件权限需要设置为640，详细内容请根据以下样例
 3. 确认目录文件权限是否如下所示，若存在不匹配项，则参考以下命令修改权限。
 
     ```bash
-    chmod 750 mindie-service
-    chmod -R 550 mindie-service/bin
-    chmod -R 500 mindie-service/bin/mindie_llm_backend_connector
-    chmod 550 mindie-service/lib
-    chmod 440 mindie-service/lib/*
-    chmod 550 mindie-service/lib/grpc
-    chmod 440 mindie-service/lib/grpc/*
-    chmod -R 550 mindie-service/include
-    chmod -R 550 mindie-service/scripts
-    chmod 750 mindie-service/logs
-    chmod 750 mindie-service/conf
-    chmod 640 mindie-service/conf/config.json
-    chmod 700 mindie-service/security
-    chmod -R 700 mindie-service/security/*
+    chmod 640 mindie_llm/conf/config.json
     ```
 
     > [!NOTE]说明
@@ -461,82 +323,84 @@ ranktable.json文件权限需要设置为640，详细内容请根据以下样例
 
 5. （可选）若开启了GRPC双向认证（即“interNodeTLSEnabled”=true时）。
 
-      a. 使用证书管理工具导入证书，证书管理工具的使用请参见《MindIE Motor开发指南》中的“配套工具 > MindIE Service Tools > [CertTools](https://gitcode.com/Ascend/MindIE-Motor/blob/dev/docs/zh/user_guide/service_deployment/single_machine_service_deployment.md)”章节。各证书文件信息如表2所示。
+    a. 使用证书管理工具导入证书，证书管理工具的使用请参见《MindIE Motor开发指南》中的“配套工具 > MindIE Service Tools > [CertTools](https://gitcode.com/Ascend/MindIE-Motor/blob/dev/docs/zh/user_guide/service_deployment/single_machine_service_deployment.md)”章节。各证书文件信息如[表2](#table2)所示。
 
       > [!NOTE]说明
       > - HTTPS使用三面隔离时，HTTPS的业务面和管理面不建议使用同一套安全证书，使用同一套安全证书会存在较高的网络安全风险。
       > - HTTPS和GRPC不建议使用同一套安全证书，使用同一套安全证书会存在较高的网络安全风险。
       > - 导入证书时，对于用户导入的CA文件证书工具要求的权限为600，服务证书文件证书工具要求的权限为600，私钥文件证书工具要求的权限要求为400，吊销列表证书工具要求的权限为600。
-      > - 如果导入证书超时，请参考启动haveged服务处理。
+      > - 如果导入证书超时，请参考[启动haveged服务](../install/faq_and_appendixes/starting_the_haveged_service.md)处理。
 
-        表2 证书文件信息
+    表2 证书文件信息    <a id="table2"></a>
 
-        | 证书文件               | 默认目标路径                        | 说明                                                         |
-        | ---------------------- | ----------------------------------- | ------------------------------------------------------------ |
-        | 根证书                 | mindie-service/security/grpc/ca/    | 开启“interNodeTLSEnabled” : true后必选。                     |
-        | 服务证书               | mindie-service/grpc/certs/          | 开启“interNodeTLSEnabled” : true后必选。                     |
-        | 服务证书私钥           | mindie-service/security/grpc/keys/  | 支持私钥文件加密场景。开启“interNodeTLSEnabled” : true后必选。 |
-        | 服务证书吊销列表       | mindie-service/security/grpc/certs/ | 必选。                                                       |
-        | 服务证书私钥的加密口令 | mindie-service/security/pass/       | 必选。                                                       |
+    | 证书文件               | 默认目标路径                        | 说明                                                         |
+    | ---------------------- | ----------------------------------- | ------------------------------------------------------------ |
+    | 根证书                 | mindie-service/security/grpc/ca/    | 开启“interNodeTLSEnabled” : true后必选。                     |
+    | 服务证书               | mindie-service/grpc/certs/          | 开启“interNodeTLSEnabled” : true后必选。                     |
+    | 服务证书私钥           | mindie-service/security/grpc/keys/  | 支持私钥文件加密场景。开启“interNodeTLSEnabled” : true后必选。 |
+    | 服务证书吊销列表       | mindie-service/security/grpc/certs/ | 必选。                                                       |
+    | 服务证书私钥的加密口令 | mindie-service/security/pass/       | 必选。                                                       |
 
-       b. 在{MindIE安装目录}/latest下执行以下命令修改证书文件的用户权限。
+    b. 在{MindIE安装目录}/latest下执行以下命令修改证书文件的用户权限。
 
-        ```shell
-        chmod 400 mindie-service/security/grpc/ca/*
-        chmod 400 mindie-service/security/grpc/certs/*
-        chmod 400 mindie-service/security/grpc/keys/*
-        chmod 400 mindie-service/security/grpc/pass/*
-        ```
+    ```shell
+    chmod 400 mindie-service/security/grpc/ca/*
+    chmod 400 mindie-service/security/grpc/certs/*
+    chmod 400 mindie-service/security/grpc/keys/*
+    chmod 400 mindie-service/security/grpc/pass/*
+    ```
 
-6. （可选）若开启了HTTPS认证（即“httpsEnabled” : true时，默认开启）。
+6. （可选）若开启了HTTPS认证（即“httpsEnabled”: true时，默认开启）。
 
-   a. 使用Service的证书导入脚本导入证书，各证书信息如表3所示。
+    a. 使用Service的证书导入脚本导入证书，各证书信息如[表3](#table3)所示。
 
     > [!NOTE]说明
     > - HTTPS使用三面隔离时，HTTPS的业务面和管理面不建议使用同一套安全证书，使用同一套安全证书会存在较高的网络安全风险。
     > - HTTPS和GRPC不建议使用同一套安全证书，使用同一套安全证书会存在较高的网络安全风险。
     > - 导入证书时，对于用户导入CA证书的脚本权限要求为600，服务证书的脚本权限要求为600，私钥证书的脚本权限要求为400，吊销列表证书的脚本权限要求为600。
     > - Service的证书导入脚本请参见《MindIE Motor开发指南》中的“配套工具 > MindIE Service Tools > CertTools”章节。
-    > - 如果导入证书超时，请参考启动haveged服务处理。
+    > - 如果导入证书超时，请参考[启动haveged服务](../install/faq_and_appendixes/starting_the_haveged_service.md)处理。
 
-      表3 证书文件清单
+      表3 证书文件清单  <a id="table3"></a>
 
-      | 证书文件               | 默认目标路径                                             | 说明                                    |
-      | ---------------------- | -------------------------------------------------------- | --------------------------------------- |
-      | 根证书                 | *{MindIE安装目录}*/latest/mindie-service/security/ca/    | 支持多个CA证书。开启HTTPS后必选。       |
-      | 服务证书               | *{MindIE安装目录}*/latest/mindie-service/security/certs/ | 开启HTTPS后必选。                       |
-      | 服务证书私钥           | *{MindIE安装目录}*/latest/mindie-service/security/keys/  | 支持私钥文件加密场景。开启HTTPS后必选。 |
-      | 服务证书吊销列表       | *{MindIE安装目录}*/latest/mindie-service/security/certs/ | 开启HTTPS后可选。                       |
-      | 服务证书私钥的加密口令 | *{MindIE安装目录}*/latest/mindie-service/security/pass/  | 可选。                                  |
+      | 证书文件               | 默认目标路径                                             | 说明                                              |
+      | ---------------------- | -------------------------------------------------------- | ------------------------------------------------- |
+      | 根证书                 | {MindIE安装目录}/latest/mindie-service/security/ca/    | 支持多个CA证书。<br>开启HTTPS后必选。            |
+      | 服务证书               | {MindIE安装目录}/latest/mindie-service/security/certs/ | 开启HTTPS后必选。                                 |
+      | 服务证书私钥           | {MindIE安装目录}/latest/mindie-service/security/keys/  | 支持私钥文件加密场景。<br>开启HTTPS后必选。      |
+      | 服务证书吊销列表       | {MindIE安装目录}/latest/mindie-service/security/certs/   | 开启HTTPS后可选。                                 |
+    | 服务证书私钥的加密口令 | {MindIE安装目录}/latest/mindie-service/security/pass/  | 可选。                                  |
 
-   b. 在{MindIE安装目录}/latest下执行以下命令修改证书文件的用户权限。
+    b. 在{MindIE安装目录}下执行以下命令修改证书文件的用户权限。
 
       ```bash
-       chmod 400 mindie-service/security/ca/*
-       chmod 400 mindie-service/security/certs/*
-       chmod 400 mindie-service/security/keys/*
-       chmod 400 mindie-service/security/pass/*
+        chmod 400 mindie-service/security/ca/*
+        chmod 400 mindie-service/security/certs/*
+        chmod 400 mindie-service/security/keys/*
+        chmod 400 mindie-service/security/pass/*
       ```
 
 7. 使用以下命令配置环境变量。
 
       ```bash
-      source /usr/local/Ascend/ascend-toolkit/set_env.sh                                 # CANN
+      source /usr/local/Ascend/ascend-toolkit/set_env.sh                           # CANN
       source /usr/local/Ascend/nnal/atb/set_env.sh                                 # ATB
-      source /usr/local/Ascend/atb-models/set_env.sh                                # ATB Models
+      source /usr/local/lib/python3.11/site-packages/mindie_llm/set_env.sh         # ATB Models
       ```
 
 8. 将模型权重文件（由用户自行准备）拷贝到config.json中模型配置参数“modelWeightPath”指定的目录下。
 
       ```bash
-      cp -r {模型权重文件所在路径} /data/atb_testdata/weights/llama1-65b-safetensors
+      cp -r {模型权重文件所在路径} {modelWeightPath}
       ```
 
-9. 加载环境变量。
+9. 配置ATB Models的运行环境变量。
 
-      ```bash
-      source mindie-service/set_env.sh
-      ```
+    ```shell
+    ATB_LLM_PATH=$(python3 -c "import atb_llm, os; print(os.path.dirname(atb_llm.__file__))")
+    export ATB_SPEED_HOME_PATH=${ATB_LLM_PATH}
+    export LD_LIBRARY_PATH=${ATB_LLM_PATH}/lib:${LD_LIBRARY_PATH}
+    ```
 
 10. 配置环境变量“RANK_TABLE_FILE”和“MIES_CONTAINER_IP”（以[ranktable文件样例](https://gitcode.com/Ascend/MindIE-Motor/blob/dev/docs/zh/user_guide/service_deployment/pd_separation_service_deployment.md)中的ranktable为例，具体参见表4）。
 
@@ -556,7 +420,7 @@ ranktable.json文件权限需要设置为640，详细内容请根据以下样例
          export HCCL_DETERMINISTIC=true
          ```
 
-11. 启动服务，启动命令需在/*{MindIE安装目录}*/mindie_llm目录中执行。此操作在Master节点容器和Slave节点容器中均需执行。
+11. 启动服务。此操作在Master节点容器和Slave节点容器中均需执行。
 
     - 直接启动。
 
@@ -574,7 +438,6 @@ ranktable.json文件权限需要设置为640，详细内容请根据以下样例
 >
 > - Ascend-cann-toolkit工具会在执行服务启动的目录下生成kernel_meta_temp_xxxx目录，该目录为算子的cce文件保存目录。因此需要在当前用户拥有写权限目录下（例如Ascend-mindie-server_{version}_linux-{arch}_{abi}目录，或者用户在Ascend-mindie-server_{version}_linux-{arch}目录下自行创建临时目录）启动推理服务。
 > - 如需切换用户，请在切换用户后执行rm -f /dev/shm/*命令，删除由之前用户运行创建的共享文件。避免切换用户后，该用户没有之前用户创建的共享文件的读写权限，造成推理失败。
-> - bin目录按照安全要求，目录权限为550，没有写权限，不能直接在bin启动mindieservice_daemon。
 > - 标准输出流捕获到的文件output.log支持用户自定义文件和路径。
 > - 服务启动报缺失lib*.so依赖的错误时，处理方法请参见启动MindIE Motor服务时，出现找不到libboost_thread.so.1.82.0报错章节。
 > - 不建议在同一容器中反复拉起服务，重复拉起前请清理容器“/dev/shm/”目录下的*llm_backend_*和llm_tokenizer_shared_memory_*文件，参考命令如下：

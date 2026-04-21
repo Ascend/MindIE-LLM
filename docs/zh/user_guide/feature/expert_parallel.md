@@ -23,7 +23,7 @@ MoE类模型支持Expert Parallel（EP，专家并行），通过将专家分别
 |--|--|--|--|
 |deepseekv2|
 |ep_level|int|[1,2]|专家并行的实现形式。<br>1：表示基于AllGather通信的EP并行<br>2：表示基于AllToAll和通算融合的EP<br>并行双机部署场景下且"ep_level"设置为“2”时，两台服务器必须通过交换机连接，否则拉起服务会失败。|
-|enable_init_routing_cutoff|bool|truefalse|是否允许topk截断。<br>默认值：false（关闭）<br>“ep_level”=“1”时，可配置该参数。|
+|enable_init_routing_cutoff|bool|<ul><li>true</li><li>false</li></ul>|是否允许topk截断。<br>默认值：false（关闭）<br>“ep_level”=“1”时，可配置该参数。|
 |topk_scaling_factor|float|(0,1]|topk截断参数。<br>“ep_level”=“1”时，每台设备的hidden_states后段部分为无效数据，可设置截断参数减小显存开销。<br>需同时配置“enable_init_routing_cutoff”=“true”。|
 |alltoall_ep_buffer_scale_factors|list[list[int, float]]|列表每个成员包含两个数：第一个数为非负整数，第二个数为大于0的浮点数。排列顺序按照第一个数的大小降序排列。|AllToAll通信buffer大小，第二层list包含两个元素，第一个数为序列长度、第二个数为buffer系数。序列长度是判断buffer系数的选择条件。示例：<br>[[1048576, 1.32], [524288, 1.4], [262144, 1.53], [131072, 1.8], [32768, 3.0], [8192, 5.2], [0, 8.0]]<br>“ep_level”=“2”时，且用户需要精细化地管理显存的时候建议配置该项。<br>“ep_level”=“1”时该参数配置不生效。|
 
@@ -56,7 +56,7 @@ MoE类模型支持Expert Parallel（EP，专家并行），通过将专家分别
          }
       }
    ]
-},
+}
 ```
 
 > [!NOTE]说明
@@ -90,7 +90,7 @@ MoE类模型支持Expert Parallel（EP，专家并行），通过将专家分别
          }
       }
    ]
-},
+}
 ```
 
 ## 执行推理<a name="section1271638122016"></a>

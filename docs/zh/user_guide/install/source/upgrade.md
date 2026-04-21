@@ -5,7 +5,7 @@
 执行如下命令，安装新whl包，完成升级。
 
 ```bash
-pip install mindie_llm-{version}-{python tag}-{platform tag}.whl
+pip install mindie_llm-{version}-{python_tag}-{platform_tag}.whl
 
 ```
 

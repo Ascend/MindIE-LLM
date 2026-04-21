@@ -6,7 +6,7 @@ Operation Test是基于python组图架构的算子测试
 
 ## 代码框架
 
-operation_test 继承了python中unittest，并提供了基于python组图的测试接口(run_compare),后续新增的op测试可以调用此接口测试。
+operation_test 继承了python中unittest，并提供了基于python组图的测试接口(run_compare)，后续新增的op测试可以调用此接口测试。
 
 其他文件夹下包含了一些算子的测试用例
 

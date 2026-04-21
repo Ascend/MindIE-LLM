@@ -38,7 +38,7 @@ MindIE镜像获取请参见[镜像安装方式](../user_guide/install/source/ima
     ```
 
 4. 设置环境变量。
-    获取 Python site-packages 路径（建议不要强行编码 torch 路径），并配置动态库搜索路径：
+    获取 Python site-packages 路径（建议不要硬编码 torch 路径），并配置动态库搜索路径：
 
     ```bash
     TORCH_PATH=$(python3 -c "import torch, os; print(os.path.dirname(torch.__file__))")

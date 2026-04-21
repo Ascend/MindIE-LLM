@@ -23,10 +23,10 @@ MindIE、CANN与Ascend Extension for Pytorch版本必须配套使用。其配套
 
 |软件类型|软件包名称|软件说明|获取链接|
 |--|--|--|--|
-|MindIE LLM|mindie_llm-<*version>*-cp*xxx*-cp*xxx*-linux_<*arch>*.whl|MindIE LLM组件安装包。|[获取链接](https://www.hiascend.com/developer/download/community/result?module=ie%2Bpt%2Bcann)|
-|ATB-Model|atb_llm-<*version>*-cp*xxx*-cp*xxx*-linux_<*arch>*.whl|模型库安装包。使用MindIE LLM组件时，需要安装。|[获取链接](https://www.hiascend.com/developer/download/community/result?module=ie%2Bpt%2Bcann)|
-|MindIE Motor|mindie_motor-<*version>*-cp*xxx*-cp*xxx*-linux_<*arch>*.whl|MindIE Motor组件安装包。|[获取链接](https://www.hiascend.com/developer/download/community/result?module=ie%2Bpt%2Bcann)|
-|MindIE SD|mindiesd-<*version>*-cp*xxx*-cp*xxx*-linux_<*arch>*.whl|MindIE SD组件安装包。|[获取链接](https://www.hiascend.com/developer/download/community/result?module=ie%2Bpt%2Bcann)|
+|MindIE LLM|mindie_llm-<*version>*-cp<*xxx>*-cp<*xxx>*-linux_<*arch>*.whl|MindIE LLM组件安装包。|[获取链接](https://www.hiascend.com/developer/download/community/result?module=ie%2Bpt%2Bcann)|
+|ATB-Model|atb_llm-<*version>*-cp<*xxx>*-cp<*xxx>*-linux_<*arch>*.whl|模型库安装包。使用MindIE LLM组件时，需要安装。|[获取链接](https://www.hiascend.com/developer/download/community/result?module=ie%2Bpt%2Bcann)|
+|MindIE Motor|mindie_motor-<*version>*-cp<*xxx>*-cp<*xxx>*-linux_<*arch>*.whl|MindIE Motor组件安装包。|[获取链接](https://www.hiascend.com/developer/download/community/result?module=ie%2Bpt%2Bcann)|
+|MindIE SD|mindiesd-<*version>*-cp<*xxx>*-cp<*xxx>*-linux_<*arch>*.whl|MindIE SD组件安装包。|[获取链接](https://www.hiascend.com/developer/download/community/result?module=ie%2Bpt%2Bcann)|
 |CANN|Ascend-cann-toolkit_<*version>*_linux-<*arch>*.run|CANN开发套件包（Toolkit）。|[获取链接](https://www.hiascend.com/developer/download/community/result?module=ie%2Bpt%2Bcann)|
 |CANN|Ascend-cann-<*chip_type>*-ops_<*version>*_linux-<*arch>*.run|CANN二进制算子包（ops）。<br> 安装ops前，需已安装同一版本的Toolkit软件包，请选择运行设备对应的ops软件包。|[获取链接](https://www.hiascend.com/developer/download/community/result?module=ie%2Bpt%2Bcann)|
 |CANN|Ascend-cann-nnal_<*version>*_linux-<*arch>*.run|CANN神经网络加速库（NNAL）。|[获取链接](https://www.hiascend.com/developer/download/community/result?module=ie%2Bpt%2Bcann)|

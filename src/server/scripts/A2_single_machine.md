@@ -83,7 +83,7 @@ models=[
 ]
 ```
 
-## 4. 配置精度测试mindie_service/conf/config.json文件
+## 4. 配置精度测试mindie_llm/conf/config.json文件
 
 只需将性能测试config.json里的"ignore_eos": true,改成"ignore_eos": false,
 

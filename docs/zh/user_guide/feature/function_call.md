@@ -100,7 +100,7 @@
     ```
 
     > [!NOTE]说明
-    >- DeepSeek-V3.1模型：“tool\_call\_parser”必须配置为“deepseek\_v31”，否则将默认使用deepseek\_v3的工具解析模块，与Deepeek-V3.1模型格式不匹配，无法正确解析。
+    >- DeepSeek-V3.1模型：“tool\_call\_parser”必须配置为“deepseek\_v31”，否则将默认使用deepseek\_v3的工具解析模块，与DeepSeek-V3.1模型格式不匹配，无法正确解析。
     >- 其余模型：步骤1和2非必要，会自动匹配对应模型的工具解析方式。若配置，需要将“deepseekv2”字段修改为对应模型的“model\_type”。
     >- chat\_template：传入后会覆盖模型tokenizer\_config.json中默认的chat\_template。对于DeepSeek V3.1，DeepSeek R1 0528与DeepSeek V3 0324模型，权重tokenizer\_config.json中默认的chat\_template不支持Function Call，需要传入支持Function Call的chat\_template。
     >- chat\_template的格式（空格与换行符等）可能会影响数据集与Funciton Call评分。

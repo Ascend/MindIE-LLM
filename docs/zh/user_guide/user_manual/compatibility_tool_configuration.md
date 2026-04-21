@@ -4,7 +4,7 @@
 
 将老版本配置更新为指定的新版本配置。支持往前三个版本的配置兼容。
 
-> [!NOTE]说明 
+> [!NOTE]说明
 >
 >- 不支持回退到低版本，不支持同版本更新配置，即target\_version必须大于源config.json的版本号。
 >- 1.0.RC1中的“pipelineNumber“字段在后续版本中已删除，新增“modelInstanceNumber“字段代表模型实例个数，需要按照配置关系正确填写。
@@ -39,7 +39,7 @@
 
     以2.0.RC1版本配置更新为2.1.RC1版本配置为例，使用样例如下：
 
-    ```python
+    ```bash
     python upgrade_server.py --old_config_path ~/old/conf/config.json --old_version 2.0.RC1 --new_config_path ~/new/conf/config.json --new_version 2.1.RC1 --upgrade_info_path upgrade_info.json --save_path ~/new/conf/config.json
     ```
 

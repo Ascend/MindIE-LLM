@@ -3,7 +3,7 @@
 # 一、服务化部署流程
 
 1. 安装最新MindIE转测镜像：加载镜像创建对应的容器，多机每台机器都需要安装
-2. 修改服务化配置文件：`vim {MindIE安装目录}/mindie-llm/conf/config.json`，多机每台机器容器对应的该文件都需要修改
+2. 修改服务化配置文件：`vim {MindIE安装目录}/mindie_llm/conf/config.json`，多机每台机器容器对应的该文件都需要修改
 3. 拉起服务：脚本中包含所有环境变量，多机每个机器都要执行对应的脚本
 4. 发送aisbench命令：修改aisbench的精度数据集、模型对应python脚本，发送aisbench精度或性能测试指令
 5. 对比精度性能基线

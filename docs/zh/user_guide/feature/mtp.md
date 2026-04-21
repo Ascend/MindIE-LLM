@@ -36,7 +36,7 @@ MTP与以下特性可支持在部分场景叠加
 - 该特性不能和并行解码、Multi-LoRA、SplitFuse同时使用。
 - 该特性在PD混部场景叠加context_parallel和sequence_parallel时，仅支持num_speculative_tokens配置为1
 - 该特性在大EP场景叠加context_parallel和sequence_parallel时，仅P节点支持开启context_parallel和sequence_parallel。
-- 该特性暂不支持n、best\_of、use\_beam\_search、logprobs等与多序列推理相关的后处理参数。
+- 该特性暂不支持n、best_of、use_beam_search、logprobs等与多序列推理相关的后处理参数。
 - MTP惩罚类后处理仅支持重复惩罚。
 
 ## 执行推理
@@ -48,7 +48,7 @@ MTP与以下特性可支持在部分场景叠加
     vi conf/config.json
     ```
 
-2. 配置服务化参数。在Server的config.json文件添加"plugin\_params"字段，参数字段解释请参见[表1](#table1)，服务化参数说明请参见[配置参数说明（服务化）](../user_manual/service_parameter_configuration.md)章节，参数配置示例如下。
+2. 配置服务化参数。在Server的config.json文件添加"plugin_params"字段，参数字段解释请参见[表1](#table1)，服务化参数说明请参见[配置参数说明（服务化）](../user_manual/service_parameter_configuration.md)章节，参数配置示例如下。
 
     ```json
     "ModelDeployConfig" :

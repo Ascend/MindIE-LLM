@@ -43,7 +43,7 @@
 }
 ```
 
-量化后的MatMul权重新增input\_scale、input\_offset、quant\_bias和deq\_scale。其中input\_scale和input\_offset用于对激活值进行量化。MatMul使用量化后的激活值和量化权重进行计算。quant\_bias和deq\_scale用于对MatMul的计算结果进行反量化。
+量化后的MatMul权重，新增input\_scale、input\_offset、quant\_bias和deq\_scale。其中input\_scale和input\_offset用于对激活值进行量化。MatMul使用量化后的激活值和量化权重进行计算。quant\_bias和deq\_scale用于对MatMul的计算结果进行反量化。
 
 压缩后权重目录结构：
 
@@ -66,7 +66,7 @@
 └─ tokenizer.model
 ```
 
-压缩前会先加载权重，并进行多卡切分，压缩算法须在切分后的权重上执行。
+压缩前会先加载权重，并进行多卡切分，压缩算法需在切分后的权重上执行。
 
 以下展示了量化后权重描述文件part0-of-4/quant\_model\_description.json中的部分内容：
 

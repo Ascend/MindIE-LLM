@@ -15,7 +15,7 @@
 
 - 支持PD混部和PD分离场景。
 - 该特性不能和Look Ahead、Memory Decoding同时使用。
-- 该特性暂不支持n、best\_of、use\_beam\_search等与多序列推理相关的后处理参数。
+- 该特性暂不支持n、best_of、use_beam_search等与多序列推理相关的后处理参数。
 
 ## 执行推理
 

@@ -2,7 +2,7 @@
 
 TP（Tensor Parallel，张量并行）是一种模型并行的策略，它通过将张量（如权重矩阵、激活值等）在多个设备（如NPU）之间进行切分 ，从而实现模型的分布式推理。
 
-## 限制与约束<a name="section94261452203419"></a>
+## 限制与约束
 
 - Atlas 800I A2 推理服务器和Atlas 800I A3 超节点服务器支持此特性。
 - DeepSeek-V3和DeepSeek-R1模型支持“Lmhead矩阵local tp切分”、“O project矩阵local tp切分”、“tp大于1”。
@@ -18,8 +18,8 @@ TP（Tensor Parallel，张量并行）是一种模型并行的策略，它通过
 
 |配置项|取值类型|取值范围|配置说明|
 |--|--|--|--|
-|deepseekv2 |
-|parallel_options|
+|**deepseekv2**|-|-|-|
+|**parallel_options**|-|-|-|
 |lm_head_local_tp|int|[1，worldSize / 节点数]|表示LmHead张量并行切分数。<br><ul><li>仅DeepSeek-R1、DeepSeek-V3和DeepSeek-V3.1模型支持此特性。</li><li>默认值：-1。表示不开启切分</li></ul>|
 
 开启“O project矩阵local tp切分”，需要配置的参数如[表2](#table2)所示。
@@ -29,8 +29,8 @@ TP（Tensor Parallel，张量并行）是一种模型并行的策略，它通过
 
 |配置项|取值类型|取值范围|配置说明|
 |--|--|--|--|
-|deepseekv2|
-|parallel_options|
+|**deepseekv2**|-|-|-|
+|**parallel_options**|-|-|-|
 |o_proj_local_tp|int|[1，worldSize / 节点数]|表示Attention O矩阵切分数。<br><ul><li>仅DeepSeek-R1、DeepSeek-V3和DeepSeek-V3.1模型支持此特性。</li><li>默认值：-1，表示不开启切分</li></ul>|
 
 ## 执行推理

@@ -86,15 +86,15 @@
      > [!NOTE]说明
      > - “mindie:2.2.RC1-800I-A2-py311-openeuler24.03-lts”为镜像名称，可根据实际情况修改。
      > - 对于--device参数，挂载权限设置为rwm，而非权限较小的rw或r，原因如下：
-     > - 对于Atlas 800I A2 推理服务器，若设置挂载权限为rw，可以正常进入容器，同时也可以使用npu-smi命令查看npu占用信息，并正常运行MindIE业务；但如果挂载的npu（即对应挂载选项中的davinci_xxx_，如npu0对应davinci0）上有其它任务占用，则使用npu-smi命令会打印报错，且无法运行MindIE任务（此时torch.npu.set\_device\(\)会失败）。
-     > - 对于Atlas 800I A3 超节点服务器，若设置挂载权限为rw，进入容器后，使用npu-smi命令会打印报错，且无法运行MindIE任务（此时torch.npu.set\_device\(\)会失败）。
+     > - 对于Atlas 800I A2 推理服务器，若设置挂载权限为rw，可以正常进入容器，同时也可以使用npu-smi命令查看npu占用信息，并正常运行MindIE业务；但如果挂载的npu（即对应挂载选项中的davinci_xxx_，如npu0对应davinci0）上有其它任务占用，则使用npu-smi命令会打印报错，且无法运行MindIE任务（此时torch.npu.set_device()会失败）。
+     > - 对于Atlas 800I A3 超节点服务器，若设置挂载权限为rw，进入容器后，使用npu-smi命令会打印报错，且无法运行MindIE任务（此时torch.npu.set_device()会失败）。
 
     **表 1**  参数说明
 
     |参数|参数说明|
     |--|--|
     |--name|表示给容器指定一个名称。<*container-name*>是容器的标识符，可以自行设置，且在当前系统中具有唯一性。如果不设置，Docker会自动分配一个随机名称。|
-    |--device|表示映射的设备，可以挂载一个或者多个设备。需要挂载的设备如下：/dev/davinci*X*：NPU设备，X是ID号，如：davinci0。/dev/davinci_manager：davinci相关的管理设备。/dev/hisi_hdc：hdc相关管理设备。/dev/devmm_svm：内存管理相关设备。可根据`ll /dev/ \| grep davinci`命令查询device个数及名称方式，根据需要绑定设备，修改上面命令中的"--device=****"。|
+    |--device|表示映射的设备，可以挂载一个或者多个设备。<br>需要挂载的设备如下：<ul><li>/dev/davinci*X*：NPU设备，X是ID号，如：davinci0。</li><li>/dev/davinci_manager：davinci相关的管理设备。</li><li>/dev/hisi_hdc：hdc相关管理设备。</li><li>/dev/devmm_svm：内存管理相关设备。</li></ul>可根据`ll /dev/ \| grep davinci`命令查询device个数及名称，根据需要绑定设备，修改上面命令中的"--device=****"。|
     |-v /usr/local/Ascend/driver:/usr/local/Ascend/driver:ro|将宿主机目录“/usr/local/Ascend/driver”挂载到容器，请根据驱动所在实际路径修改。|
     |-v /usr/local/sbin:/usr/local/sbin:ro|将宿主机工具“/usr/local/sbin/”以只读模式挂载到容器中，请根据实际情况修改。|
     |-v /home/weight:/home/weight:ro|设定权重挂载的路径，需要根据用户的情况修改。请将权重文件和数据集文件同时放置于该路径下。|
@@ -256,7 +256,7 @@
 
 2. 准备数据集。
 
-    以gsm8k为例，单击[gsm8k数据集](https://opencompass.oss-cn-shanghai.aliyuncs.com/datasets/data/gsm8k.zip)下载数据集，将解压后的gsm8k文件夹部署到工具根路径的ais\_bench/datasets文件夹下。
+    以gsm8k为例，单击[gsm8k数据集](https://opencompass.oss-cn-shanghai.aliyuncs.com/datasets/data/gsm8k.zip)下载数据集，将解压后的gsm8k文件夹部署到工具根路径的ais_bench/datasets文件夹下。
 
 3. 配置ais\_bench/benchmark/configs/models/vllm\_api/vllm\_api\_stream\_chat.py文件，示例如下所示。
 
@@ -326,7 +326,7 @@
 
 2. 准备数据集。
 
-    以gsm8k为例，单击[gsm8k数据集](https://opencompass.oss-cn-shanghai.aliyuncs.com/datasets/data/gsm8k.zip)下载数据集，将解压后的gsm8k/文件夹部署到工具根路径的ais\_bench/datasets文件夹下。
+    以gsm8k为例，单击[gsm8k数据集](https://opencompass.oss-cn-shanghai.aliyuncs.com/datasets/data/gsm8k.zip)下载数据集，将解压后的gsm8k/文件夹部署到工具根路径的ais_bench/datasets文件夹下。
 
 3. 配置ais\_bench/benchmark/configs/models/vllm\_api/vllm\_api\_stream\_chat.py文件，示例如下所示。
 
@@ -409,7 +409,7 @@
         > 08/28 15:13:26 - AISBench - INFO - Current exp folder: outputs/default/20250828_151326
         >```
     >
-    > 命令执行结束后，outputs/default/20250828\_151326中的任务执行的详情如下所示：
+    > 命令执行结束后，outputs/default/20250828_151326中的任务执行的详情如下所示：
         >
         >```text
         > 20250828_151326           # 每次实验基于时间戳生成的唯一目录

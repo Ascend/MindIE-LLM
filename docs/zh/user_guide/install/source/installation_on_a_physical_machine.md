@@ -12,7 +12,7 @@
 2. 执行如下命令，安装whl包。
 
    ```bash
-   pip install mindie_llm-{version}-{python tag}-{platform tag}.whl --no-deps
+   pip install mindie_llm-{version}-{python_tag}-{platform_tag}.whl --no-deps
    ```
 
    > [!NOTE]说明

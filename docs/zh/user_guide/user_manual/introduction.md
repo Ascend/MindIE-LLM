@@ -14,7 +14,7 @@ MindIE LLM 主要对外提供 **C++ 与 Python API**（Application Programming I
 
     - Engine：负责将scheduler，executor，worker等协同串联起来，利用组件间的协同，实现多场景下请求的推理处理能力。
     - Scheduler: 在1个DP域内，将多条请求在Prefill或者Decode阶段组成batch，实现计算和通信的充分利用。
-    - Block manager：管理在DP内的kv资源，支持池化后，支持对offload的kv位置感知。
+    - Block Manager：管理在DP内的kv资源，支持池化后，支持对offload的kv位置感知。
     - Executor：将调度完成的信息分发给Text Generator模块。支持跨机、跨卡的任务下发。
 
 - **Server**：推理服务层，对外提供模型推理的服务化能力与统一接入能力。Endpoint 面向推理服务开发者提供 RESTful 接口，同时，Endpoint 负责推理服务化协议与接口的封装，并兼容 Triton/OpenAI/TGI/vLLM 等主流推理框架的请求接口。

@@ -9,7 +9,7 @@
   - 操作系统：选择使用的操作系统。MindIE支持的操作系统请参考[硬件配套和支持的操作系统](../installation_introduction.md#硬件配套和支持的操作系统)。
   - 安装类型：根据在线或离线的安装方式，选择对应的安装类型。
 
-- 用户在宿主机自行安装Docker（版本要求大于或等于24_.x.x_）。Docker的安装可参见[安装Docker](../source/docker_installation.md)。
+- 用户在宿主机自行安装Docker（版本要求大于或等于24.x.x）。Docker的安装可参见[安装Docker](../source/docker_installation.md)。
 - 配置源之前，请确保安装环境能够连接网络。
 
 ## 获取MindIE镜像
@@ -45,7 +45,7 @@
     >- “_mindie:2.3.0-800I-A2-py311-openeuler24.03-lts_”为镜像名称和标签，可根据实际情况修改。可在宿主机执行`docker images`命令查看当前机器上已有的镜像。
     >- 对于--device参数，挂载权限设置为rwm，而非权限较小的rw或r，原因如下：
     >- 对于Atlas 800I A2 推理服务器，若设置挂载权限为rw，可以正常进入容器，同时也可以使用npu-smi命令查看npu占用信息，并正常运行MindIE业务；但如果挂载的npu（即对应挂载选项中的davinci_xxx_，如npu0对应davinci0）上有其它任务占用，则使用npu-smi命令会打印报错，且无法运行MindIE任务（此时torch.npu.set\_device\(\)会失败）。
-    >- 对于Atlas 800I A3 超节点服务器，若设置挂载权限为rw，进入容器后，使用npu-smi命令会打印报错，且无法运行MindIE任务（此时torch.npu.set\_device\(\)会失败）。
+    >- 对于Atlas 800I A3 超节点服务器，若设置挂载权限为rw，进入容器后，使用npu-smi命令会打印报错，且无法运行MindIE任务，此时torch.npu.set_device()会失败。
 
     **表 1**  参数说明 <a id="table1"></a>
 

@@ -24,12 +24,12 @@
 
 ## 安装Pytorch和Torch NPU
 
-- 如果是操作系统是ubuntu 22.04，请安装torch_npu 2.1.0；如果操作系统是ubuntu 24.04 LTS，请安装torch_npu 2.9.0。
+- 如果操作系统是ubuntu 22.04，请安装torch_npu 2.1.0；如果操作系统是ubuntu 24.04 LTS，请安装torch_npu 2.9.0。
 - 请参见《Ascend Extension for PyTorch 软件安装指南》中的“[安装PyTorch](https://www.hiascend.com/document/detail/zh/Pytorch/730/configandinstg/instg/docs/zh/installation_guide/installation_via_binary_package.md)”章节安装PyTorch框架和torch_npu插件。
 
-MindIE中各组件依赖PyTorch框架和torch\_npu插件，依赖情况如下表所示，请用户依据实际使用需求安装。
+MindIE中各组件依赖PyTorch框架和torch_npu插件，依赖情况如下表所示，请用户依据实际使用需求安装。
 
-**表 1** MindIE各组件依赖PyTorch框架和torch\_npu插件说明表
+**表 1** MindIE各组件依赖PyTorch框架和torch_npu插件说明表
 
 |组件名称|是否需要安装PyTorch框架|是否需要安装torch_npu插件|
 |--|--|--|
@@ -45,7 +45,7 @@ MindIE中各组件依赖PyTorch框架和torch\_npu插件，依赖情况如下表
 在ATB Models whl包所在根目录，执行如下命令安装：
 
 ```bash
-pip install atb_llm-<*version>*-cp*xxx*-cp*xxx*-linux_<*arch>*.whl
+pip install atb_llm-<version>-cp<xxx>-cp<xxx>-linux_<arch>.whl
 ```
 
 ## 安装依赖
@@ -95,7 +95,7 @@ pip install atb_llm-<*version>*-cp*xxx*-cp*xxx*-linux_<*arch>*.whl
     pybind11==3.0.1
     ```
 
-3. 执行以下命令进行安装。如下命令如果使用非root用户安装，需要在安装命令后加上**--user**，安装命令需在`requirements.txt`所在目录执行。
+3. 执行以下命令进行安装。以下命令如果使用非root用户安装，需要在安装命令后加上`--user`，安装命令需在`requirements.txt`所在目录执行。
 
     ```bash
     pip3 install -r requirements.txt
