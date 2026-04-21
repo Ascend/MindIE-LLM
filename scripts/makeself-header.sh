@@ -1,4 +1,3 @@
-#!/bin/bash
 cat << EOF  > "$archname"
 #!/bin/bash
 # This script was generated using Makeself $MS_VERSION
@@ -27,6 +26,7 @@ export ARCHIVE_DIR
 name_of_file="\$0 "
 package_name=\`echo \$name_of_file | cut -d "/" -f2 | sed "s/.run//g" \`
 pwd_of_file="\$PWD"
+SHA_ARG=""
 label="$LABEL"
 script="$SCRIPT"
 scriptargs="$SCRIPTARGS"
@@ -45,7 +45,6 @@ export_conf="$EXPORT_CONF"
 decrypt_cmd="$DECRYPT_CMD"
 skip="$SKIP"
 PACKAGE_LOG_NAME=makeself
-readonly user_n=\$(whoami)
 info_record_path="\$HOME/log/mindie"
 info_record_file="operation.log"
 info_record_file_bak="operation.log.bak"
@@ -98,7 +97,7 @@ function check_path() {
       exit 1
      fi
 }
- 
+
 function log_check() {
       local log_size
       log_size=\$(find \$log_file -exec ls -l {} \; | awk '{ print \$5 }')
@@ -106,7 +105,7 @@ function log_check() {
           rotate_log
       fi
 }
- 
+
 # usage log "INFO" "this is message"
 function log() {
     if [ ! -d "\$info_record_path" ];then
@@ -237,11 +236,10 @@ Options:
   --info                            Print embedded info : title, default target directory, embedded script ...
   --list                            Print the list of files in the archive
   --check                           Checks integrity and version dependency of the archive
-  --quiet                           Quiet install mode, skip human-computer interactions
+  --quiet | -q                      Quiet install mode, skip human-computer interactions
                                     If the package requires an EULA, quiet installations are useful for scripting the installation
                                     Using this option means accepting the EULA
   --extract=<path>                  Extract directly to a target directory (absolute or relative)
-  --tar arg1 [arg2 ...]             Access the contents of the archive through the tar command
 \${helpheader}
 EOH
 }
@@ -329,7 +327,7 @@ MS_Decompress()
     else
         eval "$GUNZIP_CMD"
     fi
-    
+
     if test \$? -ne 0; then
         echo " ... Decompression failed." >&2
         log "ERROR" "Decompression failed."
@@ -486,7 +484,7 @@ fi
 
 if test x"$NEED_ROOT" = xy -a \`id -u\` -ne 0; then
 	echo "Administrative privileges required for this archive (use su or sudo)" >&2
-	exit 1	
+	exit 1
 fi
 
 if test x"\$copy" \!= xphase2; then
@@ -511,30 +509,6 @@ phase2)
     finish="\$finish ; rm -rf \`dirname \$0\`"
     ;;
 esac
-
-if test x"\$nox11" = xn; then
-    if tty -s; then                 # Do we have a terminal?
-	:
-    else
-        if test x"\$DISPLAY" != x -a x"\$xterm_loop" = x; then  # No, but do we have X?
-            if xset q > /dev/null 2>&1; then # Check for valid DISPLAY variable
-                GUESS_XTERMS="xterm gnome-terminal rxvt dtterm eterm Eterm xfce4-terminal lxterminal kvt konsole aterm terminology"
-                for a in \$GUESS_XTERMS; do
-                    if type \$a >/dev/null 2>&1; then
-                        XTERM=\$a
-                        break
-                    fi
-                done
-                chmod a+x \$0 || echo Please add execution rights on \$0
-                if test \`echo "\$0" | cut -c1\` = "/"; then # Spawn a terminal!
-                    exec \$XTERM -e "\$0 --xwin \$initargs"
-                else
-                    exec \$XTERM -e "./\$0 --xwin \$initargs"
-                fi
-            fi
-        fi
-    fi
-fi
 
 if test x"\$targetdir" = x.; then
     tmpdir="."
@@ -610,8 +584,6 @@ do
 		if test x"\$ownership" = xy; then
 			(cd "\$tmpdir"; chown -R \`id -u\` .;  chgrp -R \`id -g\` .)
 		fi
-        shopt -s nullglob && chmod 550 "\$tmpdir"/*.run "\$tmpdir"/*.gz "\$tmpdir"/*.sh && chmod 440 "\$tmpdir"/*.info "\$tmpdir"/*.txt
-        shopt -s nullglob && chmod 550 "\$tmpdir" "\$tmpdir"/scripts "\$tmpdir"/scripts/*
     else
 		echo >&2
 		echo "Unable to decompress \$0" >&2
@@ -667,10 +639,42 @@ if test x"\$script" != x; then
     fi
 fi
 
+change_permission()
+{
+    shopt -s nullglob
+
+    for file in "\$tmpdir"/*.run "\$tmpdir"/*.gz "\$tmpdir"/*.sh; do
+        if [ -e "\$file" ]; then
+            chmod 550 "\$file"
+        fi
+    done
+
+    for info_file in "\$tmpdir"/*.info "\$tmpdir"/*.txt; do
+        if [ -e "\$info_file" ]; then
+            chmod 440 "\$info_file"
+        fi
+    done
+
+    if [ -d "\$tmpdir" ]; then
+        chmod 550 "\$tmpdir"
+    fi
+
+    if [ -d "\$tmpdir"/scripts ]; then
+        chmod 550 "\$tmpdir"/scripts
+        for script_file in "\$tmpdir"/scripts/*; do
+            if [ -e "\$script_file" ]; then
+                chmod 550 "\$script_file"
+            fi
+        done
+    fi
+}
+
+change_permission
 MS_exec_cleanup
 
 if test x"\$keep" = xn; then
     cd "\$TMPROOT"
+    chmod +wx -R "\$tmpdir"
     rm -rf "\$tmpdir"
 fi
 eval \$finish; exit \$res
