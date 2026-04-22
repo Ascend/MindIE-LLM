@@ -15,7 +15,7 @@ from mindie_llm.utils.tensor import _set_tensor_backend
 
 class TestTensorBackend(unittest.TestCase):
     def use_operations(self):
-        device = "npu"
+        device = "cpu"
         tensor_backend = _set_tensor_backend()
         tensor = tensor_backend.tensor(np.array([[0]] * 16, dtype=np.int32))
         tensor = tensor_backend.to(tensor, device)
@@ -34,7 +34,7 @@ class TestTensorBackend(unittest.TestCase):
         tensor_backend.numpy(tensor)
         tensor_backend.ones((16,))
         tensor_backend.repeat(tensor, (2, 2))
-        tensor_backend.scatter(tensor, 0, tensor, tensor)
+        tensor_backend.scatter(tensor, 0, tensor.clone(), tensor.clone())
         tensor_backend.shape(tensor, 0)
         tensor_backend.softmax(
             tensor_backend.to(tensor_backend.tensor(np.array([[1]] * 16, dtype=np.float16)), device),

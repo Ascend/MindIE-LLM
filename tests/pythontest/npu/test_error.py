@@ -53,6 +53,7 @@ class TestError(unittest.TestCase):
         }
         self.test_block_size_params = {"max_block_size": 0}
         self.test_eos_token_id_params = {"eos_token_id": "abc"}
+        self.test_invalid_decoding_params = {"backend_type": "xxx"}
 
     def test_generator_backend(self):
         """The test for `TEXT_GENERATOR_GENERATOR_BACKEND_INVALID`"""

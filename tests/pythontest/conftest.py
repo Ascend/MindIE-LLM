@@ -27,6 +27,13 @@ def pytest_configure(config):
         "numba",
         "llm_datadist",
         "numba.core",
+        "mindspore",
+        "mindspore.nn",
+        "mindspore.ops",
+        "mindspore.common",
+        "mindspore.common.dtype",
+        "hccl",
+        "ascend",
     ]
 
     for mod in MOCK_MODULES:
