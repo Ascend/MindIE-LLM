@@ -1,5 +1,5 @@
 /**
- * Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
+ * Copyright (c) Huawei Technologies Co., Ltd. 2025-2026. All rights reserved.
  * MindIE is licensed under Mulan PSL v2.
  * You can use this software according to the terms and conditions of the Mulan PSL v2.
  * You may obtain a copy of Mulan PSL v2 at:
@@ -32,6 +32,7 @@
 #include "log_config.h"
 #include "log_level_dynamic_handler.h"
 #include "msServiceProfiler/Tracer.h"
+#include "pid_manage.h"
 
 using namespace mindie_llm;
 static std::mutex g_exitMtx;
@@ -230,11 +231,19 @@ void SignalChldHandler(int sig) {
             }
         } else if (WIFSIGNALED(ustatus)) {
             // Terminated by signal
-            exitFlag = true;
             int signalNum = WTERMSIG(ustatus);
-            ULOG_ERROR(
-                SUBMODLE_NAME_DAEMON, GenerateDaemonErrCode(ERROR, SUBMODLE_FEATURE_INIT, SYSTEM_INVOKING_ERROR),
-                "Process " << pid << " was terminated by signal " << signalNum << " (" << strsignal(signalNum) << ")");
+            if (PidManager::Instance().IsIgnorePid(pid)) {
+                ULOG_WARN(SUBMODLE_NAME_DAEMON,
+                          GenerateDaemonErrCode(ERROR, SUBMODLE_FEATURE_INIT, SYSTEM_INVOKING_ERROR),
+                          "Process " << pid << " was terminated by signal " << signalNum << " (" << strsignal(signalNum)
+                                     << ")");
+            } else {
+                exitFlag = true;
+                ULOG_ERROR(SUBMODLE_NAME_DAEMON,
+                           GenerateDaemonErrCode(ERROR, SUBMODLE_FEATURE_INIT, SYSTEM_INVOKING_ERROR),
+                           "Process " << pid << " was terminated by signal " << signalNum << " ("
+                                      << strsignal(signalNum) << ")");
+            }
         } else if (WIFSTOPPED(ustatus)) {
             // Stopped by signal
             exitFlag = true;
