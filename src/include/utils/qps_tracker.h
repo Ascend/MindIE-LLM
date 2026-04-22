@@ -13,6 +13,7 @@
 #ifndef QPS_TRACKER_H
 #define QPS_TRACKER_H
 #include <atomic>
+#include <cstddef>
 #include <vector>
 
 namespace mindie_llm {

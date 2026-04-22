@@ -65,7 +65,7 @@ GRPCCommunicator::GRPCCommunicator(const std::unordered_map<std::string, std::st
     masterIP_ = modelConfig.at("masterIP");
     multiNodesInferPort_ = modelConfig.at("multiNodesInferPort");
     slaveIp_ = modelConfig.at("localIP");
-
+    isDmiInfer_ = (modelConfig.count("is_dmi_infer") != 0) && (modelConfig.at("is_dmi_infer") == "1");
     // 读取证书及安全相关配置
     std::string homePath;
     GetHomePath(homePath);
@@ -104,6 +104,7 @@ void GRPCCommunicator::StopClient() {
             MINDIE_LLM_LOG_ERROR("Stream shutdown error: " + status.error_message());
         }
     }
+    StopModelInitHandlerThreads();
 
     // 2. 停止工作线程
     if (slaveWorkerThread_.joinable()) {
@@ -130,6 +131,7 @@ GRPCCommunicator::~GRPCCommunicator() {
 }
 
 bool GRPCCommunicator::Init(int initCount) {
+    grpcCommunicatorNum_ = initCount;
     // 确保仅在最后一次调用Init()时初始化，此时所有NPU节点启动信息已收集，Slave可向Master注册。
     int oldCallInitCount = callInitCount_.fetch_add(1, std::memory_order_acq_rel);
     if (oldCallInitCount == initCount - 1) {
@@ -329,6 +331,15 @@ bool GRPCCommunicator::SendRegistration() {
 }
 
 void GRPCCommunicator::StartWorkerThread() {
+    if (isDmiInfer_ && !modelInitHandlerActive_.load(std::memory_order_relaxed)) {
+        int modelInitThreadCount = grpcCommunicatorNum_;
+        modelInitHandlerActive_.store(true, std::memory_order_relaxed);
+        modelInitHandlerThreads_.reserve(modelInitThreadCount);
+        for (int i = 0; i < modelInitThreadCount; ++i) {
+            modelInitHandlerThreads_.emplace_back([this] { ModelInitHandlerLoop(); });
+            pthread_setname_np(modelInitHandlerThreads_.back().native_handle(), "GRPCModelInit");
+        }
+    }
     slaveWorkerThread_ = std::thread([this] {
         pthread_setname_np(pthread_self(), "GRPCSlave");
         MasterToSlaveMsg task;
@@ -336,7 +347,13 @@ void GRPCCommunicator::StartWorkerThread() {
             while (slaveStream_->Read(&task)) {
                 int targetDPRank = task.target_dp_rank();
                 ExecuteRequest request = task.execute_request();
-                HandleRequestFromMaster(request, targetDPRank);
+                if (request.execute_type() == REMOTE_MODEL_INIT) {
+                    // For PD disaggregation scenario, use blocking queue and threads to handle multiple model init
+                    // requests simultaneously
+                    pendingModelInitQueue_.push(std::make_shared<MasterToSlaveMsg>(std::move(task)));
+                } else {
+                    HandleRequestFromMaster(request, targetDPRank);
+                }
             }
             MINDIE_LLM_LOG_INFO("gRPC Slave Worker Thread: stream closed by server");
         } catch (const std::exception &e) {
@@ -345,6 +362,26 @@ void GRPCCommunicator::StartWorkerThread() {
             MINDIE_LLM_LOG_ERROR("gRPC Slave Worker Thread unknown exception");
         }
     });
+}
+void GRPCCommunicator::ModelInitHandlerLoop() {
+    while (modelInitHandlerActive_.load(std::memory_order_relaxed)) {
+        std::shared_ptr<MasterToSlaveMsg> task = pendingModelInitQueue_.pull();
+        int targetDPRank = task->target_dp_rank();
+        ExecuteRequest request = task->execute_request();
+        HandleRequestFromMaster(request, targetDPRank);
+    }
+    MINDIE_LLM_LOG_ERROR("Slave ModelInitHandlerLoop exit.");
+}
+
+void GRPCCommunicator::StopModelInitHandlerThreads() {
+    modelInitHandlerActive_.store(false, std::memory_order_relaxed);
+    pendingModelInitQueue_.close();
+    for (auto &thread : modelInitHandlerThreads_) {
+        if (thread.joinable()) {
+            thread.join();
+        }
+    }
+    modelInitHandlerThreads_.clear();
 }
 
 template <typename StreamType, typename MsgType>

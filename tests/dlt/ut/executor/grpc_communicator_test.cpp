@@ -9,21 +9,22 @@
  * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
  * See the Mulan PSL v2 for more details.
  */
- 
-#include <gtest/gtest.h>
-#include <mockcpp/mockcpp.hpp>
+
 #include "grpc_communicator.h"
 
-#define MOCKER_CPP(api, TT) (MOCKCPP_NS::mockAPI((#api), (reinterpret_cast<TT>(api))))
+#include <gtest/gtest.h>
 
+#include <mockcpp/mockcpp.hpp>
+
+#define MOCKER_CPP(api, TT) (MOCKCPP_NS::mockAPI((#api), (reinterpret_cast<TT>(api))))
+#define private public
 namespace mindie_llm {
 
 // Helper to build a minimal config
 std::unordered_map<std::string, std::string> MakeConfig(bool isMaster, const std::string &masterIP = "0.0.0.0",
                                                         const std::string &slaveIPs = "1.1.1.1",
                                                         const std::string &port = "4242",
-                                                        const std::string &localIP = "3.3.3.3")
-{
+                                                        const std::string &localIP = "3.3.3.3") {
     return {
         {"isMaster", isMaster ? "1" : "0"}, {"masterIP", masterIP}, {"slaveIPs", slaveIPs},
         {"multiNodesInferPort", port},      {"localIP", localIP},
@@ -31,37 +32,33 @@ std::unordered_map<std::string, std::string> MakeConfig(bool isMaster, const std
 }
 
 class GRPCCommunicatorTest : public ::testing::Test {
-protected:
+   protected:
     void SetUp() override {}
-    void TearDown() override
-    {
+    void TearDown() override {
         // Reset the global mock object to clear any registered mocks.
         MOCKCPP_NS::GlobalMockObject::reset();
     }
 };
 
-TEST_F(GRPCCommunicatorTest, GetInstance_ReturnsSameSingletonPerProcess)
-{
+TEST_F(GRPCCommunicatorTest, GetInstance_ReturnsSameSingletonPerProcess) {
     auto config = MakeConfig(true, "0.0.0.0", "1.1.1.1,2.2.2.2", "5555", "9.9.9.9");
     auto instance1 = GRPCCommunicator::GetInstance(config);
     auto instance2 = GRPCCommunicator::GetInstance(config);
     EXPECT_EQ(instance1.get(), instance2.get());
 }
 
-TEST_F(GRPCCommunicatorTest, SendRequest_InvalidRanks_FailsEarly)
-{
+TEST_F(GRPCCommunicatorTest, SendRequest_InvalidRanks_FailsEarly) {
     auto cfg = MakeConfig(true);
     GRPCCommunicator comm(cfg);
 
     ExecuteRequest req;
     req.set_execute_type(model_execute_data::MODEL_INFER);
 
-    EXPECT_FALSE(comm.SendRequest(req, -1, 0)); // invalid source
-    EXPECT_FALSE(comm.SendRequest(req, 0, -1)); // invalid target
+    EXPECT_FALSE(comm.SendRequest(req, -1, 0));  // invalid source
+    EXPECT_FALSE(comm.SendRequest(req, 0, -1));  // invalid target
 }
 
-TEST_F(GRPCCommunicatorTest, SendRequest_EmptyRegistry_BroadcastSucceeds_NoStreams)
-{
+TEST_F(GRPCCommunicatorTest, SendRequest_EmptyRegistry_BroadcastSucceeds_NoStreams) {
     auto cfg = MakeConfig(true);
     GRPCCommunicator comm(cfg);
 
@@ -72,8 +69,7 @@ TEST_F(GRPCCommunicatorTest, SendRequest_EmptyRegistry_BroadcastSucceeds_NoStrea
     EXPECT_TRUE(comm.SendRequest(req, 0, 0));
 }
 
-TEST_F(GRPCCommunicatorTest, SendRequest_BroadcastWithNullStream_FailsOnSafeWrite)
-{
+TEST_F(GRPCCommunicatorTest, SendRequest_BroadcastWithNullStream_FailsOnSafeWrite) {
     auto cfg = MakeConfig(true);
     GRPCCommunicator comm(cfg);
 
@@ -85,8 +81,7 @@ TEST_F(GRPCCommunicatorTest, SendRequest_BroadcastWithNullStream_FailsOnSafeWrit
     EXPECT_FALSE(comm.SendRequest(req, 0, 0));
 }
 
-TEST_F(GRPCCommunicatorTest, SendRequest_UnicastWithNullStream_FailsOnSafeWrite)
-{
+TEST_F(GRPCCommunicatorTest, SendRequest_UnicastWithNullStream_FailsOnSafeWrite) {
     auto cfg = MakeConfig(true);
     GRPCCommunicator comm(cfg);
 
@@ -97,9 +92,8 @@ TEST_F(GRPCCommunicatorTest, SendRequest_UnicastWithNullStream_FailsOnSafeWrite)
     EXPECT_FALSE(comm.SendRequest(req, 0, 1, "2.2.2.2"));
 }
 
-TEST_F(GRPCCommunicatorTest, SendResponse_InvalidRanks_FailsEarly)
-{
-    auto cfg = MakeConfig(false); // slave
+TEST_F(GRPCCommunicatorTest, SendResponse_InvalidRanks_FailsEarly) {
+    auto cfg = MakeConfig(false);  // slave
     GRPCCommunicator comm(cfg);
 
     ExecuteResponse resp;
@@ -108,9 +102,8 @@ TEST_F(GRPCCommunicatorTest, SendResponse_InvalidRanks_FailsEarly)
     EXPECT_FALSE(comm.SendResponse(resp, 0, -1));
 }
 
-TEST_F(GRPCCommunicatorTest, SendResponse_NullClientStream_FailsOnSafeWrite)
-{
-    auto cfg = MakeConfig(false); // slave
+TEST_F(GRPCCommunicatorTest, SendResponse_NullClientStream_FailsOnSafeWrite) {
+    auto cfg = MakeConfig(false);  // slave
     GRPCCommunicator comm(cfg);
 
     // slaveStream_ is null by default -> SafeWriteMsgToStream sees null and fails.
@@ -119,9 +112,8 @@ TEST_F(GRPCCommunicatorTest, SendResponse_NullClientStream_FailsOnSafeWrite)
     EXPECT_FALSE(comm.SendResponse(resp, 0, 0));
 }
 
-TEST_F(GRPCCommunicatorTest, RegisterRequestHandler_Null_Duplicate_Success)
-{
-    auto cfg = MakeConfig(false); // slave side uses request handlers
+TEST_F(GRPCCommunicatorTest, RegisterRequestHandler_Null_Duplicate_Success) {
+    auto cfg = MakeConfig(false);  // slave side uses request handlers
     GRPCCommunicator comm(cfg);
 
     // Null handler
@@ -136,9 +128,8 @@ TEST_F(GRPCCommunicatorTest, RegisterRequestHandler_Null_Duplicate_Success)
     EXPECT_FALSE(comm.RegisterRequestHandler(requestHandler, 1));
 }
 
-TEST_F(GRPCCommunicatorTest, RegisterResponseHandler_And_HandleResponseFromSlave)
-{
-    auto cfg = MakeConfig(true); // master side uses response handlers
+TEST_F(GRPCCommunicatorTest, RegisterResponseHandler_And_HandleResponseFromSlave) {
+    auto cfg = MakeConfig(true);  // master side uses response handlers
     GRPCCommunicator comm(cfg);
 
     ExecuteResponse resp;
@@ -158,8 +149,7 @@ TEST_F(GRPCCommunicatorTest, RegisterResponseHandler_And_HandleResponseFromSlave
     EXPECT_FALSE(comm.RegisterResponseHandler(responseHandler, 7));
 }
 
-TEST_F(GRPCCommunicatorTest, AllSlavesConnected_ReflectsRegisteredStreams)
-{
+TEST_F(GRPCCommunicatorTest, AllSlavesConnected_ReflectsRegisteredStreams) {
     // Two slaves in config
     auto cfg = MakeConfig(true, "0.0.0.0", "1.1.1.1,2.2.2.2");
     GRPCCommunicator comm(cfg);
@@ -179,19 +169,17 @@ TEST_F(GRPCCommunicatorTest, AllSlavesConnected_ReflectsRegisteredStreams)
     comm.NotifyAll();
 }
 
-TEST_F(GRPCCommunicatorTest, MasterServiceImpl_Take_NoQueue_Fails)
-{
+TEST_F(GRPCCommunicatorTest, MasterServiceImpl_Take_NoQueue_Fails) {
     auto cfg = MakeConfig(true);
     GRPCCommunicator comm(cfg);
     int respHandlerThreadCount = 0;
     MasterServiceImpl svc(&comm, respHandlerThreadCount);
 
     ExecuteResponse resp;
-    EXPECT_FALSE(svc.Take(/*targetDPRank=*/3, resp)); // no queue present
+    EXPECT_FALSE(svc.Take(/*targetDPRank=*/3, resp));  // no queue present
 }
 
-TEST_F(GRPCCommunicatorTest, MasterServiceImpl_Take_WithQueue_SucceedsAndMovesValue)
-{
+TEST_F(GRPCCommunicatorTest, MasterServiceImpl_Take_WithQueue_SucceedsAndMovesValue) {
     auto cfg = MakeConfig(true);
     GRPCCommunicator comm(cfg);
     int respHandlerThreadCount = 0;
@@ -212,26 +200,20 @@ TEST_F(GRPCCommunicatorTest, MasterServiceImpl_Take_WithQueue_SucceedsAndMovesVa
     EXPECT_EQ(outResp.msg_type(), model_execute_data::REMOTE_MODEL_INIT);
 }
 
-TEST_F(GRPCCommunicatorTest, StopClientAndServer_NoResources_NoCrash)
-{
+TEST_F(GRPCCommunicatorTest, StopClientAndServer_NoResources_NoCrash) {
     {
         auto cfgMaster = MakeConfig(true);
         GRPCCommunicator master(cfgMaster);
-        master.StopServer(); // server_ not set; masterWorkerThread_ not joinable
+        master.StopServer();  // server_ not set; masterWorkerThread_ not joinable
     }
     {
         auto cfgSlave = MakeConfig(false);
         GRPCCommunicator slave(cfgSlave);
-        slave.StopClient(); // slaveStream_ null; worker thread not joinable
+        slave.StopClient();  // slaveStream_ null; worker thread not joinable
     }
 
     // Exercise destructor paths (RAII)
-    {
-        GRPCCommunicator tmpMaster(MakeConfig(true));
-    }
-    {
-        GRPCCommunicator tmpSlave(MakeConfig(false));
-    }
+    { GRPCCommunicator tmpMaster(MakeConfig(true)); }
+    { GRPCCommunicator tmpSlave(MakeConfig(false)); }
 }
-
-} // namespace mindie_llm
+}  // namespace mindie_llm

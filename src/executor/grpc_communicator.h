@@ -116,6 +116,9 @@ class GRPCCommunicator {
 
     bool SendRegistration();
 
+    void ModelInitHandlerLoop();
+    void StopModelInitHandlerThreads();
+
     bool LoadCertificates();
 
     template <typename StreamType, typename MsgType>
@@ -169,6 +172,11 @@ class GRPCCommunicator {
         uint32_t maxAicoreUtilizationPercent{0};
         std::chrono::steady_clock::time_point reportTime{};
     };
+    boost::sync_queue<std::shared_ptr<MasterToSlaveMsg>> pendingModelInitQueue_;
+    std::vector<std::thread> modelInitHandlerThreads_;
+    std::atomic<bool> modelInitHandlerActive_{false};
+    uint32_t grpcCommunicatorNum_{0};
+    bool isDmiInfer_{false};
     mutable std::mutex slaveNpuMutex_;
     std::unordered_map<std::string, SlaveNpuSample> slaveIpToMaxNpuUtil_;
     mutable bool slaveNpuReportTimeout_{false};
