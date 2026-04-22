@@ -38,15 +38,16 @@ class InternlmXC2Runner(MultimodalPARunner):
 
     def init_processor(self):
         try:
-            self.processor = safe_from_pretrained(AutoProcessor, self.model_path,
-                                                  trust_remote_code=self.trust_remote_code)
+            self.processor = safe_from_pretrained(
+                AutoProcessor, self.model_path, trust_remote_code=self.trust_remote_code
+            )
         except AssertionError:
             self.processor = self.model.tokenizer
 
     def precision_save(self, precision_inputs, **kwargs):
         image_answer_pairs = {}
         all_generate_text_list = precision_inputs.all_generate_text_list
-        all_generate_text_list = [answer.split('[UNUSED_TOKEN_145]')[0] for answer in all_generate_text_list]
+        all_generate_text_list = [answer.split("[UNUSED_TOKEN_145]")[0] for answer in all_generate_text_list]
         image_file_list = precision_inputs.image_file_list
         file_len = len(image_file_list)
         for idx in range(file_len):
@@ -66,6 +67,7 @@ class InternlmXC2Runner(MultimodalPARunner):
     def infer(self, mm_inputs, batch_size, max_output_length, ignore_eos, **kwargs):
         input_texts = mm_inputs.input_texts
         image_path_list = mm_inputs.image_path
+        max_iters = None
         if len(input_texts) != len(image_path_list):
             raise RuntimeError("The length of input texts must be equal to the length of input images.")
         if not ENV.profiling_enable:
@@ -80,36 +82,38 @@ def parse_arguments():
     parser_internlmxc2 = parser
     string_validator = argument_utils.StringArgumentValidator(min_length=0, max_length=1000)
     list_str_validator = argument_utils.ListArgumentValidator(string_validator, max_length=1000)
-    
 
     parser_internlmxc2.add_argument(
-        '--image_or_video_path',
+        "--image_or_video_path",
         help="image_or_video path",
         default="/data/internlmxcomposer2/images/",
-        validator=path_validator)
+        validator=path_validator,
+    )
     parser_internlmxc2.add_argument(
-        '--input_texts_for_image',
+        "--input_texts_for_image",
         type=str,
-        nargs='+',
+        nargs="+",
         default=["<ImageHere>Please describe this image in detail."],
-        validator=list_str_validator)
+        validator=list_str_validator,
+    )
     parser_internlmxc2.add_argument(
-        '--lora_adapter_id',
+        "--lora_adapter_id",
         help="Lora input, accepted adapter id defined in lora_adapter param",
         type=str,
         default="internlmxc2",
-        validator=string_validator)
+        validator=string_validator,
+    )
 
     return parser_internlmxc2.parse_args()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     args = parse_arguments()
     rank = ENV.rank
     local_rank = ENV.local_rank
     world_size = ENV.world_size
     image_or_video_path = standardize_path(args.image_or_video_path)
-    check_file_safety(image_or_video_path, 'r')
+    check_file_safety(image_or_video_path, "r")
     file_name = safe_listdir(image_or_video_path)
     image_path = [os.path.join(image_or_video_path, f) for f in file_name]
     texts = args.input_texts_for_image
@@ -117,37 +121,33 @@ if __name__ == '__main__':
     if len(texts) != image_length:
         texts.extend([texts[-1]] * (image_length - len(texts)))
     input_dict = {
-        'rank': rank,
-        'world_size': world_size,
-        'local_rank': local_rank,
-        'perf_file': PERF_FILE,
-        'image_path': image_path,
-        'lora_adapter_id': args.lora_adapter_id,
-        'input_texts': texts,
-        **vars(args)
+        "rank": rank,
+        "world_size": world_size,
+        "local_rank": local_rank,
+        "perf_file": PERF_FILE,
+        "image_path": image_path,
+        "lora_adapter_id": args.lora_adapter_id,
+        "input_texts": texts,
+        **vars(args),
     }
 
     pa_runner = InternlmXC2Runner(**input_dict)
-    print_log(rank, logger.info, f'pa_runner: {pa_runner}')
-    
+    print_log(rank, logger.info, f"pa_runner: {pa_runner}")
 
     infer_params = {
-        "mm_inputs": MultimodalInput(texts,
-                                image_path,
-                                None,
-                                None),
+        "mm_inputs": MultimodalInput(texts, image_path, None, None),
         "batch_size": args.max_batch_size,
         "max_output_length": args.max_output_length,
         "ignore_eos": args.ignore_eos,
-        "skip_special_tokens": True
+        "skip_special_tokens": True,
     }
     pa_runner.warm_up()
     generate_texts, token_nums, latency = pa_runner.infer(**infer_params)
-    generate_texts = [answer.split('[UNUSED_TOKEN_145]')[0] for answer in generate_texts]
+    generate_texts = [answer.split("[UNUSED_TOKEN_145]")[0] for answer in generate_texts]
     all_token_nums = 0
     for i, generate_text in enumerate(generate_texts):
-        print_log(rank, logger.info, f'Answer[{i}]: {generate_text}')
-        print_log(rank, logger.info, f'Generate[{i}] token num: {token_nums[i]}')
+        print_log(rank, logger.info, f"Answer[{i}]: {generate_text}")
+        print_log(rank, logger.info, f"Generate[{i}] token num: {token_nums[i]}")
         print_log(rank, logger.info, f"Latency: {latency}")
         all_token_nums += token_nums[i][1]
     print_log(rank, logger.info, f"All Token Nums: {all_token_nums}")

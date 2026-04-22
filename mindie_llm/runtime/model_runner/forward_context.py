@@ -43,6 +43,24 @@ class ForwardContext:
 _forward_context: ForwardContext | None = None
 
 
+def get_forward_context():
+    """Lazy proxy to avoid import-time circular dependency."""
+    from mindie_llm.runtime.model_runner.forward_context_exp import (
+        get_forward_context as _get_forward_context,
+    )
+
+    return _get_forward_context()
+
+
+def set_forward_context(context):
+    """Lazy proxy to avoid import-time circular dependency."""
+    from mindie_llm.runtime.model_runner.forward_context_exp import (
+        set_forward_context as _set_forward_context,
+    )
+
+    _set_forward_context(context)
+
+
 def create_forward_context(input_metadata: dict, capturing: bool = False):
     attn_metadata = AttentionMetadata.from_dict(input_metadata)
     lm_head_indices = input_metadata.get("lm_head_indices", None)

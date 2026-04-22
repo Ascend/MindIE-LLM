@@ -60,32 +60,31 @@ class Internlm2ForCausalLM(CausalLM):
 
     def get_weights(self):
         attn_module_names = AttnModuleNames(
-            norm_name='input_layernorm',
-            pack_name='self_attn.query_key_value',
-            q_name='self_attn.q_proj',
-            k_name='self_attn.k_proj',
-            v_name='self_attn.v_proj',
-            o_name='self_attn.o_proj'
+            norm_name="input_layernorm",
+            pack_name="self_attn.query_key_value",
+            q_name="self_attn.q_proj",
+            k_name="self_attn.k_proj",
+            v_name="self_attn.v_proj",
+            o_name="self_attn.o_proj",
         )
         mlp_module_names = MlpModuleNames(
-            norm_name='post_attention_layernorm',
-            pack_name='mlp.gate_up_proj',
-            gate_name='mlp.gate_proj',
-            up_name='mlp.up_proj',
-            down_name='mlp.down_proj'
+            norm_name="post_attention_layernorm",
+            pack_name="mlp.gate_up_proj",
+            gate_name="mlp.gate_proj",
+            up_name="mlp.up_proj",
+            down_name="mlp.down_proj",
         )
         weight_wrapper = WeightWrapper(self.soc_info, self.tp_rank, attn_module_names, mlp_module_names)
-        weight_wrapper.register_embedding(self.model.state_dict(), 'embed_tokens')
+        weight_wrapper.register_embedding(self.model.embed_tokens)
         for i in range(self.num_layers):
             layer = self.model.layers[i]
-            layer_dict = layer.state_dict()
-            weight_wrapper.register_layer(layer_dict, layer.self_attn.pack_type, layer.mlp.pack_type, self.quantize)
+            weight_wrapper.register_layer(layer, self.quantize)
             if self.soc_info.need_nz:
                 del layer.self_attn
                 del layer.post_attention_layernorm
                 del layer.mlp
-        weight_wrapper.register_model_norm(self.model.state_dict(), 'norm')
-        weight_wrapper.register_model_lmhead(self.state_dict(), 'lm_head')
+        weight_wrapper.register_model_norm(self.model.norm)
+        weight_wrapper.register_model_lmhead(self.lm_head)
         return weight_wrapper
 
     def init_ascend_weight(self):
@@ -127,23 +126,24 @@ class Internlm2ForCausalLM(CausalLM):
         self.acl_encoder_operation.set_kv_cache(self.k_cache, self.v_cache)
         self.acl_decoder_operation.set_kv_cache(self.k_cache, self.v_cache)
 
-    def prepare_inputs_for_ascend(self,
-                                  input_ids_or_embedding: torch.Tensor,
-                                  position_ids: torch.Tensor,
-                                  cu_seqlen_prefill: Optional[bool],
-                                  max_seq_len: int,
-                                  ):
-        self.ascend_rotary_embedding.update_cos_sin_cache_total(self.dtype,
-                                                                self.device,
-                                                                max_seq_len)
+    def prepare_inputs_for_ascend(
+        self,
+        input_ids_or_embedding: torch.Tensor,
+        position_ids: torch.Tensor,
+        cu_seqlen_prefill: Optional[bool],
+        max_seq_len: int,
+    ):
+        self.ascend_rotary_embedding.update_cos_sin_cache_total(self.dtype, self.device, max_seq_len)
         self.cos_embed = self.ascend_rotary_embedding.get_cos_cached_total()
         self.sin_embed = self.ascend_rotary_embedding.get_sin_cached_total()
 
         if cu_seqlen_prefill:
-            self.acl_param = json.dumps({
-                "tokenOffset": [int(self.token_offset[0])] * self.batch_num,
-                "seqLen": [input_ids_or_embedding.shape[1]] * self.batch_num
-            })
+            self.acl_param = json.dumps(
+                {
+                    "tokenOffset": [int(self.token_offset[0])] * self.batch_num,
+                    "seqLen": [input_ids_or_embedding.shape[1]] * self.batch_num,
+                }
+            )
             self.acl_encoder_operation_inputs[0] = input_ids_or_embedding
             self.acl_encoder_operation_inputs[1] = position_ids.to(torch.int64)
             self.acl_encoder_operation_inputs[2] = self.cos_embed
@@ -156,13 +156,13 @@ class Internlm2ForCausalLM(CausalLM):
             self.acl_encoder_operation_inputs[9] = self.placeholder
             self.acl_encoder_operation_inputs[10] = self.seq_len_encoder
             self.acl_encoder_operation_inputs[11] = torch.tensor(
-                [self.seq_len_encoder[0] - 1], dtype=torch.int64, device=self.device)
+                [self.seq_len_encoder[0] - 1], dtype=torch.int64, device=self.device
+            )
             return self.acl_encoder_operation_inputs, self.acl_param
         else:
-            self.acl_param = json.dumps({
-                "tokenOffset": [int(self.token_offset[0])] * self.batch_num,
-                "seqLen": self.acl_param_seq_len_decoder
-            })
+            self.acl_param = json.dumps(
+                {"tokenOffset": [int(self.token_offset[0])] * self.batch_num, "seqLen": self.acl_param_seq_len_decoder}
+            )
             self.acl_decoder_operation_inputs[0] = input_ids_or_embedding
             self.acl_decoder_operation_inputs[1] = position_ids.to(torch.int64)
             self.acl_decoder_operation_inputs[2] = self.cos_embed

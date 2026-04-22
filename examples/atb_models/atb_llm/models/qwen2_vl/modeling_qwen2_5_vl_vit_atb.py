@@ -65,10 +65,7 @@ from transformers.modeling_utils import PretrainedConfig
 
 PADDING_HEAD_DIM = 80
 PATCH_MERGER_FACTOR = 4
-OUT_DATA_TYPE = {
-    torch.bfloat16: "ACL_BF16",
-    torch.float16: "ACL_FLOAT16"
-}
+OUT_DATA_TYPE = {torch.bfloat16: "ACL_BF16", torch.float16: "ACL_FLOAT16"}
 
 
 class PatchMerger(nn.Module):
@@ -84,17 +81,11 @@ class PatchMerger(nn.Module):
         self.tp_world_size = process_group.size()
 
         self.patch_merger_mlp_0 = TensorReplicatedLinear.load(
-            config,
-            prefix=f"{prefix}.mlp.0",
-            weights=weights,
-            bias=True
+            config, prefix=f"{prefix}.mlp.0", weights=weights, bias=True
         )
 
         self.patch_merger_mlp_2 = TensorReplicatedLinear.load(
-            config,
-            prefix=f"{prefix}.mlp.2",
-            weights=weights,
-            bias=True
+            config, prefix=f"{prefix}.mlp.2", weights=weights, bias=True
         )
         self.linear_info = MlpLinearInfo()
         self.linear_info.up_weight_only = True
@@ -102,12 +93,7 @@ class PatchMerger(nn.Module):
         self.linear_info.down_linear = self.patch_merger_mlp_2.linear
         self.linear_info.is_pack = False
 
-        self.patch_merger_ln_q = VisionRMSNorm(
-            f"{prefix}.ln_q",
-            config,
-            weights,
-            self.linear_info
-        )
+        self.patch_merger_ln_q = VisionRMSNorm(f"{prefix}.ln_q", config, weights, self.linear_info)
 
     def get_weights(self):
         weights_dict = OrderedDict()
@@ -122,13 +108,10 @@ class PatchMerger(nn.Module):
             "category": CommonOpBuilderType.LINEAR,
             "enable_quant_input": True if self.quantize == QuantType.W8A8 else False,
             "default_dtype": self.dtype,
-            "group_size": 128 if self.quantize == QuantType.W4A16 else 0
+            "group_size": 128 if self.quantize == QuantType.W4A16 else 0,
         }
         linear_param.update({"linear_module": self.linear_info.up_linear})
-        linear_tensor_map = {
-            "input": input_tensor_name,
-            "linear_out": output_tensor_name
-        }
+        linear_tensor_map = {"input": input_tensor_name, "linear_out": output_tensor_name}
         builder = CommonOpBuilderManager.get_builder(linear_param)
         graph = builder.build(graph, linear_tensor_map)
 
@@ -159,9 +142,7 @@ class PatchMerger(nn.Module):
             "linear_out": output_tensor_name,
         }
 
-        linear_parallel_builder = CommonOpBuilderManager.get_builder(
-            down_linear_param
-        )
+        linear_parallel_builder = CommonOpBuilderManager.get_builder(down_linear_param)
         graph = linear_parallel_builder.build(graph, down_linear_tensor_map)
 
     def reshape_out(self, org_shape):
@@ -256,8 +237,12 @@ class VisionAttention(nn.Module):
 
     def build_qkv_graph(self, graph):
         if self.quantize == QuantType.W8A8:
-            input_key_list = [f"{self.norm_prefix}_out", f"{self.prefix}.qkv.weight",
-                              f"{self.prefix}.qkv.quant_bias", f"{self.prefix}.qkv.deq_scale"]
+            input_key_list = [
+                f"{self.norm_prefix}_out",
+                f"{self.prefix}.qkv.weight",
+                f"{self.prefix}.qkv.quant_bias",
+                f"{self.prefix}.qkv.deq_scale",
+            ]
             out_data_type = OUT_DATA_TYPE.get(self.dtype, "ACL_DT_UNDEFINED")
         else:
             input_key_list = [f"{self.norm_prefix}_out", f"{self.prefix}.qkv.weight", f"{self.prefix}.qkv.bias"]
@@ -265,25 +250,13 @@ class VisionAttention(nn.Module):
 
         linear_op = atb.BaseOperation(
             op_type="Linear",
-            op_param=json.dumps({
-                "transposeB": True,
-                "hasBias": True,
-                "outDataType": out_data_type}),
-            op_name="layer_qkv_linear"
+            op_param=json.dumps({"transposeB": True, "hasBias": True, "outDataType": out_data_type}),
+            op_name="layer_qkv_linear",
         )
         graph.operations.append(linear_op)
-        graph.add_operation(
-            linear_op,
-            input_key_list,
-            ["qkv_linear_out"]
-        )
+        graph.add_operation(linear_op, input_key_list, ["qkv_linear_out"])
         split_op = atb.BaseOperation(
-            op_type="Split",
-            op_param=json.dumps({
-                "splitDim": -1,
-                "splitNum": 3
-            }),
-            op_name="layer_qkv_split"
+            op_type="Split", op_param=json.dumps({"splitDim": -1, "splitNum": 3}), op_name="layer_qkv_split"
         )
         graph.operations.append(split_op)
         graph.add_operation(
@@ -324,12 +297,15 @@ class VisionAttention(nn.Module):
     def build_attention_graph(self, graph):
         attention_op = atb.BaseOperation(
             op_type="SelfAttention",
-            op_param=json.dumps({
-                "headNum": self.num_heads_pre_rank,
-                "kvHeadNum": self.num_heads_pre_rank,
-                "qkScale": 1.0 / math.sqrt(self.head_dim_ori),
-                "calcType": "PA_ENCODER"}),
-            op_name="layer_selfattention"
+            op_param=json.dumps(
+                {
+                    "headNum": self.num_heads_pre_rank,
+                    "kvHeadNum": self.num_heads_pre_rank,
+                    "qkScale": 1.0 / math.sqrt(self.head_dim_ori),
+                    "calcType": "PA_ENCODER",
+                }
+            ),
+            op_name="layer_selfattention",
         )
         graph.add_reshape("q_split", "q_split_reshape", self.reshape_qkv)
         graph.add_reshape("k_split", "k_split_reshape", self.reshape_qkv)
@@ -353,16 +329,12 @@ class VisionAttention(nn.Module):
             "default_dtype": self.dtype,
             "group_size": 0,
         }
-        output_proj_linear_tensor_map = {
-            "input": "attn_out_reshape",
-            "linear_out": "output_proj_out"
-        }
+        output_proj_linear_tensor_map = {"input": "attn_out_reshape", "linear_out": "output_proj_out"}
         output_proj_linear_parallel_param = {
             "op_name": "layer_output_proj_linear_parallel",
             "category": CommonOpBuilderType.LINEAR_PARALLEL,
             "parallel_type": ParallelType.ALL_REDUCE,
-            "parallel_info": TensorParallelInfo(rank=self.tp_rank, world_size=self.tp_world_size,
-                                                backend=self.backend),
+            "parallel_info": TensorParallelInfo(rank=self.tp_rank, world_size=self.tp_world_size, backend=self.backend),
             "linear_param": output_proj_linear_param,
             "enable_lcoc": False,
         }
@@ -374,39 +346,36 @@ class VisionAttention(nn.Module):
             input_quant_op = atb.BaseOperation(
                 op_type="Elewise",
                 op_param=json.dumps({"elewiseType": "ELEWISE_QUANT_PER_CHANNEL"}),
-                op_name="attn_proj_elewise_quant"
+                op_name="attn_proj_elewise_quant",
             )
             graph.operations.append(input_quant_op)
             graph.add_operation(
                 input_quant_op,
                 ["attn_out_reshape", f"{self.prefix}.proj.input_scale", f"{self.prefix}.proj.input_offset"],
-                ["attn_out_reshape_quant_out"]
+                ["attn_out_reshape_quant_out"],
             )
-        
+
         input_key_list = ["attn_out_reshape", f"{self.prefix}.proj.weight", f"{self.prefix}.proj.bias"]
         out_data_type = "ACL_DT_UNDEFINED"
         transpose_b = True
         if self.quantize == QuantType.W8A8:
-            input_key_list = ["attn_out_reshape_quant_out", f"{self.prefix}.proj.weight",
-                              f"{self.prefix}.proj.bias", f"{self.prefix}.proj.deq_scale"]
+            input_key_list = [
+                "attn_out_reshape_quant_out",
+                f"{self.prefix}.proj.weight",
+                f"{self.prefix}.proj.bias",
+                f"{self.prefix}.proj.deq_scale",
+            ]
             out_data_type = OUT_DATA_TYPE.get(self.dtype, "ACL_DT_UNDEFINED")
             if self.tp_world_size > 1:
                 transpose_b = False
 
         linear_op = atb.BaseOperation(
             op_type="Linear",
-            op_param=json.dumps({
-                "transposeB": transpose_b,
-                "hasBias": True,
-                "outDataType": out_data_type}),
-            op_name="layer_output_proj_linear"
+            op_param=json.dumps({"transposeB": transpose_b, "hasBias": True, "outDataType": out_data_type}),
+            op_name="layer_output_proj_linear",
         )
         graph.operations.append(linear_op)
-        graph.add_operation(
-            linear_op,
-            input_key_list,
-            ['output_proj_out']
-        )
+        graph.add_operation(linear_op, input_key_list, ["output_proj_out"])
 
     def build_graph(self, graph):
         attn_res_add = atb.BaseOperation(
@@ -423,15 +392,18 @@ class VisionAttention(nn.Module):
         else:
             self.build_output_proj_graph_without_tp(graph)
         graph.operations.append(attn_res_add)
-        graph.add_operation(
-            attn_res_add, ["hidden_states", "output_proj_out"], ["hidden_states"]
-        )
+        graph.add_operation(attn_res_add, ["hidden_states", "output_proj_out"], ["hidden_states"])
 
 
 class VisionMlp(BaseMLP):
-    def __init__(self, prefix: str, config: PretrainedConfig, weights: Weights,
-                 norm_prefix: str, backend: CommunicationBackend = CommunicationBackend.LCCL):
-
+    def __init__(
+        self,
+        prefix: str,
+        config: PretrainedConfig,
+        weights: Weights,
+        norm_prefix: str,
+        backend: CommunicationBackend = CommunicationBackend.LCCL,
+    ):
         super().__init__(prefix, config, weights, norm_prefix, backend)
 
         # 模型结构
@@ -446,8 +418,8 @@ class VisionMlp(BaseMLP):
             self.linear_info.is_pack = True
             self.linear_info.pack_linear = self.gate_up_proj.linear
         else:
-            gate_linear_desc = weights.get_linear_quant_type(f'{prefix}.gate_proj.weight')
-            up_linear_desc = weights.get_linear_quant_type(f'{prefix}.up_proj.weight')
+            gate_linear_desc = weights.get_linear_quant_type(f"{prefix}.gate_proj.weight")
+            up_linear_desc = weights.get_linear_quant_type(f"{prefix}.up_proj.weight")
 
             if is_same_type([gate_linear_desc, up_linear_desc]):
                 self.gate_up_proj = load_column_multi(
@@ -455,7 +427,7 @@ class VisionMlp(BaseMLP):
                     prefixes=[f"{prefix}.gate_proj", f"{prefix}.up_proj"],
                     weights=weights,
                     head_size=1,
-                    bias=True
+                    bias=True,
                 )
                 self.linear_info.is_pack = True
                 self.linear_info.pack_linear = self.gate_up_proj.linear
@@ -493,6 +465,8 @@ class VisionMlp(BaseMLP):
             padded_tensor = torch.nn.functional.pad(tensor, (0, pad_size))  # 1D padding
         elif len(tensor.shape) == 2:
             padded_tensor = torch.nn.functional.pad(tensor, (0, 0, 0, pad_size))  # 2D padding
+        else:
+            raise ValueError(f"Unsupported tensor shape in pad_tensor: {tensor.shape}")
         return padded_tensor
 
     def get_weights(self, prefix: str) -> OrderedDict:
@@ -547,19 +521,9 @@ class Qwen25VLVisionLayerATB(nn.Module):
         attn_linear_info = AttnLinearInfo()
         attn_linear_info.pack_linear = self.attn.qkv.linear
         attn_linear_info.dense_linear = self.attn.proj.linear
-        self.norm1 = VisionRMSNorm(
-            f"{prefix}.norm1",
-            config,
-            weights,
-            attn_linear_info
-        )
+        self.norm1 = VisionRMSNorm(f"{prefix}.norm1", config, weights, attn_linear_info)
 
-        self.norm2 = VisionRMSNorm(
-            f"{prefix}.norm2",
-            config,
-            weights,
-            self.mlp.linear_info
-        )
+        self.norm2 = VisionRMSNorm(f"{prefix}.norm2", config, weights, self.mlp.linear_info)
 
     def get_weights(self, prefix):
         weights_dict = OrderedDict()
@@ -599,21 +563,18 @@ class Qwen25VLVisionLayerATB(nn.Module):
         if self.layer_idx in self.config.fullatt_block_indexes:
             graph.add_operation(
                 self.layer_graph,
-                self.weight_names
-                + self.get_in_tensor_names(),
+                self.weight_names + self.get_in_tensor_names(),
                 self.get_out_tensor_names(),
             )
         else:
             graph.add_operation(
                 self.layer_graph,
-                self.weight_names
-                + self.get_windows_in_tensor_names(),
+                self.weight_names + self.get_windows_in_tensor_names(),
                 self.get_out_tensor_names(),
             )
 
 
 class Qwen25VLVisionEncoderATB(nn.Module):
-
     def __init__(self, config, weights):
         super().__init__()
         self.config = config
@@ -653,18 +614,10 @@ class Qwen25VLVisionEncoderATB(nn.Module):
             hidden_states.shape[1] // PATCH_MERGER_FACTOR,
             self.config.out_hidden_size,
             dtype=hidden_states.dtype,
-            device="npu"
+            device="npu",
         )
 
-    def forward(
-            self,
-            hidden_states,
-            cu_window_seqlens,
-            seqlens,
-            cos_vit_mrope,
-            sin_vit_mrope
-    ):
-
+    def forward(self, hidden_states, cu_window_seqlens, seqlens, cos_vit_mrope, sin_vit_mrope):
         self.prepare_inputs(hidden_states, cu_window_seqlens, seqlens, cos_vit_mrope, sin_vit_mrope)
         hidden_states = self.graph.forward(self.graph_inputs, self.graph_outputs, self.graph_param)
         return hidden_states
@@ -688,8 +641,7 @@ class Qwen25VLVisionEncoderATB(nn.Module):
 
     def build_graph(self):
         self.graph.add_input_output(
-            input=list(self.weight.keys()) + self.get_in_tensor_names(),
-            output=self.get_out_tensor_names()
+            input=list(self.weight.keys()) + self.get_in_tensor_names(), output=self.get_out_tensor_names()
         )
         self.patch_embed.build_graph(self.graph, self.get_in_tensor_names()[0], "hidden_states")
         for layer in self.layers:
@@ -707,7 +659,6 @@ class Qwen25VLVisionEncoderATB(nn.Module):
 
 
 class Qwen25VisionTransformerPretrainedModelATB(PreTrainedModel):
-
     def __init__(self, config, weights, max_seq_len) -> None:
         super().__init__(config)
         self.spatial_merge_size = config.spatial_merge_size
@@ -718,10 +669,7 @@ class Qwen25VisionTransformerPretrainedModelATB(PreTrainedModel):
         self.window_size = config.window_size
         self.encoder = Qwen25VLVisionEncoderATB(config, self.weights)
         self.rotary_pos_emb = VisionRotaryEmbedding(
-            weights.device,
-            weights.dtype,
-            self.head_dim // 2,
-            seqlen=max_seq_len
+            weights.device, weights.dtype, self.head_dim // 2, seqlen=max_seq_len
         )
 
     def rot_pos_emb(self, grid_thw):
@@ -822,7 +770,7 @@ class Qwen25VisionTransformerPretrainedModelATB(PreTrainedModel):
             cu_window_seqlens.to(torch.int32),
             seqlens.to(torch.int32),
             cos_vit_mrope,
-            sin_vit_mrope
+            sin_vit_mrope,
         )
 
         hidden_states = vision_features[self.encoder.get_out_tensor_names()[0]].squeeze()

@@ -47,7 +47,7 @@ TGT_SIZES = "tgt_sizes"
 PIXEL_VALUES = "pixel_values"
 SCALE_EMB = "scale_emb"
 IMAGE_BOUND = "image_bound"
-SEP_PATTERN = '/n'
+SEP_PATTERN = "/n"
 IMAGE_PATTERN = "(<image>./</image>)"
 IMAGE_PAD = 128244  # <unk> token
 VISION_START_TOKEN_ID = 151660
@@ -71,8 +71,7 @@ def process_qs(text, image):
         role = msg["role"]
         content = msg[MSG_CONTENT]
         if role not in ["user", "assistant"]:
-            logger.error("`role` must be user or assistant.",
-            ErrorCode.ATB_MODELS_PARAM_OUT_OF_RANGE)
+            logger.error("`role` must be user or assistant.", ErrorCode.ATB_MODELS_PARAM_OUT_OF_RANGE)
             raise RuntimeError("`role` must be user or assistant.")
         if i == 0 and role != "user":
             raise RuntimeError("The role of first msg should be user")
@@ -91,15 +90,15 @@ def process_qs(text, image):
 
 class FlashMinicpmqwen2v2ForCausalLM(MultiModalLLm):
     def __init__(self, config, weights, **kwargs):
-        self.config = config        
+        self.config = config
         if not config.quantize:
-            setattr(config, 'quantize', None)
+            setattr(config, "quantize", None)
         else:
-            setattr(config, 'quantize', config.quantize)
+            setattr(config, "quantize", config.quantize)
         self.image_token_id = getattr(self.config, "image_token_id", IMAGE_PAD)
         self.vision_start_token_id = getattr(self.config, "vision_start_token_id", VISION_START_TOKEN_ID)
         self.vision_end_token_id = getattr(self.config, "vision_end_token_id", VISION_END_TOKEN_ID)
-        super(MultiModalLLm, self).__init__(config, weights, **kwargs)
+        super().__init__(config, weights, **kwargs)
         if self.soc_info.need_nz:
             self.max_vision_bs = MAX_VISION_BS_NZ
         else:
@@ -119,21 +118,18 @@ class FlashMinicpmqwen2v2ForCausalLM(MultiModalLLm):
     def init_resamplerweight(module, weights):
         resampler_weights = [resampler_weight for resampler_weight in module.state_dict().keys()]
         for resampler_weight in resampler_weights:
-            saved_weight = torch.nn.Parameter(
-                    weights.get_tensor(f"resampler.{resampler_weight}"),
-                    requires_grad=False
-                )
+            saved_weight = torch.nn.Parameter(weights.get_tensor(f"resampler.{resampler_weight}"), requires_grad=False)
             resampler_weight_list = resampler_weight.split(".")
             target_module = module
             for nxt_module in resampler_weight_list[:-1]:
                 target_module = getattr(target_module, nxt_module)
             setattr(target_module, resampler_weight_list[-1], saved_weight)
-            
+
     def init_vit(self):
         self.vision_tower = SiglipVisionTransformer(self.config.vision_config)
         self.init_tower_weight(self.vision_tower, self.weights, "vpm")
-        setattr(self.vision_tower, 'embed_dim', self.vision_tower.embeddings.embed_dim)
-        setattr(self.vision_tower, 'patch_size', self.vision_tower.embeddings.patch_size)
+        setattr(self.vision_tower, "embed_dim", self.vision_tower.embeddings.embed_dim)
+        setattr(self.vision_tower, "patch_size", self.vision_tower.embeddings.patch_size)
 
     def init_llm(self):
         self.model_type = self.config.model_type
@@ -143,7 +139,7 @@ class FlashMinicpmqwen2v2ForCausalLM(MultiModalLLm):
             weights=self.weights,
             lmhead_prefix="llm.lm_head",
             model_prefix="llm.model",
-            transformer_wte_parallel=False
+            transformer_wte_parallel=False,
         )
         self.language_model.skip_word_embedding = True
 
@@ -153,14 +149,14 @@ class FlashMinicpmqwen2v2ForCausalLM(MultiModalLLm):
             embed_dim=embed_dim,
             num_heads=embed_dim // 128,
             kv_dim=vision_dim,
-            adaptive=True
+            adaptive=True,
         )
         self.init_resamplerweight(self.resampler, self.weights)
 
     def init_multimodal(self):
         self.init_vit()
         self.init_llm()
-    
+
     def get_input_embeddings(self):
         return self.language_model.transformer.wte
 
@@ -170,15 +166,14 @@ class FlashMinicpmqwen2v2ForCausalLM(MultiModalLLm):
         if pixel_values:
             image_pixel_array = []
             image_pixel_array.extend([i.flatten(end_dim=1).permute(1, 0) for i in pixel_values])
-            image_pixel_array = torch.nn.utils.rnn.pad_sequence(image_pixel_array, batch_first=True,
-                                                            padding_value=0.0)
+            image_pixel_array = torch.nn.utils.rnn.pad_sequence(image_pixel_array, batch_first=True, padding_value=0.0)
             batch_size, length, _ = image_pixel_array.shape
             image_pixel_array = image_pixel_array.permute(0, 2, 1).reshape(batch_size, 3, -1, length)
             tgt_sizes = torch.vstack(tgt_sizes).type(torch.int32)
             max_patches = torch.max(tgt_sizes[:, 0] * tgt_sizes[:, 1])
             patch_attn_mask = torch.zeros((batch_size, 1, max_patches), dtype=torch.bool, device=self.device)
             for i in range(batch_size):
-                patch_attn_mask[i, 0, :tgt_sizes[i][0] * tgt_sizes[i][1]] = True
+                patch_attn_mask[i, 0, : tgt_sizes[i][0] * tgt_sizes[i][1]] = True
             if batch_size > self.max_vision_bs:
                 hs = []
                 for i in range(0, batch_size, self.max_vision_bs):
@@ -187,23 +182,21 @@ class FlashMinicpmqwen2v2ForCausalLM(MultiModalLLm):
                     tmp_hs = self.vision_tower(
                         image_pixel_array[start_idx:end_idx].type(self.dtype),
                         patch_attention_mask=patch_attn_mask[start_idx:end_idx],
-                        tgt_sizes=tgt_sizes[start_idx:end_idx]
+                        tgt_sizes=tgt_sizes[start_idx:end_idx],
                     ).last_hidden_state
                     hs.append(tmp_hs)
                 image_features = torch.cat(hs, dim=0)
             else:
                 image_features = self.vision_tower(
-                    image_pixel_array.type(self.dtype),
-                    patch_attention_mask=patch_attn_mask,
-                    tgt_sizes=tgt_sizes
+                    image_pixel_array.type(self.dtype), patch_attention_mask=patch_attn_mask, tgt_sizes=tgt_sizes
                 ).last_hidden_state
             image_features = self.resampler(image_features, tgt_sizes)
             image_mask = input_ids == self.image_token_id
             inputs_embeds[image_mask] = image_features.view(-1, image_features.shape[-1])
-            
+
         return inputs_embeds
 
-    def prepare_prefill_token_service(self, input_ids):   
+    def prepare_prefill_token_service(self, input_ids):
         bos_pos = torch.where(torch.eq(input_ids, self.vision_start_token_id))[0]
         eos_pos = torch.where(torch.eq(input_ids, self.vision_end_token_id))[0]
         vision_num = bos_pos.shape[0]
@@ -211,7 +204,7 @@ class FlashMinicpmqwen2v2ForCausalLM(MultiModalLLm):
         tgt_sizes = []
         input_ids = input_ids.clone()
         for n in range(vision_num):
-            single_input_ids = input_ids[bos_pos[n]: eos_pos[n] + 1]
+            single_input_ids = input_ids[bos_pos[n] : eos_pos[n] + 1]
             shm_index = torch.where(single_input_ids.lt(-1))[0]
             shm_tensor = single_input_ids[shm_index]
             shm_length = shm_index.size(0) // 2
@@ -247,7 +240,7 @@ class FlashMinicpmqwen2v2ForCausalLM(MultiModalLLm):
                 msgs, images = process_qs(text, image)
             elif video is not None:
                 images = encode_video(video)
-                msgs = [{'role': 'user', 'content': (IMAGE_PATTERN + SEP_PATTERN) * len(images) + text[MSG_CONTENT]}]
+                msgs = [{"role": "user", "content": (IMAGE_PATTERN + SEP_PATTERN) * len(images) + text[MSG_CONTENT]}]
                 images = [images]
             prompt = processor.tokenizer.apply_chat_template(msgs, tokenize=False, add_generation_prompt=True)
             inputs = processor(prompt, images, return_tensors="pt").to(self.device)
