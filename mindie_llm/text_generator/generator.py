@@ -19,6 +19,7 @@ from dataclasses import dataclass, fields
 import numpy as np
 import numpy.typing as npt
 import torch
+import torch.distributed as dist
 
 import acl
 from mindie_llm.connector.common.model_execute_data_pb2 import LoraOperationStatus
@@ -29,6 +30,8 @@ from mindie_llm.text_generator.utils.npu_mem_tool import (
     WeightMemoryProfiler,
 )
 from mindie_llm.modeling.backend_type import BackendType
+from mindie_llm.runtime.utils.distributed import get_parallel_info_manager
+from mindie_llm.runtime.utils.distributed.parallel_info_manager import ParallelType
 from mindie_llm.text_generator.adapter import get_generator_backend
 from mindie_llm.utils.validation import parse_config, ParseType
 from mindie_llm.text_generator.plugins import get_plugin
@@ -811,6 +814,15 @@ class Generator(PDInterface):
             free_mem, total_mem, _ = acl.rt.get_mem_info(1)
             requested_memory = total_mem * ENV.memory_fraction
             npu_mem = requested_memory - (total_mem - free_mem)
+
+            # This will be deprecated after enabling the new TG.
+            if self.world_size > 1 and self.backend_type == "torch":
+                all_rank_info = get_parallel_info_manager().get(ParallelType.WORLD)
+                dist.barrier(group=all_rank_info.cpu_process_group)
+                npu_mem_tensor = torch.tensor([npu_mem], dtype=torch.float, device="cpu")
+                dist.all_reduce(npu_mem_tensor, op=dist.ReduceOp.MIN, group=all_rank_info.cpu_process_group)
+                npu_mem = npu_mem_tensor.item()
+
             npu_mem = self._validate_warmup_memory(warmup_params, npu_mem)
             print_log(
                 self.rank,
