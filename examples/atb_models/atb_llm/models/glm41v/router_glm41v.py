@@ -53,6 +53,7 @@ messages_template = [
 
 @dataclass
 class Glm41vRouter(BaseRouter):
+    is_multimodal: bool = True
     _processor: Any = None
 
     @property
@@ -62,11 +63,11 @@ class Glm41vRouter(BaseRouter):
         elif self._processor is None:
             self._processor = self.get_processor()
         return self._processor
-    
+
     def tokenize(self, inputs: List[Dict], **kwargs):
         text = ""
         message_list = []
-        shm_name_save_path = kwargs.get('shm_name_save_path', None)
+        shm_name_save_path = kwargs.get("shm_name_save_path", None)
         self.input_builder.check_image_and_video_concurrency(inputs)
         for item in inputs:
             if item.get(IMAGE, None):
@@ -82,18 +83,11 @@ class Glm41vRouter(BaseRouter):
                     shm_name_save_path = self.input_builder.get_shm_name_save_path(video_path)
             if item.get(TEXT, None):
                 text = item[TEXT]
-                message_list.append({
-                    TYPE: TEXT,
-                    TEXT: text
-                })
+                message_list.append({TYPE: TEXT, TEXT: text})
         messages = copy.deepcopy(messages_template)
         messages[0]["content"] = message_list
         inputs = self.processor.apply_chat_template(
-            messages,
-            tokenize=True,
-            add_generation_prompt=True,
-            return_dict=True,
-            return_tensors='pt'
+            messages, tokenize=True, add_generation_prompt=True, return_dict=True, return_tensors="pt"
         )
         shm_info = process_shared_memory(inputs, shm_name_save_path)
         input_ids = self.input_builder.update_token_id(inputs, shm_info)
@@ -106,9 +100,9 @@ class Glm41vRouter(BaseRouter):
         config_cls = self.get_config_cls()
         config = config_cls.from_dict(self.config_dict)
         config.model_name_or_path = self.model_name_or_path
-        if config.text_config.dtype == 'bfloat16':
+        if config.text_config.dtype == "bfloat16":
             config.torch_dtype = torch.bfloat16
-        elif config.text_config.dtype == 'float16':
+        elif config.text_config.dtype == "float16":
             config.torch_dtype = torch.float16
         else:
             err_msg = "`torch_dtype` is only supported for type `float16` and `bfloat16`"

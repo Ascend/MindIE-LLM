@@ -66,31 +66,31 @@ def parse_service_inputs(inputs: List[Dict]):
 @dataclass
 class YivlRouter(BaseRouter):
     model_type = "yivl"
+    is_multimodal: bool = True
 
     def __post_init__(self):
         super().__post_init__()
-        self.image_processor = DataProcessorYiVl(self.config.vison_tower_path,
-                                            self.trust_remote_code)
+        self.image_processor = DataProcessorYiVl(self.config.vision_tower_path, self.trust_remote_code)
 
     def check_config_yivl(self, config):
         super().check_config(config)
         vision_attribute_ranges = {
-            'hidden_size': (1, _INT32_MAX),
-            'image_size': (1, _INT32_MAX),
-            'intermediate_size': (1, _INT32_MAX),
-            'num_attention_heads': (1, _INT32_MAX),
-            'num_channels': (1, _INT32_MAX),
-            'num_hidden_layers': (1, _INT32_MAX),
-            'patch_size': (1, config.vision_config.image_size),
-            'projection_dim': (1, _INT32_MAX)
+            "hidden_size": (1, _INT32_MAX),
+            "image_size": (1, _INT32_MAX),
+            "intermediate_size": (1, _INT32_MAX),
+            "num_attention_heads": (1, _INT32_MAX),
+            "num_channels": (1, _INT32_MAX),
+            "num_hidden_layers": (1, _INT32_MAX),
+            "patch_size": (1, config.vision_config.image_size),
+            "projection_dim": (1, _INT32_MAX),
         }
         check_value_range(vision_attribute_ranges, config.vision_config)
 
         vision_layers = config.vision_config.num_hidden_layers
         attribute_ranges = {
-            'mm_hidden_size': (1, _INT32_MAX),
-            'num_key_value_heads': (1, _INT32_MAX),
-            'mm_vision_select_layer': (-vision_layers, vision_layers),
+            "mm_hidden_size": (1, _INT32_MAX),
+            "num_key_value_heads": (1, _INT32_MAX),
+            "mm_vision_select_layer": (-vision_layers, vision_layers),
         }
         check_value_range(attribute_ranges, config)
 
@@ -100,10 +100,9 @@ class YivlRouter(BaseRouter):
 
         if config.mm_vision_tower:
             from os.path import join
-            config.vison_tower_path = join(
-                self.model_name_or_path, config.mm_vision_tower.replace("./", "")
-            )
-            config.vision_config = safe_from_pretrained(CLIPVisionConfig, config.vison_tower_path)
+
+            config.vision_tower_path = join(self.model_name_or_path, config.mm_vision_tower.replace("./", ""))
+            config.vision_config = safe_from_pretrained(CLIPVisionConfig, config.vision_tower_path)
         else:
             msg = "Key 'mm_vision_tower' not found at config"
             logger.error(msg, ErrorCode.ATB_MODELS_PARAM_OUT_OF_RANGE)
@@ -114,15 +113,15 @@ class YivlRouter(BaseRouter):
         if self.max_position_embeddings:
             config.max_position_embeddings = self.max_position_embeddings
         config.vocab_size = config.text_config.vocab_size
-        setattr(config, 'quantization_config', QuantizationConfig(**{}))
+        setattr(config, "quantization_config", QuantizationConfig(**{}))
         self.check_config_yivl(config)
         config.model_name_or_path = self.model_name_or_path
-        setattr(config, 'img_token_id', IMAGE_TOKEN_INDEX)
-        setattr(config, 'eos_token_id', getattr(self.tokenizer, 'eos_token_id', _EOS_TOKEN_ID))
-        setattr(config, 'pad_token_id', getattr(self.tokenizer, 'pad_token_id', _PAD_TOKEN_ID))
-        setattr(config, 'num_img_patches', (config.vision_config.image_size // config.vision_config.patch_size) ** 2)
+        setattr(config, "img_token_id", IMAGE_TOKEN_INDEX)
+        setattr(config, "eos_token_id", getattr(self.tokenizer, "eos_token_id", _EOS_TOKEN_ID))
+        setattr(config, "pad_token_id", getattr(self.tokenizer, "pad_token_id", _PAD_TOKEN_ID))
+        setattr(config, "num_img_patches", (config.vision_config.image_size // config.vision_config.patch_size) ** 2)
         return config
-    
+
     def get_tokenizer(self):
         use_fast = True
         tokenizer = safe_get_tokenizer_from_pretrained(
@@ -131,12 +130,11 @@ class YivlRouter(BaseRouter):
             padding_side="left",
             truncation_side="left",
             trust_remote_code=self.trust_remote_code,
-            use_fast=use_fast
+            use_fast=use_fast,
         )
         tokenizer.eos_token_id = tokenizer.convert_tokens_to_ids(SEP_TOKEN)
         tokenizer.eos_token = SEP_TOKEN
         return tokenizer
-
 
     def get_generation_config(self):
         generation_config = super().get_generation_config()
@@ -147,7 +145,7 @@ class YivlRouter(BaseRouter):
         img_token_id = self.config.img_token_id
         pad_token_id = self.config.pad_token_id
         img_patch_num = self.config.num_img_patches
-        shm_name_save_path = kwargs.get('shm_name_save_path', None)
+        shm_name_save_path = kwargs.get("shm_name_save_path", None)
         image_path, question = parse_service_inputs(inputs)
         input_ids = tokenize_text(question, self.tokenizer)
 
@@ -162,9 +160,9 @@ class YivlRouter(BaseRouter):
             shared_array[:] = image_pixel
             shm_name = encode_shm_name_to_int64(shm.name)
             shape_value = encode_shape_to_int64(image_pixel.shape)
-    
+
             image_info_ids = [img_token_id, shm_name, shape_value]
-            if (img_patch_num < len(image_info_ids) + 1):
+            if img_patch_num < len(image_info_ids) + 1:
                 msg = f"Image patch num should be less than {len(image_info_ids) + 1}, please check model config."
                 logger.error(msg, ErrorCode.ATB_MODELS_PARAM_OUT_OF_RANGE)
                 raise ValueError(msg)

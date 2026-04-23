@@ -28,8 +28,13 @@ from ...utils.log.error_code import ErrorCode
 from ...utils.configuration_utils import LLMConfig, GraphType
 from ...utils import file_utils
 from ...utils.parameter_validators import (
-    IntParameterValidator, DictionaryParameterValidator, BooleanParameterValidator,
-    RangeParamaterValidator, FileParameterValidator, StringParameterValidator, Field
+    IntParameterValidator,
+    DictionaryParameterValidator,
+    BooleanParameterValidator,
+    RangeParamaterValidator,
+    FileParameterValidator,
+    StringParameterValidator,
+    Field,
 )
 
 
@@ -40,8 +45,8 @@ QWEN2_MOE = "qwen2_moe"
 QWEN3_MOE = "qwen3_moe"
 DEEPSEEKV2 = "deepseekv2"
 LLAMA = "llama"
-EOS_TOKEN_ID = 'eos_token_id'
-FA_QUANT_TYPE = 'fa_quant_type'
+EOS_TOKEN_ID = "eos_token_id"
+FA_QUANT_TYPE = "fa_quant_type"
 
 
 def remove_part_of_generation_config(generation_config: dict) -> dict:
@@ -84,6 +89,7 @@ class BaseRouter:
     This class should be inherited by the corresponding router subclasses of specified models. A specified model can use
     a subclass router to find its custom properties.
     """
+
     model_name_or_path: str = ""
 
     config_dict: Any = None
@@ -98,6 +104,7 @@ class BaseRouter:
     llm_config: LLMConfig = None
 
     sub_model_path: str = ""
+    is_multimodal: bool = False
     prealloc_weight_mem_on_npu: bool = False
 
     # 初始化默认读取的autoconfig，各个模型可能会自定义，self.config会返回后续使用的config，注意不要循环依赖
@@ -114,7 +121,7 @@ class BaseRouter:
     _reasoning_parser: Any = None
 
     def __post_init__(self):
-        self.model_type = self.config_dict['model_type']
+        self.model_type = self.config_dict["model_type"]
         if self.model_type == "glm4v":
             self.model_type = "glm41v"
         if self.model_type == "chatglm" and "vision_config" in self.config_dict:
@@ -131,7 +138,7 @@ class BaseRouter:
             self.model_type = "deepseekv2"
         if self.model_type == "minicpmv" and "MiniCPM-V-2_6" in self.model_name_or_path:
             self.model_type = "minicpm_qwen2_v2"
-        if self.model_type == "multi_modality" and 'aligner_config' in self.config_dict:
+        if self.model_type == "multi_modality" and "aligner_config" in self.config_dict:
             self.model_type = "janus"
         if self.model_type == "qwen2_5_vl":
             self.model_type = "qwen2_vl"
@@ -139,17 +146,17 @@ class BaseRouter:
             self.model_type = "ernie_moe"
         self.model_type_cap = self.model_type.capitalize()
         if self.model_type_cap == "Qwen2_moe":
-            self.model_type_cap = self.model_type_cap.replace('_', '')
+            self.model_type_cap = self.model_type_cap.replace("_", "")
         if self.model_type_cap == "Qwen2_audio":
-            self.model_type_cap = self.model_type_cap.replace('_', '')
+            self.model_type_cap = self.model_type_cap.replace("_", "")
         if self.model_type_cap == "Qwen2_vl":
-            self.model_type_cap = self.model_type_cap.replace('_', '')
+            self.model_type_cap = self.model_type_cap.replace("_", "")
         if self.model_type_cap == "Minicpm_qwen2_v2":
-            self.model_type_cap = self.model_type_cap.replace('_', '')
+            self.model_type_cap = self.model_type_cap.replace("_", "")
         if self.model_type_cap == "Ernie_moe":
-            self.model_type_cap = self.model_type_cap.replace('_', '')
+            self.model_type_cap = self.model_type_cap.replace("_", "")
         if self.model_type_cap == "Glm4_moe":
-            self.model_type_cap = self.model_type_cap.replace('_', '')
+            self.model_type_cap = self.model_type_cap.replace("_", "")
         if not self.tokenizer_path:
             self.tokenizer_path = self.model_name_or_path
 
@@ -175,10 +182,12 @@ class BaseRouter:
                         "And the $llm_config.llm.ccl.enable_mc2 is %s in LLM's config. "
                         "If one of them is False, the LCOC will not be enabled. "
                         "NOTE: The $ATB_LLM_LCOC_ENABLE environment variable will be deprecated after 2026/07/31.",
-                        atb_llm_lcoc_enable, self.llm_config.llm.ccl.enable_mc2)
+                        atb_llm_lcoc_enable,
+                        self.llm_config.llm.ccl.enable_mc2,
+                    )
 
             self.process_tool_call_options()
-        
+
     @property
     def config(self):
         """The config property, which should not be overridden.
@@ -195,13 +204,13 @@ class BaseRouter:
                 self._generation_config = remove_part_of_generation_config(self._generation_config)
             self.config_dict.update(self._generation_config)
             self.config_dict["generation_config"] = self._generation_config
-            filename = os.path.join(self.model_name_or_path, 'quant_model_description.json')
+            filename = os.path.join(self.model_name_or_path, "quant_model_description.json")
             if not file_utils.is_path_exists(filename):
-                filename = os.path.join(self.model_name_or_path, self.sub_model_path, 'quant_model_description.json')
+                filename = os.path.join(self.model_name_or_path, self.sub_model_path, "quant_model_description.json")
             if not file_utils.is_path_exists(filename):
                 quantize_type = self.config_dict.get(quantize, None)
                 if quantize_type:
-                    old_file = f'quant_model_description_{quantize_type.lower()}.json'
+                    old_file = f"quant_model_description_{quantize_type.lower()}.json"
                     old_path = os.path.join(self.model_name_or_path, old_file)
                     if file_utils.is_path_exists(old_path):
                         filename = old_path
@@ -212,7 +221,7 @@ class BaseRouter:
             if not file_utils.is_path_exists(filename):
                 filename = None
             if filename is not None:
-                with file_utils.safe_open(filename, 'r', check_link=False) as f:
+                with file_utils.safe_open(filename, "r", check_link=False) as f:
                     quant_descs = json.load(f)
                 if quant_descs.get("model_quant_type") is not None and self.config_dict.get("quantize") is None:
                     self.config_dict[quantize] = quant_descs.get("model_quant_type").lower()
@@ -238,7 +247,7 @@ class BaseRouter:
             if not hasattr(self._config, quantize):
                 setattr(self._config, quantize, None)
             if self.max_position_embeddings is not None:
-                setattr(self._config, 'max_position_embeddings', self.max_position_embeddings)
+                setattr(self._config, "max_position_embeddings", self.max_position_embeddings)
         return self._config
 
     @property
@@ -296,9 +305,11 @@ class BaseRouter:
     @property
     def custom_chat_template(self):
         """The custom chat template property, which should not be overridden."""
-        if self._custom_chat_template is None \
-                and self.llm_config is not None \
-                and getattr(self.llm_config.llm, "chat_template", None):
+        if (
+            self._custom_chat_template is None
+            and self.llm_config is not None
+            and getattr(self.llm_config.llm, "chat_template", None)
+        ):
             self._custom_chat_template = self.get_custom_chat_template()
         return self._custom_chat_template
 
@@ -321,45 +332,45 @@ class BaseRouter:
         """The validation of values in config."""
 
         vocab_size = 0
-        vocab_size_field = 'vocab_size'
+        vocab_size_field = "vocab_size"
         if hasattr(config, vocab_size_field):
             vocab_size = getattr(config, vocab_size_field)
         attribute_ranges = {
             vocab_size_field: (1, 2147483647),
-            'max_position_embeddings': (1, 2147483647),
-            'hidden_size': (1, 2147483647),
-            'intermediate_size': (1, 2147483647),
-            'num_hidden_layers': (1, 1000),
-            'num_attention_heads': (1, 10000),
-            'initializer_range': (0, 2147483647),
-            'rms_norm_eps': (0, 1),
-            'pad_token_id': (-1, vocab_size),
-            'bos_token_id': (0, vocab_size - 1),
+            "max_position_embeddings": (1, 2147483647),
+            "hidden_size": (1, 2147483647),
+            "intermediate_size": (1, 2147483647),
+            "num_hidden_layers": (1, 1000),
+            "num_attention_heads": (1, 10000),
+            "initializer_range": (0, 2147483647),
+            "rms_norm_eps": (0, 1),
+            "pad_token_id": (-1, vocab_size),
+            "bos_token_id": (0, vocab_size - 1),
             EOS_TOKEN_ID: (0, vocab_size - 1),
-            'temperature': (0, 2),
-            'top_k': (-1, vocab_size),
-            'top_p': (0, 1),
-            'repetition_penalty': (0, 2),
-            'frequency_penalty': (-2, 2),
-            'presence_penalty': (-2, 2),
-            'max_new_tokens': (0, 10000000),
-            'max_length': (0, 2147483647),         
-            'user_token_id': (0, vocab_size-1),   
-            'assistant_token_id': (0, vocab_size-1),    
-            'system_token_id': (0, vocab_size-1),   
-            'bot_token_id': (0, vocab_size-1)
+            "temperature": (0, 2),
+            "top_k": (-1, vocab_size),
+            "top_p": (0, 1),
+            "repetition_penalty": (0, 2),
+            "frequency_penalty": (-2, 2),
+            "presence_penalty": (-2, 2),
+            "max_new_tokens": (0, 10000000),
+            "max_length": (0, 2147483647),
+            "user_token_id": (0, vocab_size - 1),
+            "assistant_token_id": (0, vocab_size - 1),
+            "system_token_id": (0, vocab_size - 1),
+            "bot_token_id": (0, vocab_size - 1),
         }
         if config.is_reasoning_model:
             attribute_ranges["start_reasoning_token_id"] = (0, vocab_size - 1)
             attribute_ranges["end_reasoning_token_id"] = (0, vocab_size - 1)
         if hasattr(config, "head_dim"):
-            attribute_ranges['head_dim'] = (1, 1000)
+            attribute_ranges["head_dim"] = (1, 1000)
         if hasattr(config, "num_key_value_heads"):
-            attribute_ranges['num_key_value_heads'] = (1, 10000)
-  
+            attribute_ranges["num_key_value_heads"] = (1, 10000)
+
         gen_config = config.generation_config
         gen_config_dict = vars(gen_config)
-        
+
         for attr, value in gen_config_dict.items():
             if value is not None:
                 min_val, max_val = attribute_ranges.get(attr, (None, None))
@@ -380,51 +391,51 @@ class BaseRouter:
                 continue
             check_value(attr, value, min_val, max_val)
 
-        if getattr(config, 'repetition_penalty', None) == 0:
+        if getattr(config, "repetition_penalty", None) == 0:
             raise ValueError("repetition_penalty should not be 0.")
-        if not isinstance(getattr(config, 'do_sample', None), bool):
+        if not isinstance(getattr(config, "do_sample", None), bool):
             raise ValueError("do_sample must be bool.")
 
     @classmethod
     def get_llm_config_validators(cls):
         llm_config_validators = {"models": {}}
-        llm_validators = DictionaryParameterValidator({
-            "ccl": DictionaryParameterValidator({
-                "enable_mc2": BooleanParameterValidator()
-            }),
-            "stream_options": DictionaryParameterValidator({
-                "micro_batch": BooleanParameterValidator()
-            }),
-            "engine": DictionaryParameterValidator({
-                "graph": RangeParamaterValidator(range_list=[GraphType.CPP, GraphType.PYTHON])
-            }),
-            "parallel_options": DictionaryParameterValidator({
-                "o_proj_local_tp": IntParameterValidator(Field(ge=1, le=16), special_values=[-1]),
-                "lm_head_local_tp": IntParameterValidator(Field(ge=1, le=16), special_values=[-1]),
-                "hccl_buffer": IntParameterValidator(Field(ge=1)),
-                "hccl_moe_ep_buffer": IntParameterValidator(Field(ge=512)),
-                "hccl_moe_tp_buffer": IntParameterValidator(Field(ge=64)),
-            }),
-            "pmcc_obfuscation_options": DictionaryParameterValidator({
-                "enable_model_obfuscation": BooleanParameterValidator(),
-                "data_obfuscation_ca_dir": FileParameterValidator(allow_none=True),
-                "kms_agent_port": IntParameterValidator(Field(ge=1, le=65535)),
-            }),
-            "kv_cache_options": DictionaryParameterValidator({
-                "enable_nz": BooleanParameterValidator()
-            }),
-            "weights_options": DictionaryParameterValidator(
-                element_validator_mapping={
-                    "low_cpu_memory_mode": BooleanParameterValidator()
-                },
-                allow_addition_key=False
-            ),
-            "enable_reasoning": BooleanParameterValidator(),
-            "tool_call_options": DictionaryParameterValidator({
-                "tool_call_parser": StringParameterValidator(Field(max_length=1024), allow_none=True),
-            }),
-            "chat_template": FileParameterValidator(allow_none=True)
-        })
+        llm_validators = DictionaryParameterValidator(
+            {
+                "ccl": DictionaryParameterValidator({"enable_mc2": BooleanParameterValidator()}),
+                "stream_options": DictionaryParameterValidator({"micro_batch": BooleanParameterValidator()}),
+                "engine": DictionaryParameterValidator(
+                    {"graph": RangeParamaterValidator(range_list=[GraphType.CPP, GraphType.PYTHON])}
+                ),
+                "parallel_options": DictionaryParameterValidator(
+                    {
+                        "o_proj_local_tp": IntParameterValidator(Field(ge=1, le=16), special_values=[-1]),
+                        "lm_head_local_tp": IntParameterValidator(Field(ge=1, le=16), special_values=[-1]),
+                        "hccl_buffer": IntParameterValidator(Field(ge=1)),
+                        "hccl_moe_ep_buffer": IntParameterValidator(Field(ge=512)),
+                        "hccl_moe_tp_buffer": IntParameterValidator(Field(ge=64)),
+                    }
+                ),
+                "pmcc_obfuscation_options": DictionaryParameterValidator(
+                    {
+                        "enable_model_obfuscation": BooleanParameterValidator(),
+                        "data_obfuscation_ca_dir": FileParameterValidator(allow_none=True),
+                        "kms_agent_port": IntParameterValidator(Field(ge=1, le=65535)),
+                    }
+                ),
+                "kv_cache_options": DictionaryParameterValidator({"enable_nz": BooleanParameterValidator()}),
+                "weights_options": DictionaryParameterValidator(
+                    element_validator_mapping={"low_cpu_memory_mode": BooleanParameterValidator()},
+                    allow_addition_key=False,
+                ),
+                "enable_reasoning": BooleanParameterValidator(),
+                "tool_call_options": DictionaryParameterValidator(
+                    {
+                        "tool_call_parser": StringParameterValidator(Field(max_length=1024), allow_none=True),
+                    }
+                ),
+                "chat_template": FileParameterValidator(allow_none=True),
+            }
+        )
         llm_config_validators["llm"] = llm_validators
         return llm_config_validators
 
@@ -440,9 +451,10 @@ class BaseRouter:
         tool_call_parser_name = getattr(tool_call_options, "tool_call_parser", None)
         if tool_call_parser_name:
             if tool_call_parser_name not in valid_tool_call_processors:
-                warn_msg = \
-                    f"Invalid tool_call_parser: {tool_call_parser_name}. " \
+                warn_msg = (
+                    f"Invalid tool_call_parser: {tool_call_parser_name}. "
                     f"Please chose from {valid_tool_call_processors.keys()}"
+                )
                 logger.warning(message_filter(warn_msg))
                 logger.warning("Will use default tool_call_parser of model.")
                 return
@@ -497,9 +509,8 @@ class BaseRouter:
         """The default method to get config class."""
         model_file_dir_name = f"atb_llm.models.{self.model_type}."
         if self.model_version:
-            model_file_dir_name = model_file_dir_name + \
-                                  f"{self.model_version}."
-        config_file_name = f'config_{self.model_type}'
+            model_file_dir_name = model_file_dir_name + f"{self.model_version}."
+        config_file_name = f"config_{self.model_type}"
         module_path = f"{model_file_dir_name}{config_file_name}"
         module = importlib.import_module(module_path)
         config_cls_name = f"{self.model_type_cap}Config"
@@ -538,9 +549,8 @@ class BaseRouter:
         if self.llm_config is not None and self.llm_config.llm.engine.graph == GraphType.PYTHON:
             enable_v3 = True
         if self.model_version:
-            model_file_dir_name = model_file_dir_name + \
-                                  f"{self.model_version}."
-        model_file_name = 'flash_causal' if self.is_flash_causal_lm else 'causal'
+            model_file_dir_name = model_file_dir_name + f"{self.model_version}."
+        model_file_name = "flash_causal" if self.is_flash_causal_lm else "causal"
         if self.embedding_model_name:  # for embedding model, example: gte-qwen2
             module_path = f"{model_file_dir_name}{model_file_name}_{self.model_type}_{self.embedding_model_name}"
         else:
@@ -577,7 +587,7 @@ class BaseRouter:
             padding_side="left",
             truncation_side="left",
             trust_remote_code=self.trust_remote_code,
-            use_fast=True
+            use_fast=True,
         )
 
     def get_reasoning_parser(self):
@@ -596,55 +606,64 @@ class BaseRouter:
         try:
             tools_call_processor = ToolParserManager.get_tool_call_processor(self.tool_call_parser)(self.tokenizer)
         except KeyError as e:
-            warn_msg = \
-                f"Cannot use {self.tool_call_parser} ToolsCallProcessor: {e}. " \
-                f"Will use default ToolsCallProcessor."
+            warn_msg = (
+                f"Cannot use {self.tool_call_parser} ToolsCallProcessor: {e}. Will use default ToolsCallProcessor."
+            )
             logger.warning(message_filter(warn_msg))
             tools_call_processor = ToolsCallProcessor(self.model_version)
         return tools_call_processor
-    
+
     def _check_llm_config_model_type(self, model_type):
         """check the compatibility between llm_config and model_type"""
         if self.llm_config.llm.stream_options.micro_batch and model_type not in [QWEN2, QWEN3, DEEPSEEKV2, GLM4_1V]:
-            error_msg = f"stream_options.micro_batch only supports [qwen2, qwen3, deepseekv2, glm4.1v], " \
-                        f"but model_type is {model_type}, please refer to the MindIE official document" \
-                        f"and modify config.json."
+            error_msg = (
+                f"stream_options.micro_batch only supports [qwen2, qwen3, deepseekv2, glm4.1v], "
+                f"but model_type is {model_type}, please refer to the MindIE official document"
+                f"and modify config.json."
+            )
             logger.error(error_msg, ErrorCode.ATB_MODELS_PARAM_INVALID)
             raise ValueError(error_msg)
-        
+
         if self.llm_config.llm.engine.graph == GraphType.PYTHON and model_type not in [LLAMA, QWEN2, QWEN3]:
-            error_msg = f"engine.graph only supports [llama, qwen2, qwen3] when set to \"python\", " \
-                        f"but model_type is {model_type}, please refer to the MindIE official document" \
-                        f"and modify config.json."
+            error_msg = (
+                f'engine.graph only supports [llama, qwen2, qwen3] when set to "python", '
+                f"but model_type is {model_type}, please refer to the MindIE official document"
+                f"and modify config.json."
+            )
             logger.error(error_msg, ErrorCode.ATB_MODELS_PARAM_INVALID)
             raise ValueError(error_msg)
-        
+
         if self.llm_config.llm.kv_cache_options.enable_nz and model_type not in [DEEPSEEKV2]:
-            error_msg = f"kv_cache_options.enable_nz only supports [deepseekv2] when set to true, " \
-                        f"but model_type is {model_type}, please refer to the MindIE official document" \
-                        f"and modify config.json."
+            error_msg = (
+                f"kv_cache_options.enable_nz only supports [deepseekv2] when set to true, "
+                f"but model_type is {model_type}, please refer to the MindIE official document"
+                f"and modify config.json."
+            )
             logger.error(error_msg, ErrorCode.ATB_MODELS_PARAM_INVALID)
             raise ValueError(error_msg)
 
         # The following features are configured but are not applicable to some models.
         if self.llm_config.llm.parallel_options.o_proj_local_tp != -1 and model_type != DEEPSEEKV2:
             logger.warning(f"parallel_options.o_proj_local_tp only supports deepseek, {model_type} won't be affected.")
-        
+
         if self.llm_config.llm.parallel_options.lm_head_local_tp != -1 and model_type != DEEPSEEKV2:
-            logger.warning(f"parallel_options.lm_head_local_tp only supports deepseek, " \
-                        f"{model_type} won't be affected.")
+            logger.warning(f"parallel_options.lm_head_local_tp only supports deepseek, {model_type} won't be affected.")
 
         weights_options = self.llm_config.get("llm").get("weights_options")
         if weights_options is not None and weights_options.low_cpu_memory_mode:
             engine_graph = self.llm_config.get("llm").get("engine").get("graph")
             if engine_graph != GraphType.PYTHON or model_type not in [QWEN2, QWEN3]:
-                logger.warning(f"low_cpu_memory_mode is only effective for [qwen2, qwen3] " \
-                            f"when engine graph is set to \"python\". " \
-                            f"For {model_type} with engine graph {engine_graph}, this mode will not work.")
+                logger.warning(
+                    f"low_cpu_memory_mode is only effective for [qwen2, qwen3] "
+                    f'when engine graph is set to "python". '
+                    f"For {model_type} with engine graph {engine_graph}, this mode will not work."
+                )
 
         if self.llm_config.llm.enable_reasoning and model_type not in [QWEN3, QWEN3_MOE, DEEPSEEKV2]:
-            logger.warning(f"enable_reasoning only supports [qwen3, qwen3_moe, deepseek] when set to true, " \
-                        f"{model_type} won't be affected.")
+            logger.warning(
+                f"enable_reasoning only supports [qwen3, qwen3_moe, deepseek] when set to true, "
+                f"{model_type} won't be affected."
+            )
 
     def _check_llm_config_orthogonality(self):
         """check the orthogonality within llm_config"""

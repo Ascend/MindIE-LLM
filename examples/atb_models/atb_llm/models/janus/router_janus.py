@@ -14,10 +14,11 @@ from ..base.router import BaseRouter
 
 @dataclass
 class JanusRouter(BaseRouter):
-    
+    is_multimodal: bool = True
+
     def check_config_janus(self, config):
         super().check_config(config)
-    
+
     def get_config(self):
         config_cls = self.get_config_cls()
         config = config_cls.from_dict(self.config_dict)

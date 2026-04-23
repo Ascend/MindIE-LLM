@@ -59,23 +59,21 @@ def get_feature_lens(config: Any, inputs: list, processor: Any):
     image_or_video_token_id = config.audio_token_index
     audio = load_feature_by_torchaudio(image_or_video_path)
 
-    prompt_head = '<|im_start|>system\nYou are a helpful assistant.<|im_end|>\n<|im_start|>user\n'
-    audio_head = 'Audio 1: <|audio_bos|><|AUDIO|><|audio_eos|>\n'
-    prompt_tail = '<|im_end|>\n<|im_start|>assistant\n'
+    prompt_head = "<|im_start|>system\nYou are a helpful assistant.<|im_end|>\n<|im_start|>user\n"
+    audio_head = "Audio 1: <|audio_bos|><|AUDIO|><|audio_eos|>\n"
+    prompt_tail = "<|im_end|>\n<|im_start|>assistant\n"
     text = prompt_head + audio_head + text + prompt_tail
     new_inputs = processor(text=text, audios=audio, return_tensors="pt")
     feature_attention_mask = new_inputs.feature_attention_mask
 
-    _, audio_output_lengths = get_feat_extract_output_lengths(
-        feature_attention_mask.sum(-1)
-    )
+    _, audio_output_lengths = get_feat_extract_output_lengths(feature_attention_mask.sum(-1))
     return [audio_output_lengths, image_or_video_token_id, [image_or_video_path], new_inputs]
 
 
 def get_conversation_feature_lens(config: Any, inputs: list, processor: Any, text: str):
     audios, audio_paths = [], []
     audio_types = "audio_type"
-    audio_type = audio_types.split('_')[0]
+    audio_type = audio_types.split("_")[0]
     for message in inputs:
         if isinstance(message["content"], list):
             for ele in message["content"]:
@@ -89,9 +87,7 @@ def get_conversation_feature_lens(config: Any, inputs: list, processor: Any, tex
     new_inputs = processor(text=text, audios=audios, return_tensors="pt")
     feature_attention_mask = new_inputs.feature_attention_mask
 
-    _, audio_output_lengths = get_feat_extract_output_lengths(
-        feature_attention_mask.sum(-1)
-    )
+    _, audio_output_lengths = get_feat_extract_output_lengths(feature_attention_mask.sum(-1))
     return [audio_output_lengths, image_or_video_token_id, audio_paths, new_inputs]
 
 
@@ -104,6 +100,7 @@ class Qwen2AudioTextConfig(Qwen2Config):
 
 @dataclass
 class Qwen2audioRouter(BaseRouter):
+    is_multimodal: bool = True
 
     def __post_init__(self):
         super().__post_init__()
@@ -116,22 +113,22 @@ class Qwen2audioRouter(BaseRouter):
     def check_conversation(inputs):
         conversation_state = False
         for item in inputs:
-            if 'role' in item:
+            if "role" in item:
                 conversation_state = True
         return conversation_state
-    
+
     @staticmethod
     def check_single_audio_file(inputs):
         for item in inputs:
-            inputs_new = item['content'] if 'role' in item else inputs
+            inputs_new = item["content"] if "role" in item else inputs
         audio_num = 0
         for item in inputs_new:
-            if 'audio' in item:
+            if "audio" in item:
                 audio_num += 1
                 if audio_num > 1:
                     return False, inputs_new
         return True, inputs_new
-    
+
     @staticmethod
     def process_shm(image_pixel, shm_name_save_path, dtype=np.float32):
         shm = create_shm(image_pixel.nbytes, shm_name_save_path)
@@ -164,9 +161,9 @@ class Qwen2audioRouter(BaseRouter):
         new_inputs.feature_attention_mask = torch.tensor(new_inputs.feature_attention_mask, dtype=torch.int64)
         for feature_len in feature_lens:
             pad_token_length += feature_len - 1
-        new_prompt_token = torch.full((pad_token_length, ), pad_token_id, dtype=torch.int64)
+        new_prompt_token = torch.full((pad_token_length,), pad_token_id, dtype=torch.int64)
 
-        shm_name_save_path = kwargs.get('shm_name_save_path', None)
+        shm_name_save_path = kwargs.get("shm_name_save_path", None)
         shm_name_list, shape_value_list, audio_pixels = [], [], []
 
         audio_pixels.append(new_inputs.input_features)
@@ -183,7 +180,7 @@ class Qwen2audioRouter(BaseRouter):
                 shm_name, shape_value = self.process_shm(audio_pixel, shm_name_save_path, dtype=np.int64)
             shm_name_list.append(shm_name)
             shape_value_list.append(shape_value)
-        
+
         for i, _ in enumerate(shm_name_list):
             new_prompt_token[2 * i] = torch.tensor(shm_name_list[i], dtype=torch.int64)
             new_prompt_token[2 * i + 1] = torch.tensor(shape_value_list[i], dtype=torch.int64)
@@ -195,7 +192,7 @@ class Qwen2audioRouter(BaseRouter):
         config = Qwen2AudioConfig.from_dict(self.config_dict)
         config.model_name_or_path = self.model_name_or_path
         config.text_config = Qwen2AudioTextConfig.from_dict(config.text_config)
-        setattr(config, 'quantization_config', QuantizationConfig(**{}))
+        setattr(config, "quantization_config", QuantizationConfig(**{}))
         if self.max_position_embeddings:
             config.max_position_embeddings = self.max_position_embeddings
         return config
@@ -216,14 +213,14 @@ class Qwen2audioRouter(BaseRouter):
         return position_ids
 
     def make_context(
-        self, 
+        self,
         rank: int,
-        conversation: List[Dict[str, List[Dict]]], 
+        conversation: List[Dict[str, List[Dict]]],
         system: str = "You are a helpful assistant.",
-        **kwargs):
+        **kwargs,
+    ):
         context_tokens = self.tokenize(conversation)
         return context_tokens
 
     def get_input_builder(self):
         return self
-

@@ -20,7 +20,7 @@ from atb_llm.models.qwen2_vl.config_qwen2_vl import Qwen2vlConfig
 from atb_llm.models.qwen2_vl.data_preprocess_qwen2_vl import fetch_image, fetch_video, process_shared_memory
 from atb_llm.models.qwen2_vl.input_builder_qwen2_vl import Qwen2vlInputBuilder
 from atb_llm.utils.log.error_code import ErrorCode
-from atb_llm.utils.log.logging import logger, print_log
+from atb_llm.utils.log.logging import logger
 
 VISION_START_TOKEN_ID = 151652
 VISION_END_TOKEN_ID = 151653
@@ -42,6 +42,7 @@ messages_template = [
 
 @dataclass
 class Qwen2vlRouter(BaseRouter):
+    is_multimodal: bool = True
     _processor: Any = None
 
     @property
@@ -66,7 +67,7 @@ class Qwen2vlRouter(BaseRouter):
 
         vision_info_list = []
         message_list = []
-        shm_name_save_path = kwargs.get('shm_name_save_path', None)
+        shm_name_save_path = kwargs.get("shm_name_save_path", None)
 
         for single_input in inputs:
             if single_input.get(IMAGE, None):
@@ -79,17 +80,17 @@ class Qwen2vlRouter(BaseRouter):
                 images_inputs, feature_lens = fetch_image(self.image_processor, single_input)
 
                 shared_memory_result = process_shared_memory(
-                    images_inputs.pixel_values,
-                    shm_name_save_path,
-                    images_inputs.image_grid_thw
+                    images_inputs.pixel_values, shm_name_save_path, images_inputs.image_grid_thw
                 )
-                vision_info_list.append([
-                    shared_memory_result['pixel_values_shm_name'],
-                    shared_memory_result['pixel_values_shape_value'],
-                    shared_memory_result['thw_value'],
-                    feature_lens,
-                    image_token_id
-                ])
+                vision_info_list.append(
+                    [
+                        shared_memory_result["pixel_values_shm_name"],
+                        shared_memory_result["pixel_values_shape_value"],
+                        shared_memory_result["thw_value"],
+                        feature_lens,
+                        image_token_id,
+                    ]
+                )
 
             elif single_input.get(VIDEO, None):
                 message_list.append(single_input)
@@ -100,43 +101,47 @@ class Qwen2vlRouter(BaseRouter):
                 # 默认 fps 为 2
                 video_single_message = {"type": "video", "video": single_input[VIDEO], "fps": 2.0}
                 video_inputs, feature_lens, second_per_grid_t = fetch_video(
-                    self.image_processor,
-                    video_single_message,
-                    IMAGE_FACTOR
+                    self.image_processor, video_single_message, IMAGE_FACTOR
                 )
                 shared_memory_result = process_shared_memory(
-                    video_inputs.pixel_values_videos,
-                    shm_name_save_path,
-                    video_inputs.video_grid_thw,
-                    second_per_grid_t
+                    video_inputs.pixel_values_videos, shm_name_save_path, video_inputs.video_grid_thw, second_per_grid_t
                 )
-                vision_info_list.append([
-                    shared_memory_result['pixel_values_shm_name'],
-                    shared_memory_result['pixel_values_shape_value'],
-                    shared_memory_result['thw_value'],
-                    shared_memory_result['second_per_grid_t_shm_name'],
-                    shared_memory_result['second_per_grid_t_shape_value'],
-                    feature_lens,
-                    video_token_id
-                ])
+                vision_info_list.append(
+                    [
+                        shared_memory_result["pixel_values_shm_name"],
+                        shared_memory_result["pixel_values_shape_value"],
+                        shared_memory_result["thw_value"],
+                        shared_memory_result["second_per_grid_t_shm_name"],
+                        shared_memory_result["second_per_grid_t_shape_value"],
+                        feature_lens,
+                        video_token_id,
+                    ]
+                )
 
             elif single_input.get(TEXT, None):
                 message_list.append(single_input)
             else:
-                logger.error("The input field currently only supports 'image', 'video' or 'text'.",
-                ErrorCode.ATB_MODELS_PARAM_INVALID)
+                logger.error(
+                    "The input field currently only supports 'image', 'video' or 'text'.",
+                    ErrorCode.ATB_MODELS_PARAM_INVALID,
+                )
                 raise TypeError("The input field currently only supports 'image', 'video' or 'text'.")
         return self.process_token(vision_info_list, message_list)
 
     def get_input_builder(self):
         if hasattr(self.config, "max_position_embeddings") and self.config.max_position_embeddings:
-            return Qwen2vlInputBuilder(self.tokenizer, self.image_processor, self.processor, self.config,
-                                       max_length=self.config.max_position_embeddings)
+            return Qwen2vlInputBuilder(
+                self.tokenizer,
+                self.image_processor,
+                self.processor,
+                self.config,
+                max_length=self.config.max_position_embeddings,
+            )
         return Qwen2vlInputBuilder(self.tokenizer, self.image_processor, self.processor, self.config)
 
     def get_config(self):
         config = Qwen2vlConfig.from_dict(self.config_dict)
-        setattr(config, 'quantization_config', QuantizationConfig(**{}))
+        setattr(config, "quantization_config", QuantizationConfig(**{}))
         if self.max_position_embeddings:
             config.max_position_embeddings = self.max_position_embeddings
         config.model_name_or_path = self.model_name_or_path
@@ -155,16 +160,18 @@ class Qwen2vlRouter(BaseRouter):
     def check_config_qwen2_vl(self, config):
         super().check_config(config)
         attribute_ranges = {
-            'mm_hidden_size': (1, 2147483647),
-            'num_key_value_heads': (1, 2147483647),
+            "mm_hidden_size": (1, 2147483647),
+            "num_key_value_heads": (1, 2147483647),
         }
         for attr, (min_val, max_val) in attribute_ranges.items():
             if not hasattr(config, attr) or getattr(config, attr) is None:
                 continue
             value = getattr(config, attr)
             if value < min_val or value > max_val:
-                logger.error(f"`self._config.{attr}` must be between {min_val} and {max_val}.",
-                ErrorCode.ATB_MODELS_PARAM_OUT_OF_RANGE)
+                logger.error(
+                    f"`self._config.{attr}` must be between {min_val} and {max_val}.",
+                    ErrorCode.ATB_MODELS_PARAM_OUT_OF_RANGE,
+                )
                 raise ValueError(f"`self._config.{attr}` must be between {min_val} and {max_val}.")
 
     def process_token(self, vision_info_list, message_list):
@@ -172,9 +179,7 @@ class Qwen2vlRouter(BaseRouter):
         messages[0]["content"] = message_list
         prompt = self.processor.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
         if not prompt:
-            prompt = self.processor.apply_chat_template(
-                message_list, tokenize=False, add_generation_prompt=True
-            )
+            prompt = self.processor.apply_chat_template(message_list, tokenize=False, add_generation_prompt=True)
         input_ids = self.tokenizer(prompt, return_tensors="pt")["input_ids"].flatten()
         new_input_ids = input_ids
         vision_start_token_id = getattr(self.config, "vision_start_token_id", VISION_START_TOKEN_ID)
@@ -189,7 +194,7 @@ class Qwen2vlRouter(BaseRouter):
         pre = 0
         for i in range(0, vision_num, 1):
             feature_lens = vision_info_list[i][-2]
-            text_token = input_ids[pre: bos_pos[i]]
+            text_token = input_ids[pre : bos_pos[i]]
             pre = eos_pos[i] + 1
             if vision_info_list[i][-1] == image_token_id:
                 vision_pad_token = torch.cat(

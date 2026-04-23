@@ -8,7 +8,6 @@
 # MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
 # See the Mulan PSL v2 for more details.
 
-import os
 import copy
 from typing import Dict, List, Any
 from dataclasses import dataclass
@@ -22,8 +21,6 @@ from atb_llm.utils.shm_utils import process_shared_memory
 from atb_llm.utils.multimodal_utils import safe_open_image, check_video_path
 
 from .input_builder_qwen3_vl import Qwen3vlInputBuilder
-from ...utils.log import logger
-from ...utils.log.error_code import ErrorCode
 
 
 IMAGE = "image"
@@ -41,6 +38,7 @@ messages_template = [
 
 @dataclass
 class Qwen3vlRouter(BaseRouter):
+    is_multimodal: bool = True
     _processor: Any = None
 
     def __post_init__(self):
@@ -53,11 +51,11 @@ class Qwen3vlRouter(BaseRouter):
         if not hasattr(self, "_processor") or self._processor is None:
             self._processor = self.get_processor()
         return self._processor
-    
+
     def tokenize(self, inputs: List[Dict], **kwargs):
         text = ""
         message_list = []
-        shm_name_save_path = kwargs.get('shm_name_save_path', None)
+        shm_name_save_path = kwargs.get("shm_name_save_path", None)
         for item in inputs:
             if item.get(IMAGE, None):
                 img_fname = item[IMAGE]
@@ -72,18 +70,11 @@ class Qwen3vlRouter(BaseRouter):
                     shm_name_save_path = self.input_builder.get_shm_name_save_path(video_path)
             if item.get(TEXT, None):
                 text = item[TEXT]
-                message_list.append({
-                    TYPE: TEXT,
-                    TEXT: text
-                })
+                message_list.append({TYPE: TEXT, TEXT: text})
         messages = copy.deepcopy(messages_template)
         messages[0]["content"] = message_list
         inputs = self.processor.apply_chat_template(
-            messages,
-            tokenize=True,
-            add_generation_prompt=True,
-            return_dict=True,
-            return_tensors='pt'
+            messages, tokenize=True, add_generation_prompt=True, return_dict=True, return_tensors="pt"
         )
         shm_info = process_shared_memory(inputs, shm_name_save_path)
         input_ids = self.input_builder.update_token_id(inputs, shm_info)
@@ -91,7 +82,7 @@ class Qwen3vlRouter(BaseRouter):
 
     def get_input_builder(self):
         return Qwen3vlInputBuilder(self.tokenizer, self.config, self.processor)
-    
+
     def get_config(self):
         config_cls = self.get_config_cls()
         config = config_cls.from_dict(self.config_dict)
@@ -105,7 +96,7 @@ class Qwen3vlRouter(BaseRouter):
             raise NotImplementedError(err_msg)
         super().check_config(config)
         return config
-    
+
     def get_tokenizer(self):
         return self.processor.tokenizer
 

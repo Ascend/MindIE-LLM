@@ -14,6 +14,7 @@ from ..base.router import BaseRouter
 
 @dataclass
 class MllamaRouter(BaseRouter):
+    is_multimodal: bool = True
 
     @staticmethod
     def check_config(config):

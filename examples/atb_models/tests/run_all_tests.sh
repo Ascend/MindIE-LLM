@@ -104,7 +104,19 @@ function fn_run_pythontest()
               ! "$line" =~ "internlm2" &&
               ! "$line" =~ "internlm3" &&
               ! "$line" =~ "eplb_expert_data_collect" &&
-              ! "$line" =~ "common_op_builder" ]]; then
+              ! "$line" =~ "common_op_builder" &&
+              ! "$line" =~ "router_glm4v" &&
+              ! "$line" =~ "router_internlmxcomposer2" &&
+              ! "$line" =~ "router_internvl" &&
+              ! "$line" =~ "router_janus" &&
+              ! "$line" =~ "router_llava" &&
+              ! "$line" =~ "router_llava_next" &&
+              ! "$line" =~ "router_minicpm_qwen2_v2" &&
+              ! "$line" =~ "router_mllama" &&
+              ! "$line" =~ "router_qwen2_audio" &&
+              ! "$line" =~ "router_qwen2_vl" &&
+              ! "$line" =~ "router_vita" &&
+              ! "$line" =~ "router_yivl" ]]; then
             echo "$line" | awk -F '"' '{print "examples/atb_models/atb_llm/" $4, $8*100 "%", $10*100 "%"}' >> result.txt
         fi
     done

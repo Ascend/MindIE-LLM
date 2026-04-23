@@ -25,35 +25,35 @@ from ..base.model_utils import safe_get_tokenizer_from_pretrained
 
 @dataclass
 class Minicpmqwen2v2Router(BaseRouter):
+    is_multimodal: bool = True
 
     def __post_init__(self):
         super().__post_init__()
-        self.processor = safe_from_pretrained(AutoProcessor, self.config.model_name_or_path, 
-                                              trust_remote_code=self.trust_remote_code)
-    
+        self.processor = safe_from_pretrained(
+            AutoProcessor, self.config.model_name_or_path, trust_remote_code=self.trust_remote_code
+        )
+
     def tokenize(self, inputs, **kwargs):
-        return inner_tokenize(
-            inputs=inputs,
-            config=self.config,
-            processor=self.processor,
-            **kwargs)
+        return inner_tokenize(inputs=inputs, config=self.config, processor=self.processor, **kwargs)
 
     def check_config_minicpmqwen2v2(self, config):
         super().check_config(config)
-        attribute_ranges = {'mm_hidden_size': (1, 2147483647), 'num_key_value_heads': (1, 2147483647)}
+        attribute_ranges = {"mm_hidden_size": (1, 2147483647), "num_key_value_heads": (1, 2147483647)}
         for attr, (min_val, max_val) in attribute_ranges.items():
             if not hasattr(config, attr) or getattr(config, attr) is None:
                 continue
             value = getattr(config, attr)
             if value < min_val or value > max_val:
-                logger.error(f"`self._config.{attr}` must be between {min_val} and {max_val}.",
-                ErrorCode.ATB_MODELS_PARAM_OUT_OF_RANGE)
+                logger.error(
+                    f"`self._config.{attr}` must be between {min_val} and {max_val}.",
+                    ErrorCode.ATB_MODELS_PARAM_OUT_OF_RANGE,
+                )
                 raise ValueError(f"`self._config.{attr}` must be between {min_val} and {max_val}.")
 
     def get_config(self):
         config = Minicpmqwen2v2Config.from_dict(self.config_dict)
         config.model_name_or_path = self.model_name_or_path
-        setattr(config, 'quantization_config', QuantizationConfig(**{}))
+        setattr(config, "quantization_config", QuantizationConfig(**{}))
         if self.max_position_embeddings:
             config.max_position_embeddings = self.max_position_embeddings
         self.check_config_minicpmqwen2v2(config)
@@ -67,18 +67,16 @@ class Minicpmqwen2v2Router(BaseRouter):
             padding_side="left",
             truncation_side="left",
             trust_remote_code=self.trust_remote_code,
-            use_fast=use_fast)
+            use_fast=use_fast,
+        )
 
     def get_generation_config(self):
         generation_config = super().get_generation_config()
         return generation_config
 
     def get_input_builder(self, **kwargs):
-        return Minicpmqwen2v2InputBuilder(
-            config=self.config,
-            processor=self.processor,
-            **kwargs)
-    
+        return Minicpmqwen2v2InputBuilder(config=self.config, processor=self.processor, **kwargs)
+
     def generate_position_ids(self, input_ids):
         position_ids = np.arange(len(input_ids), dtype=np.int64)
         return position_ids
