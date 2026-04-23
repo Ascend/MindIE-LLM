@@ -172,12 +172,9 @@ def prepare_cp_prefill_inputs(cp_size, input_ids, position_ids, input_lengths_cu
     return cp_input_dict
 
 
-def get_speculative_reqs_padding_length(num_tokens, num_actual_tokens, num_token_per_batch):
-    if num_actual_tokens < num_token_per_batch:
-        actual_reqs_num = 1
-    else:
-        actual_reqs_num = num_actual_tokens // num_token_per_batch
-    padding_tokens = num_tokens - num_actual_tokens
+def get_speculative_reqs_padding_length(num_tokens, num_token_per_batch):
+    actual_reqs_num = num_tokens // num_token_per_batch
+    padding_tokens = num_tokens % num_token_per_batch
     if padding_tokens > 0:
         actual_reqs_num += 1
     return actual_reqs_num, padding_tokens
@@ -289,7 +286,6 @@ class SfaMetadata(AttentionMetadata):
 
         actual_len, last_req_tokens = get_speculative_reqs_padding_length(
             num_tokens=num_tokens,
-            num_actual_tokens=num_actual_tokens,
             num_token_per_batch=self.num_speculative_tokens + 1,
         )
 
@@ -311,12 +307,10 @@ class SfaMetadata(AttentionMetadata):
             self.actual_seq_lengths_kv[-1] = last_req_tokens
 
         input_buffer_actual_seq_lengths_query = input_buffer.get("actual_seq_lengths_query")
-        input_buffer_actual_seq_lengths_query[: self.actual_seq_lengths_query.shape[-1]].copy_(
-            self.actual_seq_lengths_query[: self.actual_seq_lengths_query.shape[-1]]
-        )
+        indices = torch.arange(self.num_speculative_tokens + 1, num_tokens, self.num_speculative_tokens + 1).npu()
+        input_buffer_actual_seq_lengths_query[: indices.shape[-1]].copy_(indices)
         self.actual_seq_lengths_query = input_buffer_actual_seq_lengths_query[:actual_len]
-        if last_req_tokens > 0:
-            self.actual_seq_lengths_query[-1] = self.actual_seq_lengths_query[-2] + last_req_tokens
+        self.actual_seq_lengths_query[-1] = num_tokens
 
         input_buffer_block_tables = input_buffer.get("block_tables")
         input_buffer_block_tables.fill_(0)
@@ -997,7 +991,7 @@ class SfaBackendImpl(SelectAttentionImpl):
             sparse_block_size=1,
             block_table=attn_metadata.block_tables,
             actual_seq_lengths_query=attn_metadata.actual_seq_lengths_query,
-            actual_seq_lengths_kv=attn_metadata.seq_lens,
+            actual_seq_lengths_kv=attn_metadata.actual_seq_lengths_kv,
             layout_query="TND",
             layout_kv="PA_BSND",
             sparse_mode=3,
