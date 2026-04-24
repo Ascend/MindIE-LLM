@@ -1,0 +1,80 @@
+{
+  "name": "MindIE-LLM Dev Container",
+  "image": "swr.cn-north-4.myhuaweicloud.com/inference/ascend_mindie_ubuntu_x86:20260305_ubuntu24_3.0.0_cann8.5.1_torch2.9.0_py311",
+  "workspaceMount": "source=${localWorkspaceFolder},target=/workspace/MindIE-LLM,type=bind,consistency=cached",
+  "workspaceFolder": "/workspace/MindIE-LLM",
+  "remoteUser": "root",
+  "containerEnv": {
+    "PYTHONUNBUFFERED": "1",
+    "PYTHONDONTWRITEBYTECODE": "1",
+    "CCACHE_DIR": "/root/.cache/ccache",
+    "CCACHE_MAXSIZE": "10G",
+    "CMAKE_CXX_COMPILER_LAUNCHER": "ccache",
+    "CMAKE_C_COMPILER_LAUNCHER": "ccache",
+    "TORCH_DEVICE_BACKEND_AUTOLOAD": "0",
+    "MAX_COMPILE_CORE_NUM": "2",
+    "USER_ABI_VERSION": "1"
+  },
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-vscode.cpptools",
+        "ms-vscode.cpptools-extension-pack",
+        "ms-vscode.cmake-tools",
+        "ms-python.python",
+        "ms-python.vscode-pylance",
+        "charliermarsh.ruff",
+        "eamodio.gitlens",
+        "mechatroner.rainbow-csv",
+        "editorconfig.editorconfig",
+        "streetsidesoftware.code-spell-checker",
+        "tamasfe.even-better-toml",
+        "redhat.vscode-yaml",
+        "twxs.cmake"
+      ],
+      "settings": {
+        "python.defaultInterpreterPath": "/usr/bin/python3",
+        "python.linting.enabled": true,
+        "python.linting.pylintEnabled": false,
+        "python.linting.flake8Enabled": false,
+        "python.formatting.provider": "none",
+        "[python]": {
+          "editor.formatOnSave": true,
+          "editor.defaultFormatter": "charliermarsh.ruff",
+          "editor.codeActionsOnSave": {
+            "source.fixAll": "explicit",
+            "source.organizeImports": "explicit"
+          }
+        },
+        "[cpp]": {
+          "editor.formatOnSave": true,
+          "editor.defaultFormatter": "ms-vscode.cpptools"
+        },
+        "[c]": {
+          "editor.formatOnSave": true,
+          "editor.defaultFormatter": "ms-vscode.cpptools"
+        },
+        "C_Cpp.intelliSenseEngine": "default",
+        "C_Cpp.formatting": "clangFormat",
+        "cmake.configureOnOpen": true,
+        "editor.formatOnSave": true,
+        "files.eol": "\n",
+        "files.trimTrailingWhitespace": true,
+        "files.insertFinalNewline": true,
+        "ruff.lint.enable": true,
+        "ruff.format.enable": true
+      }
+    }
+  },
+  "forwardPorts": [
+    8000,
+    8080
+  ],
+  "postCreateCommand": "apt-get update && apt-get install -y ccache dos2unix patch && ccache --set-config=max_size=10G && find /workspace/MindIE-LLM -name '*.sh' -exec dos2unix {} \\; && mkdir -p /var/log/mindie_log && chmod 777 /var/log/mindie_log && chown -R $(whoami):$(whoami) /workspace/MindIE-LLM/third_party /workspace/MindIE-LLM/build /workspace/MindIE-LLM/output 2>/dev/null || true && echo 'source /usr/local/Ascend/ascend-toolkit/set_env.sh' >> /root/.bashrc && source /usr/local/Ascend/ascend-toolkit/set_env.sh",
+  "mounts": [
+    "source=MindIE-LLM-pip-cache,target=/root/.cache/pip,type=volume",
+    "source=MindIE-LLM-ccache,target=/root/.cache/ccache,type=volume",
+    "source=${localEnv:USERPROFILE}/.ssh,target=/root/.ssh,type=bind,consistency=cached,readonly"
+  ],
+  "postStartCommand": ""
+}
