@@ -1176,8 +1176,12 @@ SequenceGroupMetaDatas Scheduler::GenerateSequenceGroupMetadata(const SchedulerO
                                              seq->data_.outputTokenIds.end());
                 if (seq->data_.outputTokenIds.size() > 0) {
                     // 重计算最大推理个数要减去前面已经推理的token数，
-                    seqGroup->sampling->maxOutputLen =
-                        seqGroup->sampling->maxOutputLen - seq->data_.outputTokenIds.size();
+                    seqGroup->sampling->maxOutputLen = seqGroup->maxOutputLen_ - seq->data_.outputTokenIds.size();
+                }
+                if (seqGroup->maxOutputLen_ < seq->data_.outputTokenIds.size()) {
+                    MINDIE_LLM_ERROR("[Recompute] seqId:"
+                                     << seq->seqId_ << " generated_tokens:" << seq->data_.outputTokenIds.size()
+                                     << " exceeds original_max_output_len:" << seqGroup->maxOutputLen_);
                 }
             }
         }
