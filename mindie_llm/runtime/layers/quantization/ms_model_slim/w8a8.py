@@ -25,6 +25,7 @@ from typing import List
 import torch
 import torch_npu
 from torch import nn
+from torch.nn.functional import pad
 
 from mindie_llm.runtime.layers.fused_moe.fused_moe_method_base import FusedMoEMethodBase
 from mindie_llm.runtime.layers.linear.linear_method_base import LinearMethodBase
@@ -479,26 +480,14 @@ class W8A8PerTokenFusedMoEMethod(FusedMoEMethodBase):
         else:
             pertoken_scale = dynamic_scale
 
-        hidden_states = torch_npu.npu_grouped_matmul(
-            x=[x],
-            weight=[layer.gate_up_weight],
-            split_item=2,  # output a single tensor
-            group_list_type=group_list_type,
-            group_type=0,  # the axis to group
-            group_list=group_list,
-            output_dtype=torch.int32,
-        )[0]
-
-        hidden_states, swiglu_out_scale = torch_npu.npu_dequant_swiglu_quant(
-            x=hidden_states,
-            weight_scale=layer.gate_up_weight_scale,
-            activation_scale=pertoken_scale,
+        # Need weight format of NZ
+        hidden_states, swiglu_out_scale, _ = torch_npu.npu_grouped_matmul_swiglu_quant(
+            x=x,
+            weight=layer.gate_up_weight,
             bias=None,
-            quant_scale=None,
-            quant_offset=None,
-            group_index=group_list,
-            activate_left=True,  # whether to left-activate
-            quant_mode=1,  # 0: static quant, 1: dynamic quant
+            group_list=convert_token_distribution_format(group_list, group_list_type, 0),
+            weight_scale=layer.gate_up_weight_scale,
+            x_scale=pertoken_scale,
         )
 
         hidden_states = torch_npu.npu_grouped_matmul(
@@ -530,17 +519,16 @@ class W8A8PerTokenFusedMoEMethod(FusedMoEMethodBase):
             "fused_down_weight_scale", ScalerParameter(scale_from_float_to_int64(layer.down_weight_scale.data))
         )
 
-        if get_npu_node_info().is_nz_format_beneficial():
-            layer.gate_up_weight.data = torch_npu.npu_format_cast(layer.gate_up_weight.data, 29)
-            logger.debug(
-                "Convert weight to FRACTAL_NZ done, current format is %s",
-                torch_npu.get_npu_format(layer.gate_up_weight.data),
-            )
-            layer.down_weight.data = torch_npu.npu_format_cast(layer.down_weight.data, 29)
-            logger.debug(
-                "Convert weight to FRACTAL_NZ done, current format is %s",
-                torch_npu.get_npu_format(layer.down_weight.data),
-            )
+        layer.gate_up_weight.data = torch_npu.npu_format_cast(layer.gate_up_weight.data, 29)
+        logger.debug(
+            "Convert weight to FRACTAL_NZ done, current format is %s",
+            torch_npu.get_npu_format(layer.gate_up_weight.data),
+        )
+        layer.down_weight.data = torch_npu.npu_format_cast(layer.down_weight.data, 29)
+        logger.debug(
+            "Convert weight to FRACTAL_NZ done, current format is %s",
+            torch_npu.get_npu_format(layer.down_weight.data),
+        )
 
 
 def scale_from_float_to_int64(scale):
@@ -551,3 +539,67 @@ def scale_from_float_to_int64(scale):
         np.frombuffer(scale.cpu().to(torch.float32).numpy().tobytes(), dtype=np.int32).astype(np.int64)
     ).to(scale.device)
     return scale
+
+
+def convert_token_distribution_format(
+    group_list: torch.Tensor, src_list_type: int, dst_list_type: int, active_num: int = 0, expert_num: int = 0
+) -> torch.Tensor:
+    """
+    Converts expert token distribution lists between different representation formats.
+
+    Format Definitions:
+        0 (cumsum): Cumulative token counts indexed by expert position.
+        1 (count): Individual token counts indexed by expert position.
+        2 (key_value): Sparse tensor of shape (N, 2). Column 0 contains expert IDs,
+                       Column 1 contains the cumulative token counts for those experts.
+
+    Args:
+        group_list: Input token distribution tensor.
+        src_list_type: Input format identifier (0, 1, or 2).
+        dst_list_type: Target format identifier (0, 1, or 2).
+        active_num: Fill value for unassigned experts during 2->0 conversion.
+        expert_num: Total number of experts, required for 2->0 output shape.
+
+    Returns:
+        Converted token distribution tensor matching dst_list_type.
+
+    Raises:
+        ValueError: If src_list_type is outside the valid range.
+        NotImplementedError: If the requested conversion path is not supported.
+    """
+    if src_list_type not in [0, 1, 2]:
+        raise ValueError(f"src_list_type must be in [0, 1, 2], but got {src_list_type}")
+
+    if src_list_type == dst_list_type:
+        return group_list
+
+    # Convert count mode to cumulative sum mode
+    if src_list_type == 1 and dst_list_type == 0:
+        return group_list.cumsum(dim=0)
+
+    # Convert cumulative sum mode to count mode
+    if src_list_type == 0 and dst_list_type == 1:
+        group_diff = torch.diff(group_list)
+        return torch.cat([group_list[0].unsqueeze(0), group_diff], dim=0)
+
+    # Convert key_value mode to cumulative sum mode
+    if src_list_type == 2 and dst_list_type == 0:
+        # Pad expert IDs to establish interval boundaries
+        experts = pad(group_list[:, 0], (1, 0))
+        # Pad cumulative token counts. Removed .cumsum() as column 1 is already cumulative per definition.
+        tokens = pad(group_list[:, 1], (1, 0))
+
+        target_list = torch.full(
+            size=(expert_num,), fill_value=active_num, dtype=group_list.dtype, device=group_list.device
+        )
+
+        # Broadcast sparse cumulative values to the dense expert array via interval mapping
+        for i, (start, end) in enumerate(zip(experts[:-1], experts[1:])):
+            if end > start:
+                target_list[start:end] = tokens[i]
+
+        return target_list
+
+    raise NotImplementedError(
+        f"Conversion from src_list_type={src_list_type} to dst_list_type={dst_list_type} is not implemented yet."
+    )

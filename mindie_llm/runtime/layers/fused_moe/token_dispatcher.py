@@ -195,6 +195,7 @@ class TokenDispatcherWithMC2(Singleton, MoETokenDispatcher):
             "shared_expert_rank_num": 0,
             "moe_expert_num": args.num_experts,
             "global_bs": global_bs,
+            "expert_token_nums_type": 0,  # 0: prefix sum of tokens per expert; 1: token count per expert
         }
         stage1_kwargs = {
             "scales": None,
@@ -248,7 +249,7 @@ class TokenDispatcherWithMC2(Singleton, MoETokenDispatcher):
                 shared_gate_up, _ = args.shared_experts.gate_up_proj(args.hidden_states)
                 shared_act = args.shared_experts.act_fn(shared_gate_up)
 
-        group_list_type = 1
+        group_list_type = 0
         dispatch_output = {
             "group_list_type": group_list_type,
             "hidden_states": expand_x,
