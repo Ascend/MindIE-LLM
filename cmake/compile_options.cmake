@@ -1,4 +1,5 @@
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+set(CMAKE_SKIP_RPATH TRUE)
 
 get_ABI_option_value()
 
@@ -97,6 +98,9 @@ set(THIRD_PARTY_C_FLAGS
     -D_FORTIFY_SOURCE=2
     -O2
     -ftrapv
+    -Wl,-z,relro
+    -Wl,-z,now
+    -s
 )
 get_architecture(ARCH)
 if(${ARCH} STREQUAL "aarch64")

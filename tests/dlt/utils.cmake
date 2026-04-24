@@ -62,53 +62,72 @@ endfunction()
 # 添加明确的分隔符（如空格）
 function(build_test module type list_libraries list_includes)
     set(TEST_BINARY ${CMAKE_PROJECT_NAME}_${module}_${type})
-    file(GLOB_RECURSE TEST_SOURCES 
+
+    file(GLOB_RECURSE TEST_SOURCES
         ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/*.cc
         ${CMAKE_CURRENT_SOURCE_DIR}/*.h
     )
+
     add_executable(${TEST_BINARY} ${TEST_SOURCES})
-    # 控制权限放开，private函数可测试
+
     target_compile_options(${TEST_BINARY} PRIVATE -fno-access-control)
-    set_target_properties(${TEST_BINARY} PROPERTIES LINK_FLAGS "-Wl,--as-needed")
-    target_link_options(${TEST_BINARY} PRIVATE -rdynamic)
 
-    set(INCLUDES "")
-    foreach(include_folder ${list_includes})
-        list(APPEND INCLUDES ${include_folder})
-    endforeach()
-    message("INCLUDES: ${INCLUDES}")
-
-    target_include_directories(${TEST_BINARY} PRIVATE 
-        ${THIRD_PARTY_OUTPUT_DIR}/googletest/include
-        ${THIRD_PARTY_OUTPUT_DIR}/mockcpp/include
-        ${INCLUDES}
+    target_link_options(${TEST_BINARY} PRIVATE
+        -rdynamic
+        -Wl,--no-as-needed
+        -Wl,-rpath-link,${THIRD_PARTY_OUTPUT_DIR}/abseil-cpp/lib
+        -Wl,-rpath-link,${THIRD_PARTY_OUTPUT_DIR}/grpc/lib
+        -Wl,-rpath-link,${THIRD_PARTY_OUTPUT_DIR}/protobuf/lib
+        -Wl,-rpath-link,${THIRD_PARTY_OUTPUT_DIR}/cares/lib
+        -Wl,-rpath-link,${THIRD_PARTY_OUTPUT_DIR}/re2/lib
+        -Wl,-rpath-link,${THIRD_PARTY_OUTPUT_DIR}/zlib/lib
     )
 
-    set(LIBRARIES "")
-    foreach(lib ${list_libraries})
-        list(APPEND LIBRARIES ${lib})
-    endforeach()
-    message("LIBRARIES: ${LIBRARIES}")
+    target_include_directories(${TEST_BINARY} PRIVATE
+        ${THIRD_PARTY_OUTPUT_DIR}/googletest/include
+        ${THIRD_PARTY_OUTPUT_DIR}/mockcpp/include
+        ${list_includes}
+    )
 
     target_link_directories(${TEST_BINARY} PRIVATE
         ${THIRD_PARTY_OUTPUT_DIR}/gtest/lib
         ${THIRD_PARTY_OUTPUT_DIR}/mockcpp/lib
     )
-    target_link_libraries(${TEST_BINARY} PUBLIC
+
+    target_link_libraries(${TEST_BINARY} PRIVATE
         gtest
         gtest_main
         pthread
         mockcpp
-        ${LIBRARIES}
+        ${list_libraries}
     )
-    
-    add_test(NAME ${module}_${type} COMMAND ${TEST_BINARY} --gtest_color=yes --gtest_brief=0 --gtest_output=xml:${CMAKE_BINARY_DIR}/dlt_info/${module}_${type}_detail.xml --gtest_break_on_failure)
-    
-    add_custom_target(${module}_${type} ALL
-        COMMAND env LD_LIBRARY_PATH=${THIRD_PARTY_OUTPUT_DIR}/grpc/lib:${THIRD_PARTY_OUTPUT_DIR}/re2/lib:${THIRD_PARTY_OUTPUT_DIR}/zlib/lib:${THIRD_PARTY_OUTPUT_DIR}/protobuf/lib:${THIRD_PARTY_OUTPUT_DIR}/abseil-cpp/lib:${THIRD_PARTY_OUTPUT_DIR}/cares/lib:${THIRD_PARTY_OUTPUT_DIR}/openssl/lib:${THIRD_PARTY_OUTPUT_DIR}/boost/lib
-        bash -c "ctest --verbose" || exit -1
-        COMMENT "Run testing: ${TEST_BINARY}"
+
+    add_test(NAME ${module}_${type}
+        COMMAND ${TEST_BINARY}
+            --gtest_color=yes
+            --gtest_brief=0
+            --gtest_output=xml:${CMAKE_BINARY_DIR}/dlt_info/${module}_${type}_detail.xml
+            --gtest_break_on_failure
     )
-    add_dependencies(${module}_${type} ${TEST_BINARY})
+
+    set(_LD_PATH
+        "${THIRD_PARTY_OUTPUT_DIR}/grpc/lib"
+        "${THIRD_PARTY_OUTPUT_DIR}/re2/lib"
+        "${THIRD_PARTY_OUTPUT_DIR}/zlib/lib"
+        "${THIRD_PARTY_OUTPUT_DIR}/protobuf/lib"
+        "${THIRD_PARTY_OUTPUT_DIR}/abseil-cpp/lib"
+        "${THIRD_PARTY_OUTPUT_DIR}/cares/lib"
+        "${THIRD_PARTY_OUTPUT_DIR}/openssl/lib"
+        "${THIRD_PARTY_OUTPUT_DIR}/boost/lib"
+        "${CMAKE_BINARY_DIR}"
+        "${CMAKE_BINARY_DIR}/src"
+        "${CMAKE_BINARY_DIR}/src/utils"
+        "${CMAKE_BINARY_DIR}/lib"
+    )
+
+    string(JOIN ":" LD_PATH_STR ${_LD_PATH})
+    set_tests_properties(${module}_${type} PROPERTIES
+        ENVIRONMENT "LD_LIBRARY_PATH=${LD_PATH_STR}"
+    )
 endfunction()

@@ -129,7 +129,7 @@ class TestError(unittest.TestCase):
                 5,
                 5,
                 128,
-                self.test_invalid_decoding_params.get("backend_type"),
+                "",
                 False,
             )
             spcp_info = (Mock(group_size=1, rank=0), Mock(group_size=1, rank=0))

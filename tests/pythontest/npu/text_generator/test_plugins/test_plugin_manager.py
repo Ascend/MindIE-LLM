@@ -1746,7 +1746,6 @@ class TestPluginManagerFillInModelResultExp(unittest.TestCase):
             "hit_sequence_ids_mask_tensor": torch.tensor([True, False], dtype=torch.bool),
             "update_indices": torch.tensor([], dtype=torch.long),
         }
-
         model_input_wrapper.model_inputs = Mock()
         model_input_wrapper.model_inputs.input_ids = torch.zeros(4, dtype=torch.long)
         model_input_wrapper.model_inputs.position_ids = torch.zeros(4, dtype=torch.long)
