@@ -1,8 +1,15 @@
-# MindIE LLM
+<h1 align="center" style="font-size: 3.5rem;">MindIE-LLM</h1>
 
-## 📢 Latest News
+<p align="center"><b>昇腾大语言模型推理引擎</b></p>
 
-- [2025/12] MindIE LLM 正式宣布开源并面向公众开放！ [会议日历](https://meeting.ascend.osinfra.cn/?sig=sig-MindIE-LLM)
+<div align="center">
+
+[🏠 昇腾社区](https://www.hiascend.com/) |
+[📖 文档中心](https://mindie-llm-doc.readthedocs.io/zh-cn/latest/) |
+[📅 社区会议](https://meeting.ascend.osinfra.cn/?sig=sig-MindIE-LLM) |
+[💬 问题反馈](https://gitcode.com/Ascend/MindIE-LLM/issues)
+
+</div>
 
 <div align="center">
 
@@ -11,6 +18,11 @@
 
 </div>
 
+## 📢 Latest News
+
+- [2026/04] 📖 文档站点上线！欢迎访问 [MindIE-LLM 文档中心](https://mindie-llm-doc.readthedocs.io/zh-cn/latest/) 在线阅读完整文档。
+- [2025/12] MindIE LLM 正式宣布开源并面向公众开放！ [会议日历](https://meeting.ascend.osinfra.cn/?sig=sig-MindIE-LLM)
+
 ## 🚀 简介
 
 **MindIE LLM**是昇腾的大语言模型推理加速套件，旨在通过深度优化的模型库和推理优化器，专门提升大模型在昇腾硬件上的推理性能和易用性。MindIE LLM基于昇腾硬件，提供业界通用大模型推理能力，多并发请求的调度，包含Continuous Batching、PagedAttention、FlashDecoding等加速特性，使能用户高性能推理需求。
@@ -18,28 +30,28 @@
 ## 🔍 目录结构
 
 ``` text
- ├── mindie_llm                                     # Python 推理框架主模块 
- │   ├── connector                                  # 请求接入层 
- │   ├── text_generator                             # 核心推理引擎 
- │   ├── modeling                                   # 模型封装抽象  
+ ├── mindie_llm                                     # Python 推理框架主模块
+ │   ├── connector                                  # 请求接入层
+ │   ├── text_generator                             # 核心推理引擎
+ │   ├── modeling                                   # 模型封装抽象
  │   ├── runtime                                    # 运行时编译和模型加载
- │   ├── utils                                      # 工具模块：日志/张量/Profiling/验证等 
- ├── examples                                       # 示例代码 
- ├── docs                                           # 项目文档介绍 
- ├── src                                            # C++ 核心引擎 
- │   ├── engine                                     # LLM 引擎的主逻辑（调度/执行） 
- │   ├── scheduler                                  # 调度器（FCFS/PDDS/Layerwise） 
- │   ├── block_manager                              # KV Cache 块管理（LRU/Prefix Cache/CoW） 
- │   ├── llm_manager                                # Python/C++ 桥接 API  
- │   ├── server                                     # 服务端（gRPC/HTTP 接入端点） 
- │   ├── utils                                      # 基础工具（共享内存/加密/日志/ID 生成等） 
- │   ├── include                                    # 对外头文件接口 
- ├── scripts                                        # 构建与部署脚本 
- ├── tools                                          # 辅助工具 
- ├── tests                                          # 测试                                             
- ├── CMakeLists.txt                                 # CMake 构建配置                          
- ├── README.md    
-                              
+ │   ├── utils                                      # 工具模块：日志/张量/Profiling/验证等
+ ├── examples                                       # 示例代码
+ ├── docs                                           # 项目文档介绍
+ ├── src                                            # C++ 核心引擎
+ │   ├── engine                                     # LLM 引擎的主逻辑（调度/执行）
+ │   ├── scheduler                                  # 调度器（FCFS/PDDS/Layerwise）
+ │   ├── block_manager                              # KV Cache 块管理（LRU/Prefix Cache/CoW）
+ │   ├── llm_manager                                # Python/C++ 桥接 API
+ │   ├── server                                     # 服务端（gRPC/HTTP 接入端点）
+ │   ├── utils                                      # 基础工具（共享内存/加密/日志/ID 生成等）
+ │   ├── include                                    # 对外头文件接口
+ ├── scripts                                        # 构建与部署脚本
+ ├── tools                                          # 辅助工具
+ ├── tests                                          # 测试
+ ├── CMakeLists.txt                                 # CMake 构建配置
+ ├── README.md
+
  ```
 
 ## 📢 版本说明
@@ -50,21 +62,21 @@
 
 ## ⚡️ 环境部署
 
-- 通过软件包或镜像方式安装MindIE LLM，请参见[安装指南](./docs/zh/user_guide/install/README.md)。
-- 通过拉取最新代码编译安装MindIE LLM，请参见[编译安装指南](./docs/zh/developer_guide/build_guide.md)。
+- 通过软件包或镜像方式安装MindIE LLM，请参见[安装指南](https://mindie-llm-doc.readthedocs.io/zh-cn/latest/user_guide/install/menu_install/)。
+- 通过拉取最新代码编译安装MindIE LLM，请参见[编译安装指南](https://mindie-llm-doc.readthedocs.io/zh-cn/latest/developer_guide/build_guide/)。
 
 ## ⚡️ 快速入门
 
-快速体验使用MindIE进行大模型推理的全流程，请参见[快速入门](./docs/zh/user_guide/quick_start/quick_start.md)。
+快速体验使用MindIE进行大模型推理的全流程，请参见[快速入门](https://mindie-llm-doc.readthedocs.io/zh-cn/latest/user_guide/quick_start/quick_start/)。
 
 ## 📝 学习文档
 
 - 模型支持列表
-  - [代码仓模型支持列表](./docs/zh/user_guide/model_support_list.md)：优先使用，提供当前版本经过测试充分验证支持和仅功能支持的模型全集。
+  - [代码仓模型支持列表](https://mindie-llm-doc.readthedocs.io/zh-cn/latest/user_guide/model_support_list/)：优先使用，提供当前版本经过测试充分验证支持和仅功能支持的模型全集。
   - [昇腾社区模型支持列表](https://www.hiascend.com/software/mindie/modellist)：提供当前版本经过测试充分验证支持的模型。
-- [特性介绍](./docs/zh/user_guide/feature/README.md)：MindIE LLM 支持的推理特性。
-- [LLM 使用指南](./docs/zh/user_guide/user_manual/README.md)：MindIE LLM 使用指南，包括推理参数配置、在线和离线推理、参数调优等。
-  
+- [特性介绍](https://mindie-llm-doc.readthedocs.io/zh-cn/latest/user_guide/feature/)：MindIE LLM 支持的推理特性。
+- [LLM 使用指南](https://mindie-llm-doc.readthedocs.io/zh-cn/latest/user_guide/user_manual/menu_user_manual/)：MindIE LLM 使用指南，包括推理参数配置、在线和离线推理、参数调优等。
+
 ## 📝贡献声明
 
 1. 提交错误报告：如果您在MindIE LLM中发现了一个不存在安全问题的漏洞，请在MindIE LLm仓库中的Issues搜索，以防该漏洞被重复提交，如果找不到漏洞可以创建一个新的Issues。如果发现了一个安全问题请不要将其公开，请参阅安全问题处理方式。提交错误报告时应包含完整信息。

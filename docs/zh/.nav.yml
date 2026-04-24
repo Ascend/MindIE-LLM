@@ -1,0 +1,142 @@
+nav:
+  - 主页: README.md
+
+  - 用户指南:
+    - 快速入门: user_guide/quick_start/quick_start.md
+    - 安装指南:
+      - 安装指南总览: user_guide/install/menu_install.md
+      - 安装说明: user_guide/install/installation_introduction.md
+      - 安装 MindIE: user_guide/install/installing_MindIE.md
+      - 环境准备: user_guide/install/environment_preparation.md
+      - 镜像安装:
+        - 镜像使用指南: user_guide/install/source/image_usage_guide.md
+        - Docker 安装: user_guide/install/source/docker_installation.md
+      - 物理机安装:
+        - 准备软件包和依赖: user_guide/install/source/preparing_software_and_dependencies.md
+        - 安装软件包和依赖: user_guide/install/source/installing_software_and_dependencies.md
+        - 物理机安装 MindIE: user_guide/install/source/installation_on_a_physical_machine.md
+      - 容器化安装: user_guide/install/source/installation_in_containerized.md
+      - 升级: user_guide/install/source/upgrade.md
+      - 卸载: user_guide/install/source/uninstallation.md
+      - 常见问题与附录:
+        - 软件包参数说明: user_guide/install/faq_and_appendixes/software_package_options.md
+        - 密码复杂度要求: user_guide/install/faq_and_appendixes/password_complexity_requirement.md
+        - 设置用户有效期: user_guide/install/faq_and_appendixes/setting_validity_of_account.md
+        - 启动 haveged 服务: user_guide/install/faq_and_appendixes/starting_the_haveged_service.md
+        - curl 命令报错: user_guide/install/faq_and_appendixes/curl_command_failed.md
+        - libboost 线程报错: user_guide/install/faq_and_appendixes/error_libboost_thread_motor_started.md
+      - 安全管理与加固:
+        - 安全管理: user_guide/install/security_management_and_hardening/security_management.md
+        - 安全加固须知: user_guide/install/security_management_and_hardening/security_hardening_precautions.md
+        - 信息泄露风险提醒: user_guide/install/security_management_and_hardening/notification_of_data_disclosure_risks.md
+        - 服务器安全加固:
+          - Server 安全加固: user_guide/install/security_management_and_hardening/server_security_hardening.md
+          - 目录权限安全加固: user_guide/install/security_management_and_hardening/directory_permission_security_hardening.md
+          - 缓冲区溢出安全保护: user_guide/install/security_management_and_hardening/preventing_buffer_overflow.md
+          - 使用 Linux ASLR 和 KASLR: user_guide/install/security_management_and_hardening/using_ASLR_and_KASLR_provided_by_linux.md
+          - 设置 umask: user_guide/install/security_management_and_hardening/setting_umask.md
+          - 无属主文件安全加固: user_guide/install/security_management_and_hardening/performing_security_hardening_ownerless_files.md
+          - 禁止无属主文件: user_guide/install/security_management_and_hardening/prohibiting_files_without_owners.md
+          - 确保 root 唯一性和 UID 唯一性: user_guide/install/security_management_and_hardening/enforcing_root_exclusivity_and_UID_uniqueness.md
+          - 禁止 SetUID/SetGID shell 脚本: user_guide/install/security_management_and_hardening/prohibiting_the_shell_scripts_with_setUID_setGID.md
+          - 禁止高危 capability 可执行文件: user_guide/install/security_management_and_hardening/prohibiting_executable_files_with_highrisk_capabilities.md
+          - 禁止 root 远程访问: user_guide/install/security_management_and_hardening/prohibiting_the_root_user_from_remotely.md
+          - Python 安全加固: user_guide/install/security_management_and_hardening/python_security_hardening.md
+          - 安装 systemd-coredump: user_guide/install/security_management_and_hardening/(optional)installing_systemd_coredump.md
+        - Docker 与容器安全:
+          - Docker 守护进程安全加固: user_guide/install/security_management_and_hardening/security_hardening_on_the_docker_daemon.md
+          - Docker 容器运行安全加固: user_guide/install/security_management_and_hardening/security_hardening_for_docker_container_running.md
+          - Kubernetes 安全加固: user_guide/install/security_management_and_hardening/kubernetes_security_hardening.md
+          - 启用 Docker 审计: user_guide/install/security_management_and_hardening/enabling_docker_audit.md
+          - 启用 live-restore: user_guide/install/security_management_and_hardening/enabling_live_restore.md
+          - Docker 配置文件权限: user_guide/install/security_management_and_hardening/setting_permissions_for_docker_configuration_files.md
+          - 为 Docker 创建单独分区: user_guide/install/security_management_and_hardening/creating_separate_partition_for_docker.md
+          - 镜像漏洞: user_guide/install/security_management_and_hardening/image_vulnerabilities.md
+        - 网络与访问控制:
+          - 防火墙设置: user_guide/install/security_management_and_hardening/configuring_firewall.md
+          - 端口扫描: user_guide/install/security_management_and_hardening/scanning_ports.md
+          - 防 DoS 攻击: user_guide/install/security_management_and_hardening/defending_against_dos_attacks.md
+          - TCP 远程访问 TLS 认证: user_guide/install/security_management_and_hardening/enabling_tls_authentication_for_tcpremote.md
+          - 关闭 Device SSH 服务: user_guide/install/security_management_and_hardening/disabling_the_device_ssh_service.md
+          - 开启白名单校验: user_guide/install/security_management_and_hardening/enabling_trustlist_verification_for_device.md
+        - 其他安全加固: user_guide/install/security_management_and_hardening/other_measures_for_security_hardening.md
+    - 示例: user_guide/examples.md
+    - 模型支持列表: user_guide/model_support_list.md
+    - 模型部署:
+      - DeepSeek-V3.2: user_guide/models/deepseek/deepseek_v3.2.md
+    - 优化与调优: user_guide/optimization_and_tuning.md
+    - 使用手册:
+      - 简介: user_guide/user_manual/introduction.md
+      - 使用手册总览: user_guide/user_manual/menu_user_manual.md
+      - 离线推理: user_guide/user_manual/offline_inference.md
+      - 服务参数配置: user_guide/user_manual/service_parameter_configuration.md
+      - 服务化接口使用指导: user_guide/user_manual/service_APIs_usage_guidance.md
+      - 模型参数配置: user_guide/user_manual/model_parameter_configuration.md
+      - 环境变量: user_guide/user_manual/environment_variable.md
+      - 日志配置: user_guide/user_manual/logging_configuration.md
+      - 性能调优: user_guide/user_manual/performance_tuning.md
+      - 兼容性工具配置: user_guide/user_manual/compatibility_tool_configuration.md
+      - Prefill/Decode 混合部署: user_guide/user_manual/prefill_decode_mixed_deployment.md
+      - 虚拟机手动绑核: user_guide/user_manual/introduction_to_manual_cpu_binding_for_virtual_machines.md
+      - Rank Table File 配置: user_guide/user_manual/rank_table_file_configuration.md
+    - 特性:
+      - 特性总览: user_guide/feature/README.md
+      - 量化:
+        - W8A8: user_guide/feature/w8a8.md
+        - W8A16: user_guide/feature/w8a16.md
+        - W16A16SC: user_guide/feature/w16a16sc.md
+        - W8A8SC: user_guide/feature/w8a8sc.md
+        - W4A8 混合精度量化: user_guide/feature/w4a8_mixed_precision_quantization.md
+        - FA3 量化: user_guide/feature/fa3_quantization.md
+        - Anti-Outlier 离群值抑制: user_guide/feature/anti_outlier.md
+        - Attention 量化: user_guide/feature/attention_quantization.md
+        - PDMix 量化: user_guide/feature/pdmix.md
+        - KV Cache INT8: user_guide/feature/kv_cache_int8.md
+      - 并行:
+        - 张量并行: user_guide/feature/tensor_parallel.md
+        - 数据并行: user_guide/feature/data_parallel.md
+        - 专家并行: user_guide/feature/expert_parallel.md
+        - 上下文并行: user_guide/feature/context_parallel.md
+        - 序列并行: user_guide/feature/sequence_parallel.md
+      - 调度:
+        - 异步调度: user_guide/feature/asynchronous_scheduling.md
+        - SplitFuse: user_guide/feature/split_fuse.md
+        - 并行解码: user_guide/feature/speculative_decoding.md
+        - SLO 感知调度优化: user_guide/feature/slo_aware_scheduling_optimization.md
+        - 负载均衡: user_guide/feature/expert_parallelism_load_balancer.md
+      - 解析:
+        - Prefix Cache: user_guide/feature/prefix_cache.md
+        - KV Cache 池化: user_guide/feature/kv_cache_pool.md
+        - MemPool: user_guide/feature/mempool.md
+        - 离线权重切分: user_guide/feature/offline_weight_partitioning.md
+      - 模型特性:
+        - MoE: user_guide/feature/moe.md
+        - MLA: user_guide/feature/mla.md
+        - MTP: user_guide/feature/mtp.md
+        - Function Call: user_guide/feature/function_call.md
+        - 长序列: user_guide/feature/long_sequence.md
+        - 推理开关: user_guide/feature/enable_reasoning.md
+        - 共享专家外置: user_guide/feature/mix_shared_routing.md
+        - Micro Batch: user_guide/feature/micro_batch.md
+        - Multi-LoRA: user_guide/feature/multi_lora.md
+        - 思维推理功能流: user_guide/feature/thinking_reasoning_function_stream.md
+        - 结构化输出: user_guide/feature/structured_output.md
+        - 思考预算: user_guide/feature/thinking_budget.md
+
+  - 开发者指南:
+    - 架构概览: developer_guide/architecture_design/architecture_overview.md
+    - 架构设计:
+      - MTP: developer_guide/architecture_design/mtp.md
+    - 设计文档:
+      - MicroBatch: developer_guide/architecture_design/MicroBatch.md
+      - MultiLora: developer_guide/architecture_design/MultiLora.md
+      - MoE: developer_guide/architecture_design/MoE.md
+      - RoPEFactory: developer_guide/architecture_design/RoPEFactoryGuide.md
+    - 编译安装: developer_guide/build_guide.md
+    - 本地构建 MkDocs 文档: build_mkdocs.md
+    - 测试: developer_guide/test.md
+    - 迁移适配:
+      - ACLGraph 迁移: developer_guide/migration_and_adaptation_guide/aclgraph_migration_and_adaptation_guide.md
+      - 多模态理解迁移: developer_guide/migration_and_adaptation_guide/multimodal_understanding_migration_and_adaptation_guide.md
+
+  - 常见问题: faq/faq.md

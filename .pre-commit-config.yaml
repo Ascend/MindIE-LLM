@@ -15,6 +15,7 @@ repos:
       - id: end-of-file-fixer
       - id: check-yaml
         args: ["--allow-multiple-documents"]  # 兼容K8S
+        exclude: mkdocs\.yml$  # !!python/name: 标签不兼容 safe_load
       - id: check-added-large-files  # 拦截>50MB文件（默认阈值）
       - id: check-merge-conflict     # 检测未解决的合并冲突（<<<<<<< HEAD）
       - id: detect-private-key       # 检测硬编码的私钥/密钥

@@ -7,7 +7,7 @@ MindIE LLM 支持的特性包括基础特性、量化特性、长序列特性、
         <th>大类</th><th>特性</th><th>简介</th><th>价值</th>
     </tr>
     <tr>
-        <td rowspan="8">基础特性</td><td>Multi-Lora</td><td>使用不同的 LoRA 权重进行推理。详见 <a href="./multi_loRA.md">Multi-LoRA</a>。</td><td>支持 LoRA 特性，动态加载、卸载权重</td>
+        <td rowspan="8">基础特性</td><td>Multi-Lora</td><td>使用不同的 LoRA 权重进行推理。详见 <a href="./multi_lora.md">Multi-LoRA</a>。</td><td>支持 LoRA 特性，动态加载、卸载权重</td>
     </tr>
     <tr>
         <td>MoE</td><td>通过引入稀疏激活的专家网络，在不显著增加计算成本的前提下大幅扩展模型参数规模，从而提升模型能力。详见 <a href="./moe.md">MoE</a>。</td><td>以万亿级参数量容纳海量知识，性能潜力远超稠密模型。</td>
@@ -70,7 +70,7 @@ MindIE LLM 支持的特性包括基础特性、量化特性、长序列特性、
         <td rowspan="3">调度特性</td><td>异步调度</td><td>对于 maxBatchSize 较大，且输入输出长度较长的场景，该特性使用模型推理阶段的耗时掩盖数据准备阶段和数据返回阶段的耗时，避免 NPU 计算资源和显存资源浪费。详见 <a href="./asynchronous_scheduling.md">异步调度</a>。</td><td>降低时延</td>
     </tr>
     <tr>
-        <td>SplitFuse</td><td>将长提示词分解成更小的块，并在多个 forward step 中进行调度，降低 Prefill 时延。详见 <a href="./splitFuse.md">SplitFuse</a>。</td><td>降低显存和时延、提高吞吐</td>
+        <td>SplitFuse</td><td>将长提示词分解成更小的块，并在多个 forward step 中进行调度，降低 Prefill 时延。详见 <a href="./split_fuse.md">SplitFuse</a>。</td><td>降低显存和时延、提高吞吐</td>
     </tr>
     <tr>
         <td>SLO 调度优化</td><td>确保 SLO 的前提下提升系统吞吐量。详见 <a href="./slo_aware_scheduling_optimization.md">SLO 调度优化</a>。</td><td>提高吞吐</td>
