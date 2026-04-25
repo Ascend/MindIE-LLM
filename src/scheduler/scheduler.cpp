@@ -1179,9 +1179,7 @@ SequenceGroupMetaDatas Scheduler::GenerateSequenceGroupMetadata(const SchedulerO
                     seqGroup->sampling->maxOutputLen = seqGroup->maxOutputLen_ - seq->data_.outputTokenIds.size();
                 }
                 if (seqGroup->maxOutputLen_ < seq->data_.outputTokenIds.size()) {
-                    MINDIE_LLM_ERROR("[Recompute] seqId:"
-                                     << seq->seqId_ << " generated_tokens:" << seq->data_.outputTokenIds.size()
-                                     << " exceeds original_max_output_len:" << seqGroup->maxOutputLen_);
+                    MINDIE_LLM_LOG_ERROR("Recompute causes maxOutputLen to be less than 0");
                 }
             }
         }
