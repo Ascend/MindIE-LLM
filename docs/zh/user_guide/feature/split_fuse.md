@@ -55,10 +55,19 @@ SplitFuse特性的目的是将长prompt request分解成更小的块，并在多
 
 1. 打开Server的config.json文件。
 
-    ```bash
-    cd {MindIE安装目录}/mindie_llm/
-    vi conf/config.json
-    ```
+   - **whl包安装方式：**
+
+        ```bash
+        cd {MindIE安装目录}/mindie_llm/
+        vi conf/config.json
+        ```
+
+   - **run包安装方式：**
+
+        ```bash
+        cd {MindIE安装目录}/latest/mindie-service
+        vi conf/config.json
+        ```
 
 2. 配置服务化参数。在Server的config.json文件添加“plugin\_params“、“templateType“参数。对于性能调优，需要编辑config.json配置文件中的**ScheduleConfig**部分，建议在需要固定大小的切块长度时配置prefillChunkSize参数，其余场景可使用默认的动态切分配置。
 
@@ -111,9 +120,17 @@ SplitFuse特性的目的是将长prompt request分解成更小的块，并在多
 
 3. 启动服务。
 
-    ```bash
-    mindie_llm_server
-    ```
+    - **whl包安装方式：**
+
+        ```bash
+        mindie_llm_server
+        ```
+
+    - **run包安装方式：**
+
+        ```bash
+        ./bin/mindieservice_daemon
+        ```
 
 4. 使用AISBench工具进行性能测试，详情请参见《快速入门》中的“[性能测试](../quick_start/quick_start.md#性能测试)”章节。
 

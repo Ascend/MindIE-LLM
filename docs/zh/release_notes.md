@@ -1,11 +1,13 @@
-# 版本配套说明<a name="ZH-CN_TOPIC_0000002532737933"></a>
+# 版本说明书
 
-## 产品版本信息<a name="ZH-CN_TOPIC_0000002532737927"></a>
+## 版本配套说明<a name="ZH-CN_TOPIC_0000002532737933"></a>
+
+### 产品版本信息<a name="ZH-CN_TOPIC_0000002532737927"></a>
 
 <a name="table1657153819263"></a>
 <table><tbody><tr id="row35711238132618"><th class="firstcol" valign="top" width="22.6%" id="mcps1.1.3.1.1"><p id="p4361851192614"><a name="p4361851192614"></a><a name="p4361851192614"></a>产品名称</p>
 </th>
-<td class="cellrowborder" valign="top" width="77.4%" headers="mcps1.1.3.1.1 "><p id="p93605162611"><a name="p93605162611"></a><a name="p93605162611"></a>MindIE</p>
+<td class="cellrowborder" valign="top" width="77.4%" headers="mcps1.1.3.1.1 "><p id="p93605162611"><a name="p93605162611"></a><a name="p93605162611"></a>MindIE LLM</p>
 </td>
 </tr>
 <tr id="row557118387264"><th class="firstcol" valign="top" width="22.6%" id="mcps1.1.3.2.1"><p id="p636175192620"><a name="p636175192620"></a><a name="p636175192620"></a>产品版本</p>
@@ -26,7 +28,7 @@
 </tbody>
 </table>
 
-## 相关产品版本配套说明<a name="ZH-CN_TOPIC_0000002500898042"></a>
+### 相关产品版本配套说明<a name="ZH-CN_TOPIC_0000002500898042"></a>
 
 <a name="zh-cn_topic_0000002500897574_zh-cn_topic_0000001962372505_table373mcpsimp"></a>
 <table><thead align="left"><tr id="zh-cn_topic_0000002500897574_zh-cn_topic_0000001962372505_row378mcpsimp"><th class="cellrowborder" valign="top" width="25%" id="mcps1.1.3.1.1"><p id="zh-cn_topic_0000002500897574_zh-cn_topic_0000001962372505_p380mcpsimp"><a name="zh-cn_topic_0000002500897574_zh-cn_topic_0000001962372505_p380mcpsimp"></a><a name="zh-cn_topic_0000002500897574_zh-cn_topic_0000001962372505_p380mcpsimp"></a>产品名称</p>
@@ -37,55 +39,39 @@
 </thead>
 <tbody><tr id="zh-cn_topic_0000002500897574_zh-cn_topic_0000001962372505_row389mcpsimp"><td class="cellrowborder" valign="top" width="25%" headers="mcps1.1.3.1.1 "><p id="zh-cn_topic_0000002500897574_zh-cn_topic_0000001962372505_p1979603419221"><a name="zh-cn_topic_0000002500897574_zh-cn_topic_0000001962372505_p1979603419221"></a><a name="zh-cn_topic_0000002500897574_zh-cn_topic_0000001962372505_p1979603419221"></a>CANN</p>
 </td>
-<td class="cellrowborder" valign="top" width="75%" headers="mcps1.1.3.1.2 "><p id="zh-cn_topic_0000002500897574_p4400143717192"><a name="zh-cn_topic_0000002500897574_p4400143717192"></a><a name="zh-cn_topic_0000002500897574_p4400143717192"></a>8.5.1.B080</p>
+<td class="cellrowborder" valign="top" width="75%" headers="mcps1.1.3.1.2 "><p id="zh-cn_topic_0000002500897574_p4400143717192"><a name="zh-cn_topic_0000002500897574_p4400143717192"></a><a name="zh-cn_topic_0000002500897574_p4400143717192"></a>8.5.1</p>
 </td>
 </tr>
 <tr id="zh-cn_topic_0000002500897574_row2713203491916"><td class="cellrowborder" valign="top" width="25%" headers="mcps1.1.3.1.1 "><p id="zh-cn_topic_0000002500897574_p8713183441916"><a name="zh-cn_topic_0000002500897574_p8713183441916"></a><a name="zh-cn_topic_0000002500897574_p8713183441916"></a>Ascend Extension for PyTorch</p>
 </td>
-<td class="cellrowborder" valign="top" width="75%" headers="mcps1.1.3.1.2 "><p id="zh-cn_topic_0000002500897574_p18713163416199"><a name="zh-cn_topic_0000002500897574_p18713163416199"></a><a name="zh-cn_topic_0000002500897574_p18713163416199"></a>7.3.0.B125</p>
+<td class="cellrowborder" valign="top" width="75%" headers="mcps1.1.3.1.2 "><p id="zh-cn_topic_0000002500897574_p18713163416199"><a name="zh-cn_topic_0000002500897574_p18713163416199"></a><a name="zh-cn_topic_0000002500897574_p18713163416199"></a>7.3.0</p>
 </td>
 </tr>
 <tr id="zh-cn_topic_0000002500897574_row1833321143413"><td class="cellrowborder" valign="top" width="25%" headers="mcps1.1.3.1.1 "><p id="zh-cn_topic_0000002500897574_p1673134011307"><a name="zh-cn_topic_0000002500897574_p1673134011307"></a><a name="zh-cn_topic_0000002500897574_p1673134011307"></a>Ascend HDK</p>
 </td>
-<td class="cellrowborder" valign="top" width="75%" headers="mcps1.1.3.1.2 "><p id="zh-cn_topic_0000002500897574_p767354011301"><a name="zh-cn_topic_0000002500897574_p767354011301"></a><a name="zh-cn_topic_0000002500897574_p767354011301"></a>25.5.0.B077</p>
-</td>
-</tr>
-<tr><td class="cellrowborder" valign="top" width="25%" headers="mcps1.1.3.1.1 "><p><a name="msit_name"></a>MindStudio Opensource/msit</p>
-</td>
-<td class="cellrowborder" valign="top" width="75%" headers="mcps1.1.3.1.2 "><p><a name="msit_ver"></a>tag_MindStudio_8.3.0.B090_001</p>
-</td>
-</tr>
-<tr><td class="cellrowborder" valign="top" width="25%" headers="mcps1.1.3.1.1 "><p><a name="aisbench_name"></a>AISBench</p>
-</td>
-<td class="cellrowborder" valign="top" width="75%" headers="mcps1.1.3.1.2 "><p><a name="aisbench_ver"></a>v3.0-20251103-master</p>
-</td>
-</tr>
-<tr><td class="cellrowborder" valign="top" width="25%" headers="mcps1.1.3.1.1 "><p><a name="mooncake_name"></a>Mooncake</p>
-</td>
-<td class="cellrowborder" valign="top" width="75%" headers="mcps1.1.3.1.2 "><p><a name="mooncake_ver"></a>v0.3.7.post2</p>
+<td class="cellrowborder" valign="top" width="75%" headers="mcps1.1.3.1.2 "><p id="zh-cn_topic_0000002500897574_p767354011301"><a name="zh-cn_topic_0000002500897574_p767354011301"></a><a name="zh-cn_topic_0000002500897574_p767354011301"></a>版本配套关系参见<a href="https://www.hiascend.com/document/detail/zh/CANNCommunityEdition/850/releasenote/releasenote_0000.html">CANN版本配套说明</a>。<br>说明：CANN 8.5.1和CANN 8.5.0配套的HDK版本一致。</p>
 </td>
 </tr>
 </tbody>
 </table>
 
->[!NOTE] **说明：**
->自MindIE 2.2.RC1版本起，Ascend HDK将随硬件一并发布。您可通过以下方式获取Ascend HDK软件包以及配套信息：
->
-> 1. 访问[华为技术支持网站](https://support.huawei.com/enterprise/zh/category/ascend-computing-pid-1557196528909?submodel=software)。
-> 2. 单击需要查看的硬件名称，进入到该硬件的版本列表，然后选择需要查看的版本。
-> 3. 在版本详情页面中的“配套版本”页签下载Ascend HDK，“版本资料”页签中的《Atlas  _xxx_  版本配套表》查看版本配套关系。
-
-# 版本兼容性说明<a name="ZH-CN_TOPIC_0000002532657965"></a>
+## 版本兼容性说明<a name="ZH-CN_TOPIC_0000002532657965"></a>
 
 各组件需要配套使用，请勿跨版本混用。
 
-# 版本使用注意事项<a name="ZH-CN_TOPIC_0000002501057896"></a>
+ **表 1**  软件版本兼容性说明
+
+| MindIE | CANN | MindCluster | Ascend Extension for PyTorch | CCAE |
+| ------ | ---- | ----------- | ----------------------------- | ---- |
+| 3.0.0 | 8.5.1 | 7.3.0 | 7.3.0 | iMaster CCAE V100R026C00SPC010 |
+
+## 版本使用注意事项<a name="ZH-CN_TOPIC_0000002501057896"></a>
 
 无。
 
-# 3.0.0 更新说明<a name="ZH-CN_TOPIC_0000002532737925"></a>
+## 3.0.0 更新说明<a name="ZH-CN_TOPIC_0000002532737925"></a>
 
-## 新增特性<a name="ZH-CN_TOPIC_0000002532737923"></a>
+### 新增特性<a name="ZH-CN_TOPIC_0000002532737923"></a>
 
 <a name="zh-cn_topic_0000002501057442_table1287mcpsimp"></a>
 <table><thead align="left"><tr><th class="cellrowborder" valign="top" width="7.1%"><p>编号</p>
@@ -127,7 +113,7 @@
 </tbody>
 </table>
 
-## 修改特性<a name="ZH-CN_TOPIC_0000002500898048"></a>
+### 修改特性<a name="ZH-CN_TOPIC_0000002500898048"></a>
 
 <a name="zh-cn_topic_0000002532657507_table32217714417"></a>
 <table><thead align="left"><tr id="zh-cn_topic_0000002532657507_row9227754112"><th class="cellrowborder" valign="top" width="7.1%" id="mcps1.1.4.1.1"><p id="zh-cn_topic_0000002532657507_p162219754110"><a name="zh-cn_topic_0000002532657507_p162219754110"></a><a name="zh-cn_topic_0000002532657507_p162219754110"></a>编号</p>
@@ -148,7 +134,7 @@
 </tbody>
 </table>
 
-## 删除特性<a name="ZH-CN_TOPIC_0000002501057899"></a>
+### 删除特性<a name="ZH-CN_TOPIC_0000002501057899"></a>
 
 <a name="zh-cn_topic_0000002532657507_table32217714419"></a>
 <table><thead align="left"><tr><th class="cellrowborder" valign="top" width="7.1%"><p>编号</p>
@@ -169,7 +155,7 @@
 </tbody>
 </table>
 
-## 日落特性
+### 日落特性
 
 > [!NOTE]说明：以下特性将于一年后日落。
 
@@ -212,7 +198,7 @@
 </tbody>
 </table>
 
-## 接口变更说明<a name="ZH-CN_TOPIC_0000002501057888"></a>
+### 接口变更说明<a name="ZH-CN_TOPIC_0000002501057888"></a>
 
 本章节的接口变更说明包括新增、修改、废弃和删除。接口变更只体现代码层面的修改，不包含文档本身在语言、格式、链接等方面的优化改进。
 
@@ -220,8 +206,6 @@
 - 修改：表示本接口相比于上个版本有修改。
 - 废弃：表示该接口自作出废弃声明的版本起停止演进，且在声明一年后可能被移除。
 - 删除：表示该接口在此次版本被移除。
-
-### MindIE LLM接口变更<a name="zh-cn_topic_0000002532737473_section71201630112"></a>
 
 <table><thead align="left"><tr><th class="cellrowborder" valign="top" width="26.267373262673733%"><p>类名/API原型/配置项</p>
 </th>
@@ -255,7 +239,7 @@
 </tbody>
 </table>
 
-## 已解决的问题<a name="ZH-CN_TOPIC_0000002501057892"></a>
+### 已解决的问题<a name="ZH-CN_TOPIC_0000002501057892"></a>
 
 <table><thead align="left"><tr><th class="cellrowborder" valign="top" width="5.267373262673733%"><p>序号</p>
 </th>
@@ -281,7 +265,7 @@
 </tbody>
 </table>
 
-## 遗留问题<a name="ZH-CN_TOPIC_0000002532737931"></a>
+### 遗留问题<a name="ZH-CN_TOPIC_0000002532737931"></a>
 
 <a name="zh-cn_topic_0000002501057426_table42195341814"></a>
 <table><thead align="left"><tr id="zh-cn_topic_0000002501057426_row521973417113"><th class="cellrowborder" valign="top" width="6.4799999999999995%" id="mcps1.1.4.1.1"><p id="zh-cn_topic_0000002501057426_p248035673818"><a name="zh-cn_topic_0000002501057426_p248035673818"></a><a name="zh-cn_topic_0000002501057426_p248035673818"></a>序号</p>
@@ -323,21 +307,21 @@
 </tbody>
 </table>
 
-# 升级影响<a name="ZH-CN_TOPIC_0000002501057894"></a>
+## 升级影响<a name="ZH-CN_TOPIC_0000002501057894"></a>
 
-## 升级过程中对现行系统的影响<a name="ZH-CN_TOPIC_0000002532657959"></a>
+### 升级过程中对现行系统的影响<a name="ZH-CN_TOPIC_0000002532657959"></a>
 
 - 对业务的影响
-    - 软件版本升级过程中会导致业务中断。
+  软件版本升级过程中会导致业务中断。
 
 - 对网络通信的影响
-    - 对网络通信无影响。
+  对网络通信无影响。
 
-## 升级后对现行系统的影响<a name="ZH-CN_TOPIC_0000002532657963"></a>
+### 升级后对现行系统的影响<a name="ZH-CN_TOPIC_0000002532657963"></a>
 
 无
 
-# 漏洞修补列表<a name="ZH-CN_TOPIC_0000002500898046"></a>
+## 漏洞修补列表<a name="ZH-CN_TOPIC_0000002500898046"></a>
 
 |软件名称|软件版本|CVE编号|实际CVSS得分|漏洞描述|解决版本|
 |-------|---------|-------|----------|----------|--------|

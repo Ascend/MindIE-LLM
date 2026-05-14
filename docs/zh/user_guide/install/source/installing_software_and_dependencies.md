@@ -6,21 +6,7 @@
 
 需要安装的CANN软件包包括：Toolkit开发套件包、ops算子包和NNAL神经网络加速库。
 
-### 前提条件
-
-宿主机已经安装过NPU驱动和固件。如未安装，请参见《CANN 软件安装指南》中的“[选择安装场景](https://www.hiascend.com/document/detail/zh/canncommercial/850/softwareinst/instg/instg_0000.html?Mode=PmIns&InstallType=local&OS=openEuler)”章节（商用版）或“[选择安装场景](https://www.hiascend.com/document/detail/zh/CANNCommunityEdition/850/softwareinst/instg/instg_0000.html?Mode=PmIns&InstallType=local&OS=openEuler)”章节（社区版），按如下方式选择安装场景，按“**安装NPU驱动和固件**”章节进行安装。
-
-- 安装方式：选择“在物理机上安装”。
-- 操作系统：选择使用的操作系统，MindIE支持的操作系统请参考[硬件配套和支持的操作系统](../installation_introduction.md)。
-- 安装类型：根据在线或离线的安装方式，选择对应的安装类型。
-
-### 安装
-
-请参见《CANN 软件安装指南》中的“[选择安装场景](https://www.hiascend.com/document/detail/zh/canncommercial/850/softwareinst/instg/instg_0000.html?Mode=PmIns&InstallType=local&OS=openEuler)”章节（商用版）或“[选择安装场景](https://www.hiascend.com/document/detail/zh/CANNCommunityEdition/850/softwareinst/instg/instg_0000.html?Mode=PmIns&InstallType=local&OS=openEuler)”章节（社区版），并按如下方式选择安装场景，选择完成后单击“开始阅读”，按“**安装CANN**”章节进行安装。
-
-- 安装方式：选择“在物理机上安装”。
-- 操作系统：选择使用的操作系统，MindIE支持的操作系统请参考[硬件配套和支持的操作系统](../installation_introduction.md)。
-- 安装类型：根据在线或离线的安装方式，选择对应的安装类型。
+请参考[CANN 快速安装](https://www.hiascend.com/cann/download?version=683&filter=)安装昇腾NPU驱动和CANN软件（包含Toolkit、ops和NNAL包）。
 
 ## 安装Pytorch和Torch NPU
 
@@ -42,11 +28,86 @@ MindIE中各组件依赖PyTorch框架和torch_npu插件，依赖情况如下表�
 
 ## 安装ATB Models
 
+### whl包方式
+
 在ATB Models whl包所在根目录，执行如下命令安装：
 
 ```bash
 pip install atb_llm-<version>-cp<xxx>-cp<xxx>-linux_<arch>.whl
 ```
+
+### run包方式
+
+对于run包安装方式，由于ATB Models目前未提供单独的软件包，所以需自行从MindIE镜像中获取。
+
+1. 在昇腾镜像仓库，按照指导完成镜像下载。具体操作可参见**镜像安装方式**章节[获取MindIE镜像](./image_usage_guide.md#获取mindie镜像)的步骤1~步骤4。
+2. 使用以下命令在环境上新建解压目录（例如：/home/_\{用户名\}_/Package）。
+
+    ```bash
+    mkdir /home/{用户名}/Package
+    ```
+
+3. 使用以下命令赋予该路径读写权限。
+
+    ```bash
+    chmod u+rw /home/{用户名}/Package
+    ```
+
+4. 将获取的ATB Models软件包Ascend-mindie-atb-models\__\{version\}_\_linux-_\{arch\}\_py_xxx\__torch_x.x.x__-_\{abi\}_.tar.gz上传至该目录，ATB Models软件包存在于MindIE镜像包的/opt/package目录中。
+
+    >[!NOTE]说明
+    >ATB Models的abi版本需要根据环境中安装的PyTorch环境来选择，其版本需要与PyTorch编译时使用的abi版本保持一致，调用torch.compiled\_with\_cxx11\_abi\(\)接口可以查看使用的abi版本：
+    >- 如果返回False，则选择abi=0；
+    >- 如果返回True，则选择abi=1。
+
+5. 使用以下命令进入软件包所在路径并解压软件包。
+
+    ```bash
+    cd /home/{用户名}/Package
+    tar -zxf Ascend-mindie-atb-models_{version}_linux-{arch}_pyxxx_torchx.x.x-{abi}.tar.gz
+    ```
+
+6. 检查pip包安装路径权限。
+
+    为避免whl包安装成功后，在使用中出现“module not found”错误。使用pip安装whl包时，需要保证当前用户对pip包安装位置拥有写权限，pip包安装路径可以通过`**pip show **\{已存在包的包名\}`方式获得，示例如下。
+
+    ```bash
+    pip show pip
+    ```
+
+    其安装路径如以下加粗内容所示（具体回显根据实际情况所示）：
+
+    ```text
+    Name: pip
+    Version: 25.1
+    Summary: The PyPA recommended tool for installing Python packages.
+    Home-page: https://pip.pypa.io/
+    Author:
+    Author-email: The pip developers <distutils-sig@python.org>
+    License: MIT
+    Location: /root/miniconda3/envs/infor/lib/python3.11/site-packages
+    Requires:
+    Required-by:
+    ```
+
+7. 使用以下命令在Python环境中安装atb_llm的Python包。
+
+    ```bash
+    pip install atb_llm-{version}-py3-none-any.whl
+    ```
+
+8. 配置环境变量。
+   当前提供进程级环境变量设置脚本，供用户在进程中引用，以自动完成环境变量设置。用户进程结束后自动失效。
+
+    ```bash
+    source /home/{用户名}/Package/set_env.sh
+    ```
+
+    用户也可以通过修改\~/.bashrc文件的方式设置永久环境变量，操作如下：
+
+   a. 以运行用户在任意目录下执行`vi \~/.bashrc`命令，打开**.bashrc**文件，在文件最后一行后面添加上述内容。
+   b. 执行`:wq!`命令保存文件并退出。
+   c. 执行`source \~/.bashrc`命令使其立即生效。
 
 ## 安装依赖
 

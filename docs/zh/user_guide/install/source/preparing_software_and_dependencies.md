@@ -17,9 +17,13 @@ MindIE、CANN与Ascend Extension for Pytorch版本必须配套使用。其配套
 
 ## 准备软件包
 
-容器或裸机方式需要准备的软件包如[表2](#table2)所示。
+容器或裸机方式需要准备的软件包。
 
-**表 2**  软件包清单 <a id="table2"></a>
+### whl包安装方式
+
+whl包安装方式需要准备的软件包如[表2](#table2)所示。
+
+**表 2**  whl包安装方式的软件包清单 <a id="table2"></a>
 
 |软件类型|软件包名称|软件说明|获取链接|
 |--|--|--|--|
@@ -27,6 +31,23 @@ MindIE、CANN与Ascend Extension for Pytorch版本必须配套使用。其配套
 |ATB-Model|atb_llm-<*version>*-cp<*xxx>*-cp<*xxx>*-linux_<*arch>*.whl|模型库安装包。使用MindIE LLM组件时，需要安装。|[获取链接](https://www.hiascend.com/developer/download/community/result?module=ie%2Bpt%2Bcann)|
 |MindIE Motor|mindie_motor-<*version>*-cp<*xxx>*-cp<*xxx>*-linux_<*arch>*.whl|MindIE Motor组件安装包。|[获取链接](https://www.hiascend.com/developer/download/community/result?module=ie%2Bpt%2Bcann)|
 |MindIE SD|mindiesd-<*version>*-cp<*xxx>*-cp<*xxx>*-linux_<*arch>*.whl|MindIE SD组件安装包。|[获取链接](https://www.hiascend.com/developer/download/community/result?module=ie%2Bpt%2Bcann)|
+|CANN|Ascend-cann-toolkit_<*version>*_linux-<*arch>*.run|CANN开发套件包（Toolkit）。|[获取链接](https://www.hiascend.com/developer/download/community/result?module=ie%2Bpt%2Bcann)|
+|CANN|Ascend-cann-<*chip_type>*-ops_<*version>*_linux-<*arch>*.run|CANN二进制算子包（ops）。<br> 安装ops前，需已安装同一版本的Toolkit软件包，请选择运行设备对应的ops软件包。|[获取链接](https://www.hiascend.com/developer/download/community/result?module=ie%2Bpt%2Bcann)|
+|CANN|Ascend-cann-nnal_<*version>*_linux-<*arch>*.run|CANN神经网络加速库（NNAL）。|[获取链接](https://www.hiascend.com/developer/download/community/result?module=ie%2Bpt%2Bcann)|
+|Ascend Extension for PyTorch|torch_npu-<*torch_version>*.post<*post_id>*-cp*xxx*-cp*xxx*-manylinux_<*arch>*.whl|torch_npu插件whl包。|[获取链接](https://www.hiascend.com/developer/download/community/result?module=ie%2Bpt%2Bcann)<ul><li>如需获取2.1.0版本的torch_npu，请在社区版资源下载页面左上方“配套资源”中，选择PyTorch版本为7.2.0。</li><li>在PyTorch栏单击对应版本后方“获取源码”按钮，跳转至PyTorch的gitcode仓库发布页，然后在页面下方获取对应版本的torch_npu。</li></ul>|
+|Ascend Extension for PyTorch|apex-<*apex_version>*_ascend-cp*xxx*-cp*xxx*-<*arch*>.whl|APEX模块的whl包。|请参见《Ascend Extension for PyTorch 软件安装指南》中的“[安装APEX模块](https://www.hiascend.com/document/detail/zh/Pytorch/730/configandinstg/instg/docs/installing_apex.md)”章节，根据Python3.11版本自行编译。|
+|Ascend Extension for PyTorch|torch-<*torch_version>*+cpu-cp*xxx*-cp*xxx*-linux_<*arch>*.whl|PyTorch框架whl包。|<ul><li>PyTorch框架，torch_npu 2.1.0版本，请从《Ascend Extension for PyTorch 软件安装指南》中的“[安装PyTorch](https://www.hiascend.com/document/detail/zh/Pytorch/720/configandinstg/instg/insg_0004.html)”章节获取。</li><li>PyTorch框架，torch_npu 2.9.0版本请从《Ascend Extension for PyTorch 软件安装指南》中的“[安装PyTorch](https://www.hiascend.com/document/detail/zh/Pytorch/730/configandinstg/instg/docs/zh/installation_guide/installation_via_binary_package.md)”章节获取。</li></ul>|
+
+### run包安装方式
+
+run包安装方式需要准备的软件包如[表3](#table3)所示。
+
+**表 3**  run包安装方式的软件包清单  <a id="table3"></a>
+
+|软件类型|软件包名称|软件说明|获取链接|
+|--|--|--|--|
+|MindIE|Ascend-mindie_<*version>*\_linux-<*arch>*_\<abi>.run|推理引擎软件包，主要用于用户开发基于MindIE的应用。|[获取链接](https://www.hiascend.com/developer/download/community/result?module=ie%2Bpt%2Bcann)|
+|ATB-Model|Ascend-mindie-atb-models-<*version>*\_linux_<*arch>*_pyxxx_torchx.x.x-\<abi>.tar.gz|模型库安装包。使用MindIE Motor和MindIE LLM组件时，需要安装。|[获取链接](https://www.hiascend.com/developer/download/community/result?module=ie%2Bpt%2Bcann)|
 |CANN|Ascend-cann-toolkit_<*version>*_linux-<*arch>*.run|CANN开发套件包（Toolkit）。|[获取链接](https://www.hiascend.com/developer/download/community/result?module=ie%2Bpt%2Bcann)|
 |CANN|Ascend-cann-<*chip_type>*-ops_<*version>*_linux-<*arch>*.run|CANN二进制算子包（ops）。<br> 安装ops前，需已安装同一版本的Toolkit软件包，请选择运行设备对应的ops软件包。|[获取链接](https://www.hiascend.com/developer/download/community/result?module=ie%2Bpt%2Bcann)|
 |CANN|Ascend-cann-nnal_<*version>*_linux-<*arch>*.run|CANN神经网络加速库（NNAL）。|[获取链接](https://www.hiascend.com/developer/download/community/result?module=ie%2Bpt%2Bcann)|
@@ -47,12 +68,12 @@ MindIE、CANN与Ascend Extension for Pytorch版本必须配套使用。其配套
 
 ## 准备依赖
 
-MindIE所需依赖如[表3](#table3)所示。
+MindIE所需依赖如[表4](#table4)所示。
 
 > [!NOTE]说明
 > 针对用户自行安装的开源软件，请使用稳定版本（尽量使用无漏洞的版本）。
 
-**表 3**  依赖列表 <a id="table3"></a>
+**表 3**  依赖列表 <a id="table4"></a>
 
 |软件|版本要求|变更记录|
 |--|--|--|

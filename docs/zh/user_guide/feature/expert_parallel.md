@@ -21,7 +21,7 @@ MoE类模型支持Expert Parallel（EP，专家并行），通过将专家分别
 
 |配置项|取值类型|取值范围|配置说明|
 |--|--|--|--|
-|deepseekv2|
+|deepseekv2|-|-|-|
 |ep_level|int|[1,2]|专家并行的实现形式。<br>1：表示基于AllGather通信的EP并行<br>2：表示基于AllToAll和通算融合的EP<br>并行双机部署场景下且"ep_level"设置为“2”时，两台服务器必须通过交换机连接，否则拉起服务会失败。|
 |enable_init_routing_cutoff|bool|<ul><li>true</li><li>false</li></ul>|是否允许topk截断。<br>默认值：false（关闭）<br>“ep_level”=“1”时，可配置该参数。|
 |topk_scaling_factor|float|(0,1]|topk截断参数。<br>“ep_level”=“1”时，每台设备的hidden_states后段部分为无效数据，可设置截断参数减小显存开销。<br>需同时配置“enable_init_routing_cutoff”=“true”。|

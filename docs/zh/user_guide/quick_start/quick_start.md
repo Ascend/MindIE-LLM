@@ -80,14 +80,15 @@
            -v /usr/local/bin/npu-smi:/usr/local/bin/npu-smi:ro \
            -v /usr/local/sbin/:/usr/local/sbin:ro \
            -v /home/weight:/home/weight:ro \
-           mindie:2.2.RC1-800I-A2-py311-openeuler24.03-lts bash
+           mindie:3.0.0-800I-A2-py311-openeuler24.03-lts bash
     ```
 
      > [!NOTE]说明
-     > - “mindie:2.2.RC1-800I-A2-py311-openeuler24.03-lts”为镜像名称，可根据实际情况修改。
+     >
+     > - “mindie:3.0.0-800I-A2-py311-openeuler24.03-lts”为镜像名称，可根据实际情况修改。
      > - 对于--device参数，挂载权限设置为rwm，而非权限较小的rw或r，原因如下：
-     > - 对于Atlas 800I A2 推理服务器，若设置挂载权限为rw，可以正常进入容器，同时也可以使用npu-smi命令查看npu占用信息，并正常运行MindIE业务；但如果挂载的npu（即对应挂载选项中的davinci_xxx_，如npu0对应davinci0）上有其它任务占用，则使用npu-smi命令会打印报错，且无法运行MindIE任务（此时torch.npu.set_device()会失败）。
-     > - 对于Atlas 800I A3 超节点服务器，若设置挂载权限为rw，进入容器后，使用npu-smi命令会打印报错，且无法运行MindIE任务（此时torch.npu.set_device()会失败）。
+        > - 对于Atlas 800I A2 推理服务器，若设置挂载权限为rw，可以正常进入容器，同时也可以使用npu-smi命令查看npu占用信息，并正常运行MindIE业务；但如果挂载的npu（即对应挂载选项中的davinci_xxx_，如npu0对应davinci0）上有其它任务占用，则使用npu-smi命令会打印报错，且无法运行MindIE任务（此时torch.npu.set_device()会失败）。
+        >  - 对于Atlas 800I A3 超节点服务器，若设置挂载权限为rw，进入容器后，使用npu-smi命令会打印报错，且无法运行MindIE任务（此时torch.npu.set_device()会失败）。
 
     **表 1**  参数说明
 
@@ -110,41 +111,58 @@
 
 ## 模型推理
 
-1. 执行如下命令，查询安装路径<*site-packages*>。
-
-     ```bash
-     pip show mindie_llm | grep location
-     ```
-
-   若python版本是3.11，则查询到的默认安装路径为：`/usr/local/lib/python3.11/site-packages`。
-
-2. 执行如下命令，进入安装路径。
-
-     ```bash
-     cd <site-packages>
-     ```
-
-3. 确认配置文件有640权限。
+1. 若安装路径为默认路径，执行如下命令，进入MindIE安装目录。
 
     ```bash
-     chmod 640 <site-packages>/mindie_llm/conf/config.json
-     ```
+    cd /usr/local/Ascend/mindie/latest
+    ```
+
+2. 确认目录文件权限是否如下所示，若存在不匹配项，则参考以下命令修改权限。
+
+    ```bash
+    chmod 750 mindie-service
+    chmod -R 550 mindie-service/bin
+    chmod -R 500 mindie-service/bin/mindie_llm_backend_connector
+    chmod 550 mindie-service/lib
+    chmod 440 mindie-service/lib/*
+    chmod 550 mindie-service/lib/grpc
+    chmod 440 mindie-service/lib/grpc/*
+    chmod -R 550 mindie-service/include
+    chmod -R 550 mindie-service/scripts
+    chmod 750 mindie-service/logs
+    chmod 750 mindie-service/conf
+    chmod 640 mindie-service/conf/config.json
+    chmod 700 mindie-service/security
+    chmod -R 700 mindie-service/security/*
+    ```
 
      > [!NOTE]说明
      > 若文件权限不符合要求将会导致服务启动失败。
 
-4. 设置环境变量，开启日志打印。 <a id="step3"></a>
+3. 设置环境变量。<a id="step3"></a>
 
-     ```bash
-     export MINDIE_LOG_TO_STDOUT=1
-     ```
+   运行以下命令初始化各组件环境变量，并开启日志打印。
 
-5. 配置服务化参数。
+    ```bash
+    # 配置CANN环境，默认安装在/usr/local目录下
+    source /usr/local/Ascend/ascend-toolkit/set_env.sh
+    # 配置加速库环境
+    source /usr/local/Ascend/nnal/atb/set_env.sh
+    # 配置模型仓环境变量
+    source /usr/local/Ascend/atb-models/set_env.sh
+    # MindIE
+    source /usr/local/Ascend/mindie/latest/mindie-llm/set_env.sh
+    source /usr/local/Ascend/mindie/latest/mindie-service/set_env.sh
+    # 开启MindIE日志打印
+    export MINDIE_LOG_TO_STDOUT="true"
+    ```
+
+4. 配置服务化参数。
 
     a. 进入conf目录，打开“config.json“文件。
 
     ```bash
-    cd mindie_llm/conf
+    cd mindie-service/conf
     vim config.json
     ```
 
@@ -179,28 +197,48 @@
 
     |配置项|取值类型|取值范围|配置说明|
     |--|--|--|--|
-    |httpsEnabled|bool|true（开启）false（关闭）|是否开启HTTPS通信安全认证。true：开启HTTPS通信。false：关闭HTTPS通信。如果网络环境不安全，不开启HTTPS通信，即“httpsEnabled”=“false”时，会存在较高的网络安全风险。|
-    |npuDeviceIds|std::vector<std::set<size_t>>|根据模型和环境的实际情况来决定。|表示启用哪几张卡。对于每个模型实例分配的npuIds，使用芯片逻辑ID表示。在未配置ASCEND_RT_VISIBLE_DEVICES环境变量时，每张卡对应的逻辑ID可使用"npu-smi info -m"指令进行查询。若配置ASCEND_RT_VISIBLE_DEVICES环境变量时，可见芯片的逻辑ID按照ASCEND_RT_VISIBLE_DEVICES中配置的顺序从0开始计数。例如：ASCEND_RT_VISIBLE_DEVICES=1,2,3,4则以上可见芯片的逻辑ID按顺序依次为0,1,2,3。多机推理场景下该值无效，每个节点上使用的npuDeviceIds根据ranktable计算获得。必填，默认值：[[0,1,2,3]]。|
-    |modelName|string|由大写字母、小写字母、数字、中划线、点和下划线组成，且不以中划线、点和下划线作为开头和结尾，字符串长度小于或等于256。|模型名称。必填，默认值："llama_65b"。|
-    |modelWeightPath|std::string|文件绝对路径长度的上限与操作系统的设置（Linux为PATH_MAX）有关，最小值为1。|模型权重路径。程序会读取该路径下的config.json中torch_dtype和vocab_size字段的值，需保证路径和相关字段存在。必填，默认值："/data/atb_testdata/weights/llama1-65b-safetensors"。该路径会进行安全校验，需要和执行用户的属组和权限保持一致。|
-    |worldSize|uint32_t|根据模型实际情况来决定。每一套模型参数中worldSize必须与使用的NPU数量相等。|启用几张卡推理。必填，默认值：4。|
-    |trustRemoteCode|bool|truefalse|是否信任远程代码。false：不信任远程代码。true：信任远程代码。选填，默认值：false。如果设置为true，会存在信任远程代码行为，可能会导致恶意代码注入风险，请自行保障代码注入安全风险。|
+    |httpsEnabled|bool|<ul><li>true（开启）</li><li>false（关闭）</li></ul>|是否开启HTTPS通信安全认证。<ul><li>true：开启HTTPS通信。</li><li>false：关闭HTTPS通信。</li></ul>如果网络环境不安全，不开启HTTPS通信，即“httpsEnabled”=“false”时，会存在较高的网络安全风险。|
+    |npuDeviceIds|std::vector<std::set<size_t>>|根据模型和环境的实际情况来决定。|表示启用哪几张卡。对于每个模型实例分配的npuIds，使用芯片逻辑ID表示。<ul><li>在未配置ASCEND_RT_VISIBLE_DEVICES环境变量时，每张卡对应的逻辑ID可使用"npu-smi info -m"指令进行查询。</li><li>若配置ASCEND_RT_VISIBLE_DEVICES环境变量时，可见芯片的逻辑ID按照ASCEND_RT_VISIBLE_DEVICES中配置的顺序从0开始计数。</li></ul>例如：<br>ASCEND_RT_VISIBLE_DEVICES=1,2,3,4<br>则以上可见芯片的逻辑ID按顺序依次为0,1,2,3。<br>多机推理场景下该值无效，每个节点上使用的npuDeviceIds根据ranktable计算获得。<br>必填，默认值：[[0,1,2,3]]。|
+    |modelName|string|由大写字母、小写字母、数字、中划线、点和下划线组成，且不以中划线、点和下划线作为开头和结尾，字符串长度小于或等于256。|模型名称。<br>必填，默认值："llama_65b"。|
+    |modelWeightPath|std::string|文件绝对路径长度的上限与操作系统的设置（Linux为PATH_MAX）有关，最小值为1。|模型权重路径。<br>程序会读取该路径下的config.json中torch_dtype和vocab_size字段的值，需保证路径和相关字段存在。<br>必填，默认值："/data/atb_testdata/weights/llama1-65b-safetensors"。<br>该路径会进行安全校验，需要和执行用户的属组和权限保持一致。|
+    |worldSize|uint32_t|根据模型实际情况来决定。每一套模型参数中worldSize必须与使用的NPU数量相等。|启用几张卡推理。<br>必填，默认值：4。|
+    |trustRemoteCode|bool|<ul><li>true</li><li>false</li></ul>|是否信任远程代码。<ul><li>false：不信任远程代码。</li><li>true：信任远程代码。</li></ul>选填，默认值：false。<br>如果设置为true，会存在信任远程代码行为，可能会导致恶意代码注入风险，请自行保障代码注入安全风险。|
 
     c. 按“Esc”，输入`:wq!`，按“Enter”保存并退出编辑。
 
-6. 启动服务。
+5. 启动服务。
 
-    a. 执行如下命令，启动服务。
+    a. 执行如下命令，进入安装目录。
 
     ```bash
-    mindie_llm_server
+    cd /usr/local/Ascend/mindie/latest/mindie-service
     ```
 
-    b. 回显如下则说明启动成功。
+    b. 两种启动服务方法如下所示。
 
-    ```text
-    Daemon start success!
-    ```
+    - 方式一（推荐）：使用后台进程方式启动服务。后台进程方式启动服务后，关闭窗口时进程也会保留。
+
+        ```bash
+        nohup ./bin/mindieservice_daemon > output.log 2>&1 &
+        ```
+
+        在标准输出流捕获到的文件中，打印如下信息说明启动成功。
+
+        ```text
+        Daemon start success!
+        ```
+
+    - 方式二：直接启动服务。
+
+        ```bash
+        ./bin/mindieservice_daemon
+        ```
+
+        回显如下则说明启动成功。
+
+        ```text
+        Daemon start success!
+        ```
 
      > [!CAUTION]注意
      >- 如果安装过老版本的MindIE（默认安装路径为`/usr/local/Ascend/mindie`）,为避免搜索到老版本的库，请执行命令`mv /usr/local/Ascend/mindie /usr/local/Ascend/mindie-bak`，移除老版本安装路径下的文件。
@@ -209,7 +247,7 @@
      >- 如需切换用户，请在切换用户后执行**rm -f /dev/shm/\***命令，删除由之前用户运行创建的共享文件。避免切换用户后，该用户没有之前用户创建的共享文件的读写权限，造成推理失败。
      >- 标准输出流捕获到的文件output.log支持用户自定义文件和路径。
 
-7. 发送请求。
+6. 发送请求。
 
     服务化API接口请参考《MindIE LLM开发指南》中的**RESTFUL API参考**章节。
 
@@ -262,19 +300,20 @@
 
     ```python
     from ais_bench.benchmark.models import VLLMCustomAPIChatStream
+    from ais_bench.benchmark.utils.model_postprocessors import extract_non_reasoning_content
     models = [
         dict(
             attr="service",
             type=VLLMCustomAPIChatStream,
             abbr='vllm-api-stream-chat',
             path="/home/weight",                    # 指定模型序列化词表文件绝对路径，一般来说就是模型权重文件夹路径
-            model="qwen2-7b",        # 指定服务端已加载模型名称，依据实际VLLM推理服务拉取的模型名称配置（配置成空字符串会自动获取）
-            request_rate = 0,           # 请求发送频率，每1/request_rate秒发送1个请求给服务端，小于0.1则一次性发送所有请求
+            model="qwen2-7b",                       # 指定服务端已加载模型名称，依据实际VLLM推理服务拉取的模型名称配置（配置成空字符串会自动获取）
+            request_rate = 0,                       # 请求发送频率，每1/request_rate秒发送1个请求给服务端，小于0.1则一次性发送所有请求
             retry = 2,
-            host_ip = "127.0.0.1",      # 指定推理服务的IP
-            host_port = 1025,           # 指定推理服务的端口
-            max_out_len = 512,          # 推理服务输出的token的最大数量
-            batch_size=1,               # 请求发送的最大并发数
+            host_ip = "127.0.0.1",                  # 指定推理服务的IP
+            host_port = 1025,                       # 指定推理服务的端口
+            max_out_len = 512,                      # 推理服务输出的token的最大数量
+            batch_size=1,                           # 请求发送的最大并发数
             trust_remote_code=False,
             generation_kwargs = dict(
                 temperature = 0.5,
@@ -332,19 +371,20 @@
 
     ```python
     from ais_bench.benchmark.models import VLLMCustomAPIChatStream
+    from ais_bench.benchmark.utils.model_postprocessors import extract_non_reasoning_content
     models = [
         dict(
             attr="service",
             type=VLLMCustomAPIChatStream,
             abbr='vllm-api-stream-chat',
-            path="/home/weight",                    # 指定模型序列化词表文件绝对路径，一般来说就是模型权重文件夹路径
-            model="qwen2-7b",        # 指定服务端已加载模型名称，依据实际VLLM推理服务拉取的模型名称配置（配置成空字符串会自动获取）
-            request_rate = 0,           # 请求发送频率，每1/request_rate秒发送1个请求给服务端，小于0.1则一次性发送所有请求
+            path="/home/weight",                 # 指定模型序列化词表文件绝对路径，一般来说就是模型权重文件夹路径
+            model="qwen2-7b",                    # 指定服务端已加载模型名称，依据实际VLLM推理服务拉取的模型名称配置（配置成空字符串会自动获取）
+            request_rate = 0,                    # 请求发送频率，每1/request_rate秒发送1个请求给服务端，小于0.1则一次性发送所有请求
             retry = 2,
-            host_ip = "127.0.0.1",      # 指定推理服务的IP
-            host_port = 1025,           # 指定推理服务的端口
-            max_out_len = 512,          # 推理服务输出的token的最大数量
-            batch_size=1,               # 请求发送的最大并发数
+            host_ip = "127.0.0.1",               # 指定推理服务的IP
+            host_port = 1025,                    # 指定推理服务的端口
+            max_out_len = 512,                   # 推理服务输出的token的最大数量
+            batch_size=1,                        # 请求发送的最大并发数
             trust_remote_code=False,
             generation_kwargs = dict(
                 temperature = 0.5,
@@ -352,7 +392,7 @@
                 top_p = 0.95,
                 seed = None,
                 repetition_penalty = 1.03,
-                ignore_eos = True,      # 推理服务输出忽略eos（输出长度一定会达到max_out_len）
+                ignore_eos = True,                # 推理服务输出忽略eos（输出长度一定会达到max_out_len）
             ) ,
              pred_postprocessor=dict(type=extract_non_reasoning_content)
         )

@@ -51,6 +51,7 @@ nd = "nd"
 chage = "chage"
 aNULL = "aNULL"
 BA = "BA"
+infor = "infor"
 
 [type.py]
 extend-glob = []

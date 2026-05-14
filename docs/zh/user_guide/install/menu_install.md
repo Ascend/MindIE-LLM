@@ -53,3 +53,4 @@
   - [设置用户有效期](./faq_and_appendixes/setting_validity_of_account.md)
   - [密码复杂度要求](./faq_and_appendixes/password_complexity_requirement.md)
   - [启动haveged服务](./faq_and_appendixes/starting_the_haveged_service.md)
+  - [公网地址](https://gitcode.com/Ascend/docs/blob/master/MindIE/26.0.0/public_url_and_email_addresses.md)

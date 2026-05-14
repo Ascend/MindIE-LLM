@@ -28,7 +28,7 @@
 1. 执行以下命令启动容器，容器启动命令仅供参考，可根据需求自行修改，命令参数介绍如[表1](#table1)所示。
 
      ```bash
-     docker run -it -d --net=host --shm-size=1g \
+     docker run -it -d --net=host --shm-size=1g \ # 对于多模态理解模型，若业务最大并发数较高，--shm-size建议设置不小于100g
         --name <container-name> \
         --device=/dev/davinci_manager:rwm \
         --device=/dev/hisi_hdc:rwm \
@@ -38,14 +38,14 @@
         -v /usr/local/Ascend/firmware/:/usr/local/Ascend/firmware:ro \
         -v /usr/local/sbin:/usr/local/sbin:ro \
         -v /path-to-weights:/path-to-weights:ro \
-        mindie:2.3.0-800I-A2-py311-openeuler24.03-lts bash
+        mindie:3.0.0-800I-A2-py311-openeuler24.03-lts bash
     ```
 
     > [!NOTE]说明
-    >- “_mindie:2.3.0-800I-A2-py311-openeuler24.03-lts_”为镜像名称和标签，可根据实际情况修改。可在宿主机执行`docker images`命令查看当前机器上已有的镜像。
+    >- “_mindie:3.0.0-800I-A2-py311-openeuler24.03-lts_”为镜像名称和标签，可根据实际情况修改。可在宿主机执行`docker images`命令查看当前机器上已有的镜像。
     >- 对于--device参数，挂载权限设置为rwm，而非权限较小的rw或r，原因如下：
-    >- 对于Atlas 800I A2 推理服务器，若设置挂载权限为rw，可以正常进入容器，同时也可以使用npu-smi命令查看npu占用信息，并正常运行MindIE业务；但如果挂载的npu（即对应挂载选项中的davinci_xxx_，如npu0对应davinci0）上有其它任务占用，则使用npu-smi命令会打印报错，且无法运行MindIE任务（此时torch.npu.set\_device\(\)会失败）。
-    >- 对于Atlas 800I A3 超节点服务器，若设置挂载权限为rw，进入容器后，使用npu-smi命令会打印报错，且无法运行MindIE任务，此时torch.npu.set_device()会失败。
+    >   - 对于Atlas 800I A2 推理服务器，若设置挂载权限为rw，可以正常进入容器，同时也可以使用npu-smi命令查看npu占用信息，并正常运行MindIE业务；但如果挂载的npu（即对应挂载选项中的davinci_xxx_，如npu0对应davinci0）上有其它任务占用，则使用npu-smi命令会打印报错，且无法运行MindIE任务（此时torch.npu.set\_device\(\)会失败）。
+    >   - 对于Atlas 800I A3 超节点服务器，若设置挂载权限为rw，进入容器后，使用npu-smi命令会打印报错，且无法运行MindIE任务，此时torch.npu.set_device()会失败。
 
     **表 1**  参数说明 <a id="table1"></a>
 
@@ -55,7 +55,7 @@
     |-it|表示启动一个交互式终端（-i）并将其连接到容器的标准输入输出 （-t），能够与容器内部进行交互，如运行命令行操作。|
     |-d|表示容器将以后台模式运行，即容器在后台启动。使用该参数后不会阻塞当前终端的操作，可以在启动容器后继续进行其他操作。|
     |--net|表示容器将使用宿主机的网络配置（网络共享），使容器能够直接访问宿主机的网络接口，适用于需要进行低延迟、直接访问网络资源的场景。|
-    |--shm-size|表示指定容器的共享内存（/dev/shm）大小，用户可自行设置，1g为示例值。<br>该值不能超过宿主机剩余的物理内存总量，可使用`free -h`命令查看。当开启数据并行（即DP>1时），需要随DP增大调整共享内存大小：<br>当DP=2时，shm-size至少为2g<br>当DP=4时，shm-size至少为3g<br>当DP=8时，shm-size至少为5g<br>当DP=16时，shm-size至少为9g|
+    |--shm-size|表示指定容器的共享内存（/dev/shm）大小，用户可自行设置，1g为示例值。对于多模态理解模型，若业务最大并发数较高，--shm-size建议设置不小于100g。<br>该值不能超过宿主机剩余的物理内存总量，可使用`free -h`命令查看。当开启数据并行（即DP>1时），需要随DP增大调整共享内存大小：<br>当DP=2时，shm-size至少为2g<br>当DP=4时，shm-size至少为3g<br>当DP=8时，shm-size至少为5g<br>当DP=16时，shm-size至少为9g|
     |--name|表示给容器指定一个名称。\<container-name\>是容器的标识符，可以自行设置，且在当前系统中具有唯一性。如果不设置，Docker会自动分配一个随机名称。|
     |--device|表示将宿主机的设备映射到容器内。每个--device参数将宿主机设备（例如硬件加速卡或其他硬件设备）共享给容器，以便容器可以直接访问。<br>/dev/davinci_manager：davinci相关的管理设备。<br>/dev/hisi_hdc：hdc相关管理设备。<br>/dev/devmm_svm：内存管理相关设备。<br>/dev/davinci*X*：NPU设备，*X*是ID号，如：davinci0。<br>可根据`ll /dev/ \| grep davinci`命令查询device个数及名称，根据需要绑定设备，修改上面命令中的"--device=****"。|
     |-v|表示将物理机的文件夹映射到容器内的相应目录，并且使用ro参数将这些目录设置为只读权限。<br>/usr/local/Ascend/driver：该路径包含硬件驱动程序文件，驱动在宿主机上安装，将其映射到容器中，方可在容器中使用。请根据驱动所在实际路径修改。<br>/usr/local/sbin：该路径包含npu-smi等NPU状态查看命令，请根据实际路径修改。<br>/path-to-weights：该路径为设定权重挂载的路径，指向保存权重的目录，使容器能访问权重，请根据实际路径修改。（权重文件和数据集文件同时放置于该路径下）|
@@ -68,10 +68,10 @@
 
 3. 安装依赖。
 
-    使用模型进行推理前需要安装对应的依赖，各模型的依赖安装文件（requirements\__xxx_.txt）所在路径，以Python 3.11为例：/usr/local/lib/python3.11/site-packages/atb_llm/requirements/models。以LLaMA3系列模型为例，使用以下命令安装依赖。
+    使用模型进行推理前需要安装对应的依赖，各模型的依赖安装文件（requirements\__xxx_.txt）所在路径为/usr/local/Ascend/atb-models/requirements/models。以LLaMA3系列模型为例，使用以下命令安装依赖。
 
     ```bash
-    cd /usr/local/lib/python3.11/site-packages/atb_llm/requirements/models
+    cd /usr/local/Ascend/atb-models/requirements/models
     pip3 install -r requirements_llama3.txt
     ```
 
@@ -109,5 +109,4 @@
     > [!NOTE]说明
     > “$ATB\_SPEED\_HOME\_PATH”已在“.bashrc”中设置好，无需自行设置。
 
-6. MindIE Motor是面向通用模型场景的推理服务化框架，通过开放，可扩展的推理服务化平台架构提供推理服务化能力，支持对接业界主流推理框架接口，满足大语言模型的高性能推理需求。
-   对接Motor的方法请参见[快速入门](../../quick_start/quick_start.md#模型推理)。
+6. 启动服务的方法请参见[快速入门](../../quick_start/quick_start.md#模型推理)。

@@ -53,8 +53,8 @@ LoRA权重中需包含"adapter\_config.json"和"adapter\_model.safetensors"文�
 
     通过“lora\_modules”指定基础模型和LoRA权重的绑定关系：
 
-    - 权重名称为权重的别名，长度不能超过256个字符，在后续请求中用于指定Lora权重进行推理。
-    - 支持配置多个LoRA权重。
+  - 权重名称为权重的别名，长度不能超过256个字符，在后续请求中用于指定Lora权重进行推理。
+  - 支持配置多个LoRA权重。
 
     ```bash
     cd ${ATB_SPEED_HOME_PATH}
@@ -70,8 +70,17 @@ LoRA权重中需包含"adapter\_config.json"和"adapter\_model.safetensors"文�
 
     1. 打开Server的config.json文件。
 
+        - **whl包安装方式：**
+
         ```bash
         cd {MindIE安装目录}/mindie_llm/
+        vi conf/config.json
+        ```
+
+       - **run包安装方式：**
+
+        ```bash
+        cd {MindIE安装目录}/latest/mindie-service
         vi conf/config.json
         ```
 
@@ -131,8 +140,16 @@ LoRA权重中需包含"adapter\_config.json"和"adapter\_model.safetensors"文�
 
     3. 启动服务。
 
+       - **whl包安装方式：**
+
         ```bash
         mindie_llm_server
+        ```
+
+       - **run包安装方式：**
+
+        ```bash
+        ./bin/mindieservice_daemon
         ```
 
     4. 动态加载、卸载或查询LoRA。
@@ -140,10 +157,10 @@ LoRA权重中需包含"adapter\_config.json"和"adapter\_model.safetensors"文�
         加载请求：
 
         ```bash
-        curl -X POST http://127.0.0.2:1026/v1/load_lora_adapter \
+        curl -X POST https://127.0.0.2:1026/v1/load_lora_adapter \
         -H "Content-Type: application/json" \
         -d '{
-            "lora_name": "adapter2",
+            "lora_name": "adapter1",
             "lora_path": "/data/lora_model_weights/llama3.1-70b-lora"
         }'
         ```
@@ -152,19 +169,17 @@ LoRA权重中需包含"adapter\_config.json"和"adapter\_model.safetensors"文�
 
         ```bash
         curl -X POST 127.0.0.2:1026/v1/unload_lora_adapter -d '{
-            "lora_name": "adapter2"
+            "lora_name": "adapter1"
         }'
         ```
 
         查询请求：
 
         ```bash
-        curl http://127.0.0.1:1025/v1/models
+        curl https://127.0.0.1:1025/v1/models
         ```
 
     5. 使用以下指令发送请求。
-
-        其中"model"参数可以设置为基础模型名称（config.json配置文件中"ModelConfig"字段下的"modelName"参数的值）或LoRA ID（config.json配置文件中"LoraModules"字段下"name"参数的值）。当"model"参数为基础模型名称时，不使用Lora权重进行推理。当"model"参数为LoRA ID时，启用基础模型权重和指定的LoRA权重进行推理。
 
         ```bash
         curl https://127.0.0.1:1025/generate \
@@ -177,7 +192,15 @@ LoRA权重中需包含"adapter\_config.json"和"adapter\_model.safetensors"文�
         "max_tokens": 20,
         "temperature": 0
         }'
+        ```
 
+        其中"model"参数可以设置为基础模型名称（config.json配置文件中"ModelConfig"字段下的"modelName"参数的值）或LoRA ID（config.json配置文件中"LoraModules"字段下"name"参数的值）。
+        - 当"model"参数为基础模型名称时，不使用Lora权重进行推理。
+        - 当"model"参数为LoRA ID时，启用基础模型权重和指定的LoRA权重进行推理。
+
+        以"model"参数为LoRA ID为例，请求示例如下：
+
+        ```bash
         curl https://127.0.0.1:1025/generate \
         -H "Content-Type: application/json" \
         --cacert ca.pem --cert client.pem  --key client.key.pem \

@@ -42,7 +42,7 @@ repos:
         exclude: 'pre-commit/typos.toml'
         args: [
             "-L",
-            "CANN,cann,NNAL,nnal,ASCEND,ascend,EnQue,CopyIn,ArchType,AND,ND,tbe,copyin,alog,chage,aNULL",
+            "CANN,cann,NNAL,nnal,ASCEND,ascend,EnQue,CopyIn,ArchType,AND,ND,tbe,copyin,alog,chage,aNULL,infor",
             "--skip",
             "*.py,*.cpp,*.hpp,*.c,*.h", # 仅查文档/注释，跳过代码文件
           ]

@@ -26,10 +26,19 @@
 
 1. 打开Server的config.json文件。
 
-    ```bash
-    cd {MindIE安装目录}/mindie_llm/
-    vi conf/config.json
-    ```
+    - **whl包安装方式：**
+
+        ```bash
+        cd {MindIE安装目录}/mindie_llm/
+        vi conf/config.json
+        ```
+
+    - **run包安装方式：**
+
+        ```bash
+        cd {MindIE安装目录}/latest/mindie-service
+        vi conf/config.json
+        ```
 
 2. 配置服务化参数。按照[表1](#table1)在Server的config.json文件中添加“enable\_reasoning”字段，服务化参数说明请参见[配置参数说明（服务化）](../user_manual/service_parameter_configuration.md)章节，参数配置示例如下。
 
@@ -69,8 +78,16 @@
 
 3. 启动服务。
 
-     ```bash
-     mindie_llm_server
-     ```
+     - **whl包安装方式：**
+
+        ```bash
+        mindie_llm_server
+        ```
+
+     - **run包安装方式：**
+
+        ```bash
+        ./bin/mindieservice_daemon
+        ```
 
 4. 发送请求。参数说明见《MindIE Motor开发指南》中的“集群管理组件 \> 调度器（Coordinator） \> RESTful接口API \> 用户侧接口 \> OpenAI推理接口”章节。

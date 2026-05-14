@@ -4,11 +4,6 @@
 
 ## 前提条件
 
-- 宿主机已经安装过NPU驱动和固件。如未安装，请参见《CANN 软件安装指南》中的“[选择安装场景](https://www.hiascend.com/document/detail/zh/canncommercial/850/softwareinst/instg/instg_0000.html?Mode=PmIns&InstallType=local&OS=openEuler)”（商用版）章节或“[选择安装场景](https://www.hiascend.com/document/detail/zh/CANNCommunityEdition/850/softwareinst/instg/instg_0000.html?Mode=PmIns&InstallType=local&OS=openEuler)”章节（社区版），按如下方式选择安装场景，按“**安装NPU驱动和固件**”章节进行安装。
-    - 安装方式：选择“在物理机上安装”。
-    - 操作系统：选择使用的操作系统，MindIE支持的操作系统请参考[硬件配套和支持的操作系统](../installation_introduction.md#硬件配套和支持的操作系统)。
-    - 安装类型：根据在线或离线的安装方式，选择对应的安装类型。
-
 - 宿主机已参见[准备软件包和依赖](../source/preparing_software_and_dependencies.md)章节准备好需要安装的软件包和依赖。
 - 用户在宿主机自行安装Docker（版本要求大于或等于24.x.x_）。Docker的安装可参见[安装Docker](../source/docker_installation.md)。
 - 配置源之前，请确保安装环境能够连接网络。
@@ -34,7 +29,7 @@
  可参考如下示例命令启动容器，具体挂载信息可根据产品路径和实际需求修改。
 
      ```bash
-     docker run -it -d --net=host --shm-size=1g \
+     docker run -it -d --net=host --shm-size=1g \ # 对于多模态理解模型，若业务最大并发数较高，--shm-size建议设置不小于100g
      --name <container-name> \
      --device=/dev/davinci_manager:rwm \
      --device=/dev/hisi_hdc:rwm \
@@ -57,7 +52,7 @@
      |参数|参数说明|
      |--|--|
      |--pids-limit -1|表示解除进程数限制。<br>当Atlas 800I A2 推理服务器使用Alibaba Cloud Linux 3.2104 U10操作系统时，启动容器命令中必须使用该参数解除进程数限制。|
-     |--shm-size=1g|表示指定容器的共享内存（/dev/shm）大小，用户可自行设置，1g为示例值。<br>该值不能超过宿主机剩余的物理内存总量，可使用`free -h`命令查看。当开启数据并行（即DP>1）时，需要随DP增大调整共享内存大小：<ul><li>当DP=2时，shm-size至少为2g;</li><li>当DP=4时，shm-size至少为3g;</li><li>当DP=8时，shm-size至少为5g;</li><li>当DP=16时，shm-size至少为9g。</li></ul>|
+     |--shm-size=1g|表示指定容器的共享内存（/dev/shm）大小，用户可自行设置，1g为示例值。对于多模态理解模型，若业务最大并发数较高，--shm-size建议设置不小于100g。<br>该值不能超过宿主机剩余的物理内存总量，可使用`free -h`命令查看。当开启数据并行（即DP>1）时，需要随DP增大调整共享内存大小：<ul><li>当DP=2时，shm-size至少为2g;</li><li>当DP=4时，shm-size至少为3g;</li><li>当DP=8时，shm-size至少为5g;</li><li>当DP=16时，shm-size至少为9g。</li></ul>|
      |--name|容器名，请根据需要自行设定。|
      |--device|表示映射的设备，可以挂载一个或者多个设备。<br>需要挂载的设备如下：<ul><li>/dev/davinci_manager：davinci相关的管理设备。</li><li>/dev/hisi_hdc：hdc相关管理设备。</li><li>/dev/devmm_svm：内存管理相关设备。</li><li>/dev/davinci0：需要挂载的卡号。</li></ul><br>可根据`ll \/dev\/ \| grep davinci`命令查询device个数及名称方式，根据需要绑定设备，修改上面命令中的"--device=****"。|
      |-v /usr/local/Ascend/driver:/usr/local/Ascend/driver:ro|将宿主机目录"/usr/local/Ascend/driver"挂载到容器，请根据驱动所在实际路径修改。|
@@ -100,5 +95,5 @@
     export LD_LIBRARY_PATH=/usr/local/Ascend/driver/lib64/driver:$LD_LIBRARY_PATH
     ```
 
-6. 请参见[安装软件包和依赖](../source/installing_software_and_dependencies.md)章节在容器中安装依赖、CANN和PyTorch。
+6. 请参见[安装软件包和依赖](../source/installing_software_and_dependencies.md)章节在容器中安装依赖、CANN、PyTorch和ATB Models。
 7. 请参见[安装MindIE](installation_on_a_physical_machine.md)章节在容器中安装MindIE，安装完成后，即可在容器内进行MindIE的业务部署。

@@ -8,17 +8,17 @@ MindIE LLM安装完成后，提供进程级环境变量设置脚本“set_env.sh
 
 |环境变量名|功能描述|取值范围|默认值|
 |--|--|--|--|
-|**MindIE_LLM相关环境变量**|
+|**MindIE_LLM相关环境变量**|-|-|-|
 |MINDIE_LLM_HOME_PATH|MindIE LLM主目录所在路径。|N/A|N/A|
 |MINDIE_LLM_RECOMPUTE_THRESHOLD|MindIE LLM中重计算阈值。|[0,1]|0.5|
 |PYTORCH_INSTALL_PATH|torch三方件的安装路径，使用以下方式获取python3 -c 'import torch, os; print(os.path.dirname(os.path.abspath(torch.__file__)))'。|N/A|N/A|
 |PYTORCH_NPU_INSTALL_PATH|torch_npu三方件的安装路径，使用以下方式获取python3 -c 'import torch, torch_npu, os; print(os.path.dirname(os.path.abspath(torch_npu.__file__)))'。|N/A|N/A|
-|**ATB_Models相关环境变量**|
+|**ATB_Models相关环境变量**||-|-|
 |ATB_OPERATION_EXECUTE_ASYNC|控制ATB graph的异步调度，默认使用二级流水。当CPU数量不受限时，可尝试开启三级流水进行性能调优。|0：不开启<br>1：开启二级流水<br>2：开启三级流水|1|
 |ATB_SPEED_HOME_PATH|ATB模型lib路径的环境变量，必须配置。|必须是ATB模型lib路径|None|
-|HCCL_INTRA_PCIE_ENABLE|控制是否开启All2All分层通信及INT8通信特性。“HCCL_INTRA_PCIE_ENABLE”和“HCCL_INTRA_ROCE_ENABLE”必须同时设置为开启，才能开启该功能。这两个环境变量的更多描述请参见《CANN 环境变量参考》中的“集合通信”章节。建议在Atlas 800I A2 推理服务器和Atlas 800I A3 超节点服务器，MoE模型的Combine INT8算子场景下打开 ，提升性能优化。|0：关闭<br>1：开启|N/A|
-|HCCL_INTRA_ROCE_ENABLE|0：开启1：关闭|N/A|
-|**Ascend Extension for PyTorch相关环境变量**|
+|HCCL_INTRA_PCIE_ENABLE|控制是否开启All2All分层通信及INT8通信特性。“HCCL_INTRA_PCIE_ENABLE”和“HCCL_INTRA_ROCE_ENABLE”必须同时设置为开启，才能开启该功能。<br>这两个环境变量的更多描述请参见《CANN 环境变量参考》中的“集合通信”章节。<br>说明：建议在Atlas 800I A2 推理服务器和Atlas 800I A3 超节点服务器，MoE模型的Combine INT8算子场景下打开 ，提升性能优化。|0：关闭<br>1：开启|N/A|
+|HCCL_INTRA_ROCE_ENABLE|控制是否开启All2All分层通信及INT8通信特性。“HCCL_INTRA_PCIE_ENABLE”和“HCCL_INTRA_ROCE_ENABLE”必须同时设置为开启，才能开启该功能。<br>这两个环境变量的更多描述请参见《CANN 环境变量参考》中的“集合通信”章节。<br>说明：建议在Atlas 800I A2 推理服务器和Atlas 800I A3 超节点服务器，MoE模型的Combine INT8算子场景下打开 ，提升性能优化。|0：开启<br>1：关闭|N/A|
+|**Ascend Extension for PyTorch相关环境变量**||-|-|
 |MASTER_IP|多机服务化设置的主机ip|若值非空，则IP应该是合法ip|None|
 |MASTER_PORT|多机服务化设置的主机接口|若值非空，则端口号[0,65535]|None|
 

@@ -30,16 +30,33 @@
 
 2. 打开Server的config.json文件。
 
-    ```bash
-    cd {MindIE安装目录}/mindie_llm/
-    vi conf/config.json
-    ```
+    - **whl包安装方式：**
+
+        ```bash
+        cd {MindIE安装目录}/mindie_llm/
+        vi conf/config.json
+        ```
+
+    - **run包安装方式：**
+
+        ```bash
+        cd {MindIE安装目录}/latest/mindie-service
+        vi conf/config.json
+        ```
 
 3. 配置服务化参数。服务化参数说明请参见[配置参数说明（服务化）](../user_manual/service_parameter_configuration.md)章节。
 4. 启动服务。
 
-    ```bash
-    mindie_llm_server
-    ```
+    - **whl包安装方式：**
+
+        ```bash
+        mindie_llm_server
+        ```
+
+    - **run包安装方式：**
+
+        ```bash
+        ./bin/mindieservice_daemon
+        ```
 
 5. 使用AISBench工具开始调优，AISBench工具详细说明请参见《MindIE Motor开发指南》中的“配套工具 > 性能/精度测试工具”章节。

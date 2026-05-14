@@ -12,9 +12,7 @@
 |------|------|------------------------|-----------------------------------|----------------------|----------------|
 | **请求级** | 发送的请求体中 |添加`"chat_template_kwargs": {"enable_thinking": true/false}` | NA | 传入 `"tools": [...]` 参数，且模型决定触发工具调用 | `"stream": true/false`（默认 false） |
 | **服务级** |服务化配置文件：`/usr/local/lib/python3.11/site-packages/mindie_llm/conf/config.json`  |NA |  `models` 下配置  `"enable_reasoning": true/false`  | NA | NA |
-| **权重维度** | 模型权重目录下的 tokenizer_config.json文件 | 添加 `"enable_thinking": true/false`（不同模型字段名称不一样，详见下文） | NA | NA | NA | NA |
-
----
+| **权重维度** |模型权重目录下的`tokenizer_config.json`文件 | 添加 `"enable_thinking": true/false`（不同模型字段名称不一样，详见下文） | NA | NA | NA |
 
 ## 一、Thinking（思考）
 

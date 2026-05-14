@@ -50,6 +50,7 @@
   - [交互特性]()
     - [Function Call](../feature/function_call.md)
     - [思考解析](../feature/enable_reasoning.md)
+    - [思考预算](../feature/thinking_budget.md)
 - [附录]()
   - [FAQ](../../faq/faq.md)
   - [环境变量说明](environment_variable.md)

@@ -25,17 +25,26 @@ Micro Batch即在批处理过程中，将数据切分为更小粒度的多个bat
 
 |配置项|取值类型|取值范围|配置说明|
 |--|--|--|--|
-|stream_options|
+|stream_options|-|-|-|
 |micro_batch|bool|<ul><li>true</li><li>false</li></ul>|开启通信计算双流掩盖特性。<br>默认值：false（关闭）|
 
 ## 执行推理
 
 1. 打开Server的config.json文件。
 
-    ```bash
-    cd {MindIE安装目录}/mindie_llm/
-    vi conf/config.json
-    ```
+    - **whl包安装方式：**
+
+        ```bash
+        cd {MindIE安装目录}/mindie_llm/
+        vi conf/config.json
+        ```
+
+    - **run包安装方式：**
+
+        ```bash
+        cd {MindIE安装目录}/latest/mindie-service
+        vi conf/config.json
+        ```
 
 2. 配置服务化参数。在MindIE的config.json文件添加“micro_batch”字段（以下加粗部分），参数字段说明请参见[表1](#table1)，服务化参数说明请参见[配置参数说明（服务化）](../user_manual/service_parameter_configuration.md)章节，参数配置示例如下。
 
@@ -72,6 +81,14 @@ Micro Batch即在批处理过程中，将数据切分为更小粒度的多个bat
 
 3. 启动服务。
 
-    ```bash
-    mindie_llm_server
-    ```
+    - **whl包安装方式：**
+
+        ```bash
+        mindie_llm_server
+        ```
+
+    - **run包安装方式：**
+
+        ```bash
+        ./bin/mindieservice_daemon
+        ```

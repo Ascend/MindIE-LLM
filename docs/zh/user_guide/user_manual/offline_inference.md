@@ -19,22 +19,36 @@
 
 当前ATB Models包含三类Readme文档指导您执行推理流程，了解模型支持特性以及提供基础的调测和问题定位手段。
 
-**图 1** ATB Models  Readme文档关系示意图<a name="fig89051134504"></a>
+**图 1** ATB Models  Readme文档关系示意图
+
 ![](./figures/atb_models_readme.png "ATB-Models-Readme文档关系示意图")
 
 **表 1**  Readme文档介绍
 
 |文档名称|作用|内容|
 |--|--|--|
-|${ATB_SPEED_HOME_PATH}/README.md|为ATB Models所有文档的总入口。|<ul><li>运行ATB Models依赖的硬件和软件版本。每个模型所依赖的软件版本不同，请根据对应的\$\{ATB_MODELS_HOME_PATH\}/requirements进行安装，详细信息见\$\{ATB_SPEED_HOME_PATH\}/README.md文档。</li><li>基本调测和问题定位手段：<br>算子库、加速库和模型仓日志开启方式；<br>性能分析方法；<br>精度分析方法。</li><li>预置模型列表：<br>此处会链接至模型的README文档。</li></ul>|
-|${ATB_SPEED_HOME_PATH}/examples/models/{模型名称}/README.md|为ATB Models每个模型各自的文档，<br>例如：${ATB_SPEED_HOME_PATH}/examples/models/llama/README.md中为LLaMA模型的文档，其中涵盖了LLaMA系列和LLaMA2系列模型的介绍和运行指导。|<ul><li>模型特性支持矩阵，即不同参数量的模型对各类硬件，各种量化方式，各种特性的支持情况。</li><li>模型开源权重下载地址。</li><li>模型量化权重生成介绍。</li><li>对话测试、精度测试和性能测试脚本执行方式。</li></ul>|
-|${ATB_SPEED_HOME_PATH}/examples/README.md|汇总了对于公共能力和接口的介绍。|<ul><li>bin格式的权重转safetensor格式脚本的介绍。</li><li>量化权重生成脚本的介绍。</li><li>Flash Attention和Paged Attention启动脚本参数介绍。</li><li>可选择性配置的环境变量介绍。</li><li>特殊场景注意事项。</li></ul>|
+|`${ATB_SPEED_HOME_PATH}/README.md`|ATB Models所有文档的总入口。|<ul><li>运行ATB Models依赖的硬件和软件版本。每个模型所依赖的软件版本不同，请根据对应的requirements进行安装，详细信息见README文档。</li><li>基本调测和问题定位手段：<br>算子库、加速库和模型仓日志开启方式；<br>性能分析方法；<br>精度分析方法。</li><li>预置模型列表：<br>此处会链接至模型的README文档。</li></ul>|
+|`${ATB_SPEED_HOME_PATH}/examples/models`/{模型名称}/README.md|ATB Models每个模型各自的文档。|<ul><li>模型特性支持矩阵，即不同参数量的模型对各类硬件，各种量化方式，各种特性的支持情况。</li><li>模型开源权重下载地址。</li><li>模型量化权重生成介绍。</li><li>对话测试、精度测试和性能测试脚本执行方式。</li></ul>|
+|`${ATB_SPEED_HOME_PATH}/examples/README.md`|汇总了对于公共能力和接口的介绍。|<ul><li>bin格式的权重转safetensor格式脚本的介绍。</li><li>量化权重生成脚本的介绍。</li><li>Flash Attention和Paged Attention启动脚本参数介绍。</li><li>可选择性配置的环境变量介绍。</li><li>特殊场景注意事项。</li></ul>|
 
 ### 使用示例
 
 下面以LLaMA3-8B模型为例，展示对话推理以及性能测试的执行步骤。
 
 1. 配置环境变量。
+
+   - whl包方式
+
+    ```bash
+    # 配置CANN环境，默认安装在/usr/local目录下
+    source /usr/local/Ascend/cann/set_env.sh
+    # 配置加速库环境
+    source /usr/local/Ascend/nnal/atb/set_env.sh
+    # 配置模型仓环境变量
+    /usr/local/lib/python3.11/site-packages/mindie_llm/set_env.sh
+    ```
+
+    - run包方式
 
     ```bash
     # 配置CANN环境，默认安装在/usr/local目录下
@@ -186,6 +200,19 @@
 
     若安装路径为默认路径，可以运行以下命令初始化各组件环境变量。
 
+    - whl包方式
+
+    ```bash
+    # 配置CANN环境，默认安装在/usr/local目录下
+    source /usr/local/Ascend/cann/set_env.sh
+    # 配置加速库环境
+    source /usr/local/Ascend/nnal/atb/set_env.sh
+    # 配置模型仓环境变量
+    source /usr/local/lib/python3.11/site-packages/mindie_llm/set_env.sh
+    ```
+
+    - run包方式
+
     ```bash
     # 配置CANN环境，默认安装在/usr/local目录下
     source /usr/local/Ascend/cann/set_env.sh
@@ -204,7 +231,17 @@
 
     服务化配置中默认使用ATB Models作为模型后端。
 
+    - whl包方式
+
     ```bash
+    vim /usr/local/lib/python3.11/site-packages/mindie_llm/conf_/config.json
+    # ModelDeployConfig.ModelConfig.backendType字段默认值为"atb"
+    "backendType": "atb"
+    ```
+
+     - run包方式
+
+     ```bash
     vim /usr/local/Ascend/mindie/latest/mindie-service/conf/config.json
     # ModelDeployConfig.ModelConfig.backendType字段默认值为"atb"
     "backendType": "atb"

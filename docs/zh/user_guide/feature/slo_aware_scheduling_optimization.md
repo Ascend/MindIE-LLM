@@ -34,12 +34,21 @@ SLO（Service Level Objective，服务级别目标）指在设定时间段内为
 
 本章节简单介绍如何使用SLO调度优化功能。
 
-1. 打开MindIE Motor的config.json文件。
+1. 打开Server的config.json文件。
 
-    ```bash
-    cd {MindIE安装目录}/mindie_llm/
-    vi conf/config.json
-    ```
+    - **whl包安装方式：**
+
+        ```bash
+        cd {MindIE安装目录}/mindie_llm/
+        vi conf/config.json
+        ```
+
+    - **run包安装方式：**
+
+        ```bash
+        cd {MindIE安装目录}/latest/mindie-service
+        vi conf/config.json
+        ```
 
 2. 配置服务化参数。在Server的config.json文件添加“stageSelectPolicy”、“dynamicBatchSizeEnable” 、“prefillExpectedTime”、“decodeExpectedTime”字段（以下加粗部分）， 参数字段解释请参见[表1](#table1)，服务化参数说明请参见[配置参数说明（服务化）](../user_manual/service_parameter_configuration.md)章节，参数配置示例如下。
 
@@ -52,9 +61,17 @@ SLO（Service Level Objective，服务级别目标）指在设定时间段内为
 
 3. 启动服务。
 
-    ```bash
-    mindie_llm_server
-    ```
+    - **whl包安装方式：**
+
+        ```bash
+        mindie_llm_server
+        ```
+
+    - **run包安装方式：**
+
+        ```bash
+        ./bin/mindieservice_daemon
+        ```
 
 4. 以AISBench工具、GSM8K数据集和并发500为例展示调优方式。AISBench工具配置如下，详情请参见《快速入门》中的“[性能测试](../quick_start/quick_start.md#性能测试)”章节。
 

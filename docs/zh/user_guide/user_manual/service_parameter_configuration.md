@@ -3,7 +3,9 @@
 > [!NOTE]说明
 >
 >
->- Server的配置文件config.json，获取路径为：_\{MindIE安装目录\}_/mindie_llm/conf/config.json
+>- Server的配置文件config.json：
+>   - whl包安装方式的获取路径为：\{MindIE安装目录\}/mindie_llm/conf/config.json
+>   - run包安装方式的获取路径为：\{MindIE安装目录\}/latest/mindie-service/conf/config.json
 >- 系统读取配置文件时，会先校验文件大小，若文件大小范围不在\(0MB, 10MB\]，将读取失败。
 
 ## 配置文件参数说明
