@@ -319,8 +319,6 @@
 
 - 若使用容器化部署启动，要求共享内存设置不小于1GB。
 
-- 若开启HTTPS双向认证或多机通信认证，需要提前准备好服务证书、服务器私钥、验签证书等，详情请参见《MindIE Motor开发指南》中的“集群服务部署 > 单机（非分布式）服务部署 > 安装部署 > 使用Deployer部署服务示例 > 部署Deployer服务端 > [准备TLS证书](https://gitcode.com/Ascend/MindIE-Motor/blob/dev/docs/zh/user_guide/service_deployment/single_machine_service_deployment.md)”章节。
-
 ### 使用限制
 
 - 仅支持Atlas 800I A2 推理服务器环境，最大支持4机32卡的多机推理，多机推理支持的模型请参见[模型列表](../model_support_list.md)；不支持Atlas 300I Duo 推理卡环境。
@@ -762,7 +760,7 @@ ranktable.json文件权限需要设置为640，详细内容请根据以下样例
     source mindie-service/set_env.sh
     ```
 
-10. 配置环境变量“RANK_TABLE_FILE”和“MIES_CONTAINER_IP”（以[ranktable文件样例](https://gitcode.com/Ascend/MindIE-Motor/blob/dev/docs/zh/user_guide/service_deployment/pd_separation_service_deployment.md)中的ranktable为例，具体参见表4）。
+10. 配置环境变量“RANK_TABLE_FILE”和“MIES_CONTAINER_IP”（以[ranktable文件样例](#ranktable文件样例)中的ranktable为例，具体参见表4）。
 
     - Master节点容器中
 

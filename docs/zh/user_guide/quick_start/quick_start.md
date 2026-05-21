@@ -22,7 +22,7 @@
 
     |产品型号       |参考文档|
     |------------|------------|
-    |Atlas 800I A2|《Atlas A2 中心推理和训练硬件 24.1.0 NPU驱动和固件安装指南》中的“物理机安装与卸载”章节|
+    |Atlas 800I A2|下载[固件与驱动](https://hiascend.com/hardware/firmware-drivers/community)，安装请参考《CANN 软件安装》中的“[安装NPU驱动和固件](https://www.hiascend.com/document/detail/zh/canncommercial/850/softwareinst/instg/instg_0005.html?Mode=PmIns&InstallType=local&OS=openEuler)”章节（商用版）或“[安装NPU驱动和固件](https://www.hiascend.com/document/detail/zh/CANNCommunityEdition/850/softwareinst/instg/instg_0005.html?Mode=PmIns&InstallType=local&OS=openEuler)”章节（社区版）。 |
 
 - 执行以下命令查看Docker是否已安装并启动。Docker的安装可参见[安装Docker](../install/source/docker_installation.md)。
 
@@ -65,7 +65,7 @@
 1. 下载完成镜像后，执行以下命令启动容器。
 
     ```bash
-    docker run -it -d --net=host --shm-size=1g \
+    docker run -it -d --net=host --shm-size=1g \ 
            --name <container-name> \
            -w /home \
            --device=/dev/davinci0:rwm \
@@ -94,6 +94,10 @@
 
     |参数|参数说明|
     |--|--|
+    |-it|表示启动一个交互式终端（-i）并将其连接到容器的标准输入输出 （-t），能够与容器内部进行交互，如运行命令行操作。|
+    |-d|表示容器将以后台模式运行，即容器在后台启动。使用该参数后不会阻塞当前终端的操作，可以在启动容器后继续进行其他操作。|
+    |--net|表示容器将使用宿主机的网络配置（网络共享），使容器能够直接访问宿主机的网络接口，适用于需要进行低延迟、直接访问网络资源的场景。|
+    |--shm-size|表示指定容器的共享内存（/dev/shm）大小，用户可自行设置，1g为示例值。对于多模态理解模型，若业务最大并发数较高，--shm-size建议设置不小于100g。<br>该值不能超过宿主机剩余的物理内存总量，可使用`free -h`命令查看。当开启数据并行（即DP>1时），需要随DP增大调整共享内存大小：<br>当DP=2时，shm-size至少为2g<br>当DP=4时，shm-size至少为3g<br>当DP=8时，shm-size至少为5g<br>当DP=16时，shm-size至少为9g|
     |--name|表示给容器指定一个名称。<*container-name*>是容器的标识符，可以自行设置，且在当前系统中具有唯一性。如果不设置，Docker会自动分配一个随机名称。|
     |--device|表示映射的设备，可以挂载一个或者多个设备。<br>需要挂载的设备如下：<ul><li>/dev/davinci*X*：NPU设备，X是ID号，如：davinci0。</li><li>/dev/davinci_manager：davinci相关的管理设备。</li><li>/dev/hisi_hdc：hdc相关管理设备。</li><li>/dev/devmm_svm：内存管理相关设备。</li></ul>可根据`ll /dev/ \| grep davinci`命令查询device个数及名称，根据需要绑定设备，修改上面命令中的"--device=****"。|
     |-v /usr/local/Ascend/driver:/usr/local/Ascend/driver:ro|将宿主机目录“/usr/local/Ascend/driver”挂载到容器，请根据驱动所在实际路径修改。|
@@ -105,9 +109,6 @@
      ```bash
      docker exec -it <container-name> /bin/bash
      ```
-
-     > [!NOTE]说明
-     > 更多详细信息，请参考[启动容器](https://gitee.com/ascend/ascend-docker-image/tree/dev/mindie#%E5%90%AF%E5%8A%A8%E5%AE%B9%E5%99%A8)章节。
 
 ## 模型推理
 
@@ -122,7 +123,6 @@
     ```bash
     chmod 750 mindie-service
     chmod -R 550 mindie-service/bin
-    chmod -R 500 mindie-service/bin/mindie_llm_backend_connector
     chmod 550 mindie-service/lib
     chmod 440 mindie-service/lib/*
     chmod 550 mindie-service/lib/grpc
@@ -249,7 +249,7 @@
 
 6. 发送请求。
 
-    服务化API接口请参考《MindIE LLM开发指南》中的**RESTFUL API参考**章节。
+    服务化API接口请参考《MindIE LLM开发指南》中的[RESTFUL API参考](https://www.hiascend.com/document/detail/zh/mindie/300/mindiellm/llmdev/mindie_service0065.html)章节。
 
     用户可使用HTTPS客户端（Linux curl命令，Postman工具等）发送HTTPS请求，此处以Linux curl命令为例进行说明。
 

@@ -77,7 +77,7 @@
     ./软件包名.run --check
     ```
 
-7. 执行以下命令安装软件（以下命令支持`-install-path=<path>`等参数，具体参数说明请参见[软件包参数说明](../faq_and_appendixes/software_package_options.md)）。
+7. 执行以下命令安装软件（以下命令支持`--install-path=<path>`等参数，具体参数说明请参见[软件包参数说明](../faq_and_appendixes/software_package_options.md)）。
 
     ```bash
     ./软件包名.run --install --quiet

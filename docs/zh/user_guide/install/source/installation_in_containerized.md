@@ -1,10 +1,9 @@
 # 容器安装方式
 
-介绍进行MindIE容器化安装，请确保服务器能够连接网络。
+介绍启动容器的方式，MindIE支持容器安装，请确保服务器能够连接网络。
 
 ## 前提条件
 
-- 宿主机已参见[准备软件包和依赖](../source/preparing_software_and_dependencies.md)章节准备好需要安装的软件包和依赖。
 - 用户在宿主机自行安装Docker（版本要求大于或等于24.x.x_）。Docker的安装可参见[安装Docker](../source/docker_installation.md)。
 - 配置源之前，请确保安装环境能够连接网络。
 
@@ -94,6 +93,3 @@
     export LD_LIBRARY_PATH=/usr/local/Ascend/driver/lib64/common:$LD_LIBRARY_PATH
     export LD_LIBRARY_PATH=/usr/local/Ascend/driver/lib64/driver:$LD_LIBRARY_PATH
     ```
-
-6. 请参见[安装软件包和依赖](../source/installing_software_and_dependencies.md)章节在容器中安装依赖、CANN、PyTorch和ATB Models。
-7. 请参见[安装MindIE](installation_on_a_physical_machine.md)章节在容器中安装MindIE，安装完成后，即可在容器内进行MindIE的业务部署。

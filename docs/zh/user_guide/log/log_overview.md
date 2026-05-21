@@ -25,7 +25,7 @@ MindIE所有组件的日志格式如下：
 |组件名称|MindIE的组件名称，有以下选项：[motor，server，llm，llmmodels，sd]。|
 |**大写日志级别**|日志级别的大写形式，日志级别请参见[表1 日志级别](setting_log_level.md#table1)。|
 |file:line|文件名:代码行号。|
-|error code|Critical级别和部分Error级别日志的错误码，错误码请参见《MindIE错误码参考》。|
+|error code|Critical级别和部分Error级别日志的错误码，错误码请参见《[MindIE错误码参考](https://www.hiascend.com/document/detail/zh/mindie/300/ref/errorcodereference/mindie_log_0072.html)》。|
 |**log message**|具体错误信息。|
 
 **加粗内容为日志的必选内容**，其余字段为日志的可选信息，可以通过环境变量“MINDIE\_LOG\_VERBOSE”进行配置。具体操作请参见[配置日志内容](configuring_log_content.md)。

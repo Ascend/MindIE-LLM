@@ -1,13 +1,17 @@
-# 镜像部署方式
+# 镜像安装
 
 指导用户进行MindIE容器镜像安装，请确保服务器能够连接网络。
 
 ## 前提条件
 
-- 宿主机已经安装过NPU驱动和固件。如未安装，请参见《CANN 软件安装指南》中的“[选择安装场景](https://www.hiascend.com/document/detail/zh/canncommercial/850/softwareinst/instg/instg_0000.html?Mode=PmIns&InstallType=local&OS=openEuler)”（商用版）章节或“[选择安装场景](https://www.hiascend.com/document/detail/zh/CANNCommunityEdition/850/softwareinst/instg/instg_0000.html?Mode=PmIns&InstallType=local&OS=openEuler)”章节（社区版），按如下方式选择安装场景，按“**安装NPU驱动和固件**”章节进行安装。
-  - 安装方式：选择“在物理机上安装”。
-  - 操作系统：选择使用的操作系统。MindIE支持的操作系统请参考[硬件配套和支持的操作系统](../installation_introduction.md#硬件配套和支持的操作系统)。
-  - 安装类型：根据在线或离线的安装方式，选择对应的安装类型。
+- 宿主机已经安装过NPU驱动和固件。如未安装，下载[固件与驱动](https://hiascend.com/hardware/firmware-drivers/community)，根据产品系列和型号选择对应版本的社区版本或商用版本的固件与驱动。参考如下命令安装：
+  
+    ```shell
+    chmod +x Ascend-hdk-<chip_type>-npu-driver_<version>_linux-<arch>.run
+    chmod +x Ascend-hdk-<chip_type>-npu-firmware_<version>.run
+    ./Ascend-hdk-<chip_type>-npu-driver_<version>_linux-<arch>.run --full --force
+    ./Ascend-hdk-<chip_type>-npu-firmware_<version>.run --full
+    ```
 
 - 用户在宿主机自行安装Docker（版本要求大于或等于24.x.x）。Docker的安装可参见[安装Docker](../source/docker_installation.md)。
 - 配置源之前，请确保安装环境能够连接网络。

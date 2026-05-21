@@ -4,14 +4,21 @@
 
 ## 安装CANN
 
-需要安装的CANN软件包包括：Toolkit开发套件包、ops算子包和NNAL神经网络加速库。
+安装配套版本的NPU驱动固件、CANN软件（Toolkit、ops和NNAL）并配置CANN环境变量，具体请参考《[CANN 软件安装](https://www.hiascend.com/document/detail/zh/canncommercial/850/softwareinst/instg/instg_0000.html)》（商用版）或《[CANN 软件安装](https://www.hiascend.com/document/detail/zh/CANNCommunityEdition/850/softwareinst/instg/instg_0000.html)》（社区版）。
 
-请参考[CANN 快速安装](https://www.hiascend.com/cann/download?version=683&filter=)安装昇腾NPU驱动和CANN软件（包含Toolkit、ops和NNAL包）。
+CANN软件提供进程级环境变量设置脚本，训练或推理场景下使用NPU执行业务代码前需要调用该脚本，否则业务代码将无法执行。
+
+   ```shell
+   source /usr/local/Ascend/cann/set_env.sh
+   source /usr/local/Ascend/nnal/atb/set_env.sh
+   ```
+
+   以上命令以root用户安装后的默认路径为例，请用户根据set_env.sh的实际路径进行替换。
 
 ## 安装Pytorch和Torch NPU
 
 - 如果操作系统是ubuntu 22.04，请安装torch_npu 2.1.0；如果操作系统是ubuntu 24.04 LTS，请安装torch_npu 2.9.0。
-- 请参见《Ascend Extension for PyTorch 软件安装指南》中的“[安装PyTorch](https://www.hiascend.com/document/detail/zh/Pytorch/730/configandinstg/instg/docs/zh/installation_guide/installation_via_binary_package.md)”章节安装PyTorch框架和torch_npu插件。
+- 请参考《Ascend Extension for PyTorch 软件安装指南》中的“[安装PyTorch](https://www.hiascend.com/document/detail/zh/Pytorch/2600/configandinstg/instg/docs/zh/installation_guide/installation_via_binary_package.md)”章节，安装PyTorch框架和torch_npu插件。
 
 MindIE中各组件依赖PyTorch框架和torch_npu插件，依赖情况如下表所示，请用户依据实际使用需求安装。
 

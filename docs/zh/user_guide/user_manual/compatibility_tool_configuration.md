@@ -6,8 +6,7 @@
 
 > [!NOTE]说明
 >
->- 不支持回退到低版本，不支持同版本更新配置，即target\_version必须大于源config.json的版本号。
->- 1.0.RC1中的“pipelineNumber“字段在后续版本中已删除，新增“modelInstanceNumber“字段代表模型实例个数，需要按照配置关系正确填写。
+> 不支持回退到低版本，不支持同版本更新配置，即target\_version必须大于源config.json的版本号。
 
 ## 命令介绍
 
