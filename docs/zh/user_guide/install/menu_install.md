@@ -10,7 +10,7 @@
     - [安装MindIE软件包](./source/installation_on_a_physical_machine.md)
   - [方式三：源码安装]()
     - [MindIE LLM源码安装](../../developer_guide/build_guide_llm.md)
-    - [MindIE Motor源码安装](https://gitcode.com/Ascend/MindIE-Motor/blob/v3.0.0/docs/zh/developer_guide/build_guide.md/build_guide_motor.md)
+    - [MindIE Motor源码安装](https://gitcode.com/Ascend/MindIE-Motor/blob/v3.0.0/docs/zh/developer_guide/build_guide.md)
     - [MindIE SD源码安装](https://gitcode.com/Ascend/MindIE-SD/blob/v3.0.0/docs/zh/installation.md)
 - [升级](./source/upgrade.md)
 - [卸载](./source/uninstallation.md)
