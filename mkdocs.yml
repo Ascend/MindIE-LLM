@@ -53,6 +53,7 @@ theme:
 
 hooks:
   - docs/mkdocs/hooks/github_admonition.py
+  - docs/mkdocs/hooks/list_break.py
   - docs/mkdocs/hooks/img_width.py
 
 plugins:
