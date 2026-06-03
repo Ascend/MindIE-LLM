@@ -1,6 +1,6 @@
 # README
 
-- [GLM-4v-9b](https://github.com/THUDM/GLM-4)，是智谱 AI 推出的最新一代预训练模型 GLM-4 系列中的开源多模态版本。GLM-4v-9B 具备 1120*1120 高分辨率下的中英双语多轮对话能力，在中英文综合能力、感知推理、文字识别、图表理解等多方面多模态评测中，GLM-4v-9B 表现出超越 GPT-4-turbo-2024-04-09、Gemini 1.0 Pro、Qwen-VL-Max 和 Claude 3 Opus 的卓越性能。
+- [GLM-4v-9B](https://github.com/THUDM/GLM-4)，是智谱 AI 推出的最新一代预训练模型 GLM-4 系列中的开源多模态版本。GLM-4v-9B 具备 1120*1120 高分辨率下的中英双语多轮对话能力，在中英文综合能力、感知推理、文字识别、图表理解等多方面多模态评测中，GLM-4v-9B 表现出超越 GPT-4-turbo-2024-04-09、Gemini 1.0 Pro、Qwen-VL-Max 和 Claude 3 Opus 的卓越性能。
 - 此代码仓中实现了一套基于 NPU 硬件的 GLM-4v-9B 推理模型。配合加速库使用，旨在 NPU 上获得极致的推理性能。
 - 支持 GLM-4v-9B 模型的多模态推理。
 
