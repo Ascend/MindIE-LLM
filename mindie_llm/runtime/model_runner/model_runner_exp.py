@@ -10,6 +10,7 @@
 
 from typing import Iterable, Optional
 import os
+import json
 from tqdm.auto import tqdm
 
 import torch
@@ -169,6 +170,11 @@ class ModelRunnerExp:
         router_ins = get_router_ins(load_config)
         self._model_cls = router_ins.draft_cls if self.is_draft_model else router_ins.model_cls
 
+        # Validate feature combinations for DeepSeek-V3.2
+        # NOTE: uses HuggingFace config.json model_type, not deploy config modelName
+        if getattr(router_ins, "_model_type", None) == "deepseek_v32":
+            self._validate_deepseekv32_feature_combinations(**kwargs)
+
         # NOTE: These attributes maybe depreciated after TG is refactored.
         self.config = router_ins.config
         self.kv_cache_dtype = self.config.torch_dtype
@@ -219,6 +225,65 @@ class ModelRunnerExp:
             self.sampler = Sampler(sampler_config)
         set_mc2_token_capacity(self._max_batch_size, self.num_speculative_tokens + 1)
         init_device_properties_triton()
+
+    @staticmethod
+    def _validate_deepseekv32_feature_combinations(**kwargs):
+        """Validate incompatible feature combinations for DeepSeek-V3.2.
+
+        Checks the deployment guide Table 4 compatibility matrix and raises ValueError
+        if any incompatible combination is detected. Only CP/DP, CP + Async Scheduling,
+        CP + Chunked Prefill, CP + Prefix Cache, and MTP + Chunked Prefill (PD-mixed)
+        are validated.
+
+        NOTE: This validation is specific to DeepSeek-V3.2. Other models may have
+        different compatibility matrices.
+
+        Args:
+            **kwargs: Must include 'cp', 'dp', 'plugin_params' for config validation.
+                'role' defaults to "standard" when not provided.
+
+        Raises:
+            ValueError: If any incompatible feature combination is detected.
+        """
+        cp = kwargs.get("cp", 1)
+        dp = kwargs.get("dp", 1)
+        role = kwargs.get("role", "standard")
+        plugin_params = kwargs.get("plugin_params", "")
+
+        # Parse plugin_params JSON
+        plugin_type = ""
+        if plugin_params:
+            try:
+                parsed = json.loads(plugin_params)
+                plugin_type = parsed.get("plugin_type", "") if isinstance(parsed, dict) else ""
+            except json.JSONDecodeError:
+                logger.warning(f"Failed to parse plugin_params as JSON: {plugin_params}")
+        plugin_list = [p.strip() for p in plugin_type.split(",")] if plugin_type else []
+
+        enable_mtp = "mtp" in plugin_list
+        enable_prefix_cache = "prefix_cache" in plugin_list
+        enable_splitfuse = "splitfuse" in plugin_list
+        async_inference = ENV_utils.async_inference
+
+        checks = []
+        if cp > 1 and dp > 1:
+            checks.append(f"CP(cp={cp}) + DP(dp={dp})")
+        if cp > 1 and async_inference:
+            checks.append(f"CP(cp={cp}) + Async Scheduling")
+        if cp > 1 and enable_splitfuse:
+            checks.append(f"CP(cp={cp}) + Chunked Prefill(splitfuse)")
+        if cp > 1 and enable_prefix_cache:
+            checks.append(f"CP(cp={cp}) + Prefix Cache")
+        if enable_mtp and enable_splitfuse and role == "standard":
+            checks.append("MTP + Chunked Prefill(PD-mixed)")
+
+        if checks:
+            msg = (
+                f"[DeepSeek-V3.2] Incompatible feature combinations: {'; '.join(checks)}. "
+                f"Please check the feature compatibility matrix in the deployment guide."
+            )
+            logger.error(msg)
+            raise ValueError(msg)
 
     def load_weights(self) -> None:
         """Load model weights and initialize rotary embeddings."""
