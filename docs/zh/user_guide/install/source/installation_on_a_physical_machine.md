@@ -22,7 +22,7 @@
    > [!NOTE]说明
    >
    > - 上方以mindie_llm包为例，如安装MindIE Motor或MindIE SD，请替换为对应的whl包名。
-   > - 如果需要使用源码编译安装，请跳转到对应代码仓里获取编译指导。以MindIE-LLM为例，编译指导请[单击](https://gitcode.com/Ascend/MindIE-LLM/blob/master/docs/zh/developer_guide/build_guide.md)。
+   > - 如果需要使用源码编译安装，请跳转到对应代码仓里获取编译指导。以MindIE-LLM为例，编译指导请[单击](../../../developer_guide/build_guide_llm.md)。
 
 3. 安装完成后，若打印如下信息，则说明软件安装成功：
 
@@ -32,10 +32,10 @@
 
    ```xxx``` 表示安装的实际软件包名。
 
-4. (可选)执行如下命令，查询安装路径。
+4. (可选)执行如下命令，查询软件版本号和安装路径。
 
    ```bash
-   pip show mindie_llm | grep Location
+   pip show mindie_llm
    ```
 
    若python版本是3.11，则默认安装路径为：`/usr/local/lib/python3.11/site-packages`
@@ -86,11 +86,11 @@
     > [!NOTE]说明
     >- 如果以root用户安装，**请勿安装在非root用户目录下**。
     >- 如果用户未指定安装路径，则软件会安装到默认路径下，默认安装路径如下。
-    >   - root用户：“/usr/local/Ascend“
-    >   - 非root用户：“/home/\{当前用户名\}/Ascend“
+    >   - root用户：“/usr/local/Ascend”
+    >   - 非root用户：“/home/\{当前用户名\}/Ascend”
     >- 软件包安装详细日志路径如下。
-    >   - root用户：“/var/log/mindie\_log/mindie\_install.log“
-    >   - 非root用户：“/home/\{当前用户名\}/var/log/mindie\_log/mindie\_install.log“
+    >   - root用户：“/var/log/mindie\_log/mindie\_install.log”
+    >   - 非root用户：“/home/\{当前用户名\}/var/log/mindie\_log/mindie\_install.log”
     >- 安装过程中会在当前目录临时生成aie\_tmp\_source文件夹，安装完成后会删除，如果当前有同名文件夹会在安装后被删除。
 
     执行以上命令默认同意[华为企业业务最终用户许可协议（EULA）](https://e.huawei.com/cn/about/eula)的条款和条件。
@@ -103,7 +103,13 @@
 
     `xxx`表示安装的实际软件包名。
 
-8. 配置环境变量
+8. (可选)执行如下命令，查询软件版本号。以默认安装路径为例：
+
+   ```bash
+   cat /usr/local/Ascend/mindie/latest/version.info
+   ```
+
+9. 配置环境变量
    当前提供进程级环境变量设置脚本，供用户在进程中引用，以自动完成环境变量设置。用户进程结束后自动失效。示例如下：
 
    root用户默认安装路径下配置环境变量：

@@ -5,7 +5,7 @@
   - [方式一：镜像安装](./source/image_usage_guide.md)
   - [方式二：离线安装]()
     - [准备软件包和依赖](./source/preparing_software_and_dependencies.md)
-    - （可选）[启动容器](./source/installation_in_containerized.md)
+    - [（可选）启动容器](./source/installation_in_containerized.md)
     - [安装软件包和依赖](./source/installing_software_and_dependencies.md)
     - [安装MindIE软件包](./source/installation_on_a_physical_machine.md)
   - [方式三：源码安装]()

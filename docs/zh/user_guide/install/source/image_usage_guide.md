@@ -39,6 +39,8 @@
         --device=/dev/devmm_svm:rwm \
         --device=/dev/davinci0:rwm \
         -v /usr/local/Ascend/driver:/usr/local/Ascend/driver:ro \
+        -v /usr/local/dcmi:/usr/local/dcmi:ro \
+        -v /usr/local/bin/npu-smi:/usr/local/bin/npu-smi:ro \
         -v /usr/local/Ascend/firmware/:/usr/local/Ascend/firmware:ro \
         -v /usr/local/sbin:/usr/local/sbin:ro \
         -v /path-to-weights:/path-to-weights:ro \
