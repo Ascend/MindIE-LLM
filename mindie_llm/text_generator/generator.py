@@ -310,6 +310,7 @@ class Generator(PDInterface):
         self.world_size = parse_config(model_config, "world_size", required=True, parse_type=ParseType.TO_INT)
         self.local_rank = parse_config(model_config, "local_rank", required=True, parse_type=ParseType.TO_INT)
         self.npu_device_id = parse_config(model_config, "npu_device_id", required=True, parse_type=ParseType.TO_INT)
+        dp = parse_config(model_config, "dp", required=False, parse_type=ParseType.TO_INT, default_value=-1)
 
         kv_pool_async_write = parse_config(
             model_config,
@@ -334,6 +335,9 @@ class Generator(PDInterface):
             "plugin_params", ""
         ):
             raise ValueError("Prefix Cache is not supported on D nodes under PD separation!")
+
+        if self.enable_prefix_cache and self.is_mix_model and dp > 1:
+            raise ValueError("Prefix Cache, splitfuse and DP (Data Parallelism) cannot be enable at the same time!")
 
         self.layerwise_disaggregated = parse_config(
             model_config,

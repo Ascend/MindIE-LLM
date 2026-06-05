@@ -23,7 +23,8 @@ Prefix Cache通过哈希表保留session结束后的KV Cache，新的session请�
 - 该特性支持n、best\_of、use\_beam\_search后处理参数。
 - PD分离场景下，仅P节点需要开启该特性。
 - 前缀复用率低或者没有复用的情况下，不建议开启该特性。
-- 不支持prefix cache + context parallel + sequence parallel + function call(multiturn)的叠加
+- 不支持prefix cache + context parallel + sequence parallel + function call(multiturn)的叠加。
+- prefix cache不支持和splitfuse以及数据并行同时开启。
 
 ## 参数说明
 
