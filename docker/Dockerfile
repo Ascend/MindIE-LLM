@@ -215,11 +215,43 @@ RUN if [ "$OS_TYPE" = "ubuntu" ]; then \
         dnf update -y && \
         dnf --setopt=sslverify=false install -y ffmpeg readline-devel tree unzip \
             openssl rapidjson-devel re2-devel patchelf jq pkg-config libzip bzip2 \
-            sudo curl gdb tcpdump && \
+            sudo curl gdb tcpdump git && \
         dnf groupinstall "Development Tools" -y ; \
     fi
 
 RUN pip install pybind11
+
+# mindstudio tools: msmodelslim / aisbench_benchmark / msprechecker / msprobe
+# install in parallel to speed up the build
+RUN export TORCH_DEVICE_BACKEND_AUTOLOAD=0 && \
+    cd /opt/package && \
+    ( \
+        git clone https://gitcode.com/Ascend/msmodelslim && \
+        cd msmodelslim && bash install.sh && \
+        cd /opt/package && rm -rf msmodelslim && \
+        echo '*****msmodelslim done*****' \
+    ) & \
+    ( \
+        git clone https://gitee.com/aisbench/benchmark && \
+        cd benchmark && pip3 install ./ && \
+        pip3 install -r requirements/api.txt && \
+        pip3 install -r requirements/extra.txt && \
+        cd /opt/package && rm -rf benchmark && \
+        echo '*****aisbench_benchmark done*****' \
+    ) & \
+    ( \
+        git clone https://gitcode.com/Ascend/msit && \
+        cd msit/msprechecker && pip install . && \
+        cd /opt/package && rm -rf msit && \
+        echo '*****msprechecker done*****' \
+    ) & \
+    ( \
+        git clone https://gitcode.com/Ascend/msprobe && \
+        cd msprobe && pip install . && \
+        cd /opt/package && rm -rf msprobe && \
+        echo '*****msprobe done*****' \
+    ) & \
+    wait
 
 # ================================================================
 # Stage 5: MindIE-LLM

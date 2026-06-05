@@ -157,6 +157,15 @@ main() {
     # Step 2: Build
     source "${MODULES_DIR}/build_image.sh"
     run_build "$OS" "$CHIP" "$ARCH" "$TYPE" "$CANN_VER" "$MINDIE_LLM_VER" "$MINDIE_LLM_VER" "$PTA_TAG" "$PYTHON_VER"
+
+    # Step 3: License notice
+    echo ""
+    echo "=========================================="
+    echo "  MindIE-LLM image version: ${MINDIE_LLM_VER}"
+    echo "=========================================="
+    echo ""
+    cat "${DOCKER_DIR}/LICENSE"
+    echo ""
 }
 
 main "$@"
