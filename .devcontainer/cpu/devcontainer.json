@@ -1,6 +1,6 @@
 {
   "name": "MindIE-LLM Dev Container",
-  "image": "swr.cn-north-4.myhuaweicloud.com/inference/ascend_mindie_ubuntu_x86:20260305_ubuntu24_3.0.0_cann8.5.1_torch2.9.0_py311",
+  "image": "swr.cn-north-4.myhuaweicloud.com/inference/ascend_mindie_ubuntu_x86:20260514_ubuntu24_3.1.0_cann9.0.0_torch2.9.0_py311",
   "workspaceMount": "source=${localWorkspaceFolder},target=/workspace/MindIE-LLM,type=bind,consistency=cached",
   "workspaceFolder": "/workspace/MindIE-LLM",
   "remoteUser": "root",
