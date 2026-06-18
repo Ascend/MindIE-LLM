@@ -20,7 +20,7 @@ ARG PYTHON_MAJOR_VERSION
 ARG PYTHON_SHORT_VERSION
 
 # Copy Python source tarball (only dependency needed by base-ubuntu)
-COPY Python-${PYTHON_VERSION}.tar.xz /opt/package/
+COPY downloads/Python-${PYTHON_VERSION}.tar.xz /opt/package/
 
 ENV DEBIAN_FRONTEND=noninteractive
 ENV TZ=Asia/Shanghai
@@ -126,7 +126,7 @@ ARG CHIP
 ARG ARCH
 
 # Copy all downloaded packages into the container
-COPY *.run *.whl *.tar.xz /opt/package/
+COPY downloads/*.run downloads/*.whl downloads/*.tar.xz /opt/package/
 
 # ================================================================
 # Stage 3: CANN
@@ -195,6 +195,11 @@ ARG OS_TYPE
 ENV PYTHONPATH=/usr/local/lib/python3.11/site-packages:$PYTHONPATH
 ENV PATH=/usr/local/bin:$PATH
 
+# Install PyTorch and torch_npu from downloaded wheels
+RUN pip install /opt/package/torch-*.whl && \
+    pip install /opt/package/torch_npu-*.whl && \
+    rm -f /opt/package/torch-*.whl /opt/package/torch_npu-*.whl
+
 # ================================================================
 # Stage 4.5: dev/tools
 # ================================================================
@@ -219,7 +224,9 @@ RUN if [ "$OS_TYPE" = "ubuntu" ]; then \
         dnf groupinstall "Development Tools" -y ; \
     fi
 
-RUN pip install pybind11
+RUN pip install pybind11 && \
+	    pip install decorator && \
+	    pip install scipy==1.10.1
 
 # mindstudio tools: msmodelslim / aisbench_benchmark / msprechecker / msprobe
 # install in parallel to speed up the build
@@ -263,6 +270,9 @@ ARG MINDIE_LLM_VERSION
 ARG ATB_LLM_VERSION
 ARG ARCH
 ARG PKG_TYPE
+
+# Persist version for entrypoint banner
+ENV MINDIE_LLM_VER=${MINDIE_LLM_VERSION}
 
 ENV PYTHON_SITE_PACKAGES=/usr/local/lib/python3.11/site-packages
 ENV MINDIE_LLM_HOME_PATH=${PYTHON_SITE_PACKAGES}/mindie_llm
@@ -314,3 +324,16 @@ RUN if [ "$PKG_TYPE" = "whl" ]; then \
     rm -f /opt/package/*.whl /opt/package/*.run
 
 ENV LD_LIBRARY_PATH=/usr/lib64:$LD_LIBRARY_PATH
+
+# Copy entrypoint script and license
+COPY entrypoint.sh /usr/local/bin/entrypoint.sh
+COPY LICENSE /opt/mindie/LICENSE
+
+RUN chmod +x /usr/local/bin/entrypoint.sh
+
+# License fallback: if entrypoint is overridden (e.g. --entrypoint=bash),
+# ~/.bashrc prints the license on every interactive shell start.
+RUN printf '\n# MindIE-LLM license fallback\ncat /opt/mindie/LICENSE 2>/dev/null || true\n' >> /root/.bashrc
+
+ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
+CMD ["bash"]

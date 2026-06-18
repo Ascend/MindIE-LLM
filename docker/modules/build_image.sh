@@ -46,11 +46,23 @@ _prepull_base_image() {
         return 0
     fi
 
+    # Try mirror first, fall back to direct pull if mirror is unavailable
     local mirror_image="${MIRROR_REGISTRY}/${base_image}"
     log_info "pulling base image from mirror: $mirror_image"
-    docker pull "$mirror_image"
-    docker tag "$mirror_image" "$base_image"
-    log_info "base image ready: $base_image"
+    if docker pull "$mirror_image" 2>/dev/null; then
+        docker tag "$mirror_image" "$base_image"
+        log_info "base image ready (via mirror): $base_image"
+        return 0
+    fi
+
+    log_warn "mirror pull failed, falling back to direct pull: $base_image"
+    if docker pull "$base_image"; then
+        log_info "base image ready (direct): $base_image"
+        return 0
+    fi
+
+    log_error "failed to pull base image: $base_image"
+    return 1
 }
 
 # ---------- main build ----------
@@ -71,10 +83,13 @@ run_build() {
 
     docker_cleanup
 
-    _prepull_base_image "$os"
+    _prepull_base_image "$os" || {
+        log_error "base image pull failed, aborting build"
+        return 1
+    }
 
     log_info "building base + mindie image (single pass, multi-stage)..."
-    docker build \
+    DOCKER_BUILDKIT=1 docker build \
         --build-arg OS_TYPE="$os" \
         --build-arg CHIP="$chip" \
         --build-arg ARCH="$arch" \
@@ -89,7 +104,7 @@ run_build() {
         --network=host \
         -t "$image_tag" \
         -f "$DOCKERFILE" \
-        "$DOWNLOAD_DIR"
+        "$DOCKER_DIR"
 
     docker images "$image_tag"
 

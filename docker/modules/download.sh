@@ -21,7 +21,7 @@ _download_file() {
         return 1
     fi
 
-    if file "$output_path" | grep -qi "HTML"; then
+    if head -c 512 "$output_path" | grep -qiE '<html|<!doctype html|<head|<body'; then
         log_error "downloaded file appears to be an HTML error page (not a valid package)"
         log_error "url:         ${url}"
         log_error "hint: the file may not exist at this OBS/gitcode path, check the version"
@@ -78,13 +78,23 @@ download_cann_kernels() {
 download_pta() {
     local pta_tag="$1" arch="$2" cp_tag="$3"
 
-    local whl_url whl_file
-    whl_url=$(url_pta_whl "$pta_tag" "$cp_tag" "$arch") || {
+    # Download torch_npu wheel
+    local npu_url npu_file
+    npu_url=$(url_pta_whl "$pta_tag" "$cp_tag" "$arch") || {
         log_error "failed to locate torch_npu wheel"
         return 1
     }
-    whl_file=$(basename "$whl_url")
-    _download_file "$whl_url" "$whl_file"
+    npu_file=$(basename "$npu_url")
+    _download_file "$npu_url" "$npu_file"
+
+    # Download torch wheel
+    local torch_url torch_file
+    torch_url=$(url_torch_whl "$pta_tag" "$cp_tag" "$arch") || {
+        log_error "failed to locate torch wheel"
+        return 1
+    }
+    torch_file=$(basename "$torch_url")
+    _download_file "$torch_url" "$torch_file"
 }
 
 download_mindie_llm() {

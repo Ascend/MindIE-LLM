@@ -175,7 +175,21 @@ function fn_main()
             fn_dlt
             ;;
         "help")
-            echo "build.sh 3rd|dlt|debug|release|master|unittest|--use_cxx11_abi=0|--use_cxx11_abi=1"
+            echo "Usage: build.sh <mode> [options]"
+            echo ""
+            echo "Modes:"
+            echo "  3rd       Build third-party dependencies only"
+            echo "  dlt       Build with DLT instrumentation"
+            echo "  debug     Build debug + run package"
+            echo "  release   Build release + whl + run package"
+            echo "  master    Build RelWithDebInfo only"
+            echo "  unittest  Build with unit test coverage"
+            echo "  clean     Remove build and output directories"
+            echo ""
+            echo "Options:"
+            echo "  --use_cxx11_abi=0|1   Select C++11 ABI version"
+            echo "  --ini=version         Use CI version.ini"
+            echo "  --ini=version_item    Use CI version_item.ini"
             ;;
         *)
             echo "unknown build type:${arg1}";

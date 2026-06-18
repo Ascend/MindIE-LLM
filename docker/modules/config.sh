@@ -30,6 +30,7 @@ log_error() { echo "${LOG_PREFIX} [ERROR] $*" >&2; }
 
 readonly BASE_URL_MINDIE="https://gitcode.com/Ascend/MindIE-LLM/releases/download"
 readonly BASE_URL_PTA_RELEASE="https://gitcode.com/Ascend/pytorch/releases/download"
+readonly BASE_URL_TORCH="https://pytorch-package.obs.cn-north-4.myhuaweicloud.com/pta/torch"
 readonly BASE_URL_CANN="https://ascend-repo.obs.cn-east-2.myhuaweicloud.com/CANN/CANN"
 readonly BASE_URL_PYTHON_SRC="https://mirrors.huaweicloud.com/python"
 
@@ -127,6 +128,7 @@ url_pta_whl() {
     torch_ver=$(sed -n 's/.*pytorch\([0-9.]*\).*/\1/p' <<<"$pta_tag")
     base_url="${BASE_URL_PTA_RELEASE}/${pta_tag}"
 
+    # Find torch_npu wheel
     url="${base_url}/torch_npu-${torch_ver}-${cp_tag}-${cp_tag}-manylinux_2_28_${arch}.whl"
     status=$(curl -k -L -s -o /dev/null -w "%{http_code}" -A "Mozilla/5.0" "$url")
     if [[ "$status" == "200" || "$status" == "302" ]]; then
@@ -162,6 +164,34 @@ url_pta_whl() {
     log_error "pta_tag=${pta_tag}"
     log_error "cp_tag=${cp_tag}"
     log_error "arch=${arch}"
+    return 1
+}
+
+# Find torch wheel URL from OBS.
+# x86_64 uses "%2Bcpu" suffix between version and cp_tag; aarch64 does not.
+# Returns the URL on stdout, non-zero exit on failure.
+url_torch_whl() {
+    local pta_tag="$1" cp_tag="$2" arch="$3"
+
+    local torch_ver url status suffix
+    torch_ver=$(sed -n 's/.*pytorch\([0-9.]*\).*/\1/p' <<<"$pta_tag")
+
+    if [[ "$arch" == "x86_64" ]]; then
+        suffix="%2Bcpu"
+    else
+        suffix=""
+    fi
+
+    url="${BASE_URL_TORCH}/v${torch_ver}/torch-${torch_ver}${suffix}-${cp_tag}-${cp_tag}-manylinux_2_28_${arch}.whl"
+    status=$(curl -k -L -s -o /dev/null -w "%{http_code}" -A "Mozilla/5.0" "$url")
+    if [[ "$status" == "200" || "$status" == "302" ]]; then
+        echo "$url"
+        return 0
+    fi
+
+    log_error "could not find torch wheel"
+    log_error "url=${url}"
+    log_error "status=${status}"
     return 1
 }
 

@@ -16,6 +16,7 @@ function fn_make_run_package()
     cp $CODE_ROOT/scripts/uninstall.sh $OUTPUT_DIR/scripts
     cp $CODE_ROOT/src/server/conf/config.json $OUTPUT_DIR/conf
     cp -r $CODE_ROOT/src/server/scripts/* $OUTPUT_DIR/server/scripts
+    cp $CODE_ROOT/scripts/eula.txt $OUTPUT_DIR
 
     protobuf_version="so.25.1.0"
     protobuf_so_list=(
