@@ -32,21 +32,21 @@ MindIE当前支持两种负载均衡特性：静态冗余负载均衡和强制�
 
 1. 用户需在不开启负载均衡时，通过设置“MINDIE\_ENABLE\_EXPERT\_HOTPOT\_GATHER”和“MINDIE\_EXPERT\_HOTPOT\_DUMP\_PATH”两个环境变量，导出实际业务场景下专家热点信息的.csv文件。Prefill和Decode热点信息会分别保存，以便分别生成Prefill和Decode的冗余专家部署表。
 
-    设置方法如下：
+设置方法如下：
 
-    分别在“examples/kubernetes\_deploy\_scripts/conf/mindie\_env(_a3).json”文件的“mindie\_server\_prefill\_env”和“mindie\_server\_decode\_env”字段中，增加环境变量如下:
+分别在“examples/kubernetes\_deploy\_scripts/conf/mindie\_env(_a3).json”文件的“mindie\_server\_prefill\_env”和“mindie\_server\_decode\_env”字段中，增加环境变量如下:
 
-    - "MINDIE\_ENABLE\_EXPERT\_HOTPOT\_GATHER": 1,
-    - "MINDIE\_EXPERT\_HOTPOT\_DUMP\_PATH": "单个实例可选择共享盘路径，否则必须存储在非共享盘"
+- "MINDIE\_ENABLE\_EXPERT\_HOTPOT\_GATHER": 1,
+- "MINDIE\_EXPERT\_HOTPOT\_DUMP\_PATH": "单个实例可选择共享盘路径，否则必须存储在非共享盘"
 
-        ![](../../figures/expert_hotspot_information_collection.png)
+![](../../figures/expert_hotspot_information_collection.png)
 
-2. 执行模型推理业务，生成热点信息文件。
+1. 执行模型推理业务，生成热点信息文件。
 
     > [!NOTE]说明
     > 如果是服务化采集，数据集跑完后请及时关闭服务化。
 
-3. 热点信息生成后，需手动将所有机器上的专家热点信息汇总至同一个文件夹，也可直接将所有机器上的导出文件路径设置为共享磁盘路径。
+2. 热点信息生成后，需手动将所有机器上的专家热点信息汇总至同一个文件夹，也可直接将所有机器上的导出文件路径设置为共享磁盘路径。
 
 ### 冗余专家部署表生成
 

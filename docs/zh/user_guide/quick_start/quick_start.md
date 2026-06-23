@@ -38,11 +38,11 @@
 
 ### 获取模型权重
 
-1. 请先下载权重，这里以Qwen2-7B为例，下载链接：[https://huggingface.co/Qwen/Qwen2-7B/tree/main](https://huggingface.co/Qwen/Qwen2-7B/tree/main)，将权重文件上传至服务器任意目录（如/home/weight）。
+1. 请先下载权重，这里以Qwen2-7B为例，下载链接：[https://huggingface.co/Qwen/Qwen2-7B/tree/main](https://huggingface.co/Qwen/Qwen2-7B/tree/main)，将权重文件上传至服务器任意目录（如/home/weight/qwen2-7b）。
 2. 执行以下命令，修改权重文件权限：
 
      ```bash
-     chmod -R 755 /home/weight
+     chmod -R 755 /home/weight/qwen2-7b
      ```
 
 ### 获取容器镜像
@@ -65,7 +65,7 @@
 1. 下载完成镜像后，执行以下命令启动容器。
 
     ```bash
-    docker run -it -d --net=host --shm-size=1g \ 
+    docker run -it -d --net=host --shm-size=1g \
            --name <container-name> \
            -w /home \
            --device=/dev/davinci0:rwm \
@@ -183,7 +183,7 @@
                     "ModelConfig" : [
                     {
                         "modelName" : "qwen2-7b",
-                        "modelWeightPath" : "/home/weight",
+                        "modelWeightPath" : "/home/weight/qwen2-7b",
                         "worldSize" : 4,
                         "trustRemoteCode": false
                     }
@@ -306,7 +306,7 @@
             attr="service",
             type=VLLMCustomAPIChatStream,
             abbr='vllm-api-stream-chat',
-            path="/home/weight",                    # 指定模型序列化词表文件绝对路径，一般来说就是模型权重文件夹路径
+            path="/home/weight/qwen2-7b",                    # 指定模型序列化词表文件绝对路径，一般来说就是模型权重文件夹路径
             model="qwen2-7b",                       # 指定服务端已加载模型名称，依据实际VLLM推理服务拉取的模型名称配置（配置成空字符串会自动获取）
             request_rate = 0,                       # 请求发送频率，每1/request_rate秒发送1个请求给服务端，小于0.1则一次性发送所有请求
             retry = 2,
@@ -377,7 +377,7 @@
             attr="service",
             type=VLLMCustomAPIChatStream,
             abbr='vllm-api-stream-chat',
-            path="/home/weight",                 # 指定模型序列化词表文件绝对路径，一般来说就是模型权重文件夹路径
+            path="/home/weight/qwen2-7b",                 # 指定模型序列化词表文件绝对路径，一般来说就是模型权重文件夹路径
             model="qwen2-7b",                    # 指定服务端已加载模型名称，依据实际VLLM推理服务拉取的模型名称配置（配置成空字符串会自动获取）
             request_rate = 0,                    # 请求发送频率，每1/request_rate秒发送1个请求给服务端，小于0.1则一次性发送所有请求
             retry = 2,
