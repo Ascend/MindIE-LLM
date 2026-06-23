@@ -101,7 +101,7 @@ RUN set -eux; \
 # ================================================================
 FROM hub.oepkgs.net/openeuler/openeuler:24.03-lts-sp3 AS base-openeuler
 
-ENV LD_LIBRARY_PATH=/usr/local/Ascend/driver/lib64/driver:/usr/local/Ascend/driver/lib64/common:$LD_LIBRARY_PATH
+ENV LD_LIBRARY_PATH=/usr/local/Ascend/driver/lib64/driver:/usr/local/Ascend/driver/lib64/common:/usr/lib64${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}
 ENV TZ=Asia/Shanghai
 
 RUN dnf update -y && \
@@ -220,7 +220,7 @@ RUN if [ "$OS_TYPE" = "ubuntu" ]; then \
         dnf update -y && \
         dnf --setopt=sslverify=false install -y ffmpeg readline-devel tree unzip \
             openssl rapidjson-devel re2-devel patchelf jq pkg-config libzip bzip2 \
-            sudo curl gdb tcpdump git && \
+            sudo curl gdb tcpdump git cmake gcc-c++ && \
         dnf groupinstall "Development Tools" -y ; \
     fi
 

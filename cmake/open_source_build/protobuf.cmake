@@ -73,7 +73,7 @@ execute_process(
         -DZLIB_INCLUDE_DIR=${ZLIB_OUTPUT_DIR}/include
 
         -Dprotobuf_ABSL_PROVIDER=package
-        -Dabsl_DIR=${ABSEILCPP_OUTPUT_DIR}/lib/cmake/absl
+        -Dabsl_DIR=${ABSEILCPP_OUTPUT_DIR}/${THIRD_PARTY_LIBDIR}/cmake/absl
     OUTPUT_QUIET
 )
 

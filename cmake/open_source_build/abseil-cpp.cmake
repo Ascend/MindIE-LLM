@@ -6,7 +6,7 @@ download_open_source("${OPENSOURCE_COMPONENT_NAME}" "${FILE_GLOB_PATTERN}" "${TH
 set(THREAD_NUM "${THREAD_NUM}") # clean warning
 list(JOIN THIRD_PARTY_CXX_FLAGS " " THIRD_PARTY_CXX_FLAGS_STR)
 
-if(EXISTS "${ABSEILCPP_OUTPUT_DIR}/lib/libabsl_crc32c.so")
+if(EXISTS "${ABSEILCPP_OUTPUT_DIR}/${THIRD_PARTY_LIBDIR}/libabsl_crc32c.so")
     message(STATUS "${OPENSOURCE_COMPONENT_NAME} already built, skipping.")
     return()
 endif()
@@ -33,7 +33,7 @@ file(WRITE "${SOURCE_DIR}/absl/base/options.h" "${ABSL_INTERNAL_OPTIONS_H_PINNED
 set(ABSEILCPP_BUILD_DIR "${SOURCE_DIR}/build")
 file(MAKE_DIRECTORY "${ABSEILCPP_BUILD_DIR}")
 execute_process(
-    COMMAND ${CMAKE_COMMAND} 
+    COMMAND ${CMAKE_COMMAND}
         -DCMAKE_INSTALL_PREFIX=${ABSEILCPP_OUTPUT_DIR}
         -DCMAKE_BUILD_TYPE=Release
         -DBUILD_SHARED_LIBS=ON

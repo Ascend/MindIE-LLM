@@ -10,6 +10,11 @@ function fn_get_version()
 function fn_make_run_package()
 {
     fn_get_version
+    if [ -f /etc/openEuler-release ]; then
+        LIBDIR="lib64"
+    else
+        LIBDIR="lib"
+    fi
     mkdir -p $OUTPUT_DIR/scripts $OUTPUT_DIR/lib $RELEASE_DIR/$ARCH $OUTPUT_DIR/conf $OUTPUT_DIR/server/scripts/
     cp $CODE_ROOT/scripts/install.sh $OUTPUT_DIR
     cp $CODE_ROOT/scripts/build_run_package/set_env.sh $OUTPUT_DIR
@@ -68,14 +73,14 @@ function fn_make_run_package()
         )
     }
 
-    copy_so "$THIRD_PARTY_OUTPUT_DIR/protobuf/lib"       "$OUTPUT_DIR/lib/protobuf"       "${protobuf_so_list[@]}"
-    copy_so "$THIRD_PARTY_OUTPUT_DIR/abseil-cpp/lib"     "$OUTPUT_DIR/lib/absl"           "${absl_so_list[@]}"
-    copy_so "$THIRD_PARTY_OUTPUT_DIR/boost/lib"          "$OUTPUT_DIR/lib/boost"          "${boost_so_list[@]}"
-    copy_so "$THIRD_PARTY_OUTPUT_DIR/zlib/lib"           "$OUTPUT_DIR/lib/zlib"           "${zlib_so_list[@]}"
-    copy_so "$THIRD_PARTY_OUTPUT_DIR/re2/lib"            "$OUTPUT_DIR/lib/re2"            "${re2_so_list[@]}"
-    copy_so "$THIRD_PARTY_OUTPUT_DIR/cares/lib"          "$OUTPUT_DIR/lib/cares"          "${cares_so_list[@]}"
-    copy_so "$THIRD_PARTY_OUTPUT_DIR/prometheus-cpp/lib" "$OUTPUT_DIR/lib/prometheus-cpp" "${prometheus_so_list[@]}"
-    copy_so "$THIRD_PARTY_OUTPUT_DIR/grpc/lib"           "$OUTPUT_DIR/lib/grpc"           "${grpc_so_list[@]}"
+    copy_so "$THIRD_PARTY_OUTPUT_DIR/protobuf/$LIBDIR"       "$OUTPUT_DIR/lib/protobuf"       "${protobuf_so_list[@]}"
+    copy_so "$THIRD_PARTY_OUTPUT_DIR/abseil-cpp/$LIBDIR"     "$OUTPUT_DIR/lib/absl"           "${absl_so_list[@]}"
+    copy_so "$THIRD_PARTY_OUTPUT_DIR/boost/lib"              "$OUTPUT_DIR/lib/boost"          "${boost_so_list[@]}"
+    copy_so "$THIRD_PARTY_OUTPUT_DIR/zlib/lib"               "$OUTPUT_DIR/lib/zlib"           "${zlib_so_list[@]}"
+    copy_so "$THIRD_PARTY_OUTPUT_DIR/re2/$LIBDIR"            "$OUTPUT_DIR/lib/re2"            "${re2_so_list[@]}"
+    copy_so "$THIRD_PARTY_OUTPUT_DIR/cares/$LIBDIR"          "$OUTPUT_DIR/lib/cares"          "${cares_so_list[@]}"
+    copy_so "$THIRD_PARTY_OUTPUT_DIR/prometheus-cpp/$LIBDIR" "$OUTPUT_DIR/lib/prometheus-cpp" "${prometheus_so_list[@]}"
+    copy_so "$THIRD_PARTY_OUTPUT_DIR/grpc/lib"               "$OUTPUT_DIR/lib/grpc"           "${grpc_so_list[@]}"
     copy_so "$THIRD_PARTY_OUTPUT_DIR/libboundscheck/lib" \
         "$OUTPUT_DIR/lib/libboundscheck" "${libboundscheck_so_list[@]}"
 

@@ -6,7 +6,7 @@ download_open_source("${OPENSOURCE_COMPONENT_NAME}" "${FILE_GLOB_PATTERN}" "${TH
 set(THREAD_NUM "${THREAD_NUM}") # clean warning
 list(JOIN THIRD_PARTY_CXX_FLAGS " " THIRD_PARTY_CXX_FLAGS_STR)
 
-if(EXISTS "${GTEST_OUTPUT_DIR}/lib/libgtest.a")
+if(EXISTS "${GTEST_OUTPUT_DIR}/${THIRD_PARTY_LIBDIR}/libgtest.a")
     message(STATUS "${OPENSOURCE_COMPONENT_NAME} already built, skipping.")
     return()
 endif()
