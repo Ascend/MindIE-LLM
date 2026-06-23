@@ -41,25 +41,30 @@ chmod +x Ascend-hdk-<chip_type>-npu-firmware_<version>.run
 
     **Atlas 800I A2/A3 推理服务器**
 
-    ```bash
-    docker run -it -d --net=host --shm-size=1g \  # 对于多模态理解模型，若业务最大并发数较高，--shm-size建议设置不小于100g
-       --name <container-name> \
-       --device=/dev/davinci_manager:rwm \
-       --device=/dev/hisi_hdc:rwm \
-       --device=/dev/devmm_svm:rwm \
-       --device=/dev/davinci0:rwm \
-       -v /usr/local/Ascend/driver:/usr/local/Ascend/driver:ro \
-       -v /usr/local/Ascend/firmware/:/usr/local/Ascend/firmware:ro \
-       -v /usr/local/sbin:/usr/local/sbin:ro \
-       -v /path-to-weights:/path-to-weights:ro \
-       mindie:3.0.0-800I-A2-py311-openeuler24.03-lts bash
+     ```bash
+     docker run -it -d --net=host --shm-size=500g \  # 对于多模态理解模型，若业务最大并发数较高，--shm-size建议设置不小于100g
+        --name <container-name> \
+        -w /home \
+        --device=/dev/davinci0:rwm \
+        --device=/dev/davinci1:rwm \
+        --device=/dev/davinci2:rwm \
+        --device=/dev/davinci3:rwm \
+        --device=/dev/davinci_manager:rwm \
+        --device=/dev/hisi_hdc:rwm \
+        --device=/dev/devmm_svm:rwm \
+        -v /usr/local/Ascend/driver:/usr/local/Ascend/driver:ro \
+        -v /usr/local/dcmi:/usr/local/dcmi:ro \
+        -v /usr/local/bin/npu-smi:/usr/local/bin/npu-smi:ro \
+        -v /usr/local/sbin/:/usr/local/sbin:ro \
+        -v /home/weight:/home/weight:ro \
+        {IMAGE_ID} bash
     ```
 
     > [!NOTE]说明
-    >- “_mindie:3.0.0-800I-A2-py311-openeuler24.03-lts_”为镜像名称和标签，可根据实际情况修改。可在宿主机执行`docker images`命令查看当前机器上已有的镜像。
-    >- 对于--device参数，挂载权限设置为rwm，而非权限较小的rw或r，原因如下：
-    >   - 对于Atlas 800I A2 推理服务器，若设置挂载权限为rw，可以正常进入容器，同时也可以使用npu-smi命令查看npu占用信息，并正常运行MindIE业务；但如果挂载的npu（即对应挂载选项中的davinci_xxx_，如npu0对应davinci0）上有其它任务占用，则使用npu-smi命令会打印报错，且无法运行MindIE任务（此时torch.npu.set\_device\(\)会失败）。
-    >   - 对于Atlas 800I A3 超节点服务器，若设置挂载权限为rw，进入容器后，使用npu-smi命令会打印报错，且无法运行MindIE任务，此时torch.npu.set_device()会失败。
+    >- `{IMAGE_ID}` 为镜像 ID，镜像安装完成后，执行 `docker images` 命令，即可查看对应 ID，替换在上述命令中即可。
+    >- 对于 `--device` 参数，挂载权限设置为 `rwm`，而非权限较小的 `rw` 或 `r`，原因如下：
+        >- 对于 Atlas 800I A2 推理服务器，若设置挂载权限为 `rw`，可以正常进入容器，同时也可以使用 `npu-smi` 命令查看 npu 占用信息，并正常运行 MindIE 业务；但如果挂载的 npu（即对应挂载选项中的 `davinci_xxx_`，如 `npu0` 对应 `davinci0`）上有其它任务占用，则使用 `npu-smi` 命令会打印报错，且无法运行 MindIE 任务（此时 `torch.npu.set_device()` 会失败）。
+        >- 对于 Atlas 800I A3 超节点服务器，若设置挂载权限为 `rw`，进入容器后，使用 `npu-smi` 命令会打印报错，且无法运行 MindIE 任务（此时 `torch.npu.set_device()` 会失败）。
 
     **Atlas 200I Pro 加速模块**
 
