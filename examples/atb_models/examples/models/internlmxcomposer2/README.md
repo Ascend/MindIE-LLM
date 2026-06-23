@@ -1,56 +1,56 @@
 # README
 
-- [InternLM-XComposer](https://github.com/InternLM/InternLM-XComposer)，是一种多模态大模型，具有强大的图像和文本处理能力，通过开源组件缩小与商业多模态模型的差距——GPT-4V的开源替代方案。在聊天机器人中，InternLM-XComposer可以通过解析用户的文字输入，结合图像信息，生成更加生动、准确的回复。 此外，InternLM-XComposer还可以根据用户的图像输入，提供相关的文本信息，实现更加智能化的交互。
-- 此代码仓中实现了一套基于NPU硬件的InternLM-XComposer推理模型。配合加速库使用，旨在NPU上获得极致的推理性能。
+- [InternLM-XComposer](https://github.com/InternLM/InternLM-XComposer)，是一种多模态大模型，具有强大的图像和文本处理能力，通过开源组件缩小与商业多模态模型的差距——GPT-4V 的开源替代方案。在聊天机器人中，InternLM-XComposer 可以通过解析用户的文字输入，结合图像信息，生成更加生动、准确的回复。 此外，InternLM-XComposer 还可以根据用户的图像输入，提供相关的文本信息，实现更加智能化的交互。
+- 此代码仓中实现了一套基于 NPU 硬件的 InternLM-XComposer 推理模型。配合加速库使用，旨在 NPU 上获得极致的推理性能。
 - 支持 InternLM-XComposer2-VL-7B，基于 OpenAI 的 Clip-vit-large-patch14-336 视觉模型 + MLP + InternLM2-Chat-20B 文本模型的多模态推理。
-- 支持 InternLM-XComposer2-4khd-7B, 基于 OpenAI 的 Clip-vit-large-patch14-336 视觉模型 + MLP + InternLM2-Chat-20B 文本模型的多模态推理。
+- 支持 InternLM-XComposer2-4KHD-7B, 基于 OpenAI 的 Clip-vit-large-patch14-336 视觉模型 + MLP + InternLM2-Chat-20B 文本模型的多模态推理。
 
-# 特性矩阵
+## 特性矩阵
 
 - 此矩阵罗列了 InternLM-XC2 系列模型支持的特性
 
 | 模型及参数量    | 800I A2 Tensor Parallelism | 300I DUO Tensor Parallelism | FP16 | 800I A2 BF16 | MindIE Service | 纯模型支持模态  | 服务化支持模态 |
 | --------------- | -------------------------- | -------------------------- | ---- | ------------ | -------------- | -------------- | ------------ |
-| InternLM-XComposer2-VL-7B | 支持world size 1   | 支持world size 1          | √    | ×            | ×              | 文本、图片      | 当前模型不支持服务化 |
-| InternLM-XComposer2-4KHD-7B | 支持world size 1 | 支持world size 1          | √    | ×            | ×              | 文本、图片      | 当前模型不支持服务化 |
+| InternLM-XComposer2-VL-7B | 支持 world size 1   | 支持 world size 1          | ✅    | ❌            | ❌              | 文本、图片      | 当前模型不支持服务化 |
+| InternLM-XComposer2-4KHD-7B | 支持 world size 1 | 支持 world size 1          | ✅    | ❌            | ❌              | 文本、图片      | 当前模型不支持服务化 |
 
-# 使用说明
+## 使用说明
 
-## 路径变量解释
+### 路径变量解释
 
 | 变量名      | 含义                                                                                                                                                         |
 | ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | working_dir | 加速库及模型库下载后放置的目录                                                                                                                               |
-| llm_path    | 模型仓所在路径。若使用编译好的包，则路径为 `${working_dir}`；若使用gitcode下载的代码，则路径为 `${working_dir}/MindIE-LLM/examples/atb_models` |
+| llm_path    | 模型仓所在路径。若使用镜像，则路径为 `/usr/local/Ascend/atb-models`；若使用 gitcode 下载的代码，则路径为 `{working_dir}/MindIE-LLM/examples/atb_models`（仅源码下载场景使用） |
 | script_path | 脚本所在路径；工作脚本所在路径为 `${llm_path}/examples/models/internlmxcomposer2`                                                                        |
 | weight_path | 文本模型权重路径                                                   |
 | vit_path  | 视觉模型所在路径                                                    |
 | image_path  | 图片所在路径                                                      |
-| open_clip_path | open_clip权重所在路径                                          |
+| open_clip_path | open_clip 权重所在路径                                          |
 | trust_remote_code | 是否信任本地可执行文件。默认不执行。若传入此参数，则信任本地可执行文件，本模型需要传入该参数。|
 
-## 权重
+### 权重
 
 **权重下载**
 
-- [视觉模型vit](https://huggingface.co/openai/clip-vit-large-patch14-336/tree/main)，请提前下载该视觉模型权重，并存放于 `vit_path` 目录
+- [视觉模型 vit](https://huggingface.co/openai/clip-vit-large-patch14-336/tree/main)，请提前下载该视觉模型权重，并存放于 `vit_path` 目录
 - [InternLM-XComposer2-VL-7B](https://huggingface.co/internlm/internlm-xcomposer2-vl-7b/tree/main)
 - [InternLM-XComposer2-4KHD-7B](https://hf-mirror.com/internlm/internlm-xcomposer2-4khd-7b/tree/main)
 
-**权重转safetensor**
+**权重转 safetensor**
 
-模型只支持safetensor格式权重，需要将bin格式权重转为safetensor格式，参考[此README文件](../../README.md)
+模型只支持 safetensor 格式权重，需要将 bin 格式权重转为 safetensor 格式，参考[此 README 文件](../../README.md)
 
 **稀疏量化权重生成**
 
 - step 1
-请参考[msmodelslim](https://gitcode.com/Ascend/msit/blob/master/msmodelslim/docs/%E5%AE%89%E8%A3%85%E6%8C%87%E5%8D%97.md)安装msModelSlim量化工具
+请参考 [msmodelslim](https://gitcode.com/Ascend/msmodelslim) 安装 msModelSlim 量化工具
 
 - step 2
-由于当前lora特性不支持量化且vit模型也不支持量化，稀疏量化功能只能作用于基础LLM模型，以下是 `InternLM-XComposer2-VL-7B` 量化步骤：
+由于当前 lora 特性不支持量化且 vit 模型也不支持量化，稀疏量化功能只能作用于基础 LLM 模型，以下是 `InternLM-XComposer2-VL-7B` 量化步骤：
 
 1. 拷贝一份权重，将其记作 `$weight_path_copy`
-2. 由于lora特性不支持量化，需要修改文件 `$weight_path_copy/modeling_internlm2.py`，将 `MLP` 和 `Attention` 中使用到 `lora` 计算的方法删除 `im_mask`，例如：
+2. 由于 lora 特性不支持量化，需要修改文件 `$weight_path_copy/modeling_internlm2.py`，将 `MLP` 和 `Attention` 中使用到 `lora` 计算的方法删除 `im_mask`，例如：
 
 ```python
 # 原始代码
@@ -59,41 +59,41 @@ qkv_states = self.wqkv(hidden_states, im_mask)
 qkv_states = self.wqkv(hidden_states)
 ```
 
-1. 在 `$llm_path` 目录下执行稀疏量化权重生成步骤1：
+1. 在 `$llm_path` 目录下执行稀疏量化权重生成步骤 1：
 
     ```python
-    python examples/models/internlmxcomposer2/convert_quant_weights.py --model_path {浮点权重路径} --save_directory {W8A8S量化权重路径} --w_bit 4 --a_bit 8 --calib_file ${llm_path}/examples/convert/model_slim/teacher_qualification.jsonl --fraction 0.011 --co_sparse True (--trust_remote_code)
+    python examples/models/internlmxcomposer2/convert_quant_weights.py --model_path {浮点权重路径} --save_directory {W8A8S 量化权重路径} --w_bit 4 --a_bit 8 --calib_file ${llm_path}/examples/convert/model_slim/teacher_qualification.jsonl --fraction 0.011 --co_sparse True (--trust_remote_code)
     ```
 
 2. 在 `$llm_path` 执行量化权重切分及压缩
 
    ```shell
-   torchrun --nproc_per_node {TP数} -m examples.convert.model_slim.sparse_compressor --model_path {W8A8S量化权重路径} --save_directory {W8A8SC量化权重路径} (--trust_remote_code)
+   torchrun --nproc_per_node {TP 数} -m examples.convert.model_slim.sparse_compressor --model_path {W8A8S 量化权重路径} --save_directory {W8A8SC 量化权重路径} (--trust_remote_code)
    ```
 
-    - TP数为tensor parallel并行个数
-    - 注意：若权重生成时以TP=4进行切分，则运行时也需以TP=4运行
+    - TP 数为 tensor parallel 并行个数
+    - 注意：若权重生成时以 TP=4 进行切分，则运行时也需以 TP=4 运行
     - 示例
-   
+
        ```shell
         torchrun --nproc_per_node 1 -m examples.convert.model_slim.sparse_compressor --model_path internlm-xc2-vl-7b_w8a8s --save_directory internlm-xc2-vl-7b_w8a8sc
        ```
 
-**W8A8量化权重生成**
-步骤分为4步，其中步骤1、2、3同**稀疏量化权重生成**，步骤4为：
+**W8A8 量化权重生成**
+步骤分为 4 步，其中步骤 1、2、3 同**稀疏量化权重生成**，步骤 4 为：
 
 ```shell
-python examples/models/internlmxcomposer2/convert_quant_weights.py --model_path {浮点权重路径} --save_directory {W8A8量化权重路径} --w_bit 8 --a_bit 8 --calib_file ${llm_path}/examples/convert/model_slim/teacher_qualification.jsonl --device_type npu (--trust_remote_code)
+python examples/models/internlmxcomposer2/convert_quant_weights.py --model_path {浮点权重路径} --save_directory {W8A8 量化权重路径} --w_bit 8 --a_bit 8 --calib_file ${llm_path}/examples/convert/model_slim/teacher_qualification.jsonl --device_type npu (--trust_remote_code)
 ```
-  
-## 推理前准备
+
+### 推理前准备
 
 **环境准备**
 
-- torchvision版本需与torch版本配套，请参考[此txt文件](../../../requirements/models/requirements_internlmxcomposer2.txt)
-- 测试前请先source环境变量，包括CANN、ATB、MINDIE
+- torchvision 版本需与 torch 版本配套，请参考[此 txt 文件](../../../requirements/models/requirements_internlmxcomposer2.txt)
+- 测试前请先 source 环境变量，包括 CANN、ATB、MINDIE
 
-**运行 Mindie Paged Attention FP16前修改配置**
+**运行 Mindie Paged Attention FP16 前修改配置**
 
 - 修改模型权重路径下 `config.json` 文件中的 `torch_dtype` 为 float16：
 
@@ -106,7 +106,7 @@ python examples/models/internlmxcomposer2/convert_quant_weights.py --model_path 
 
 - 运行前请使用本地视觉模型，修改视觉模型从本地路径获取，设置 `${llm_path}/atb_llm/models/internlmxcomposer2/buildmlp/build_mlp.py`、`${llm_path}/atb_llm/models/internlmxcomposer2/buildmlp/build_mlp_4k.py` 中 `vision_tower` 为 `${vit_path}`
 
-- 增加lora适配文件：adapter_config.json 和 lora_adapter.json，放在对应文本模型权重路径下：
+- 增加 lora 适配文件：adapter_config.json 和 lora_adapter.json，放在对应文本模型权重路径下：
 
   ```shell
   # InternLM-XComposer2-VL-7B 的 adapter_config.json 文件内容为：
@@ -127,15 +127,15 @@ python examples/models/internlmxcomposer2/convert_quant_weights.py --model_path 
     "r": 256
   }
 
-  # 配置lora权重路径，InternLM-XComposer2-VL-7B和InternLM-XComposer2-4khd-7B的lora权重都融合在文本模型权重中，因此，这里配置文本模型权重实际路径 $weight_path 即可。
-  # lora_adapter.json文件内容为：
+  # 配置 lora 权重路径，InternLM-XComposer2-VL-7B 和 InternLM-XComposer2-4KHD-7B 的 lora 权重都融合在文本模型权重中，因此，这里配置文本模型权重实际路径 $weight_path 即可。
+  # lora_adapter.json 文件内容为：
   {"internlmxc2":"$weight_path"}
   ```
 
-**运行Torch_npu FP16前配置**
+**运行 Torch_npu FP16 前配置**
 
 - 运行 torch_npu 推理前应设置 `${weight_path}/build_mlp.py` 文件中的 vision_tower 为 `${vit_path}`
-- 运行InternLM-XComposer2-4khd-7B模型的Torch_npu结果时，请修改为 `eager` 模式，修改config.json文件为：
+- 运行 InternLM-XComposer2-4KHD-7B 模型的 Torch_npu 结果时，请修改为 `eager` 模式，修改 config.json 文件为：
 
   ```shell
   {
@@ -144,7 +144,7 @@ python examples/models/internlmxcomposer2/convert_quant_weights.py --model_path 
   }
   ```
 
-## 精度测试
+### 精度测试
 
 ### 方案
 
@@ -152,17 +152,17 @@ python examples/models/internlmxcomposer2/convert_quant_weights.py --model_path 
 
 #### 实施
 
-1. 下载[open_clip 的权重 open_clip_pytorch_model.bin](https://huggingface.co/laion/CLIP-ViT-H-14-laion2B-s32B-b79K/tree/main)，并把下载的权重放在open_clip_path目录下
-   下载[测试图片（CoCotest 数据集）](https://cocodataset.org/#download)并随机抽取其中100张图片放入 `${image_path}` 目录下
+1. 下载 [open_clip 的权重 open_clip_pytorch_model.bin](https://huggingface.co/laion/CLIP-ViT-H-14-laion2B-s32B-b79K/tree/main)，并把下载的权重放在 open_clip_path 目录下
+   下载[测试图片（CoCotest 数据集）](https://cocodataset.org/#download)并随机抽取其中 100 张图片放入 `${image_path}` 目录下
 
 2. Torch_npu 路线，在 `${llm_path}` 目录下，运行脚本
 
    ```bash
-   # 注意：300I Duo场景下，InternLM-XComposer2-4KHD-7B 模型需修改 `${weight_path}/modeling_internlm_xcomposer2.py` 文件中 `img2emb` 函数中的 `image` 变量为 `image.cpu()` ，以转换到cpu侧执行
+   # 注意：300I Duo 场景下，InternLM-XComposer2-4KHD-7B 模型需修改 `${weight_path}/modeling_internlm_xcomposer2.py` 文件中 `img2emb` 函数中的 `image` 变量为 `image.cpu()` ，以转换到 cpu 侧执行
    python ${script_path}/precision/run_coco.py --model_path ${weight_path} --image_path ${image_path} (--trust_remote_code)
    ```
 
-   会在当前 `${llm_path}` 目录下生成torch_npu_coco_predict.json文件存储torch_npu推理结果
+   会在当前 `${llm_path}` 目录下生成 torch_npu_coco_predict.json 文件存储 torch_npu 推理结果
 
 3. 加速库 路线,在 `${llm_path}` 目录下执行以下指令：
 
@@ -170,20 +170,20 @@ python examples/models/internlmxcomposer2/convert_quant_weights.py --model_path 
    bash ${script_path}/run_pa.sh --precision (--trust_remote_code) ${weight_path} ${image_path}
    ```
 
-   运行完成后会在 `${script_path}` 目录生成predict_result.json文件存储加速库路线的推理结果
+   运行完成后会在 `${script_path}` 目录生成 predict_result.json 文件存储加速库路线的推理结果
 
-4. 对结果进行评分：两种路线得到的两组图片描述(torch_npu_coco_predict.json、predict_result.json)作为输入,执行clip_score_internlmxcomposer2.py 脚本输出评分结果，在 `${llm_path}` 目录下执行：
+4. 对结果进行评分：两种路线得到的两组图片描述(torch_npu_coco_predict.json、predict_result.json)作为输入,执行 clip_score_internlmxcomposer2.py 脚本输出评分结果，在 `${llm_path}` 目录下执行：
 
 ```bash
-   python examples/models/internlmxcomposer2/precision/clip_score_internlmxcomposer2.py \ 
-   --model_weights_path ${open_clip_path}/open_clip_pytorch_model.bin \ 
-   --image_info {coco_predict.json 或 predict_result.json的路径} \
+   python examples/models/internlmxcomposer2/precision/clip_score_internlmxcomposer2.py \
+   --model_weights_path ${open_clip_path}/open_clip_pytorch_model.bin \
+   --image_info {coco_predict.json 或 predict_result.json 的路径} \
    --dataset_path ${image_path}
 ```
 
-## 性能测试
+### 性能测试
 
-性能测试时需要在 `${image_path}` 下仅存放一张图片，使用以下命令运行 `run_pa.sh`，会自动输出batchsize为1，输出token长度为 256 时的吞吐。
+性能测试时需要在 `${image_path}` 下仅存放一张图片，使用以下命令运行 `run_pa.sh`，会自动输出 batchsize 为 1，输出 token 长度为 256 时的吞吐。
 
 测试模型侧性能数据，开启环境变量
 
@@ -204,7 +204,7 @@ bash examples/models/internlmxcomposer2/run_pa.sh --performance (--trust_remote_
 
 可以在 `examples/models/internlmxcomposer2/internlmxcomposer2_performance.csv` 文件中找到测试结果。
 
-## FAQ
+### FAQ
 
-- 在精度测试和性能测试时，用户如果需要修改输入prompt，max_batch_size，max_output_length时，可以修改{script_path}/run_pa.sh里的可修改配置
-- 更多环境变量见[此README文件](../../README.md)
+- 在精度测试和性能测试时，用户如果需要修改输入 prompt，max_batch_size，max_output_length 时，可以修改{script_path}/run_pa.sh 里的可修改配置
+- 更多环境变量见[此 README 文件](../../README.md)

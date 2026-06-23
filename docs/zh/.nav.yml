@@ -62,9 +62,21 @@ nav:
         - 其他安全加固: user_guide/install/security_management_and_hardening/other_measures_for_security_hardening.md
     - 示例: user_guide/examples.md
     - 模型支持列表: user_guide/model_support_list.md
+    - 通信矩阵: user_guide/communication_matrix.md
     - 模型部署:
       - DeepSeek-V3.2: user_guide/models/deepseek/deepseek_v3.2.md
     - 优化与调优: user_guide/optimization_and_tuning.md
+    - 日志:
+      - 日志参考: user_guide/log/menu_log.md
+      - 使用说明: user_guide/log/introduction.md
+      - 日志简介: user_guide/log/log_overview.md
+      - 查看日志: user_guide/log/log_viewing.md
+      - 其他操作:
+        - 设置日志级别: user_guide/log/setting_log_level.md
+        - 设置日志展示方式: user_guide/log/setting_log_display.md
+        - 配置日志落盘路径: user_guide/log/setting_log_path.md
+        - 配置日志内容: user_guide/log/configuring_log_content.md
+        - 配置日志轮转: user_guide/log/configuring_log_rotation.md
     - 使用手册:
       - 简介: user_guide/user_manual/introduction.md
       - 使用手册总览: user_guide/user_manual/menu_user_manual.md
@@ -132,7 +144,7 @@ nav:
       - MultiLora: developer_guide/architecture_design/MultiLora.md
       - MoE: developer_guide/architecture_design/MoE.md
       - RoPEFactory: developer_guide/architecture_design/RoPEFactoryGuide.md
-    - 编译安装: developer_guide/build_guide.md
+    - 编译安装: developer_guide/build_guide_llm.md
     - 本地构建 MkDocs 文档: build_mkdocs.md
     - 测试: developer_guide/test.md
     - 迁移适配:
@@ -140,3 +152,5 @@ nav:
       - 多模态理解迁移: developer_guide/migration_and_adaptation_guide/multimodal_understanding_migration_and_adaptation_guide.md
 
   - 常见问题: faq/faq.md
+
+  - 发布说明: release_notes.md

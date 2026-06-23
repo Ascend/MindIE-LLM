@@ -642,10 +642,13 @@ TEST_F(CommonUtilsTest, TestCheckIpEdgeCases) {
 // 测试whl包场景，MINDIE_LLM_HOME_PATH 下存在 __init__.py，获取到 MINDIE_LLM_HOME_PATH 路径
 TEST_F(CommonUtilsTest, TestGetHomePathWhlPkgSuccess) {
     std::string homePath;
-    auto existsMock = MOCKER(mindie_llm::FileSystem::Exists);
-    existsMock.stubs().with(any()).will(returnValue(true));
-    Error result = GetHomePath(homePath);
-    EXPECT_TRUE(result.IsOk());
+    {
+        auto existsMock = MOCKER(mindie_llm::FileSystem::Exists);
+        existsMock.stubs().with(any()).will(returnValue(true));
+        Error result = GetHomePath(homePath);
+        EXPECT_TRUE(result.IsOk());
+    }
+    GlobalMockObject::instance.reset();
 }
 
 }  // namespace mindie_llm

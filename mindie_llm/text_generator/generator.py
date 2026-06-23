@@ -310,6 +310,7 @@ class Generator(PDInterface):
         self.world_size = parse_config(model_config, "world_size", required=True, parse_type=ParseType.TO_INT)
         self.local_rank = parse_config(model_config, "local_rank", required=True, parse_type=ParseType.TO_INT)
         self.npu_device_id = parse_config(model_config, "npu_device_id", required=True, parse_type=ParseType.TO_INT)
+        dp = parse_config(model_config, "dp", required=False, parse_type=ParseType.TO_INT, default_value=-1)
 
         kv_pool_async_write = parse_config(
             model_config,
@@ -334,6 +335,9 @@ class Generator(PDInterface):
             "plugin_params", ""
         ):
             raise ValueError("Prefix Cache is not supported on D nodes under PD separation!")
+
+        if self.enable_prefix_cache and self.is_mix_model and dp > 1:
+            raise ValueError("Prefix Cache, splitfuse and DP (Data Parallelism) cannot be enable at the same time!")
 
         self.layerwise_disaggregated = parse_config(
             model_config,
@@ -677,16 +681,6 @@ class Generator(PDInterface):
             if input_metadata.all_sequence_ids is not None:
                 self.clear_cache(input_metadata.all_sequence_ids)
             raise e
-        except ErrorCodeException as e:
-            if warmup:
-                print_log(
-                    self.rank,
-                    logger.error,
-                    "Out-of-memory exception occurred during warmup",
-                )
-                raise RuntimeError from e
-            else:
-                raise e
         except Exception as e:
             if isinstance(e, ErrorCodeException):
                 self.generator_backend.is_fault_device = True
@@ -695,20 +689,16 @@ class Generator(PDInterface):
 
             # Handle PyTorch OOM(Only supports Torch >= 2.6 native exception)
             # If torch version is 2.1 or lower, please check exception message directly.
-            if hasattr(torch, "OutOfMemoryError") and isinstance(e, torch.OutOfMemoryError):
-                error_msg = (
-                    "Device out of memory (OOM) reported by PyTorch, but it can possibly triggered by HCCL. "
-                    "Enable logs: export ASCEND_SLOG_PRINT_TO_STDOUT=1, "
-                    "export ASCEND_GLOBAL_LOG_LEVEL=3 to check if there's HCCL error messages"
-                )
-                logger.error(error_msg)
-                error_code = ErrorCode.TEXT_GENERATOR_OUT_OF_MEMORY
-
             if error_code is not None:
-                message = f"{error_code.name} fault happened in generate_token, error code: {error_code.value}."
-                logger.error(message)
-                self.generator_backend.is_fault_device = True
-                raise ErrorCodeException(error_code) from e
+                if warmup:
+                    message = f"{error_code.name} fault happened in warmup, error code: {error_code.value}."
+                    logger.error(message)
+                    raise e
+                else:
+                    message = f"{error_code.name} fault happened in generate_token, error code: {error_code.value}."
+                    logger.error(message)
+                    self.generator_backend.is_fault_device = True
+                    raise ErrorCodeException(error_code) from e
             print_log(self.rank, logger.error, f"Unknown exception: {e}")
             if self.is_inference_pause:
                 if is_force_stop_exception(e):

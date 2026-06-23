@@ -53,6 +53,7 @@ theme:
 
 hooks:
   - docs/mkdocs/hooks/github_admonition.py
+  - docs/mkdocs/hooks/list_break.py
   - docs/mkdocs/hooks/img_width.py
 
 plugins:
@@ -89,6 +90,8 @@ markdown_extensions:
       emoji_generator: !!python/name:material.extensions.emoji.to_svg
   - toc:
       permalink: true
+      slugify: !!python/object/apply:pymdownx.slugs.slugify
+        kwds: {case: lower}
 
 extra_css:
   - stylesheets/extra.css

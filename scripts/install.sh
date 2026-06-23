@@ -4,6 +4,11 @@ sourcedir=$PWD
 VERSION=VERSION_PLACEHOLDER
 LOG_PATH=LOG_PATH_PLACEHOLDER
 LOG_NAME=LOG_NAME_PLACEHOLDER
+
+install_flag=n
+install_path_flag=n
+quiet_flag=n
+install_dir=""
 MAX_LOG_SIZE=$((1024*1024*50))
 
 ori_umsk=$(umask)
@@ -156,14 +161,12 @@ function chmod_recursion() {
 }
 
 function parse_script_args() {
-    install_flag=n
-    install_path_flag=n
     target_dir=""
     while true
     do
         case "$1" in
         --quiet)
-            QUIET="y"
+            quiet_flag=y
             shift
         ;;
         --install)
@@ -361,11 +364,37 @@ function check_owner() {
     print "INFO" "Check owner success!"
 }
 
+function handle_eula() {
+    local eula_file=./eula.txt
+    if [ ! -f "${eula_file}" ]; then
+        print "ERROR" "EULA file ${eula_file} not found"
+        exit 1
+    fi
+    print "INFO" "show ${eula_file}"
+    cat "${eula_file}" 1>&2
+    read -r -p "Do you accept the EULA to install MindIE-LLM? [Y/n] " answer
+    answer=${answer:-Y}
+    case ${answer} in
+        Y|y)
+            print "INFO" "Accept EULA, start to install"
+            ;;
+        *)
+            print "ERROR" "Reject EULA, quit to install"
+            exit 1
+            ;;
+    esac
+}
+
 function main() {
     parse_script_args $*
     if [[ "${install_path_flag}" == "y" || "${install_flag}" == "y" ]]; then
         log_init
         check_owner
+        if [ "${quiet_flag}" == "n" ]; then
+            handle_eula
+        else
+            print "INFO" "Quiet install, accept EULA by default"
+        fi
         install_process
         chmod_authority
         print "INFO" "Ascend-mindie-llm install success!"

@@ -37,14 +37,14 @@ cd ModelZoo-PyTorch/MindIE/LLM/DeepSeek/DeepSeek-V2/NPU_inference
 ```
 
 ```sh
-python fp8_cast_bf16.py --input-fp8-hf-path {/path/to/DeepSeek-R1} --output-bf16-hf-path {/path/to/deepseek-R1-bf16}
+python fp8_cast_bf16.py --input-fp8-hf-path {/path/to/DeepSeek-R1} --output-bf16-hf-path {/path/to/DeepSeek-R1-bf16}
 ```
 
 目前 npu 转换脚本不会自动复制 tokenizer 等文件，需要将原始权重的 tokenizer.json, tokenizer_config.json 等文件复制到转换之后的路径下。
 
 注意：
 
-- `/path/to/DeepSeek-R1` 表示 DeepSeek-R1 原始权重路径，`/path/to/deepseek-R1-bf16` 表示权重转换后的新权重路径。
+- `/path/to/DeepSeek-R1` 表示 DeepSeek-R1 原始权重路径，`/path/to/DeepSeek-R1-bf16` 表示权重转换后的新权重路径。
 - 由于模型权重较大，请确保您的磁盘有足够的空间放下所有权重，例如 DeepSeek-R1 在转换前权重约为 640G 左右，在转换后权重约为 1.3T 左右。
 - 推理作业时，也请确保您的设备有足够的空间加载模型权重，并为推理计算预留空间。
 
@@ -69,7 +69,7 @@ python fp8_cast_bf16.py --input-fp8-hf-path {/path/to/DeepSeek-R1} --output-bf16
 
 也可以通过 Modelers 等开源社区直接下载昇腾原生量化 W8A8 模型权重：
 
-- [Deepseek-R1](https://modelers.cn/models/State_Cloud/Deepseek-R1-bf16-hfd-w8a8)
+- [DeepSeek-R1](https://modelers.cn/models/State_Cloud/Deepseek-R1-bf16-hfd-w8a8)
 
 ## 推理前置准备
 
@@ -290,7 +290,7 @@ Example：仅供参考，请根据实际情况修改。
             "ModelConfig" : [
                 {
                     "modelInstanceType" : "Standard",
-                    "modelName" : "deepseekr1",
+                    "modelName" : "DeepSeek-R1",
                     "modelWeightPath" : "/home/data/dsR1_base_step178000",
                     "worldSize" : 8,
                     "cpuMemSize" : 5,
@@ -617,7 +617,7 @@ MTP 特性对于较低并发性能提升更为明显，当前版本推荐 MTP=1 
 
 4. 若出现 `UnicodeEncodeError: 'ascii' codec can't encode character`\uff5c`in position 301:ordinal not in range(128)`。
 
-   这是因为由于系统在写入或打印日志 ASCII 编码 deepseek 的词表失败，导致报错，不影响服务化正常运行。如果需要规避，需要/usr/local/Ascend/atb-models/atb_llm/runner/model_runner.py 的第 145 行注释掉：print_log(rank, logger.info, f'init tokenizer done: {self.tokenizer}')。
+   这是因为由于系统在写入或打印日志 ASCII 编码 DeepSeek 的词表失败，导致报错，不影响服务化正常运行。如果需要规避，需要/usr/local/Ascend/atb-models/atb_llm/runner/model_runner.py 的第 145 行注释掉：print_log(rank, logger.info, f'init tokenizer done: {self.tokenizer}')。
 
 5. 从节点无法和主节点建立 rpc 通信
 

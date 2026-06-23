@@ -228,6 +228,8 @@ class DmiConfig(BaseConfig):
         self.remote_unlink_cluster_id = {}
         self.remote_unlink_device_ips = {}
 
+        self.dp_inst_id_to_cluster_id = {}
+
     def init_dmi_config(self):
         self.role = self.parse("role", required=True)
         if (

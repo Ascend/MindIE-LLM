@@ -85,7 +85,7 @@ class TestConvertExceptionToErrorCode(unittest.TestCase):
     """Test convert_exception_to_error_code function."""
 
     def test_matches_oom_error_code(self):
-        result = convert_exception_to_error_code("something MIE05E0000005 in the message")
+        result = convert_exception_to_error_code("something MIE05E000005 in the message")
         self.assertEqual(result, ErrorCode.TEXT_GENERATOR_OUT_OF_MEMORY)
 
     def test_matches_hbm_ecc_error_code(self):

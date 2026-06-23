@@ -91,6 +91,12 @@
   }
 }
 
+/* Auto-fit table columns to content width, enable horizontal scroll when overflow */
+.md-typeset table:not([class]) {
+  width: max-content;
+  white-space: nowrap;
+}
+
 .md-typeset code,
 .md-typeset pre > code {
   font-family: 'Cascadia Code', 'JetBrains Mono', ui-monospace, SFMono-Regular, SF Mono, Menlo, Consolas, Liberation Mono, monospace;

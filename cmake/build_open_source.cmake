@@ -30,17 +30,20 @@ add_builder(zlib_pkg "zlib" "zlib-*"
 add_builder(abseil_pkg "abseil-cpp" "abseil-cpp-*"
     -DABSEILCPP_OUTPUT_DIR="${ABSEILCPP_OUTPUT_DIR}"
     -DTHIRD_PARTY_CXX_FLAGS="${THIRD_PARTY_CXX_FLAGS}"
+    -DTHIRD_PARTY_LIBDIR=${THIRD_PARTY_LIBDIR}
 )
 add_builder(re2_pkg "re2" ""
     -DRE2_OUTPUT_DIR="${RE2_OUTPUT_DIR}"
     -DTHIRD_PARTY_CXX_FLAGS="${THIRD_PARTY_CXX_FLAGS}"
     -DABSEILCPP_OUTPUT_DIR="${ABSEILCPP_OUTPUT_DIR}"
+    -DTHIRD_PARTY_LIBDIR=${THIRD_PARTY_LIBDIR}
 )
 add_builder(protobuf_pkg "protobuf" "protobuf-*"
     -DPROTOBUF_OUTPUT_DIR="${PROTOBUF_OUTPUT_DIR}"
     -DTHIRD_PARTY_CXX_FLAGS="${THIRD_PARTY_CXX_FLAGS}"
     -DZLIB_OUTPUT_DIR="${ZLIB_OUTPUT_DIR}"
     -DABSEILCPP_OUTPUT_DIR="${ABSEILCPP_OUTPUT_DIR}"
+    -DTHIRD_PARTY_LIBDIR=${THIRD_PARTY_LIBDIR}
 )
 add_builder(openssl_pkg "openssl" "ssl/bio_ssl.c"
     -DOPENSSL_OUTPUT_DIR="${OPENSSL_OUTPUT_DIR}"
@@ -49,6 +52,7 @@ add_builder(openssl_pkg "openssl" "ssl/bio_ssl.c"
 add_builder(cares_pkg "cares" "c-ares-*"
     -DCARES_OUTPUT_DIR="${CARES_OUTPUT_DIR}"
     -DTHIRD_PARTY_C_FLAGS="${THIRD_PARTY_C_FLAGS}"
+    -DTHIRD_PARTY_LIBDIR=${THIRD_PARTY_LIBDIR}
 )
 add_builder(grpc_pkg "grpc" "grpc-*"
     -DGRPC_OUTPUT_DIR="${GRPC_OUTPUT_DIR}"
@@ -60,6 +64,7 @@ add_builder(grpc_pkg "grpc" "grpc-*"
     -DRE2_OUTPUT_DIR="${RE2_OUTPUT_DIR}"
     -DOPENSSL_OUTPUT_DIR="${OPENSSL_OUTPUT_DIR}"
     -DCARES_OUTPUT_DIR="${CARES_OUTPUT_DIR}"
+    -DTHIRD_PARTY_LIBDIR=${THIRD_PARTY_LIBDIR}
 )
 add_builder(boost_pkg "boost" "bootstrap.sh"
     -DBOOST_OUTPUT_DIR="${BOOST_OUTPUT_DIR}"
@@ -68,6 +73,7 @@ add_builder(boost_pkg "boost" "bootstrap.sh"
 add_builder(prometheus_pkg "prometheus-cpp" "CMakeLists.txt"
     -DPROMETHEUS_OUTPUT_DIR="${PROMETHEUS_OUTPUT_DIR}"
     -DTHIRD_PARTY_CXX_FLAGS="${THIRD_PARTY_CXX_FLAGS}"
+    -DTHIRD_PARTY_LIBDIR=${THIRD_PARTY_LIBDIR}
 )
 add_builder(libboundscheck_pkg "libboundscheck" "Makefile"
     -DLIBBOUNDSCHECK_OUTPUT_DIR="${LIBBOUNDSCHECK_OUTPUT_DIR}"
@@ -93,6 +99,7 @@ if(NOT DEFINED ENV{BUILD_ZONE} OR NOT "$ENV{BUILD_ZONE}" STREQUAL "yellow")
         add_builder(googletest_pkg "googletest" "CMakeLists.txt"
             -DGTEST_OUTPUT_DIR="${GTEST_OUTPUT_DIR}"
             -DTHIRD_PARTY_CXX_FLAGS="${THIRD_PARTY_CXX_FLAGS}"
+            -DTHIRD_PARTY_LIBDIR=${THIRD_PARTY_LIBDIR}
         )
         list(APPEND PKG_LIST mockcpp_pkg googletest_pkg)
     endif()

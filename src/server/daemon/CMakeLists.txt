@@ -17,8 +17,8 @@ target_link_directories(${TARGET_NAME}
         PUBLIC
         ${THIRD_PARTY_OUTPUT_DIR}/openssl/lib
         ${THIRD_PARTY_OUTPUT_DIR}/spdlog/lib
-        ${THIRD_PARTY_OUTPUT_DIR}/boost/lib
-        ${THIRD_PARTY_OUTPUT_DIR}/prometheus-cpp/lib
+        ${THIRD_PARTY_OUTPUT_DIR}/boost/${THIRD_PARTY_LIBDIR}
+        ${THIRD_PARTY_OUTPUT_DIR}/prometheus-cpp/${THIRD_PARTY_LIBDIR}
 )
 
 find_package(pybind11 CONFIG)

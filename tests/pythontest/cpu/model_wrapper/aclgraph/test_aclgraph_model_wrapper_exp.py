@@ -8,12 +8,17 @@
 # MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
 # See the Mulan PSL v2 for more details.
 
+import sys
 from unittest.mock import patch, MagicMock, Mock
 import pytest
 import torch
 import numpy as np
 
-from mindie_llm.modeling.model_wrapper.aclgraph.aclgraph_model_wrapper_exp import AclGraphModelWrapperExp
+# Mock mie_ops before any mindie imports to avoid NPU hardware detection
+mock_mie_ops = MagicMock()
+sys.modules["mindie_llm.runtime.ops.mie_ops"] = mock_mie_ops
+
+from mindie_llm.modeling.model_wrapper.aclgraph.aclgraph_model_wrapper_exp import AclGraphModelWrapperExp  # noqa: E402
 
 
 @pytest.fixture
@@ -124,6 +129,7 @@ def test_init_success(
         moe_tp=-1,
         moe_ep=-1,
         role="standard",
+        plugin_params="",
         max_seq_len=-1,
         block_size=-1,
         sampler_config=None,
@@ -242,3 +248,430 @@ def test_resume_hccl_comm_raises(
 
     with pytest.raises(NotImplementedError):
         wrapper.resume_hccl_comm()
+
+
+@patch("mindie_llm.modeling.model_wrapper.aclgraph.aclgraph_model_wrapper_exp.ModelRunnerExp")
+@patch("mindie_llm.modeling.model_wrapper.aclgraph.aclgraph_model_wrapper_exp.get_parallel_info_manager")
+def test_forward_from_model_inputs_success(
+    mock_get_parallel_info, mock_model_runner_class, mock_model_runner_exp, mock_parallel_info_manager
+):
+    """Test forward_from_model_inputs success path."""
+    mock_model_runner_class.return_value = mock_model_runner_exp
+    mock_get_parallel_info.return_value = mock_parallel_info_manager
+
+    wrapper = AclGraphModelWrapperExp(rank=0, local_rank=0, world_size=2, npu_device_id=0, model_id="test")
+
+    mock_result = {"logits": torch.tensor([2.0])}
+    mock_model_runner_exp.forward.return_value = mock_result
+
+    result = wrapper.forward_from_model_inputs(
+        npu_cache="cache",
+        input_ids=torch.tensor([1, 2, 3]),
+        position_ids=torch.tensor([0, 1, 2]),
+        forward_context=MagicMock(),
+        extra_param="test",
+    )
+
+    mock_model_runner_exp.forward.assert_called_once()
+    call_kwargs = mock_model_runner_exp.forward.call_args
+    assert call_kwargs[0][0] == "cache"  # npu_cache
+    assert torch.equal(call_kwargs[0][1], torch.tensor([1, 2, 3]))  # input_ids
+    assert result == mock_result
+
+
+@patch("mindie_llm.modeling.model_wrapper.aclgraph.aclgraph_model_wrapper_exp.ModelRunnerExp")
+@patch("mindie_llm.modeling.model_wrapper.aclgraph.aclgraph_model_wrapper_exp.get_parallel_info_manager")
+def test_forward_from_model_inputs_raises(
+    mock_get_parallel_info, mock_model_runner_class, mock_model_runner_exp, mock_parallel_info_manager
+):
+    """Test forward_from_model_inputs re-raises exceptions."""
+    mock_model_runner_class.return_value = mock_model_runner_exp
+    mock_get_parallel_info.return_value = mock_parallel_info_manager
+
+    wrapper = AclGraphModelWrapperExp(rank=0, local_rank=0, world_size=2, npu_device_id=0, model_id="test")
+
+    mock_model_runner_exp.forward.side_effect = RuntimeError("forward failed")
+
+    with pytest.raises(RuntimeError, match="forward failed"):
+        wrapper.forward_from_model_inputs(
+            npu_cache="cache",
+            input_ids=torch.tensor([1]),
+            position_ids=torch.tensor([0]),
+        )
+
+
+@patch("mindie_llm.modeling.model_wrapper.aclgraph.aclgraph_model_wrapper_exp.ModelRunnerExp")
+@patch("mindie_llm.modeling.model_wrapper.aclgraph.aclgraph_model_wrapper_exp.get_parallel_info_manager")
+def test_forward_error_handling(
+    mock_get_parallel_info, mock_model_runner_class, mock_model_runner_exp, mock_parallel_info_manager
+):
+    """Test forward method propagates errors."""
+    mock_model_runner_class.return_value = mock_model_runner_exp
+    mock_get_parallel_info.return_value = mock_parallel_info_manager
+
+    wrapper = AclGraphModelWrapperExp(rank=0, local_rank=0, world_size=2, npu_device_id=0, model_id="test")
+
+    mock_model_runner_exp.forward.side_effect = RuntimeError("infer error")
+
+    mock_inputs = MagicMock()
+    mock_inputs.input_ids = [1, 2]
+    mock_inputs.position_ids = [0, 1]
+    mock_inputs.block_tables = []
+    mock_inputs.input_lengths = None
+
+    with pytest.raises(RuntimeError, match="infer error"):
+        wrapper.forward(mock_inputs, npu_cache="cache")
+
+
+@patch("mindie_llm.modeling.model_wrapper.aclgraph.aclgraph_model_wrapper_exp.ModelRunnerExp")
+@patch("mindie_llm.modeling.model_wrapper.aclgraph.aclgraph_model_wrapper_exp.get_parallel_info_manager")
+def test_init_with_role_prefill(
+    mock_get_parallel_info, mock_model_runner_class, mock_model_runner_exp, mock_parallel_info_manager
+):
+    """Test initialization with prefill role."""
+    mock_model_runner_class.return_value = mock_model_runner_exp
+    mock_get_parallel_info.return_value = mock_parallel_info_manager
+
+    wrapper = AclGraphModelWrapperExp(
+        rank=0, local_rank=0, world_size=2, npu_device_id=0, model_id="test", role="prefill"
+    )
+    assert wrapper.rank == 0
+
+
+@patch("mindie_llm.modeling.model_wrapper.aclgraph.aclgraph_model_wrapper_exp.ModelRunnerExp")
+@patch("mindie_llm.modeling.model_wrapper.aclgraph.aclgraph_model_wrapper_exp.get_parallel_info_manager")
+def test_init_with_plugin_params(
+    mock_get_parallel_info, mock_model_runner_class, mock_model_runner_exp, mock_parallel_info_manager
+):
+    """Test initialization with plugin_params and num_speculative_tokens."""
+    mock_model_runner_class.return_value = mock_model_runner_exp
+    mock_get_parallel_info.return_value = mock_parallel_info_manager
+
+    AclGraphModelWrapperExp(
+        rank=0,
+        local_rank=0,
+        world_size=2,
+        npu_device_id=0,
+        model_id="test",
+        plugin_params='{"plugin_type":"mtp, prefix_cache","num_speculative_tokens":2}',
+        num_speculative_tokens=2,
+    )
+
+    kwargs = mock_model_runner_class.call_args[1]
+    assert kwargs["plugin_params"] == '{"plugin_type":"mtp, prefix_cache","num_speculative_tokens":2}'
+    assert kwargs["num_speculative_tokens"] == 2
+
+
+@patch("mindie_llm.modeling.model_wrapper.aclgraph.aclgraph_model_wrapper_exp.ModelRunnerExp")
+@patch("mindie_llm.modeling.model_wrapper.aclgraph.aclgraph_model_wrapper_exp.get_parallel_info_manager")
+def test_generate_position_ids_error(
+    mock_get_parallel_info, mock_model_runner_class, mock_model_runner_exp, mock_parallel_info_manager
+):
+    """Test generate_position_ids error handling."""
+    mock_model_runner_class.return_value = mock_model_runner_exp
+    mock_get_parallel_info.return_value = mock_parallel_info_manager
+
+    wrapper = AclGraphModelWrapperExp(rank=0, local_rank=0, world_size=2, npu_device_id=0, model_id="test")
+    wrapper.model_runner.generate_position_ids.side_effect = ValueError("invalid ids")
+
+    input_ids = np.array([1, 2, 3])
+    with pytest.raises(ValueError, match="invalid ids"):
+        wrapper.generate_position_ids(input_ids)
+
+
+@patch("mindie_llm.modeling.model_wrapper.aclgraph.aclgraph_model_wrapper_exp.ModelRunnerExp")
+@patch("mindie_llm.modeling.model_wrapper.aclgraph.aclgraph_model_wrapper_exp.get_parallel_info_manager")
+def test_make_context_error(
+    mock_get_parallel_info, mock_model_runner_class, mock_model_runner_exp, mock_parallel_info_manager
+):
+    """Test make_context error handling."""
+    mock_model_runner_class.return_value = mock_model_runner_exp
+    mock_get_parallel_info.return_value = mock_parallel_info_manager
+
+    wrapper = AclGraphModelWrapperExp(rank=0, local_rank=0, world_size=2, npu_device_id=0, model_id="test")
+    wrapper.model_runner.input_builder.make_context.side_effect = RuntimeError("make ctx failed")
+
+    with pytest.raises(RuntimeError, match="make ctx failed"):
+        wrapper.make_context([{"role": "user", "content": "Hi"}])
+
+
+@patch("mindie_llm.modeling.model_wrapper.aclgraph.aclgraph_model_wrapper_exp.ModelRunnerExp")
+@patch("mindie_llm.modeling.model_wrapper.aclgraph.aclgraph_model_wrapper_exp.get_parallel_info_manager")
+def test_prepare_model_inputs_with_q_lens(
+    mock_get_parallel_info, mock_model_runner_class, mock_model_runner_exp, mock_parallel_info_manager
+):
+    """Test prepare_model_inputs with q_lens kwarg."""
+    mock_model_runner_class.return_value = mock_model_runner_exp
+    mock_get_parallel_info.return_value = mock_parallel_info_manager
+
+    wrapper = AclGraphModelWrapperExp(rank=0, local_rank=0, world_size=2, npu_device_id=0, model_id="test")
+
+    mock_inputs = Mock()
+    mock_inputs.input_ids = [10, 20, 30]
+    mock_inputs.position_ids = [5, 6, 7]
+    mock_inputs.block_tables = []
+    mock_inputs.input_lengths = None
+
+    q_lens = [3]
+    result, result_kwargs = wrapper.prepare_model_inputs(mock_inputs, q_lens=q_lens)
+
+    assert torch.is_tensor(result.q_lens)
+    assert torch.equal(result.q_lens.cpu(), torch.tensor(q_lens))
+    assert torch.is_tensor(result_kwargs["q_lens"])
+
+
+@patch("mindie_llm.modeling.model_wrapper.aclgraph.aclgraph_model_wrapper_exp.ModelRunnerExp")
+@patch("mindie_llm.modeling.model_wrapper.aclgraph.aclgraph_model_wrapper_exp.get_parallel_info_manager")
+def test_prepare_model_inputs_with_mtp_indices(
+    mock_get_parallel_info, mock_model_runner_class, mock_model_runner_exp, mock_parallel_info_manager
+):
+    """Test prepare_model_inputs with mtp_logits_gather_indices kwarg."""
+    mock_model_runner_class.return_value = mock_model_runner_exp
+    mock_get_parallel_info.return_value = mock_parallel_info_manager
+
+    wrapper = AclGraphModelWrapperExp(rank=0, local_rank=0, world_size=2, npu_device_id=0, model_id="test")
+
+    mock_inputs = Mock()
+    mock_inputs.input_ids = [1, 2, 3]
+    mock_inputs.position_ids = [0, 1, 2]
+    mock_inputs.block_tables = []
+    mock_inputs.input_lengths = None
+
+    mtp_indices = torch.tensor([0, 1])
+    _, result_kwargs = wrapper.prepare_model_inputs(mock_inputs, mtp_logits_gather_indices=mtp_indices)
+
+    assert torch.is_tensor(result_kwargs["mtp_logits_gather_indices"])
+
+
+@patch("mindie_llm.modeling.model_wrapper.aclgraph.aclgraph_model_wrapper_exp.ModelRunnerExp")
+@patch("mindie_llm.modeling.model_wrapper.aclgraph.aclgraph_model_wrapper_exp.get_parallel_info_manager")
+def test_prepare_model_inputs_with_shard_indices(
+    mock_get_parallel_info, mock_model_runner_class, mock_model_runner_exp, mock_parallel_info_manager
+):
+    """Test prepare_model_inputs with shard_effective_token_indices kwarg."""
+    mock_model_runner_class.return_value = mock_model_runner_exp
+    mock_get_parallel_info.return_value = mock_parallel_info_manager
+
+    wrapper = AclGraphModelWrapperExp(rank=0, local_rank=0, world_size=2, npu_device_id=0, model_id="test")
+
+    mock_inputs = Mock()
+    mock_inputs.input_ids = [4, 5, 6]
+    mock_inputs.position_ids = [0, 1, 2]
+    mock_inputs.block_tables = []
+    mock_inputs.input_lengths = None
+
+    shard_indices = [1, 2]
+    _, result_kwargs = wrapper.prepare_model_inputs(mock_inputs, shard_effective_token_indices=shard_indices)
+
+    assert torch.is_tensor(result_kwargs["shard_effective_token_indices"])
+
+
+@patch("mindie_llm.modeling.model_wrapper.aclgraph.aclgraph_model_wrapper_exp.ModelRunnerExp")
+@patch("mindie_llm.modeling.model_wrapper.aclgraph.aclgraph_model_wrapper_exp.get_parallel_info_manager")
+def test_prepare_model_inputs_with_lm_head_local_dp(
+    mock_get_parallel_info, mock_model_runner_class, mock_model_runner_exp, mock_parallel_info_manager
+):
+    """Test prepare_model_inputs with lm_head_local_dp kwarg."""
+    mock_model_runner_class.return_value = mock_model_runner_exp
+    mock_get_parallel_info.return_value = mock_parallel_info_manager
+
+    wrapper = AclGraphModelWrapperExp(rank=0, local_rank=0, world_size=2, npu_device_id=0, model_id="test")
+
+    mock_inputs = Mock()
+    mock_inputs.input_ids = [7, 8, 9]
+    mock_inputs.position_ids = [0, 1, 2]
+    mock_inputs.block_tables = []
+    mock_inputs.input_lengths = None
+
+    lm_head_dp = [0]
+    _, result_kwargs = wrapper.prepare_model_inputs(mock_inputs, lm_head_local_dp=lm_head_dp)
+
+    assert torch.is_tensor(result_kwargs["lm_head_local_dp"])
+
+
+@patch("mindie_llm.modeling.model_wrapper.aclgraph.aclgraph_model_wrapper_exp.ModelRunnerExp")
+@patch("mindie_llm.modeling.model_wrapper.aclgraph.aclgraph_model_wrapper_exp.get_parallel_info_manager")
+def test_prepare_model_inputs_with_sub_model_inputs(
+    mock_get_parallel_info, mock_model_runner_class, mock_model_runner_exp, mock_parallel_info_manager
+):
+    """Test prepare_model_inputs with sub_model_inputs kwarg."""
+    mock_model_runner_class.return_value = mock_model_runner_exp
+    mock_get_parallel_info.return_value = mock_parallel_info_manager
+
+    wrapper = AclGraphModelWrapperExp(rank=0, local_rank=0, world_size=2, npu_device_id=0, model_id="test")
+
+    mock_inputs = Mock()
+    mock_inputs.input_ids = [1, 2]
+    mock_inputs.position_ids = [0, 1]
+    mock_inputs.block_tables = []
+    mock_inputs.input_lengths = None
+
+    sub_inputs = Mock()
+    sub_inputs.input_ids = [5, 6]
+    sub_inputs.position_ids = [3, 4]
+    sub_inputs.slots = [10, 11]
+    sub_inputs.context_length = [2]
+    sub_inputs.prefill_head_indices = [1]
+    sub_inputs.block_tables = [[0, 1]]
+
+    _, result_kwargs = wrapper.prepare_model_inputs(mock_inputs, sub_model_inputs=sub_inputs)
+
+    assert result_kwargs["sub_model_inputs"] is sub_inputs
+    assert torch.is_tensor(result_kwargs["sub_model_inputs"].input_ids)
+    assert torch.is_tensor(result_kwargs["sub_model_inputs"].slots)
+
+
+@patch("mindie_llm.modeling.model_wrapper.aclgraph.aclgraph_model_wrapper_exp.ModelRunnerExp")
+@patch("mindie_llm.modeling.model_wrapper.aclgraph.aclgraph_model_wrapper_exp.get_parallel_info_manager")
+def test_prepare_model_inputs_with_hidden_states(
+    mock_get_parallel_info, mock_model_runner_class, mock_model_runner_exp, mock_parallel_info_manager
+):
+    """Test prepare_model_inputs with hidden_states kwarg."""
+    mock_model_runner_class.return_value = mock_model_runner_exp
+    mock_get_parallel_info.return_value = mock_parallel_info_manager
+
+    wrapper = AclGraphModelWrapperExp(rank=0, local_rank=0, world_size=2, npu_device_id=0, model_id="test")
+
+    mock_inputs = Mock()
+    mock_inputs.input_ids = [1, 2, 3]
+    mock_inputs.position_ids = [0, 1, 2]
+    mock_inputs.block_tables = []
+    mock_inputs.input_lengths = None
+
+    hs = torch.tensor([[1.0, 2.0], [3.0, 4.0], [5.0, 6.0]])
+    result, result_kwargs = wrapper.prepare_model_inputs(mock_inputs, hidden_states=hs)
+
+    assert torch.is_tensor(result.last_hidden_states)
+    assert torch.equal(result_kwargs["hidden_states"], result.last_hidden_states)
+
+
+@patch("mindie_llm.modeling.model_wrapper.aclgraph.aclgraph_model_wrapper_exp.ModelRunnerExp")
+@patch("mindie_llm.modeling.model_wrapper.aclgraph.aclgraph_model_wrapper_exp.get_parallel_info_manager")
+def test_init_with_full_config(
+    mock_get_parallel_info, mock_model_runner_class, mock_model_runner_exp, mock_parallel_info_manager
+):
+    """Test initialization with full configuration parameters."""
+    mock_model_runner_class.return_value = mock_model_runner_exp
+    mock_get_parallel_info.return_value = mock_parallel_info_manager
+
+    wrapper = AclGraphModelWrapperExp(
+        rank=1,
+        local_rank=0,
+        world_size=4,
+        npu_device_id=0,
+        model_id="deepseek_v3.2",
+        trust_remote_code=False,
+        load_tokenizer=True,
+        max_batch_size=16,
+        tp=2,
+        dp=1,
+        cp=16,
+        moe_tp=1,
+        moe_ep=32,
+        role="prefill",
+        max_seq_len=65536,
+        block_size=128,
+        plugin_params='{"plugin_type":"mtp","num_speculative_tokens":2}',
+        num_speculative_tokens=2,
+    )
+    assert wrapper.rank == 1
+    assert wrapper.is_multimodal is False
+    assert wrapper.model_runner is not None
+
+    kwargs = mock_model_runner_class.call_args[1]
+    assert kwargs["cp"] == 16
+    assert kwargs["moe_ep"] == 32
+    assert kwargs["max_seq_len"] == 65536
+    assert kwargs["role"] == "prefill"
+    assert "mtp" in kwargs["plugin_params"]
+
+
+@patch("mindie_llm.modeling.model_wrapper.aclgraph.aclgraph_model_wrapper_exp.ModelRunnerExp")
+@patch("mindie_llm.modeling.model_wrapper.aclgraph.aclgraph_model_wrapper_exp.get_parallel_info_manager")
+def test_forward_with_q_lens(
+    mock_get_parallel_info, mock_model_runner_class, mock_model_runner_exp, mock_parallel_info_manager
+):
+    """Test forward with q_lens kwarg."""
+    mock_model_runner_class.return_value = mock_model_runner_exp
+    mock_get_parallel_info.return_value = mock_parallel_info_manager
+
+    wrapper = AclGraphModelWrapperExp(rank=0, local_rank=0, world_size=2, npu_device_id=0, model_id="test")
+
+    mock_inputs = MagicMock()
+    mock_inputs.input_ids = [1, 2, 3]
+    mock_inputs.position_ids = [0, 1, 2]
+    mock_inputs.block_tables = []
+    mock_inputs.input_lengths = None
+
+    mock_model_runner_exp.forward.return_value = {"logits": torch.tensor([0.5])}
+    result = wrapper.forward(mock_inputs, npu_cache="cache", q_lens=[3])
+
+    assert result == {"logits": torch.tensor([0.5])}
+
+
+@patch("mindie_llm.modeling.model_wrapper.aclgraph.aclgraph_model_wrapper_exp.ModelRunnerExp")
+@patch("mindie_llm.modeling.model_wrapper.aclgraph.aclgraph_model_wrapper_exp.get_parallel_info_manager")
+def test_forward_with_empty_input_ids(
+    mock_get_parallel_info, mock_model_runner_class, mock_model_runner_exp, mock_parallel_info_manager
+):
+    """Test forward with empty input_ids."""
+    mock_model_runner_class.return_value = mock_model_runner_exp
+    mock_get_parallel_info.return_value = mock_parallel_info_manager
+
+    wrapper = AclGraphModelWrapperExp(rank=0, local_rank=0, world_size=2, npu_device_id=0, model_id="test")
+
+    mock_inputs = MagicMock()
+    mock_inputs.input_ids = []
+    mock_inputs.position_ids = []
+    mock_inputs.block_tables = []
+    mock_inputs.input_lengths = None
+
+    mock_model_runner_exp.forward.return_value = {"logits": torch.tensor([])}
+    result = wrapper.forward(mock_inputs, npu_cache="cache")
+
+    assert torch.equal(result["logits"], torch.tensor([]))
+
+
+@patch("mindie_llm.modeling.model_wrapper.aclgraph.aclgraph_model_wrapper_exp.ModelRunnerExp")
+@patch("mindie_llm.modeling.model_wrapper.aclgraph.aclgraph_model_wrapper_exp.get_parallel_info_manager")
+def test_prepare_model_inputs_with_all_kwargs(
+    mock_get_parallel_info, mock_model_runner_class, mock_model_runner_exp, mock_parallel_info_manager
+):
+    """Test prepare_model_inputs with all kwargs combined."""
+    mock_model_runner_class.return_value = mock_model_runner_exp
+    mock_get_parallel_info.return_value = mock_parallel_info_manager
+
+    wrapper = AclGraphModelWrapperExp(rank=0, local_rank=0, world_size=2, npu_device_id=0, model_id="test")
+
+    mock_inputs = Mock()
+    mock_inputs.input_ids = [1, 2]
+    mock_inputs.position_ids = [0, 1]
+    mock_inputs.block_tables = []
+    mock_inputs.input_lengths = None
+
+    sub_inputs = Mock()
+    sub_inputs.input_ids = [3, 4]
+    sub_inputs.position_ids = [2, 3]
+    sub_inputs.slots = [5, 6]
+    sub_inputs.context_length = [2]
+    sub_inputs.prefill_head_indices = [1]
+    sub_inputs.block_tables = [[0, 1]]
+
+    hs = torch.tensor([[0.1, 0.2], [0.3, 0.4]])
+
+    _, result_kwargs = wrapper.prepare_model_inputs(
+        mock_inputs,
+        q_lens=[2],
+        mtp_logits_gather_indices=torch.tensor([0]),
+        shard_effective_token_indices=[0],
+        lm_head_local_dp=[0],
+        sub_model_inputs=sub_inputs,
+        hidden_states=hs,
+    )
+
+    assert "q_lens" in result_kwargs
+    assert "mtp_logits_gather_indices" in result_kwargs
+    assert "shard_effective_token_indices" in result_kwargs
+    assert "lm_head_local_dp" in result_kwargs
+    assert "sub_model_inputs" in result_kwargs
+    assert "hidden_states" in result_kwargs

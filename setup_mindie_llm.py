@@ -37,8 +37,9 @@ class BuildPyCommand(build_py):
         # 获取当前环境变量
         env = os.environ.copy()
         # 添加protoc所需的动态库路径到LD_LIBRARY_PATH
-        protobuf_lib_path = os.path.abspath("./third_party/output/protobuf/lib")
-        absl_lib_path = os.path.abspath("./third_party/output/abseil-cpp/lib")
+        libdir = "lib64" if os.path.exists("/etc/openEuler-release") else "lib"
+        protobuf_lib_path = os.path.abspath(f"./third_party/output/protobuf/{libdir}")
+        absl_lib_path = os.path.abspath(f"./third_party/output/abseil-cpp/{libdir}")
         if "LD_LIBRARY_PATH" in env:
             env["LD_LIBRARY_PATH"] = f"{protobuf_lib_path}:{absl_lib_path}:{env['LD_LIBRARY_PATH']}"
         else:

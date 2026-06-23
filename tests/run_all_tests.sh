@@ -55,6 +55,7 @@ function fn_build_dt()
 
 function fn_run_dt() {
     local build_dir="${1:-build}"
+    shift
 
     if [[ ! -d "$build_dir" ]]; then
         echo "Error: Build directory '$build_dir' not found"
@@ -62,7 +63,7 @@ function fn_run_dt() {
     fi
 
     echo "Running tests in $build_dir..."
-    ctest --test-dir "$build_dir" --verbose --output-on-failure
+    ctest --test-dir "$build_dir" --verbose --output-on-failure "$@"
 }
 
 # 构建cpp代码覆盖率
@@ -245,7 +246,14 @@ function fn_main()
         fi
     fi
 
-    fn_run_dt
+    local ctest_args=("$@")
+
+    # 兼容旧的 TEST_MODE 用法 (cpp / python)，不作为 ctest 参数传递
+    case "${1:-}" in
+        cpp|python) ctest_args=("${@:2}") ;;
+    esac
+
+    fn_run_dt build "${ctest_args[@]}"
 
     export_mindie_llm_env
 
@@ -285,6 +293,6 @@ case "$1" in
         fn_build_dt
         ;;
     *)
-        fn_main # 执行原来抽离编译的逻辑
+        fn_main "$@"
         ;;
 esac
