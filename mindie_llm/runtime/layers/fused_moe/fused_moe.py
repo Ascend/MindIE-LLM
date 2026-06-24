@@ -138,8 +138,6 @@ class FusedMoE(CustomLayer):
             # FUSED_MC2 mode: Directly invoke the fused dispatch + FFN + combine operator
             self._create_moe_ep_group()
             final_hidden_states = torch.empty_like(hidden_states)
-            expert_token_nums = torch.empty((1,self.num_experts), dtype=torch.int32, device="npu")
-
             torch.ops.mie_ops.npu_dispatch_ffn_combine(
                 x=hidden_states,
                 weight1=[self.gate_up_weight],
@@ -151,7 +149,6 @@ class FusedMoE(CustomLayer):
                 group=self._moe_ep_group,
                 max_output_size=MAX_OUTPUT_SIZE,
                 out=final_hidden_states,
-                expert_token_nums=expert_token_nums,
             )
             return final_hidden_states
 
