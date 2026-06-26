@@ -24,6 +24,7 @@
 - 表中所示支持的 world size 为建议配置，实际运行时还需考虑单卡的显存上限，以及输入序列长度。
 - 推理默认加载 BF16 权重，若要使用 FP16 格式进行推理，需将权重路径下 config.json 文件的 `torch_dtype` 属性的值修改为 `float16` 。
 - Qwen2.5-VL 系列模型使用 300I DUO 推理时，仅支持 FP16 权重。
+- 在 Atlas 200I Pro 加速模块上执行推理时，应重点关注影响显存占用的推理配置。Atlas 200I Pro 属于 [Ascend RC形态](https://www.hiascend.com/document/detail/zh/Glossary/gls/gls_0001.html)，NPU 显存与系统内存共用同一物理内存池，需结合设备可用内存总量审慎设置相关参数，并预留足够的内存空间，避免显存与内存竞争导致 OOM。服务化场景下，[`npuMemSize`](../../../../../docs/zh/user_guide/user_manual/service_parameter_configuration.md#modelconfig参数说明)（KV Cache 上限，多模态模型请勿设为 -1）、[`maxSeqLen`](../../../../../docs/zh/user_guide/user_manual/service_parameter_configuration.md#modeldeployconfig参数说明)/[`maxInputTokenLen`](../../../../../docs/zh/user_guide/user_manual/service_parameter_configuration.md#modeldeployconfig参数说明)、[`maxPrefillTokens`](../../../../../docs/zh/user_guide/user_manual/service_parameter_configuration.md#scheduleconfig参数说明)、并发数/[`maxBatchSize`](../../../../../docs/zh/user_guide/user_manual/service_parameter_configuration.md#scheduleconfig参数说明)，以及输入图像分辨率、视频长度等会显著影响占用，各参数含义及配置指导请参见 [配置参数说明（服务化）](../../../../../docs/zh/user_guide/user_manual/service_parameter_configuration.md)。纯模型场景下请参考本文 [纯模型推理](#纯模型推理) 章节中 `--max_input_length`、`--max_batch_size` 等参数说明。
 
 ## 路径变量解释
 
