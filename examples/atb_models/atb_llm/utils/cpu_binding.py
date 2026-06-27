@@ -20,13 +20,44 @@ from .log import logger
 
 
 def execute_command(cmd_list):
-    with subprocess.Popen(cmd_list,
-                          shell=False,
-                          stdout=subprocess.PIPE,
-                          stderr=subprocess.PIPE) as p:
+    with subprocess.Popen(cmd_list, shell=False, stdout=subprocess.PIPE, stderr=subprocess.PIPE) as p:
         out, err = p.communicate(timeout=1000)
     res = out.decode()
     return res
+
+
+def _parse_mem_line_free_b(out: str) -> Tuple[int, int]:
+    """Parse first `Mem:` line from `free -b` output: (total_bytes, available_bytes)."""
+    for line in out.split("\n"):
+        line = line.strip()
+        if not line.startswith("Mem:"):
+            continue
+        parts = line.split()
+        if len(parts) < 3:
+            break
+        total = int(parts[1])
+        if total == 0:
+            break
+        if len(parts) >= 7:
+            available = int(parts[6])
+        else:
+            available = int(parts[3])
+        return total, available
+    raise ValueError("free fallback failed")
+
+
+def _host_mem_total_bytes_from_free():
+    """Host DRAM total from `free -b` Mem line (bytes)."""
+    out = execute_command(["free", "-b"])
+    total, _ = _parse_mem_line_free_b(out)
+    return total
+
+
+def _host_mem_remain_ratio_from_free():
+    """Host DRAM usage ratio from `free -b` (byte counts, stable to parse)."""
+    out = execute_command(["free", "-b"])
+    total, available = _parse_mem_line_free_b(out)
+    return 1 - (available / total)
 
 
 @dataclass
@@ -73,23 +104,39 @@ class NpuHbmInfo:
             return cls.hbm_capacity
         if not cls.visible_npu_ids:
             cls.set_visible_devices(world_size)
+
+        from .initial import NPUSocInfo
+
+        # If it is an RC device, skip npu-smi and use free -b directly
+        if NPUSocInfo.is_rc_device():
+            logger.info("NPU device is working in Root Complex (RC) mode.")
+            try:
+                cls.hbm_capacity = _host_mem_total_bytes_from_free()
+                return cls.hbm_capacity
+            except ValueError as e:
+                raise ValueError(
+                    "Failed to parse host memory capacity via 'free -b' in RC mode. "
+                    "Please ensure the 'procps' package is installed (e.g., 'apt-get install -y procps') "
+                    "and the container is started with sufficient privileges to execute 'free -b'."
+                ) from e
+
         npu_id = cls.visible_npu_ids[rank]
         memory_info = execute_command(["npu-smi", "info", "-i", f"{npu_id}", "-t", "memory"]).split("\n")[1:]
         if soc_version == 240:
-            hbm_capacity_key = 'Capacity(MB)'
+            hbm_capacity_key = "Capacity(MB)"
         elif not need_nz:
-            hbm_capacity_key = 'HBM Capacity(MB)'
+            hbm_capacity_key = "HBM Capacity(MB)"
         else:
-            hbm_capacity_key = 'DDR Capacity(MB)'
+            hbm_capacity_key = "DDR Capacity(MB)"
         for line in memory_info:
             try:
-                key, value = line.strip().split(':', 2)
+                key, value = line.strip().split(":", 2)
                 if key.strip() == hbm_capacity_key:
                     cls.hbm_capacity = int(value.strip()) * 1024 * 1024
                     return cls.hbm_capacity
             except ValueError:
-                pass # Skip the invalid lines silently while searching for HBM capacity
-        raise ValueError('not found valid hbm capactiy')
+                pass  # Skip the invalid lines silently while searching for HBM capacity
+        raise ValueError("not found valid hbm capactiy")
 
     @classmethod
     def get_hbm_usage(cls, rank, world_size, need_nz):
@@ -97,24 +144,39 @@ class NpuHbmInfo:
             return cls.hbm_usage
         if not cls.visible_npu_ids:
             cls.set_visible_devices(world_size)
+
+        from .initial import NPUSocInfo
+
+        # If it is an RC device, skip npu-smi and use free -b directly
+        if NPUSocInfo.is_rc_device():
+            logger.info("NPU device is working in Root Complex (RC) mode.")
+            try:
+                return _host_mem_remain_ratio_from_free()
+            except ValueError as e:
+                raise ValueError(
+                    "Failed to parse host memory capacity via 'free -b' in RC mode. "
+                    "Please ensure the 'procps' package is installed (e.g., 'apt-get install -y procps') "
+                    "and the container is started with sufficient privileges to execute 'free -b'."
+                ) from e
+
         npu_id = cls.visible_npu_ids[rank]
         usage_info = execute_command(["npu-smi", "info", "-i", f"{npu_id}", "-t", "usages"]).split("\n")[1:]
         soc_version = torch_npu._C._npu_get_soc_version()
         if soc_version == 240:
-            hbm_capacity_key = 'Memory Usage Rate(%)'
+            hbm_capacity_key = "Memory Usage Rate(%)"
         elif not need_nz:
-            hbm_capacity_key = 'HBM Usage Rate(%)'
+            hbm_capacity_key = "HBM Usage Rate(%)"
         else:
-            hbm_capacity_key = 'DDR Usage Rate(%)'
+            hbm_capacity_key = "DDR Usage Rate(%)"
         for line in usage_info:
             try:
-                key, value = line.strip().split(':', 2)
+                key, value = line.strip().split(":", 2)
                 if key.strip() == hbm_capacity_key:
                     hbm_usage = (float(value.strip()) + 1) / 100
                     return hbm_usage
             except ValueError:
-                pass # Skip the invalid lines silently while searching for HBM usage data
-        raise ValueError('not found valid hbm usage')
+                pass  # Skip the invalid lines silently while searching for HBM usage data
+        raise ValueError("not found valid hbm usage")
 
 
 def _get_device_map_info() -> Dict[int, DeviceInfo]:
@@ -139,17 +201,22 @@ def _get_pcie_info(devices: List[int], keyword="PCIeBusInfo"):
     for device in devices:
         device_info = device_map_info.get(device)
         if not device_info:
-            warn_msg = f"Can not get device info for device, skipping PCIe binding for this device."
+            warn_msg = "Can not get device info for device, skipping PCIe binding for this device."
             logger.warning(warn_msg)
             raise RuntimeError(warn_msg)
-        pcie_info = execute_command(["npu-smi", "info", "-t", "board", "-i", f"{device_info.npu_id}",
-                                     "-c", f"{device_info.chip_id}"]).strip().split("\n")
+        pcie_info = (
+            execute_command(
+                ["npu-smi", "info", "-t", "board", "-i", f"{device_info.npu_id}", "-c", f"{device_info.chip_id}"]
+            )
+            .strip()
+            .split("\n")
+        )
         for _ in pcie_info:
             # Normalize the output string by removing spaces to handle hardware variations
             # (e.g., 'PCIe Bus Info' vs. 'PCIeBusInfo').
-            line = ''.join(_.split())
+            line = "".join(_.split())
             if line.startswith(keyword):
-                device_pcie_tbl[device] = line[len(keyword) + 1:]
+                device_pcie_tbl[device] = line[len(keyword) + 1 :]
                 break
 
     return device_pcie_tbl
@@ -162,9 +229,9 @@ def _get_numa_info(pcie_tbl, keyword="NUMAnode"):
     for device, pcie_no in pcie_tbl.items():
         numa_info = execute_command(["lspci", "-s", f"{pcie_no}", "-vvv"]).split("\n")
         for _ in numa_info:
-            line = ''.join(_.split())
+            line = "".join(_.split())
             if line.startswith(keyword):
-                numa_id = int(line[len(keyword) + 1:])
+                numa_id = int(line[len(keyword) + 1 :])
                 device_numa_tbl[device] = numa_id
 
                 devices = numa_devices_tbl.get(numa_id, None)
@@ -188,7 +255,7 @@ def _get_numa_info_v2(devices: List[int], keyword="NUMAnode(s)") -> Tuple[Dict[i
     numa_nodes = 1
     numa_info = execute_command(["lscpu"]).split("\n")
     for _ in numa_info:
-        line = ''.join(_.split())
+        line = "".join(_.split())
         if keyword not in line:
             continue
         numa_nodes = int(line[-1])
@@ -202,16 +269,9 @@ def _get_numa_info_v2(devices: List[int], keyword="NUMAnode(s)") -> Tuple[Dict[i
     ends = list(accumulate(device_count_per_numa_list))
     starts = [0] + ends[:-1]
 
-    numa_devices_tbl = {
-        ind: devices[start:end]
-        for ind, (start, end) in enumerate(zip(starts, ends))
-    }
+    numa_devices_tbl = {ind: devices[start:end] for ind, (start, end) in enumerate(zip(starts, ends))}
 
-    device_numa_tbl = {
-        device: numa
-        for numa, _devices in numa_devices_tbl.items()
-        for device in _devices
-    }
+    device_numa_tbl = {device: numa for numa, _devices in numa_devices_tbl.items() for device in _devices}
 
     return device_numa_tbl, numa_devices_tbl
 
@@ -221,7 +281,7 @@ def _get_cpu_info(numa_ids, keyword1="NUMAnode", keyword2="CPU(s)"):
     numa_keywords = [keyword1 + str(idx) + keyword2 for idx in numa_ids]
     cpu_info = execute_command(["lscpu"]).split("\n")
     for _ in cpu_info:
-        line = ''.join(_.split())
+        line = "".join(_.split())
         if any(line.startswith(word) for word in numa_keywords):
             split_info = line.split(":")
             cpu_id_ranges = split_info[-1].split(",")
@@ -236,7 +296,7 @@ def _get_cpu_info(numa_ids, keyword1="NUMAnode", keyword2="CPU(s)"):
 
                 ranges += [cid for cid in range(int(endpoints[0]), int(endpoints[1]) + 1)]
 
-            numa_id = int(split_info[0].replace(keyword1, '').replace(keyword2, ''))
+            numa_id = int(split_info[0].replace(keyword1, "").replace(keyword2, ""))
             cpu_idx_tbl[numa_id] = ranges
     return cpu_idx_tbl
 
@@ -275,7 +335,8 @@ def bind_cpus(rank_id, ratio=0.5):
     all_cpus = cpu_idx_tbl.get(numa_id)
     logger.info(
         f"rank_id: {rank_id}, device_id: {cur_device}, "
-        f"numa_id: {numa_id}, shard_devices: {shard_devices}, cpus: {all_cpus}")
+        f"numa_id: {numa_id}, shard_devices: {shard_devices}, cpus: {all_cpus}"
+    )
 
     cpu_nums = len(all_cpus)
     # Calculate the number of cores allocated to the NPU sharing this NUMA node.
@@ -284,8 +345,10 @@ def bind_cpus(rank_id, ratio=0.5):
     else:
         cpu_num_per_device = int(ENV.cpu_binding_num)
         if len(shard_devices) * cpu_num_per_device > cpu_nums:
-            err_msg = f"CPU num in numa {numa_id} to assign {cpu_num_per_device} for every device is not enough, " \
-                      f"please decrease the value of CPU_BINDING_NUM!"
+            err_msg = (
+                f"CPU num in numa {numa_id} to assign {cpu_num_per_device} for every device is not enough, "
+                f"please decrease the value of CPU_BINDING_NUM!"
+            )
             logger.error(err_msg)
             raise ValueError(err_msg)
         if cpu_num_per_device < 0:
