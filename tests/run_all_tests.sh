@@ -309,7 +309,7 @@ function fn_main()
     fi
 
     if [ $HAS_COVERAGE -eq 1 ]; then
-        fn_run_dt
+        fn_run_dt build
     else
         local ctest_args=("$@")
         # 兼容旧的 TEST_MODE 用法 (cpp / python)，不作为 ctest 参数传递
