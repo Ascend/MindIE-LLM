@@ -10,62 +10,56 @@
  * See the Mulan PSL v2 for more details.
  */
 
+#include "operations/fusion/linear/linear.h"
+
 #include <atb/atb_infer.h>
+
 #include <cmath>
+
 #include "atb_speed/log.h"
 #include "atb_speed/utils/check_util.h"
-#include "operations/aclnn/ops/w8a16_operation.h"
+#include "operations/aclnn/ops/dynamic_quant_operation.h"
+#include "operations/aclnn/ops/grouped_matmul_operation.h"
+#include "operations/aclnn/ops/w16a16_operation.h"
+#include "operations/aclnn/ops/w16a16sc_operation.h"
 #include "operations/aclnn/ops/w4a16_operation.h"
 #include "operations/aclnn/ops/w4a8_operation.h"
+#include "operations/aclnn/ops/w8a16_operation.h"
 #include "operations/aclnn/ops/w8a8_operation.h"
-#include "operations/aclnn/ops/w16a16_operation.h"
-#include "operations/aclnn/ops/grouped_matmul_operation.h"
-#include "operations/aclnn/ops/dynamic_quant_operation.h"
-#include "operations/aclnn/ops/w16a16sc_operation.h"
 #include "operations/aclnn/utils/utils.h"
 #include "operations/fusion/utils.h"
-#include "operations/fusion/linear/linear.h"
 
 namespace atb_speed {
 namespace common {
 
 // 是否为matmulBackend开启下LINEAR_W8A8_QUANT、LINEAR_W8A8_DEQUANT场景
-bool IsAclnnPerTensor(const FusionLinearParam &param)
-{
+bool IsAclnnPerTensor(const FusionLinearParam &param) {
     return param.matmulBackend == atb_speed::common::OpBackend::ACLNN &&
-        (param.quantType == LINEAR_W8A8_QUANT || param.quantType == LINEAR_W8A8_DEQUANT);
+           (param.quantType == LINEAR_W8A8_QUANT || param.quantType == LINEAR_W8A8_DEQUANT);
 }
 
 // 是否使用aclnn的QuantBatchMatmul接口
-bool UseQuantBatchMatmul(const FusionLinearParam &param)
-{
+bool UseQuantBatchMatmul(const FusionLinearParam &param) {
     // All机型: dynamic、pdmix
-    return IsAclnnPerTensor(param) || \
-           param.quantType == LINEAR_W8A8_DYNAMIC_QUANT || \
-           param.quantType == LINEAR_W8A8_DYNAMIC_DEQUANT || \
-           param.quantType == LINEAR_W4A8_DYNAMIC_QUANT || \
+    return IsAclnnPerTensor(param) || param.quantType == LINEAR_W8A8_DYNAMIC_QUANT ||
+           param.quantType == LINEAR_W8A8_DYNAMIC_DEQUANT || param.quantType == LINEAR_W4A8_DYNAMIC_QUANT ||
            param.quantType == LINEAR_W4A8_DYNAMIC_DEQUANT;
 }
 
-std::map<std::string, std::vector<std::string>> GetLinearInTensorCandidates()
-{
+std::map<std::string, std::vector<std::string>> GetLinearInTensorCandidates() {
     std::map<std::string, std::vector<std::string>> linearInTensorCandidates = {
-        {"default", {
-            "in_input", "in_weight", "in_scale", "in_offset", "in_descale", "in_bias", "in_compress_idx"}
-        },
+        {"default", {"in_input", "in_weight", "in_scale", "in_offset", "in_descale", "in_bias", "in_compress_idx"}},
         {"lora", {"in_group_list", "in_lora_a", "in_lora_b"}},
         {"lora_with_mask", {"in_im_mask"}},
         {"dynamic_quant", {"dynamic_input_scale"}},
         {"add_swiglu_quant_sacle_in", {"swiglu_quant_input_scale"}},
-        {"flash_comm", {
-            "send_counts", "sdispls", "send_count", "recv_counts", "rdispls", "recv_count", "fake_ag_shape"}
-        },
+        {"flash_comm",
+         {"send_counts", "sdispls", "send_count", "recv_counts", "rdispls", "recv_count", "fake_ag_shape"}},
     };
     return linearInTensorCandidates;
 }
 
-std::map<std::string, std::vector<std::string>> GetLinearIntermediateTensorCandidates()
-{
+std::map<std::string, std::vector<std::string>> GetLinearIntermediateTensorCandidates() {
     std::map<std::string, std::vector<std::string>> linearIntermediateTensorCandidates = {
         {"quant_input", {"intermediate_quant_input"}},
         {"lora", {"intermediate_base_linear_out", "intermediate_lora_a_out", "intermediate_lora_b_out"}},
@@ -77,10 +71,8 @@ std::map<std::string, std::vector<std::string>> GetLinearIntermediateTensorCandi
     return linearIntermediateTensorCandidates;
 }
 
-std::map<std::string, uint32_t> ConstructLinearTensorMap(
-    const FusionLinearParam &param,
-    uint32_t &inTensorNum, uint32_t &outTensorNum, uint32_t &internalTensorNum)
-{
+std::map<std::string, uint32_t> ConstructLinearTensorMap(const FusionLinearParam &param, uint32_t &inTensorNum,
+                                                         uint32_t &outTensorNum, uint32_t &internalTensorNum) {
     auto linearInTensorCandidates = GetLinearInTensorCandidates();
     auto linearIntermediateTensorCandidates = GetLinearIntermediateTensorCandidates();
 
@@ -91,17 +83,17 @@ std::map<std::string, uint32_t> ConstructLinearTensorMap(
     // 添加默认的Tensor
     AddTensorToList(linearInTensorCandidates, "default", inTensorList);
 
-    if (!param.enableSwigluQuant || (param.quantType != LINEAR_W8A8_DYNAMIC_DEQUANT
-        && param.quantType != LINEAR_W4A8_DYNAMIC_DEQUANT)) {
+    if (!param.enableSwigluQuant ||
+        (param.quantType != LINEAR_W8A8_DYNAMIC_DEQUANT && param.quantType != LINEAR_W4A8_DYNAMIC_DEQUANT)) {
         // 添加额外的中间Tensor
-        if (param.quantType == LINEAR_W8A8_QUANT || param.quantType == LINEAR_W8A8_SC_QUANT
-            || ((param.quantType == LINEAR_W8A8_DYNAMIC_QUANT || param.quantType == LINEAR_W4A8_DYNAMIC_QUANT)
-            && !param.enableSwiGLUQuantForSharedExperts)) {
+        if (param.quantType == LINEAR_W8A8_QUANT || param.quantType == LINEAR_W8A8_SC_QUANT ||
+            ((param.quantType == LINEAR_W8A8_DYNAMIC_QUANT || param.quantType == LINEAR_W4A8_DYNAMIC_QUANT) &&
+             !param.enableSwiGLUQuantForSharedExperts)) {
             AddTensorToList(linearIntermediateTensorCandidates, "quant_input", intermediateTensorList);
         }
         // 添加动态量化中间Tensor
-        if ((param.quantType == LINEAR_W8A8_DYNAMIC_QUANT || param.quantType == LINEAR_W4A8_DYNAMIC_QUANT)
-            && !param.enableSwiGLUQuantForSharedExperts) {
+        if ((param.quantType == LINEAR_W8A8_DYNAMIC_QUANT || param.quantType == LINEAR_W4A8_DYNAMIC_QUANT) &&
+            !param.enableSwiGLUQuantForSharedExperts) {
             AddTensorToList(linearIntermediateTensorCandidates, "dynamic_quant", intermediateTensorList);
         }
     }
@@ -119,8 +111,7 @@ std::map<std::string, uint32_t> ConstructLinearTensorMap(
         AddTensorToList(linearInTensorCandidates, "flash_comm", inTensorList);
         AddTensorToList(linearIntermediateTensorCandidates, "flashComm", intermediateTensorList);
         if (param.quantType == LINEAR_W8A8_DYNAMIC_QUANT || param.quantType == LINEAR_W8A8_DYNAMIC_DEQUANT) {
-            AddTensorToList(linearIntermediateTensorCandidates, "flashComm_dynamic_quant",
-                intermediateTensorList);
+            AddTensorToList(linearIntermediateTensorCandidates, "flashComm_dynamic_quant", intermediateTensorList);
         }
     }
     inTensorNum = inTensorList.size();
@@ -131,8 +122,7 @@ std::map<std::string, uint32_t> ConstructLinearTensorMap(
 }
 
 int64_t AddElewiseQuant(atb::GraphParam &opGraph, const FusionLinearParam &param,
-    std::map<std::string, uint32_t> &tensorMap)
-{
+                        std::map<std::string, uint32_t> &tensorMap) {
     if (param.quantType == LINEAR_W8A8_QUANT || param.quantType == LINEAR_W8A8_SC_QUANT) {
         // quant
         atb::Node inputQuantNode;
@@ -146,8 +136,8 @@ int64_t AddElewiseQuant(atb::GraphParam &opGraph, const FusionLinearParam &param
     if (param.quantType == LINEAR_W8A8_DYNAMIC_QUANT || param.quantType == LINEAR_W4A8_DYNAMIC_QUANT) {
         atb::Node inputDynamicQuantNode;
         inputDynamicQuantNode.inTensorIds = GetTensorIdxList(tensorMap, {"in_input"});
-        inputDynamicQuantNode.outTensorIds = GetTensorIdxList(tensorMap, {"intermediate_quant_input",
-                                                                          "intermediate_input_scale"});
+        inputDynamicQuantNode.outTensorIds =
+            GetTensorIdxList(tensorMap, {"intermediate_quant_input", "intermediate_input_scale"});
         inputDynamicQuantNode.operation = new atb_speed::common::DynamicQuantOperation("DynamicQuantNode");
         opGraph.nodes.push_back(inputDynamicQuantNode);
     }
@@ -155,17 +145,19 @@ int64_t AddElewiseQuant(atb::GraphParam &opGraph, const FusionLinearParam &param
 }
 
 int64_t AddAllGather(atb::GraphParam &opGraph, const FusionLinearParam &param,
-    std::map<std::string, uint32_t> &tensorMap)
-{
+                     std::map<std::string, uint32_t> &tensorMap) {
     atb::Node allGatherVNode;
     atb::infer::AllGatherVParam allGatherVParam;
     allGatherVParam.rank = param.flashCommParallelInfo.rank;
     allGatherVParam.rankSize = param.flashCommParallelInfo.worldSize;
     allGatherVParam.backend = param.flashCommParallelInfo.backend;
     CHECK_OPERATION_STATUS_RETURN(atb::CreateOperation(allGatherVParam, &allGatherVNode.operation));
-    allGatherVNode.inTensorIds = {GetTensorIdx(
-        tensorMap, (param.quantType == LINEAR_W8A8_QUANT || param.quantType == LINEAR_W8A8_DYNAMIC_QUANT
-        || param.quantType == LINEAR_W8A8_SC_QUANT) ? "intermediate_quant_input" : "in_input")};
+    allGatherVNode.inTensorIds = {
+        GetTensorIdx(tensorMap, (param.quantType == LINEAR_W8A8_QUANT || param.quantType == LINEAR_W8A8_DYNAMIC_QUANT ||
+                                 param.quantType == LINEAR_W8A8_SC_QUANT) &&
+                                        !param.supportLora
+                                    ? "intermediate_quant_input"
+                                    : "in_input")};
     allGatherVNode.inTensorIds.push_back(GetTensorIdx(tensorMap, "recv_count"));
     allGatherVNode.inTensorIds.push_back(GetTensorIdx(tensorMap, "send_counts"));
     allGatherVNode.inTensorIds.push_back(GetTensorIdx(tensorMap, "sdispls"));
@@ -176,12 +168,13 @@ int64_t AddAllGather(atb::GraphParam &opGraph, const FusionLinearParam &param,
     opGraph.nodes.push_back(allGatherVNode);
     CHECK_OPERATION_STATUS_RETURN(common::AddDapEventsAfterComm(opGraph));
 
-    if (param.quantType == LINEAR_W8A8_DYNAMIC_QUANT || param.quantType == LINEAR_W8A8_DYNAMIC_DEQUANT) {
+    if ((param.quantType == LINEAR_W8A8_DYNAMIC_QUANT || param.quantType == LINEAR_W8A8_DYNAMIC_DEQUANT) &&
+        !param.supportLora) {
         atb::Node allGatherInputScaleNode;
         CHECK_OPERATION_STATUS_RETURN(atb::CreateOperation(allGatherVParam, &allGatherInputScaleNode.operation));
-        allGatherInputScaleNode.inTensorIds = {GetTensorIdx(
-            tensorMap, param.quantType == LINEAR_W8A8_DYNAMIC_QUANT
-            ? "intermediate_input_scale" : "dynamic_input_scale")};
+        allGatherInputScaleNode.inTensorIds = {GetTensorIdx(tensorMap, param.quantType == LINEAR_W8A8_DYNAMIC_QUANT
+                                                                           ? "intermediate_input_scale"
+                                                                           : "dynamic_input_scale")};
         allGatherInputScaleNode.inTensorIds.push_back(GetTensorIdx(tensorMap, "send_count"));
         allGatherInputScaleNode.inTensorIds.push_back(GetTensorIdx(tensorMap, "recv_counts"));
         allGatherInputScaleNode.inTensorIds.push_back(GetTensorIdx(tensorMap, "rdispls"));
@@ -195,12 +188,10 @@ int64_t AddAllGather(atb::GraphParam &opGraph, const FusionLinearParam &param,
 }
 
 int64_t AddAclNNWeightQuantBatchMatmul(atb::Node &linearNode, const FusionLinearParam &param,
-    std::map<std::string, uint32_t> &tensorMap)
-{
-    linearNode.inTensorIds = GetTensorIdxList(tensorMap, {
-        param.enableFlashComm ? "intermediate_allgather_out" : "in_input",
-        "in_weight", "in_scale", "in_offset"
-    });
+                                       std::map<std::string, uint32_t> &tensorMap) {
+    linearNode.inTensorIds = GetTensorIdxList(
+        tensorMap,
+        {param.enableFlashComm ? "intermediate_allgather_out" : "in_input", "in_weight", "in_scale", "in_offset"});
     AclNNWeightQuantBatchMatmulParam aclnnParam;
     aclnnParam.transposeB = param.transposeType == TRANSPOSE;
     if (param.hasBias) {
@@ -221,23 +212,22 @@ int64_t AddAclNNWeightQuantBatchMatmul(atb::Node &linearNode, const FusionLinear
 }
 
 int64_t AddW4A8Matmul(atb::Node &linearNode, const FusionLinearParam &param,
-    std::map<std::string, uint32_t> &tensorMap)
-{
+                      std::map<std::string, uint32_t> &tensorMap) {
     const bool containingQuant = param.quantType == LINEAR_W4A8_DYNAMIC_QUANT;
     AclNNW4A8Param aclnnParam;
     std::string key;
     if (param.enableSwigluQuant) {
         key = "in_input";
     } else {
-        key = (containingQuant && !param.enableSwiGLUQuantForSharedExperts) ?
-            "intermediate_quant_input" : "in_input";
+        key = (containingQuant && !param.enableSwiGLUQuantForSharedExperts) ? "intermediate_quant_input" : "in_input";
     }
     std::string inputScaleKey;
     if (param.enableSwigluQuant && containingQuant) {
         inputScaleKey = "intermediate_quant_input_scale";
     } else {
-        inputScaleKey = !containingQuant ? "dynamic_input_scale" : param.enableSwiGLUQuantForSharedExperts ?
-            "swiglu_quant_input_scale" : "intermediate_input_scale";
+        inputScaleKey = !containingQuant                          ? "dynamic_input_scale"
+                        : param.enableSwiGLUQuantForSharedExperts ? "swiglu_quant_input_scale"
+                                                                  : "intermediate_input_scale";
     }
     std::vector<std::string> tensorNames = {key, "in_weight", inputScaleKey, "in_scale", "in_bias"};
     linearNode.inTensorIds = GetTensorIdxList(tensorMap, tensorNames);
@@ -249,8 +239,7 @@ int64_t AddW4A8Matmul(atb::Node &linearNode, const FusionLinearParam &param,
 }
 
 int64_t AddAclNNQuantMatmul(atb::Node &linearNode, const FusionLinearParam &param,
-    std::map<std::string, uint32_t> &tensorMap)
-{
+                            std::map<std::string, uint32_t> &tensorMap) {
     AclNNQuantMatmulParam aclnnQuantMatmulParam;
     aclnnQuantMatmulParam.transposeB = param.transposeType == TRANSPOSE;
     std::string key;
@@ -258,19 +247,19 @@ int64_t AddAclNNQuantMatmul(atb::Node &linearNode, const FusionLinearParam &para
         key = "intermediate_allgather_out";
     } else {
         key = (param.quantType == LINEAR_W8A8_QUANT ||
-            (param.quantType == LINEAR_W8A8_DYNAMIC_QUANT
-             && !param.enableSwiGLUQuantForSharedExperts)) ?
-            "intermediate_quant_input" : "in_input";
+               (param.quantType == LINEAR_W8A8_DYNAMIC_QUANT && !param.enableSwiGLUQuantForSharedExperts))
+                  ? "intermediate_quant_input"
+                  : "in_input";
     }
-    std::string inScaleKey = (param.quantType == LINEAR_W8A8_QUANT || param.quantType == LINEAR_W8A8_DEQUANT) ?
-        "in_descale" : "in_scale";
+    std::string inScaleKey =
+        (param.quantType == LINEAR_W8A8_QUANT || param.quantType == LINEAR_W8A8_DEQUANT) ? "in_descale" : "in_scale";
     std::string inputScaleKey;
     if (param.enableFlashComm) {
         inputScaleKey = "intermediate_allgather_input_scale_out";
     } else {
-        inputScaleKey = param.quantType == LINEAR_W8A8_DYNAMIC_DEQUANT ?
-            "dynamic_input_scale" : param.enableSwiGLUQuantForSharedExperts ? "swiglu_quant_input_scale" :
-            "intermediate_input_scale";
+        inputScaleKey = param.quantType == LINEAR_W8A8_DYNAMIC_DEQUANT ? "dynamic_input_scale"
+                        : param.enableSwiGLUQuantForSharedExperts      ? "swiglu_quant_input_scale"
+                                                                       : "intermediate_input_scale";
     }
     std::vector<std::string> tensorNames = {key, "in_weight", inScaleKey};
     // per token
@@ -287,8 +276,8 @@ int64_t AddAclNNQuantMatmul(atb::Node &linearNode, const FusionLinearParam &para
     linearNode.inTensorIds = GetTensorIdxList(tensorMap, tensorNames);
     ATB_SPEED_LOG_DEBUG("tensorNames: " << tensorNames << "; inTensorIds: " << linearNode.inTensorIds);
     linearNode.inTensorReshapeFuncs.resize(linearNode.inTensorIds.size());
-    linearNode.inTensorReshapeFuncs[0] = [=](const atb::Dims &oldShape, atb::Dims &newShape) { // 1: input
-        newShape.dimNum = 2; // dimNum: 2
+    linearNode.inTensorReshapeFuncs[0] = [=](const atb::Dims &oldShape, atb::Dims &newShape) {  // 1: input
+        newShape.dimNum = 2;                                                                    // dimNum: 2
         // 开启TURBO_ATTN时, w8a8_pdmix或pertoken场景, canndev算子, input会多出一维(2维)
         if (oldShape.dimNum == NUM3) {
             newShape.dims[DIM0] = oldShape.dims[DIM0] * oldShape.dims[DIM1];
@@ -297,8 +286,8 @@ int64_t AddAclNNQuantMatmul(atb::Node &linearNode, const FusionLinearParam &para
     };
     // dynamic的inputScaleKey转换
     if (param.quantType == LINEAR_W8A8_DYNAMIC_QUANT || param.quantType == LINEAR_W8A8_DYNAMIC_DEQUANT) {
-        linearNode.inTensorReshapeFuncs[3] = [=](const atb::Dims &oldShape, atb::Dims &newShape) { // 3: 3号scale
-            newShape.dimNum = 1; // dimNum: 1
+        linearNode.inTensorReshapeFuncs[3] = [=](const atb::Dims &oldShape, atb::Dims &newShape) {  // 3: 3号scale
+            newShape.dimNum = 1;                                                                    // dimNum: 1
             // 开启TURBO_ATTN时, canndev算子, scale会多出一维(2维)
             newShape.dims[0] = oldShape.dimNum == NUM2 ? oldShape.dims[0] * oldShape.dims[1] : oldShape.dims[0];
         };
@@ -310,11 +299,9 @@ int64_t AddAclNNQuantMatmul(atb::Node &linearNode, const FusionLinearParam &para
 }
 
 int64_t AddAclNNMatmul(atb::Node &linearNode, const FusionLinearParam &param,
-    std::map<std::string, uint32_t> &tensorMap)
-{
-    linearNode.inTensorIds = GetTensorIdxList(tensorMap, {
-        (param.enableFlashComm) ?
-        "intermediate_allgather_out" : "in_input", "in_weight"});
+                       std::map<std::string, uint32_t> &tensorMap) {
+    linearNode.inTensorIds =
+        GetTensorIdxList(tensorMap, {(param.enableFlashComm) ? "intermediate_allgather_out" : "in_input", "in_weight"});
     AclNNMatmulParam aclnnMatmulParam;
     aclnnMatmulParam.transposeB = param.transposeType == TRANSPOSE;
     if (param.hasBias) {
@@ -326,19 +313,17 @@ int64_t AddAclNNMatmul(atb::Node &linearNode, const FusionLinearParam &param,
 }
 
 int64_t AddW16A16SCMatmul(atb::Node &linearNode, const FusionLinearParam &param,
-    std::map<std::string, uint32_t> &tensorMap)
-{
-    linearNode.inTensorIds = GetTensorIdxList(tensorMap, {
-        (param.enableFlashComm) ?
-        "intermediate_allgather_out" : "in_input", "in_weight", "in_bias",  "in_compress_idx"});
+                          std::map<std::string, uint32_t> &tensorMap) {
+    linearNode.inTensorIds =
+        GetTensorIdxList(tensorMap, {(param.enableFlashComm) ? "intermediate_allgather_out" : "in_input", "in_weight",
+                                     "in_bias", "in_compress_idx"});
     AclNNW16A16SCParam aclnnw16a16scParam;
     linearNode.operation = new atb_speed::common::W16A16SCOperation("W16A16SCLinearNode", aclnnw16a16scParam);
     return atb::NO_ERROR;
 }
 
 int64_t AddAclNNLinear(atb::Node &linearNode, const FusionLinearParam &param,
-    std::map<std::string, uint32_t> &tensorMap)
-{
+                       std::map<std::string, uint32_t> &tensorMap) {
     if (param.quantType == LINEAR_W4A8_DYNAMIC_QUANT || param.quantType == LINEAR_W4A8_DYNAMIC_DEQUANT) {
         CHECK_OPERATION_STATUS_RETURN(AddW4A8Matmul(linearNode, param, tensorMap));
         return atb::NO_ERROR;
@@ -361,13 +346,12 @@ int64_t AddAclNNLinear(atb::Node &linearNode, const FusionLinearParam &param,
         CHECK_OPERATION_STATUS_RETURN(AddW16A16SCMatmul(linearNode, param, tensorMap));
         return atb::NO_ERROR;
     }
-    
+
     return atb::NO_ERROR;
 }
 
 int64_t AddLinear(atb::GraphParam &opGraph, const FusionLinearParam &param,
-    std::map<std::string, uint32_t> &tensorMap)
-{
+                  std::map<std::string, uint32_t> &tensorMap) {
     atb::Node linearNode;
     atb::infer::LinearParam linearParam;
     int matmulBackend = param.matmulBackend;
@@ -397,9 +381,8 @@ int64_t AddLinear(atb::GraphParam &opGraph, const FusionLinearParam &param,
         } else {
             key = param.quantType == LINEAR_W8A8_SC_DEQUANT ? "in_input" : "intermediate_quant_input";
         }
-        linearNode.inTensorIds = GetTensorIdxList(tensorMap, {
-            key, "in_weight", "in_bias", "in_descale", "in_compress_idx"
-        });
+        linearNode.inTensorIds =
+            GetTensorIdxList(tensorMap, {key, "in_weight", "in_bias", "in_descale", "in_compress_idx"});
         opGraph.nodes.push_back(linearNode);
         return atb::NO_ERROR;
     }
@@ -431,31 +414,30 @@ int64_t AddLinear(atb::GraphParam &opGraph, const FusionLinearParam &param,
             linearNode.inTensorIds = GetTensorIdxList(tensorMap, {key, "in_weight"});
         } else {
             linearParam.hasBias = true;
-            linearNode.inTensorIds = GetTensorIdxList(tensorMap, {
-                key, "in_weight", "in_bias", "in_descale"
-            });
+            linearNode.inTensorIds = GetTensorIdxList(tensorMap, {key, "in_weight", "in_bias", "in_descale"});
         }
         CHECK_OPERATION_STATUS_RETURN(atb::CreateOperation(linearParam, &linearNode.operation));
     } else {
         // AclNN Linear (NO_QUANT)
         CHECK_OPERATION_STATUS_RETURN(AddAclNNLinear(linearNode, param, tensorMap));
     }
-    
+
     opGraph.nodes.push_back(linearNode);
 
     return atb::NO_ERROR;
 }
 
-atb::Status CreateFusionLinear(const FusionLinearParam &param, atb::Operation **operation)
-{
+atb::Status CreateFusionLinear(const FusionLinearParam &param, atb::Operation **operation) {
     atb::GraphParam opGraph;
-    opGraph.name = param.quantType == NO_QUANT ? "LinearNoQuant" : \
-        param.quantType == LINEAR_W8A8_DEQUANT || param.quantType == LINEAR_W8A8_SC_DEQUANT ? "LinearDequantOnly" : \
-        param.quantType == LINEAR_W16A16_SC ? "LinearW16A16SC" : \
-        param.quantType == W8A16 ? "LinearW8A16" : \
-        param.quantType == W4A16 ? "LinearW4A16" : "LinearQuant";
-    std::map<std::string, uint32_t> tensorMap = ConstructLinearTensorMap(
-        param, opGraph.inTensorNum, opGraph.outTensorNum, opGraph.internalTensorNum);
+    opGraph.name = param.quantType == NO_QUANT ? "LinearNoQuant"
+                   : param.quantType == LINEAR_W8A8_DEQUANT || param.quantType == LINEAR_W8A8_SC_DEQUANT
+                       ? "LinearDequantOnly"
+                   : param.quantType == LINEAR_W16A16_SC ? "LinearW16A16SC"
+                   : param.quantType == W8A16            ? "LinearW8A16"
+                   : param.quantType == W4A16            ? "LinearW4A16"
+                                                         : "LinearQuant";
+    std::map<std::string, uint32_t> tensorMap =
+        ConstructLinearTensorMap(param, opGraph.inTensorNum, opGraph.outTensorNum, opGraph.internalTensorNum);
 
     if (param.transposeType == TRANSPOSE_INVALID) {
         ATB_SPEED_LOG_ERROR("param.transposeType is invalid");
@@ -463,8 +445,9 @@ atb::Status CreateFusionLinear(const FusionLinearParam &param, atb::Operation **
     }
     // dense层: enableSwiGLUQuantForSharedExperts 不开
     // down层: 1) 不开 2) 开、非down 3)开、down、非DYNAMIC_DEQUANT
-    if (!param.enableSwiGLUQuantForSharedExperts && (!param.enableSwigluQuant \
-        || (param.quantType != LINEAR_W8A8_DYNAMIC_DEQUANT && param.quantType != LINEAR_W4A8_DYNAMIC_DEQUANT))) {
+    if (!param.enableSwiGLUQuantForSharedExperts &&
+        (!param.enableSwigluQuant ||
+         (param.quantType != LINEAR_W8A8_DYNAMIC_DEQUANT && param.quantType != LINEAR_W4A8_DYNAMIC_DEQUANT))) {
         CHECK_OPERATION_STATUS_RETURN(AddElewiseQuant(opGraph, param, tensorMap));
         if (param.enableFlashComm) {
             CHECK_OPERATION_STATUS_RETURN(AddAllGather(opGraph, param, tensorMap));
@@ -473,8 +456,8 @@ atb::Status CreateFusionLinear(const FusionLinearParam &param, atb::Operation **
     if (param.enableCVOverlap) {
         CHECK_OPERATION_STATUS_RETURN(atb_speed::common::CreateRecordWithoutNodeId(
             opGraph, atb_speed::EventAction::PUSH, atb_speed::common::VECTOR_CONTROL));
-        CHECK_OPERATION_STATUS_RETURN(atb_speed::common::CreateWaitWithoutNodeId(
-            opGraph, atb_speed::EventAction::PUSH, atb_speed::common::CUBE_CONTROL));
+        CHECK_OPERATION_STATUS_RETURN(atb_speed::common::CreateWaitWithoutNodeId(opGraph, atb_speed::EventAction::PUSH,
+                                                                                 atb_speed::common::CUBE_CONTROL));
     }
     CHECK_OPERATION_STATUS_RETURN(AddLinear(opGraph, param, tensorMap));
 
@@ -499,21 +482,22 @@ atb::Status CreateFusionLinear(const FusionLinearParam &param, atb::Operation **
             outTensorDescs.at(0).shape.dims[outDimSize - 1] = inTensorDescs.at(biasIdx).shape.dims[0];
         } else if (param.quantType == W4A16) {
             if (param.transposeType == TransposeType::TRANSPOSE) {
-                outTensorDescs.at(0).shape.dims[outDimSize - 1] = \
+                outTensorDescs.at(0).shape.dims[outDimSize - 1] =
                     inTensorDescs.at(weightIdx).shape.dims[0];  // 0: n维shape
             } else {
-                outTensorDescs.at(0).shape.dims[outDimSize - 1] = \
+                outTensorDescs.at(0).shape.dims[outDimSize - 1] =
                     CheckIntMulOverFlow(inTensorDescs.at(weightIdx).shape.dims[1], 2);  // 1, 2: 最后一维shape * 2
             }
         } else if (param.quantType == LINEAR_W4A8_DYNAMIC_DEQUANT || param.quantType == LINEAR_W4A8_DYNAMIC_QUANT) {
-            outTensorDescs.at(0).shape.dims[outDimSize - 1] = \
+            outTensorDescs.at(0).shape.dims[outDimSize - 1] =
                 CheckIntMulOverFlow(inTensorDescs.at(weightIdx).shape.dims[1], 8);  // 8: [m, k] @ [k, n//8] -> [m, n]
-        } else if (inTensorDescs.at(weightIdx).shape.dimNum == 3) { // 3: dimNum
+        } else if (inTensorDescs.at(weightIdx).shape.dimNum == 3) {                 // 3: dimNum
             outTensorDescs.at(0).shape.dims[outDimSize - 1] = inTensorDescs.at(weightIdx).shape.dims[nDim + 1];
-        } else if (param.enEin && inTensorDescs.at(weightIdx).shape.dimNum == 4) { // 4: dimNum
-            outTensorDescs.at(0).shape.dims[outDimSize - 1] = param.transposeType == TransposeType::TRANSPOSE ? \
-                inTensorDescs.at(weightIdx).shape.dims[2] : // 2: dimNum
-                    inTensorDescs.at(weightIdx).shape.dims[1] * inTensorDescs.at(weightIdx).shape.dims[3]; // 3: dimNum
+        } else if (param.enEin && inTensorDescs.at(weightIdx).shape.dimNum == 4) {  // 4: dimNum
+            outTensorDescs.at(0).shape.dims[outDimSize - 1] =
+                param.transposeType == TransposeType::TRANSPOSE ? inTensorDescs.at(weightIdx).shape.dims[2]
+                                                                :                                           // 2: dimNum
+                    inTensorDescs.at(weightIdx).shape.dims[1] * inTensorDescs.at(weightIdx).shape.dims[3];  // 3: dimNum
         } else {
             outTensorDescs.at(0).shape.dims[outDimSize - 1] = inTensorDescs.at(weightIdx).shape.dims[nDim];
         }
@@ -524,10 +508,8 @@ atb::Status CreateFusionLinear(const FusionLinearParam &param, atb::Operation **
     return atb::NO_ERROR;
 }
 
-std::map<std::string, uint32_t> ConstructLinearWithLoraTensorMap(
-    const FusionLinearParam &param,
-    uint32_t &inTensorNum, uint32_t &outTensorNum, uint32_t &internalTensorNum)
-{
+std::map<std::string, uint32_t> ConstructLinearWithLoraTensorMap(const FusionLinearParam &param, uint32_t &inTensorNum,
+                                                                 uint32_t &outTensorNum, uint32_t &internalTensorNum) {
     auto linearInTensorCandidates = GetLinearInTensorCandidates();
     auto linearIntermediateTensorCandidates = GetLinearIntermediateTensorCandidates();
 
@@ -561,8 +543,7 @@ std::map<std::string, uint32_t> ConstructLinearWithLoraTensorMap(
     return GetTensorMap(inTensorList, outTensorList, intermediateTensorList);
 }
 
-int64_t AddImMask(atb::GraphParam &opGraph, std::map<std::string, uint32_t> &tensorMap)
-{
+int64_t AddImMask(atb::GraphParam &opGraph, std::map<std::string, uint32_t> &tensorMap) {
     atb::Node mulNode;
     atb::infer::ElewiseParam mulParam;
     mulParam.elewiseType = atb::infer::ElewiseParam::ElewiseType::ELEWISE_MUL;
@@ -573,9 +554,8 @@ int64_t AddImMask(atb::GraphParam &opGraph, std::map<std::string, uint32_t> &ten
     return atb::NO_ERROR;
 }
 
-int64_t AddLoraA(atb::GraphParam &opGraph, const FusionLinearParam &param,
-    std::map<std::string, uint32_t> &tensorMap, bool enableFlashComm)
-{
+int64_t AddLoraA(atb::GraphParam &opGraph, const FusionLinearParam &param, std::map<std::string, uint32_t> &tensorMap,
+                 bool enableFlashComm) {
     // 添加Lora A
     atb::Node loraALinearNode;
     if (param.loraEnableGMM) {
@@ -607,9 +587,7 @@ int64_t AddLoraA(atb::GraphParam &opGraph, const FusionLinearParam &param,
     return atb::NO_ERROR;
 }
 
-int64_t AddLoraB(atb::GraphParam &opGraph, const FusionLinearParam &param,
-    std::map<std::string, uint32_t> &tensorMap)
-{
+int64_t AddLoraB(atb::GraphParam &opGraph, const FusionLinearParam &param, std::map<std::string, uint32_t> &tensorMap) {
     // 添加Lora B
     atb::Node loraBLinearNode;
     if (param.loraEnableGMM) {
@@ -635,11 +613,10 @@ int64_t AddLoraB(atb::GraphParam &opGraph, const FusionLinearParam &param,
     return atb::NO_ERROR;
 }
 
-atb::Status CreateFusionLinearWithLora(const FusionLinearParam &param, atb::Operation **operation)
-{
+atb::Status CreateFusionLinearWithLora(const FusionLinearParam &param, atb::Operation **operation) {
     atb::GraphParam opGraph;
-    std::map<std::string, uint32_t> tensorMap = ConstructLinearWithLoraTensorMap(
-        param, opGraph.inTensorNum, opGraph.outTensorNum, opGraph.internalTensorNum);
+    std::map<std::string, uint32_t> tensorMap =
+        ConstructLinearWithLoraTensorMap(param, opGraph.inTensorNum, opGraph.outTensorNum, opGraph.internalTensorNum);
     opGraph.name = "LinearWithLora";
 
     if (param.enableFlashComm) {
@@ -653,10 +630,9 @@ atb::Status CreateFusionLinearWithLora(const FusionLinearParam &param, atb::Oper
     baseLinearParam.loraEnableGMM = false;
     baseLinearParam.enableFlashComm = false;
     CHECK_OPERATION_STATUS_RETURN(CreateFusionLinear(baseLinearParam, &baseLinearNode.operation));
-    baseLinearNode.inTensorIds = GetTensorIdxList(tensorMap, {
-        param.enableFlashComm ? "intermediate_allgather_out" : "in_input",
-        "in_weight", "in_scale", "in_offset", "in_descale", "in_bias", "in_compress_idx"
-    });
+    baseLinearNode.inTensorIds =
+        GetTensorIdxList(tensorMap, {param.enableFlashComm ? "intermediate_allgather_out" : "in_input", "in_weight",
+                                     "in_scale", "in_offset", "in_descale", "in_bias", "in_compress_idx"});
     baseLinearNode.outTensorIds = {GetTensorIdx(tensorMap, "intermediate_base_linear_out")};
     opGraph.nodes.push_back(baseLinearNode);
 
@@ -686,13 +662,12 @@ atb::Status CreateFusionLinearWithLora(const FusionLinearParam &param, atb::Oper
     return atb::NO_ERROR;
 }
 
-atb::Status FusionLinear(const FusionLinearParam &param, atb::Operation **operation)
-{
+atb::Status FusionLinear(const FusionLinearParam &param, atb::Operation **operation) {
     if (param.supportLora) {
         return CreateFusionLinearWithLora(param, operation);
     } else {
         return CreateFusionLinear(param, operation);
     }
 }
-} // namespace common
-} // namespace atb_speed
+}  // namespace common
+}  // namespace atb_speed
