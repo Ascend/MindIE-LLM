@@ -922,6 +922,13 @@ class Generator(PDInterface):
             # Delegate pause to generator backend
             self.is_inference_pause = True
             self.plugin_manager.is_inference_pause = True
+            # fault can happen during executing cpu collective, thus should destroy and rebuild when recovering
+            try:
+                logger.info("[CPU_PG_RECOVERY] Start destroying ATTN_DP CPU process group during pause")
+                get_parallel_info_manager().destroy_cpu_process_group(ParallelType.ATTN_DP)
+                logger.info("[CPU_PG_RECOVERY] Finished destroying ATTN_DP CPU process group during pause")
+            except Exception as e:
+                logger.warning("[CPU_PG_RECOVERY] Failed to destroy ATTN_DP CPU process group during pause: %s", e)
             ret_dict = self.generator_backend.execute_recover_command(command)
 
         elif command == "CMD_PAUSE_ENGINE_ROCE":

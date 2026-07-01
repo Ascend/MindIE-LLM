@@ -200,6 +200,7 @@ class PluginManager:
 
     @timer.track_time_async("generate_token")
     def generate_token(self, input_metadata: InputMetadata, warmup=False) -> GenerationOutput:
+        trace_ids = ""
         try:
             prof = span_start("preprocess")
             cache_ids, model_inputs, sampling_metadata, trace_ids = self.preprocess(input_metadata, warmup=warmup)
