@@ -32,8 +32,17 @@ To enable the Thinking Budget feature, the parameters that need to be configured
 
 1. Open the `config.json` file of the server.
 
+   - **Installation using the `.whl` package:**
+
     ```bash
-    cd /usr/local/lib/python3.11/site-packages/mindie_llm
+    cd {MindIE_installation_directory}/mindie_llm/
+    vi conf/config.json
+    ```
+
+   - **Installation using the `.run` package:**
+
+    ```bash
+    cd {MindIE_installation_directory}/latest/mindie-service
     vi conf/config.json
     ```
 
@@ -72,6 +81,6 @@ To enable the Thinking Budget feature, the parameters that need to be configured
     >- Qwen3-30B-A3B model: The `qwen3` field should be modified to `qwen3_moe.
     >- When `thinking_budget` is set too low, the model may fall back to outputting in the same language as the prompt.
 
-3. Start the service. For PD colocation scenarios, refer to "Quick Start" \> "[Starting the Service](https://gitcode.com/Ascend/MindIE-Motor/blob/v3.0.0/docs/zh/user_guide/quick_start.md)" in *MindIE Motor Developer Guide*.
-For PD disaggregation scenarios, refer to "Cluster Service Deployment" > "[PD Disaggregation](https://gitcode.com/Ascend/MindIE-Motor/blob/v3.0.0/docs/zh/user_guide/service_deployment/pd_separation_service_deployment.md)" in *MindIE Motor Developer Guide*.  
+3. Start the service. For PD colocation scenarios, refer to "Quick Start" \> "[Starting the Service](https://gitcode.com/Ascend/MindIE-Motor/blob/v3.0.0/docs/en/user_guide/quick_start.md)" in *MindIE Motor Developer Guide*.
+For PD disaggregation scenarios, refer to "Cluster Service Deployment" > "[PD Disaggregation](https://gitcode.com/Ascend/MindIE-Motor/blob/v3.0.0/docs/en/user_guide/service_deployment/pd_separation_service_deployment.md)" in *MindIE Motor Developer Guide*.  
 4. Send a request. For parameter descriptions, see the "[Serving API Usage Guide](../user_manual/service_APIs_usage_guidance.md)" section in *MindIE LLM Developer Guide*

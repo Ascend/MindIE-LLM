@@ -86,8 +86,17 @@ The online serving inference scenario is used as an example.
 
 1. Open the `config.json` file of the server.
 
+   - **Installation using the `.whl` package:**
+
     ```bash
     cd {MindIE_installation_directory}/mindie_llm/
+    vi conf/config.json
+    ```
+
+   - **Installation using the `.run` package:**
+
+    ```bash
+    cd {MindIE_installation_directory}/latest/mindie-service
     vi conf/config.json
     ```
 

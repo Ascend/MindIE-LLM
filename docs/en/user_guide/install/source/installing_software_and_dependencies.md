@@ -4,23 +4,16 @@ The following describes the software packages and dependencies required for inst
 
 ## Installing CANN
 
-The CANN packages to be installed include the Toolkit development kit, ops operator package, and NNAL neural network acceleration library.
+Install the NPU driver and firmware, and CANN software (Toolkit, ops, and NNAL) of the required version, and configure CANN environment variables. For details, see [CANN Software Installation](https://www.hiascend.com/document/detail/en/canncommercial/850/softwareinst/instg/instg_0000.html) (commercial edition).
 
-### Prerequisites
+CANN provides a script for process-level environment variable setting. In training or inference scenarios, you need to invoke this script before using NPUs to execute service code. Otherwise, the service code fails to be executed.
 
-Ensure that the NPU driver and firmware have been installed on the host. If not installed, refer to [Selecting Installation Scenario (Commercial Edition)](https://www.hiascend.com/document/detail/zh/canncommercial/850/softwareinst/instg/instg_0000.html?Mode=PmIns&InstallType=local&OS=openEuler) or [Selecting Installation Scenario (Community Edition)](https://www.hiascend.com/document/detail/zh/CANNCommunityEdition/850/softwareinst/instg/instg_0000.html?Mode=PmIns&InstallType=local&OS=openEuler) for in *CANN Software Installation Guide*. Choose the appropriate scenario, then follow the "Installing NPU Driver and Firmware" section to proceed.
+   ```shell
+   source /usr/local/Ascend/cann/set_env.sh
+   source /usr/local/Ascend/nnal/atb/set_env.sh
+   ```
 
-- Installation mode: installation on a physical machine
-- OS: Select the OS. For details about the OSs supported by MindIE, see [Hardware Requirements and Supported OSs](../installation_introduction.md).
-- Installation method: Select the corresponding installation method based on the online or offline installation.
-
-### Installation
-
-Refer to [Selecting Installation Scenario (Commercial Edition)](https://www.hiascend.com/document/detail/zh/canncommercial/850/softwareinst/instg/instg_0000.html?Mode=PmIns&InstallType=local&OS=openEuler) or [Selecting Installation Scenario (Community Edition)](https://www.hiascend.com/document/detail/zh/CANNCommunityEdition/850/softwareinst/instg/instg_0000.html?Mode=PmIns&InstallType=local&OS=openEuler) for in *CANN Software Installation Guide*. Choose your scenario as described, read the guide, and then follow the "Installing CANN" section to proceed with the installation.
-
-- Installation mode: installation on a physical machine
-- OS: Select the OS. For details about the OSs supported by MindIE, see [Hardware Requirements and Supported OSs](../installation_introduction.md).
-- Installation method: Select the corresponding installation method based on the online or offline installation.
+   In the preceding commands, the default root installation path is used as an example. Replace the path based on the actual path of `set_env.sh`.
 
 ## Installing PyTorch and Torch NPU
 
@@ -42,11 +35,87 @@ Failure to use these exact versions may result in a missing \_bz2 module and lea
 
 ## Installing ATB models
 
+### Using the `.whl` package
+
 In the root directory where the ATB Models `.whl` package is stored, run the following command to install the package:
 
 ```bash
 pip install atb_llm-<version>-cp<xxx>-cp<xxx>-linux_<arch>.whl
 ```
+
+### Using the `.run` package
+
+For the `.run` package installation, ATB Models does not provide an independent software package. Therefore, you need to obtain the package from the MindIE image.
+
+1. In the Ascend image repository, download the image according to the guide. For details, see steps 1 to 4 in [Obtaining the MindIE Image](./image_usage_guide.md#obtaining-the-mindie-image) in "Image Installation".
+
+2. Create a decompression directory (for example, /home/{User name}/Package).
+
+   ```bash
+    mkdir /home/{User name}/Package
+   ```
+
+3. Grant the read and write permissions on the path.
+
+    ```bash
+    chmod u+rw /home/{User name}/Package
+    ```
+
+4. Upload the obtained ATB Models software package **Ascend-mindie-atb-models_{version}_linux-{arch}_pyxxx_torchx.x.x-{abi}.tar.gz** to the directory. The ATB Models software package is stored in the ```/opt/package``` directory of the MindIE image package.
+
+    > [!NOTE]NOTE
+    > The ABI version of ATB Models must be the same as that used during PyTorch compilation. You can call the torch.compiled_with_cxx11_abi() API to view the ABI version.
+    > 
+    > - If False is returned, set abi=0.
+    > - If True is returned, set abi=1.
+
+5. Go to the directory where the software package is stored and decompress it. 
+
+    ```bash 
+    cd /home/{User name}/Package
+    tar -zxf Ascend-mindie-atb-models_{version}_linux-{arch}_pyxxx_torchx.x.x-{abi}.tar.gz
+    ```
+
+6. Check the permission on the pip package installation path.
+To prevent the error message "module not found" from being displayed after the .whl package is successfully installed, ensure that the current user has the write permission on the installation path of the pip package when pip is used to install the .whl package. You can obtain the installation path of the pip package by running pip show {Name of the existing package}. The following is an example:
+
+    ```bash
+    pip show pip
+    ```
+
+    The following information in bold is the installation path. The actual command output varies according to the actual situation.
+
+    ```text
+    Name: pip
+    Version: 25.1
+    Summary: The PyPA recommended tool for installing Python packages.
+    Home-page: https://pip.pypa.io/
+    Author:
+    Author-email: The pip developers <distutils-sig@python.org>
+    License: MIT
+    Location: /root/miniconda3/envs/infor/lib/python3.11/site-packages
+    Requires:
+    Required-by:
+    ```
+
+7. Install the Python package of atb_llm in the Python environment.
+
+    ```bash
+    pip install atb_llm-{version}-py3-none-any.whl
+    ```
+
+8. Configure environment variable.
+
+A process-level environment variable setting script is provided to automatically set environment variables. The specified environment variables automatically become invalid after the user process ends.
+
+```bash
+source /home/{User name}/Package/set_env.sh
+```
+
+You can also configure permanent environment variables by modifying the ```~/.bashrc``` file. The procedure is as follows:
+    1. Run the ```vi ~/.bashrc``` command in any directory as the running user to open the ```.bashrc``` file and append the preceding lines to the file.
+    2. Run the ```:wq!``` command to save the file and exit.
+    3. Run the ```source ~/.bashrc``` command for the modification to take effect immediately.
 
 ## Installing Dependencies
 

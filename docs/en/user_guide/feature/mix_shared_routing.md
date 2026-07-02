@@ -65,4 +65,4 @@
 ## Inference
 
 1. Set serving parameters. For details about the path of the `config.json` file, see [Configuration Parameters (Serving)](../user_manual/service_parameter_configuration.md). For details about parameter settings, see [Examples](#usage-examples).
-2. Start the service. For details, see "Quick Start" \> "[Starting the Service](https://gitcode.com/Ascend/MindIE-Motor/blob/v3.0.0/docs/zh/user_guide/quick_start.md)" in *MindIE Motor Developer Guide*.
+2. Start the service. For details, see "Quick Start" \> "[Starting the Service](https://gitcode.com/Ascend/MindIE-Motor/blob/v3.0.0/docs/en/user_guide/quick_start.md)" in *MindIE Motor Developer Guide*.

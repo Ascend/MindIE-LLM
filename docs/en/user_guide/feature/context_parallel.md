@@ -35,8 +35,17 @@ Context parallelism (CP) performs parallel computing for the self-attention modu
 
 1. Open the `config.json` file of the server.
 
+   - **Installation using the `.whl` package:**
+
     ```bash
     cd {MindIE_installation_directory}/mindie_llm/
+    vi conf/config.json
+    ```
+
+   - **Installation using the `.run` package:**
+
+    ```bash
+    cd {MindIE_installation_directory}/latest/mindie-service
     vi conf/config.json
     ```
 
@@ -71,6 +80,14 @@ Context parallelism (CP) performs parallel computing for the self-attention modu
 
 3. Start the service.
 
+- **Installation using the `.whl` package:**
+
     ```bash
     mindie_llm_server
+    ```
+
+- **Installation using the `.run` package:**
+
+    ```bash
+    ./bin/mindieservice_daemon
     ```

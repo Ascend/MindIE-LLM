@@ -17,6 +17,8 @@ MindIE, CANN, and Ascend Extension for PyTorch must be used together. [Table 1](
 
 ## Software Package Preparation
 
+### Using the `.whl` package
+
 [Table 2](#table2) lists the software packages required for container or bare metal deployment.
 
 **Table 2** Software packages <a id="table2"></a>
@@ -34,6 +36,23 @@ MindIE, CANN, and Ascend Extension for PyTorch must be used together. [Table 1](
 |Ascend Extension for PyTorch|apex-<*apex_version>*_ascend-cp*xxx*-cp*xxx*-<*arch*>.whl|WHL package of the APEX module.|Refer to [Installing APEX Module](https://www.hiascend.com/document/detail/zh/Pytorch/730/configandinstg/instg/docs/installing_apex.md) in *Ascend Extension for PyTorch Software Installation Guide* and compile it based on Python 3.11.|
 |Ascend Extension for PyTorch|torch-<*torch_version>*+cpu-cp*xxx*-cp*xxx*-linux_<*arch>*.whl|WHL package of the PyTorch framework|<ul><li>For torch_npu 2.1.0, refer to [Installing PyTorch](https://www.hiascend.com/document/detail/zh/Pytorch/720/configandinstg/instg/insg_0004.html) in *Ascend Extension for PyTorch Software Installation Guide*. </li><li>For torch_npu 2.9.0, refer to [Installing PyTorch](https://www.hiascend.com/document/detail/zh/Pytorch/730/configandinstg/instg/docs/zh/installation_guide/installation_via_binary_package.md) in *Ascend Extension for PyTorch Software Installation Guide*.</li></ul>|
 
+### Using the `.run` package
+
+[Table 3](#table3) lists the software packages required for container or bare metal deployment.
+
+**Table 3** Software packages <a id="table3"></a>
+
+|Software Type|Package Name|Software Description|How to Obtain|
+|--|--|--|--|
+|MindIE|Ascend-mindie_<*version>*\_linux-<*arch>*_\<abi>.run|Inference engine software package, which is used to develop applications based on MindIE.|[Download link](https://www.hiascend.com/developer/download/community/result?module=ie%2Bpt%2Bcann)|
+|ATB-Model|Ascend-mindie-atb-models-<*version>*\_linux_<*arch>*_pyxxx_torchx.x.x-\<abi>.tar.gz|ATB Models installation package.This component needs to be installed when MindIE Motor and MindIE LLM are used.|[Download link](https://www.hiascend.com/developer/download/community/result?module=ie%2Bpt%2Bcann)|
+|CANN|Ascend-cann-toolkit_<*version>*_linux-<*arch>*.run|CANN development kit (Toolkit).|[Download link](https://www.hiascend.com/developer/download/community/result?module=ie%2Bpt%2Bcann)|
+|CANN|Ascend-cann-<*chip_type>*-ops_<*version>*_linux-<*arch>*.run|CANN binary operator package (ops).<br> Before installing the ops, the Toolkit software package of the same version must be installed. Select the ops software package corresponding to the running device.|[Download link](https://www.hiascend.com/developer/download/community/result?module=ie%2Bpt%2Bcann)|
+|CANN|Ascend-cann-nnal_<*version>*_linux-<*arch>*.run|CANN neural network acceleration library (NNAL)|[Download link](https://www.hiascend.com/developer/download/community/result?module=ie%2Bpt%2Bcann)|
+|Ascend Extension for PyTorch|torch_npu-<*torch_version>*.post<*post_id>*-cp*xxx*-cp*xxx*-manylinux_<*arch>*.whl|WHL package of the torch_npu plugin.|[Download link](https://www.hiascend.com/developer/download/community/result?module=ie%2Bpt%2Bcann)<ul><li>To obtain torch_npu 2.1.0, select 7.2.0 from the PyTorch drop-down list in the Matching Resources area on the upper left of the page for downloading resources of the community edition.</li><li>In the PyTorch area, click the Obtain Source Code button next to your target version to go to the GitCode repository of PyTorch, and then download torch_npu.</li></ul>|
+|Ascend Extension for PyTorch|apex-<*apex_version>*_ascend-cp*xxx*-cp*xxx*-<*arch*>.whl|WHL package of the Apex module.|Compile it based on Python3.10. For details, see [Installing the Apex Module](https://www.hiascend.com/document/detail/zh/Pytorch/730/configandinstg/instg/docs/installing_apex.md) in Ascend Extension for PyTorch Software Installation Guide.|
+|Ascend Extension for PyTorch|torch-<*torch_version>*+cpu-cp*xxx*-cp*xxx*-linux_<*arch>*.whl|WHL package of the PyTorch framework.|<ul><li>PyTorch framework and torch_npu plugin (2.1.0): Obtain it from "[Installing the PyTorch Framework](https://www.hiascend.com/document/detail/zh/Pytorch/720/configandinstg/instg/insg_0004.html)"。</li><li>PyTorch framework and torch_npu plugin (2.6.0): Obtain it from "[Installing PyTorch](https://www.hiascend.com/document/detail/zh/Pytorch/730/configandinstg/instg/docs/zh/installation_guide/installation_via_binary_package.md)" in Ascend Extension for PyTorch Software Installation Guide.</li></ul>|
+
 > [!NOTE]NOTE
 >
 > - `<version>`, `<torch_version>`, and `<apex_version>` indicate software versions.
@@ -47,12 +66,12 @@ Download [PGP Verify](https://support.huawei.com/enterprise/en/tool/pgp-verify-T
 
 ## Dependency Preparation
 
-[Table 3](#table3) lists the dependencies required by MindIE.
+[Table 4](#table4) lists the dependencies required by MindIE.
 
 > [!NOTE]NOTE
 > Use stable versions (vulnerability-free versions are recommended) of open-source software.
 
-**Table 3** Dependency list <a id="table3"></a>
+**Table 4** Dependency list <a id="table4"></a>
 
 |Software|Version Requirements|Change History|
 |--|--|--|

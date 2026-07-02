@@ -34,8 +34,17 @@ However, the prefix cache uses only on-chip memory by default, which has limited
 
 1. Open the `config.json` file of the server.
 
+   - **Installation using the `.whl` package:**
+
     ```bash
     cd {MindIE_installation_directory}/mindie_llm/
+    vi conf/config.json
+    ```
+
+   - **Installation using the `.run` package:**
+
+    ```bash
+    cd {MindIE_installation_directory}/latest/mindie-service
     vi conf/config.json
     ```
 
@@ -101,8 +110,16 @@ However, the prefix cache uses only on-chip memory by default, which has limited
 3. Start the centralized master service corresponding to the pooling backend. For details about the installation and startup commands, see [KV Cache Pooling Usage Guide](mempool.md).
 4. Start the service.
 
+   - **Installation using the `.whl` package:**
+
     ```bash
     mindie_llm_server
+    ```
+
+   - **Installation using the `.run` package:**
+
+    ```bash
+    ./bin/mindieservice_daemon
     ```
 
 5. Send a request for the first time. The prompt is the first round of questions. To use prefix cache/KV cache pooling, the prompt of the second request must have a common prefix with the prompt of the first request. Common application scenarios include multi-round dialog and few-shot learning. For details about the `curl` command, see [sending a request in Prefix Cache](prefix_cache.md).

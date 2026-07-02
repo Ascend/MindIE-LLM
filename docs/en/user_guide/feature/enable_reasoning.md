@@ -26,8 +26,17 @@ Some LLMs include the thinking process in their outputs. This feature is designe
 
 1. Open the `config.json` file of the server.
 
+   - **Installation using the `.whl` package:**
+
     ```bash
     cd {MindIE_installation_directory}/mindie_llm/
+    vi conf/config.json
+    ```
+
+   - **Installation using the `.run` package:**
+
+    ```bash
+    cd {MindIE_installation_directory}/latest/mindie-service
     vi conf/config.json
     ```
 
@@ -69,8 +78,16 @@ Some LLMs include the thinking process in their outputs. This feature is designe
 
 3. Start the service.
 
-     ```bash
-     mindie_llm_server
-     ```
+   - **Installation using the `.whl` package:**
+
+    ```bash
+    mindie_llm_server
+    ```
+
+   - **Installation using the `.run` package:**
+
+    ```bash
+    ./bin/mindieservice_daemon
+    ```
 
 4. Send a request. For details about the parameters, see "Cluster Management Components" \> "Coordinator" \> "RESTful APIs" \> "User-Side APIs" \> "OpenAI Inference APIs" in *MindIE Motor Development Guide*.

@@ -41,8 +41,17 @@ CANN and MindIE have been installed in the environment. For details, see *MindIE
 
 2. Open the `config.json` file of the server.
 
+   - **Installation using the `.whl` package:**
+
     ```bash
     cd {MindIE_installation_directory}/mindie_llm/
+    vi conf/config.json
+    ```
+
+   - **Installation using the `.run` package:**
+
+    ```bash
+    cd {MindIE_installation_directory}/latest/mindie-service
     vi conf/config.json
     ```
 
@@ -71,8 +80,16 @@ CANN and MindIE have been installed in the environment. For details, see *MindIE
 
 4. Start the service.
 
+   - **Installation using the `.whl` package:**
+
     ```bash
     mindie_llm_server
+    ```
+
+   - **Installation using the `.run` package:**
+
+    ```bash
+    ./bin/mindieservice_daemon
     ```
 
 5. Send an inference request. For details, see "Cluster Management Components" \> "Coordinator" \> "RESTful APIs" \> "User-Side APIs" \> "OpenAI Inference APIs" in *MindIE Motor Development Guide*.

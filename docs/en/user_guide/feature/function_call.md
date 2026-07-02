@@ -58,8 +58,17 @@ The following uses DeepSeek-V3.1 as an example to describe how to use the functi
 
 1. Open the `config.json` file of the server.
 
+   - **Installation using the `.whl` package:**
+
     ```bash
-    cd {MindIE installation directory}/mindie_llm/
+    cd {MindIE_installation_directory}/mindie_llm/
+    vi conf/config.json
+    ```
+
+   - **Installation using the `.run` package:**
+
+    ```bash
+    cd {MindIE_installation_directory}/latest/mindie-service
     vi conf/config.json
     ```
 
@@ -107,8 +116,16 @@ The following uses DeepSeek-V3.1 as an example to describe how to use the functi
 
 3. Start the service.
 
+   - **Installation using the `.whl` package:**
+
     ```bash
     mindie_llm_server
+    ```
+
+   - **Installation using the `.run` package:**
+
+    ```bash
+    ./bin/mindieservice_daemon
     ```
 
 4. <a name="step4"></a>Send a request to the service. For details about the parameters, see "Serving APIs" > "RESTful APIs on the EndPoint Service Plane" > "Compatible with OpenAI APIs" > "Inference API" in *MindIE Motor Development Guide*

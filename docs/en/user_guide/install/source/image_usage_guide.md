@@ -4,10 +4,14 @@ The following describes how to install the MindIE container image. Before that, 
 
 ## Prerequisites
 
-- Ensure that the NPU driver and firmware have been installed on the host. If not installed, refer to [Selecting Installation Scenario (Commercial Edition)](https://www.hiascend.com/document/detail/zh/canncommercial/850/softwareinst/instg/instg_0000.html?Mode=PmIns&InstallType=local&OS=openEuler) or [Selecting Installation Scenario (Community Edition)](https://www.hiascend.com/document/detail/zh/CANNCommunityEdition/850/softwareinst/instg/instg_0000.html?Mode=PmIns&InstallType=local&OS=openEuler) for in *CANN Software Installation Guide*. Choose the appropriate scenario, then follow the "Installing NPU Driver and Firmware" section to proceed.
-  - Installation mode: installation on a physical machine
-  - OS: Select the OS to be used. For details about the OSs supported by MindIE, see [Hardware Requirements and Supported OSs](../installation_introduction.md#hardware-compatibility-and-supported-operating-systems).
-  - Installation method: Select the corresponding installation method based on the online or offline installation.
+- Ensure that the NPU driver and firmware have been installed on the host. If the firmware and driver are not installed, download [firmware and driver](https://hiascend.com/hardware/firmware-drivers/community) and select the firmware and driver of the community edition or commercial edition based on the product series and model. Run the following commands to install them:
+  
+    ```shell
+    chmod +x Ascend-hdk-<chip_type>-npu-driver_<version>_linux-<arch>.run
+    chmod +x Ascend-hdk-<chip_type>-npu-firmware_<version>.run
+    ./Ascend-hdk-<chip_type>-npu-driver_<version>_linux-<arch>.run --full --force
+    ./Ascend-hdk-<chip_type>-npu-firmware_<version>.run --full
+    ```
 
 - You have installed Docker (version 24.x.x or later) on the host. For details about how to install Docker, see [Installing Docker](../source/docker_installation.md).
 - Before configuring the source, make sure that the installation environment can connect to the network.

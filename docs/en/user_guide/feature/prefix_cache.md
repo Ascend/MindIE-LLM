@@ -55,8 +55,17 @@ The following uses multi-round dialog as an example to describe how to use the p
 
 1. Open the `config.json` file of the server.
 
+   - **Installation using the `.whl` package:**
+
     ```bash
     cd {MindIE_installation_directory}/mindie_llm/
+    vi conf/config.json
+    ```
+
+    - **Installation using the `.run` package:**
+
+    ```bash
+    cd {MindIE_installation_directory}/latest/mindie-service
     vi conf/config.json
     ```
 
@@ -98,13 +107,19 @@ The following uses multi-round dialog as an example to describe how to use the p
 
 3. Start the service.
 
+   - **Installation using the `.whl` package:**
+
     ```bash
     mindie_llm_server
     ```
 
-4. Send a request for the first time. The prompt is the first round of questions.
+   - **Installation using the `.run` package:**
 
-    To use prefix cache, the prompt of the second request must have a common prefix with the prompt of the first request. Common application scenarios include multi-round dialog and few-shot learning.
+    ```bash
+    ./bin/mindieservice_daemon
+    ```
+
+4. Send a request for the first time. The prompt is the first round of questions.
 
     ```bash
     curl https://127.0.0.1:1025/generate \

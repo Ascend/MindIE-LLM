@@ -1,8 +1,10 @@
-# Version Mapping<a name="ZH-CN_TOPIC_0000002532737933"></a>
+# Release Notes
+
+## Version Mapping<a name="ZH-CN_TOPIC_0000002532737933"></a>
 
 <!-- md-trans-meta sourceCommit=unknown translatedAt=2026-06-04T12:39:10.120Z pushedAt=2026-06-05T01:28:22.034Z -->
 
-## Product Version Information<a name="ZH-CN_TOPIC_0000002532737927"></a>
+### Product Version Information<a name="ZH-CN_TOPIC_0000002532737927"></a>
 
 <a name="table1657153819263"></a>
 
@@ -29,11 +31,11 @@
 </tbody>
 </table>
 
-## Related Product Version Mapping<a name="ZH-CN_TOPIC_0000002500898042"></a>
+### Related Product Version Mapping<a name="ZH-CN_TOPIC_0000002500898042"></a>
 
 <a name="zh-cn_topic_0000002500897574_zh-cn_topic_0000001962372505_table373mcpsimp"></a>
 
-<table><thead align="left"><tr id="zh-cn_topic_0000002500897574_zh-cn_topic_0000001962372505_row378mcpsimp"><th class="cellrowborder" valign="top" width="25%" id="mcps1.1.3.1.1"><p id="zh-cn_topic_0000002500897574_zh-cn_topic_0000001962372505_p380mcpsimp"><a name="zh-cn_topic_0000002500897574_zh-cn_topic_0000001962372505_p380mcpsimp"></a><a name="zh-cn_topic_0000002500897574_zh-cn_topic_0000001962372505_p380mcpsimp"></a>Software Name</p>
+<table><thead align="left"><tr id="zh-cn_topic_0000002500897574_zh-cn_topic_0000001962372505_row378mcpsimp"><th class="cellrowborder" valign="top" width="25%" id="mcps1.1.3.1.1"><p id="zh-cn_topic_0000002500897574_zh-cn_topic_0000001962372505_p380mcpsimp"><a name="zh-cn_topic_0000002500897574_zh-cn_topic_0000001962372505_p380mcpsimp"></a><a name="zh-cn_topic_0000002500897574_zh-cn_topic_0000001962372505_p380mcpsimp"></a>Product Name</p>
 </th>
 <th class="cellrowborder" valign="top" width="75%" id="mcps1.1.3.1.2"><p id="zh-cn_topic_0000002500897574_zh-cn_topic_0000001962372505_p382mcpsimp"><a name="zh-cn_topic_0000002500897574_zh-cn_topic_0000001962372505_p382mcpsimp"></a><a name="zh-cn_topic_0000002500897574_zh-cn_topic_0000001962372505_p382mcpsimp"></a>Version</p>
 </th>
@@ -41,55 +43,39 @@
 </thead>
 <tbody><tr id="zh-cn_topic_0000002500897574_zh-cn_topic_0000001962372505_row389mcpsimp"><td class="cellrowborder" valign="top" width="25%" headers="mcps1.1.3.1.1 "><p id="zh-cn_topic_0000002500897574_zh-cn_topic_0000001962372505_p1979603419221"><a name="zh-cn_topic_0000002500897574_zh-cn_topic_0000001962372505_p1979603419221"></a><a name="zh-cn_topic_0000002500897574_zh-cn_topic_0000001962372505_p1979603419221"></a>CANN</p>
 </td>
-<td class="cellrowborder" valign="top" width="75%" headers="mcps1.1.3.1.2 "><p id="zh-cn_topic_0000002500897574_p4400143717192"><a name="zh-cn_topic_0000002500897574_p4400143717192"></a><a name="zh-cn_topic_0000002500897574_p4400143717192"></a>8.5.1.B080</p>
+<td class="cellrowborder" valign="top" width="75%" headers="mcps1.1.3.1.2 "><p id="zh-cn_topic_0000002500897574_p4400143717192"><a name="zh-cn_topic_0000002500897574_p4400143717192"></a><a name="zh-cn_topic_0000002500897574_p4400143717192"></a>8.5.1</p>
 </td>
 </tr>
 <tr id="zh-cn_topic_0000002500897574_row2713203491916"><td class="cellrowborder" valign="top" width="25%" headers="mcps1.1.3.1.1 "><p id="zh-cn_topic_0000002500897574_p8713183441916"><a name="zh-cn_topic_0000002500897574_p8713183441916"></a><a name="zh-cn_topic_0000002500897574_p8713183441916"></a>Ascend Extension for PyTorch</p>
 </td>
-<td class="cellrowborder" valign="top" width="75%" headers="mcps1.1.3.1.2 "><p id="zh-cn_topic_0000002500897574_p18713163416199"><a name="zh-cn_topic_0000002500897574_p18713163416199"></a><a name="zh-cn_topic_0000002500897574_p18713163416199"></a>7.3.0.B125</p>
+<td class="cellrowborder" valign="top" width="75%" headers="mcps1.1.3.1.2 "><p id="zh-cn_topic_0000002500897574_p18713163416199"><a name="zh-cn_topic_0000002500897574_p18713163416199"></a><a name="zh-cn_topic_0000002500897574_p18713163416199"></a>7.3.0</p>
 </td>
 </tr>
 <tr id="zh-cn_topic_0000002500897574_row1833321143413"><td class="cellrowborder" valign="top" width="25%" headers="mcps1.1.3.1.1 "><p id="zh-cn_topic_0000002500897574_p1673134011307"><a name="zh-cn_topic_0000002500897574_p1673134011307"></a><a name="zh-cn_topic_0000002500897574_p1673134011307"></a>Ascend HDK</p>
 </td>
-<td class="cellrowborder" valign="top" width="75%" headers="mcps1.1.3.1.2 "><p id="zh-cn_topic_0000002500897574_p767354011301"><a name="zh-cn_topic_0000002500897574_p767354011301"></a><a name="zh-cn_topic_0000002500897574_p767354011301"></a>25.5.0.B077</p>
-</td>
-</tr>
-<tr><td class="cellrowborder" valign="top" width="25%" headers="mcps1.1.3.1.1 "><p><a name="msit_name"></a>MindStudio Opensource/msit</p>
-</td>
-<td class="cellrowborder" valign="top" width="75%" headers="mcps1.1.3.1.2 "><p><a name="msit_ver"></a>tag_MindStudio_8.3.0.B090_001</p>
-</td>
-</tr>
-<tr><td class="cellrowborder" valign="top" width="25%" headers="mcps1.1.3.1.1 "><p><a name="aisbench_name"></a>AISBench</p>
-</td>
-<td class="cellrowborder" valign="top" width="75%" headers="mcps1.1.3.1.2 "><p><a name="aisbench_ver"></a>v3.0-20251103-master</p>
-</td>
-</tr>
-<tr><td class="cellrowborder" valign="top" width="25%" headers="mcps1.1.3.1.1 "><p><a name="mooncake_name"></a>Mooncake</p>
-</td>
-<td class="cellrowborder" valign="top" width="75%" headers="mcps1.1.3.1.2 "><p><a name="mooncake_ver"></a>v0.3.7.post2</p>
+<td class="cellrowborder" valign="top" width="75%" headers="mcps1.1.3.1.2 "><p id="zh-cn_topic_0000002500897574_p767354011301"><a name="zh-cn_topic_0000002500897574_p767354011301"></a><a name="zh-cn_topic_0000002500897574_p767354011301"></a>For details about the version mapping, see <a href="https://www.hiascend.com/document/detail/zh/CANNCommunityEdition/850/releasenote/releasenote_0000.html">CANN Version Mapping. </a><br>Note: CANN 8.5.1 and CANN 8.5.0 use the same HDK version.</p>
 </td>
 </tr>
 </tbody>
 </table>
 
-> [!NOTE]Note:
-> Starting from MindIE 2.2.RC1, Ascend HDK will be released together with the hardware. You can obtain the Ascend HDK software package and compatibility information through the following methods:
->
-> 1. Visit the [Huawei Technical Support website](https://support.huawei.com/enterprise/en/category/ascend-computing-pid-1557196528909?submodel=software).
-> 2. Click the name of the hardware you want to view to enter the version list for that hardware, and then select the version you want to view.
-> 3. On the version details page, download required Ascend HDK, and view the version version mapping in the *Atlas xxx Version Mapping* in the "Documentation" tab.
+## Version Compatibility<a name="ZH-CN_TOPIC_0000002532657965"></a>
 
-# Version Compatibility<a name="ZH-CN_TOPIC_0000002532657965"></a>
+The components must be used together. Do not use components of different versions.
 
-All components must be used together as a matched set. Do not mix and match across different versions.
+ **Table 1** Software version compatibility
 
-# Version Usage Note<a name="ZH-CN_TOPIC_0000002501057896"></a>
+| MindIE | CANN | MindCluster | Ascend Extension for PyTorch | CCAE |
+| ------ | ---- | ----------- | ----------------------------- | ---- |
+| 3.0.0 | 8.5.1 | 7.3.0 | 7.3.0 | iMaster CCAE V100R026C00SPC010 |
+
+## Version Usage Note<a name="ZH-CN_TOPIC_0000002501057896"></a>
 
 None.
 
-# 3.0.0 Update<a name="ZH-CN_TOPIC_0000002532737925"></a>
+## 3.0.0 Update<a name="ZH-CN_TOPIC_0000002532737925"></a>
 
-## New Features<a name="ZH-CN_TOPIC_0000002532737923"></a>
+### New Features<a name="ZH-CN_TOPIC_0000002532737923"></a>
 
 <a name="zh-cn_topic_0000002501057442_table1287mcpsimp"></a>
 
@@ -132,7 +118,7 @@ None.
 </tbody>
 </table>
 
-## Changed Features<a name="ZH-CN_TOPIC_0000002500898048"></a>
+### Changed Features<a name="ZH-CN_TOPIC_0000002500898048"></a>
 
 <a name="zh-cn_topic_0000002532657507_table32217714417"></a>
 
@@ -157,7 +143,7 @@ The default output now skips special tokens (<code>skip_special_tokens=True</cod
 </tbody>
 </table>
 
-## Deleted Features<a name="ZH-CN_TOPIC_0000002501057899"></a>
+### Deleted Features<a name="ZH-CN_TOPIC_0000002501057899"></a>
 
 <a name="zh-cn_topic_0000002532657507_table32217714419"></a>
 
@@ -179,7 +165,7 @@ The default output now skips special tokens (<code>skip_special_tokens=True</cod
 </tbody>
 </table>
 
-## Sunset Features
+### Sunset Features
 
 > [!NOTE] Note: The following features will be sunset in one year.
 
@@ -222,7 +208,7 @@ The default output now skips special tokens (<code>skip_special_tokens=True</cod
 </tbody>
 </table>
 
-## API Changes Description<a name="ZH-CN_TOPIC_0000002501057888"></a>
+### API Changes Description<a name="ZH-CN_TOPIC_0000002501057888"></a>
 
 The following documents API changes, including additions, modifications, deprecations, and deletions. Changes reflect only code-level updates, not documentation improvements such as language, formatting, or link adjustments.
 
@@ -233,8 +219,6 @@ The following documents API changes, including additions, modifications, depreca
 - Deprecation: APIs that are no longer evolved as of this release and may be removed after one year.
 
 - Deletion: APIs deleted in this release.
-
-### MindIE LLM API Changes<a name="zh-cn_topic_0000002532737473_section71201630112"></a>
 
 <table><thead align="left"><tr><th class="cellrowborder" valign="top" width="26.267373262673733%"><p>Class Name/API Prototype/Configuration Item</p>
 </th>
@@ -270,7 +254,7 @@ The following documents API changes, including additions, modifications, depreca
 </tbody>
 </table>
 
-## Resolved Issues<a name="ZH-CN_TOPIC_0000002501057892"></a>
+### Resolved Issues<a name="ZH-CN_TOPIC_0000002501057892"></a>
 
 <table><thead align="left"><tr><th class="cellrowborder" valign="top" width="5.267373262673733%"><p>ID</p>
 </th>
@@ -296,7 +280,7 @@ The following documents API changes, including additions, modifications, depreca
 </tbody>
 </table>
 
-## Known Issues<a name="ZH-CN_TOPIC_0000002532737931"></a>
+### Known Issues<a name="ZH-CN_TOPIC_0000002532737931"></a>
 
 <a name="zh-cn_topic_0000002501057426_table42195341814"></a>
 
@@ -339,9 +323,9 @@ The following documents API changes, including additions, modifications, depreca
 </tbody>
 </table>
 
-# Upgrade Impact<a name="ZH-CN_TOPIC_0000002501057894"></a>
+## Upgrade Impact<a name="ZH-CN_TOPIC_0000002501057894"></a>
 
-## Impact on the Current System During the Upgrade<a name="ZH-CN_TOPIC_0000002532657959"></a>
+### Impact on the Current System During the Upgrade<a name="ZH-CN_TOPIC_0000002532657959"></a>
 
 - Impact on Services
   
@@ -351,11 +335,11 @@ The following documents API changes, including additions, modifications, depreca
   
   - No impact on network communication.
 
-## Impact on the Current System After Upgrade<a name="ZH-CN_TOPIC_0000002532657963"></a>
+### Impact on the Current System After Upgrade<a name="ZH-CN_TOPIC_0000002532657963"></a>
 
 None
 
-# Vulnerability Patch List<a name="ZH-CN_TOPIC_0000002500898046"></a>
+## Vulnerability Patch List<a name="ZH-CN_TOPIC_0000002500898046"></a>
 
 | Software Name | Software Version                                                                                                                                   | CVE ID         | Actual CVSS Score | Vulnerability Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    | Resolved Version |
 | ------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- | -------------- | ----------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------- |

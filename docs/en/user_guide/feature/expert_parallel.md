@@ -96,4 +96,4 @@ Example when `ep_level` is set to `1` in the long sequence scenario:
 ## Inference <a name="section1271638122016"></a>
 
 1. Set serving parameters. This feature must be used together with MindIE Motor. Add the corresponding parameters to the serving `config.json` file based on [Parameter Description](#parameter-description). For details about the serving parameters, see [Configuration Parameters (Serving)](../user_manual/service_parameter_configuration.md).
-2. Start the service. For details, see "Quick Start" \> "[Starting the Service](https://gitcode.com/Ascend/MindIE-Motor/blob/v3.0.0/docs/zh/user_guide/quick_start.md)" in *MindIE Motor Developer Guide*.
+2. Start the service. For details, see "Quick Start" \> "[Starting the Service](https://gitcode.com/Ascend/MindIE-Motor/blob/v3.0.0/docs/en/user_guide/quick_start.md)" in *MindIE Motor Developer Guide*.

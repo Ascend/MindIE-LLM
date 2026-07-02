@@ -91,12 +91,14 @@ MindIE LLM supports foundational, quantization, long-sequence, scheduling, accel
         <td>KV cache pooling</td><td>Integrates larger storage media—such as DRAM and even SSDs—into the prefix cache pool to break through VRAM capacity limits. For details, see <a href="./kv_cache_pool.md">KV Cache Pooling</a>. </td><td>Improve the prefix cache hit ratio.</td>
     </tr>
     <tr>
-        <td rowspan="2">Interaction</td><td>Function call</td><td>Supports function calls, enabling the foundation model to use tools. For details, see <a href="./function_call.md">Function Call</a>. </td><td>Enable the use of external tools to expand the application scope.</td>
+        <td rowspan="3">Interaction</td><td>Function call</td><td>Supports function calls, enabling the foundation model to use tools. For details, see <a href="./function_call.md">Function Call</a>. </td><td>Enable the use of external tools to expand the application scope.</td>
     </tr>
     <tr>
         <td>Thinking analysis</td><td>Structurally parses the output of the foundation model and separates the thinking process from the output result. For details, see <a href="./enable_reasoning.md">Thinking Analysis</a>. </td><td>Improve the inference performance in complex scenarios.</td>
     </tr>
-  
+     <tr>
+        <td>Thinking budget</td><td>Controls the depth of model thinking. When the thinking content exceeds the specified thinking_budget, the system uses a prompt to truncate the thinking process. For details, see <a href="./enable_reasoning.md">Thinking Analysis</a>. </td><td>Improved inference performance in complex scenarios.</td>
+    </tr>
     <tr>
         <td rowspan="1">Others</td><td>Offline weight partitioning</td><td>Pre-loads shard weights into tmpfs to optimize large-scale model loading and reduce NPU transfer time. For details, see <a href="./offline_weight_partitioning.md">Offline Weight Partitioning</a>. </td><td>Reduce the time required for loading weights.</td>
     </tr>

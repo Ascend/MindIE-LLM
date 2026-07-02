@@ -36,14 +36,27 @@ The following uses LLaMA3-8B as an example to describe how to perform dialog inf
 
 1. Set the environment variable.
 
-    ```bash
-    # Configure the CANN environment. By default, the CANN is installed in the `/usr/local` directory.
-    source /usr/local/Ascend/cann/set_env.sh
-    # Configure an acceleration library environment.
-    source /usr/local/Ascend/nnal/atb/set_env.sh
-    # Configure the model repository environment variables.
-    source /usr/local/Ascend/atb-models/set_env.sh
-    ```
+   - Using the `.whl` package
+
+      ```bash
+       # Configure the CANN environment. By default, the CANN is installed in the `/usr/local` directory.
+       source /usr/local/Ascend/cann/set_env.sh
+       # Configure an acceleration library environment.
+       source /usr/local/Ascend/nnal/atb/set_env.sh
+       # Configure the model repository environment variables.
+       /usr/local/lib/python3.11/site-packages/mindie_llm/set_env.sh
+       ```
+
+   - Using the `.run` package
+
+       ```bash
+       # Configure the CANN environment. By default, the CANN is installed in the `/usr/local` directory.
+       source /usr/local/Ascend/cann/set_env.sh
+       # Configure an acceleration library environment.
+       source /usr/local/Ascend/nnal/atb/set_env.sh
+       # Configure the model repository environment variables.
+       source /usr/local/Ascend/atb-models/set_env.sh
+       ```
 
 2. Download model weights from the Hugging Face official website and save the downloaded weight file in `/data/Llama-3-8b`.
 3. Run the following command to change the permission on the weight file:
@@ -183,26 +196,48 @@ CANN, PyTorch, Torch-NPU, ATB Models, MindIE LLM, and MindIE Motor have been ins
 ### Example
 
 1. Set the environment variable.
+   If the installation path is the default path, run the following commands to initialize the environment variables of each component:
 
-    If the installation path is the default path, run the following commands to initialize the environment variables of each component:
+   - Using the `.whl` package
 
-    ```bash
-    # Configure the CANN environment. By default, the CANN is installed in the `/usr/local` directory.
-    source /usr/local/Ascend/cann/set_env.sh
-    # Configure an acceleration library environment.
-    source /usr/local/Ascend/nnal/atb/set_env.sh
-    # Configure the model repository environment variables.
-    source /usr/local/Ascend/atb-models/set_env.sh
-    # MindIE
-    source /usr/local/Ascend/mindie/latest/mindie-llm/set_env.sh
-    source /usr/local/Ascend/mindie/latest/mindie-service/set_env.sh
-    ```
+      ```bash
+       # Configure the CANN environment. By default, the CANN is installed in the `/usr/local` directory.
+       source /usr/local/Ascend/cann/set_env.sh
+       # Configure an acceleration library environment.
+       source /usr/local/Ascend/nnal/atb/set_env.sh
+       # Configure the model repository environment variables.
+       /usr/local/lib/python3.11/site-packages/mindie_llm/set_env.sh
+       ```
+
+   - Using the `.run` package
+
+       ```bash
+       # Configure the CANN environment. By default, the CANN is installed in the `/usr/local` directory.
+       source /usr/local/Ascend/cann/set_env.sh
+       # Configure an acceleration library environment.
+       source /usr/local/Ascend/nnal/atb/set_env.sh
+       # Configure the model repository environment variables.
+       source /usr/local/Ascend/atb-models/set_env.sh
+       # MindIE
+       source /usr/local/Ascend/mindie/latest/mindie-llm/set_env.sh
+       source /usr/local/Ascend/mindie/latest/mindie-service/set_env.sh
+       ```
 
 2. Start serving and send a request.
 
-    For details about how to use the MindIE serving, see "Quick Start" \> "[Starting the Service](https://gitcode.com/Ascend/MindIE-Motor/blob/v3.0.0/docs/zh/user_guide/quick_start.md)" in *MindIE Motor Development Guide*. For details about how to configure serving parameters, see [Configuration Parameters (Serving)](service_parameter_configuration.md).
+    For details about how to use the MindIE serving, see "Quick Start" \> "[Starting the Service](https://gitcode.com/Ascend/MindIE-Motor/blob/v3.0.0/docs/en/user_guide/quick_start.md)" in *MindIE Motor Development Guide*. For details about how to configure serving parameters, see [Configuration Parameters (Serving)](service_parameter_configuration.md).
 
     In serving configurations, ATB Models is used as the model backend by default.
+
+    - Using the `.whl` package
+  
+    ```bash
+    vim /usr/local/lib/python3.11/site-packages/mindie_llm/conf_/config.json
+    # The default value of ModelDeployConfig.ModelConfig.backendType is atb.
+    "backendType": "atb"
+    ```
+
+    - Using the `.run` package
 
     ```bash
     vim /usr/local/Ascend/mindie/latest/mindie-service/conf/config.json

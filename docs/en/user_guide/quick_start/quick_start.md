@@ -20,9 +20,9 @@ Install NPU driver and firmware and deploy Docker on a physical machine. You can
 
     **Table 1** Atlas A2 inference products<a id="table1"></a>
 
-    |Product Model      |Reference Document|
+    |Product Model |Reference Document|
     |------------|------------|
-    |Atlas 800I A2|"Installation and Uninstallation in a Physical Machine" in *Atlas A2 Center Inference and Training Hardware 24.1.0 NPU Driver and Firmware Installation Guide*|
+    | Atlas 800I A2 | Download the [firmware and driver](https://hiascend.com/hardware/firmware-drivers/community). For details about how to install the firmware and driver, see "[Installing the NPU Driver and Firmware](https://www.hiascend.com/document/detail/en/canncommercial/850/softwareinst/instg/instg_0005.html?Mode=PmIns&InstallType=local&OS=openEuler)" in CANN Software Installation (commercial edition). |
 
 - Check whether Docker has been installed and started. For details about how to install Docker, see [Installing Docker](../install/source/docker_installation.md).
 

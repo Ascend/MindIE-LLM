@@ -70,8 +70,17 @@ The LoRA weight files must include the `adapter_config.json` and `adapter_model.
 
     1. Open the `config.json` file of the server.
 
+       - **Installation using the `.whl` package:**
+
         ```bash
-        cd {MindIE installation directory}/mindie_llm/
+        cd {MindIE_installation_directory}/mindie_llm/
+        vi conf/config.json
+        ```
+
+       - **Installation using the `.run` package:**
+
+        ```bash
+        cd {MindIE_installation_directory}/latest/mindie-service
         vi conf/config.json
         ```
 
@@ -131,8 +140,16 @@ The LoRA weight files must include the `adapter_config.json` and `adapter_model.
 
     3. Start the service.
 
+       - **Installation using the `.whl` package:**
+
         ```bash
         mindie_llm_server
+        ```
+
+       - **Installation using the `.run` package:**
+
+        ```bash
+        ./bin/mindieservice_daemon
         ```
 
     4. Dynamically load, unload, or query LoRA.

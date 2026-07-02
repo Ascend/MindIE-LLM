@@ -237,7 +237,7 @@ If the following information is displayed, the request is sent and the inference
 
 ### Atlas 800I A2 Eight-Server MoE EP Deployment
 
-Obtain the MoE EP initialization script by referring to [MindIE-Motor](https://gitcode.com/Ascend/MindIE-Motor/blob/v3.0.0/docs/zh/user_guide/service_deployment/pd_separation_service_deployment.md#%E5%AE%89%E8%A3%85%E9%83%A8%E7%BD%B2).
+Obtain the MoE EP initialization script by referring to [MindIE-Motor](https://gitcode.com/Ascend/MindIE-Motor/blob/v3.0.0/docs/en/user_guide/service_deployment/pd_separation_service_deployment.md#%E5%AE%89%E8%A3%85%E9%83%A8%E7%BD%B2).
 The deployment directory structure is as follows:
 
 ```shell
