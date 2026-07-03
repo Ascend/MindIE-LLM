@@ -224,7 +224,7 @@ function fn_run_pythontest()
 
     # 等待所有设备测试完成
  	for pid in "${pids[@]}"; do
- 	    wait $pid || true
+ 	    wait $pid
  	done
 
     # 提取每个文件的行覆盖率
@@ -339,7 +339,7 @@ function fn_main()
     fi
 
     for pid in "${pids[@]}"; do
-        wait $pid || true
+        wait $pid
     done
 
     fn_show_coverage
