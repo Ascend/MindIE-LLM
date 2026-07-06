@@ -18,7 +18,7 @@ The complete model porting process includes the following steps:
    └─ Load the model weights and run inference.
 ```
 
-> [!IMPORTANT]
+> [!NOTE]
 >
 > - If the model needs to support the `/chat/completion` API, multi-turn dialog, or ToolCall, implement `InputBuilder`.
 > - If the model needs to support the ToolCall capability, implement `ToolCallsProcessor`.
@@ -45,10 +45,8 @@ mindie_llm/runtime/models/my_model/
 > - When reading the `model_type` field, the framework converts it to lowercase for matching. **The folder name and file name prefix must match the `model_type` field in `config.json`.**
 > - File names must be in lowercase with underscores (snake_case), for example, `model_type = "my_model"` → file path `my_model/my_model.py`.
 > - Class names use PascalCase, for example, `MyModelRouter` and `MyModelConfig`.
-> [!TIP]
-> For details about the matching mechanism, see [mindie_llm/runtime/models/\_\_init\_\_.py](../../../../mindie_llm/runtime/models/__init__.py) and [mindie_llm/runtime/models/base/router.py](../../../../mindie_llm/runtime/models/base/router.py).
-
----
+>
+>   For details about the matching mechanism, see [mindie_llm/runtime/models/\_\_init\_\_.py](../../../../mindie_llm/runtime/models/__init__.py) and [mindie_llm/runtime/models/base/router.py](../../../../mindie_llm/runtime/models/base/router.py).
 
 ## 2. Implementing the Router
 
@@ -134,8 +132,6 @@ class MyModelRouter(BaseRouter):
         return None
 ```
 
----
-
 ## 3. Implementing Config
 
 Config parses and manages the hyperparameter configuration of the model.
@@ -150,7 +146,7 @@ Config parses and manages the hyperparameter configuration of the model.
 
 The `HuggingFaceConfig` base class provides common hyperparameter configurations. New hyperparameter dependencies must be added to `MyModelConfig`.
 
-> [!TIP]
+> [!NOTE]
 > Code reference: [huggingface_config.py](../../../../mindie_llm/runtime/config/huggingface_config.py)
 
 ### 3.3 Implementation Procedure
@@ -190,8 +186,6 @@ class MyModelConfig(HuggingFaceConfig):
         )
 ```
 
----
-
 ## 4. Implementing a Model
 
 ### 4.1 Model Hierarchy
@@ -228,7 +222,7 @@ All model layers should inherit from `nn.Module` and implement corresponding API
 
 > [!NOTE]
 > For the `forward` method, you can either call the layer module's `forward` implementation or use `torch` and `torch_npu` APIs.
-> [!TIP]
+>
 > **For details about layer-related modules, see:**
 >
 > - Linear Layer: [mindie_llm/runtime/layers/linear/](../../../../mindie_llm/runtime/layers/linear/)
@@ -301,7 +295,7 @@ class MyModelForCausalLM(BaseModelForCausalLM):
         ...
 ```
 
-> [!IMPORTANT]
+> [!NOTE]
 > **Precautions for weight loading**:
 >
 > The weight name of a module is preferentially defined by the `prefix` field. If the `prefix` field is not defined, the attribute name of the module is used for matching.
@@ -343,8 +337,6 @@ class MyModelInputBuilder(InputBuilder):
             raise RuntimeError("Tokenizer does not support apply_chat_template.")
         return self.tokenizer.apply_chat_template(conversation, **kwargs)
 ```
-
----
 
 ## 6. (Optional) Implementing the ToolCalls Capability
 
@@ -398,16 +390,12 @@ class ToolCallsProcessorMyModel(ToolCallsProcessorWithXml):
         return self._tool_calls_regex
 ```
 
-> [!TIP]
+> [!NOTE]
 > The `@ToolCallsProcessorManager.register_module(module_names=["my_model"])` decorator registers the current processor with the global manager. The router searches for the corresponding processor based on the name (for example, `"my_model"`) returned by `_get_tool_calls_parser()`. There can be one or more registration names. For example, `module_names=["model_a", "model_b"]` allows the same processor to support multiple models.
-
----
 
 ## 7. Test and verification
 
 For details about the test and verification, see [Quick Start](../../user_guide/quick_start/quick_start.md).
-
----
 
 ## 8. FAQs
 
@@ -422,7 +410,7 @@ If the model is too large to fit on a single device, you can use tensor parallel
 - `MergedColumnParallelLinear`: combines multiple `ColumnParallelLinear` modules. It is typically used for the first layer of the FFN with a weighted activation function (such as SiLU).
 - `QKVParallelLinear`: provides the query, key, and value projections for multi-head and grouped-query attention. When the number of key-value heads is less than the world size, this class correctly copies the key-value heads.
 
-> [!TIP]
+> [!NOTE]
 >
 > - `MergedColumnParallelLinear` supports mixed quantization schemes. When the quantization modes of multiple parallel linear layers are different, it falls back to a list of `ColumnParallelLinear` modules.
 > - The framework provides a `ParallelInfoManager` singleton to obtain the number of parallel size and ranks. The communication domain is created using the lazy loading mechanism. You can obtain parallel information through `get_parallel_info_manager().get(ParallelType.ATTN_TP).group_size`.
@@ -442,8 +430,6 @@ MindIE-LLM automatically handles MoE expert parallelism:
 
 MindIE-LLM supports the AutoQuant capability. For details about the currently supported quantization modes, see the [mindie_llm/runtime/layers/quantization/](../../../../mindie_llm/runtime/layers/quantization/) directory. After the [msmodelslim](https://gitcode.com/Ascend/msmodelslim) tool is used to generate quantized weights, the framework automatically identifies and loads them.
 
----
-
 ## 9. References
 
 ### 9.1 Code Reference
@@ -459,8 +445,3 @@ You are advised to refer to DeepSeek V3.2 implementation to understand the compl
 - **CANN**: [Documentation community edition](https://www.hiascend.com/cann/document)
 - **PyTorch**: [Ascend Extension for PyTorch](https://www.hiascend.com/document/detail/zh/Pytorch/730/index/index.html)
 - **msmodelslim**: [Model Quantization Tool](https://gitcode.com/Ascend/msmodelslim)
-
----
-
-**Issue**: v1.0
-**Last updated**: 2026-03-20
