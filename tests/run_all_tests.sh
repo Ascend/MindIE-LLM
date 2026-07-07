@@ -139,10 +139,11 @@ function fn_build_coverage()
     $LCOV_PATH -c -d $GCOV_CACHE_DIR -o $GCOV_INFO_DIR/cover.info --rc lcov_branch_coverage=1 >> $GCOV_DIR/log.txt --rc lcov_excl_br_line='MINDIE_LLM_LOG_*'
     $LCOV_PATH -a $GCOV_INFO_DIR/init.info -a $GCOV_INFO_DIR/cover.info -o $GCOV_INFO_DIR/total.info --rc lcov_branch_coverage=1 >> $GCOV_DIR/log.txt
     $LCOV_PATH --remove $GCOV_INFO_DIR/total.info '*/third_party/*' '*torch/*' '*c10/*' '*ATen/*' '*cpu_logits_handler/*' '*/c++/7*' '*/llm_backend/*' '*/src/*' '*tests/*' '*tools/*' '/usr/*' '*ascend-transformer-boost/*' '*python_api/*' '*/server/* */src/utils/common_util.cpp ' '*/mindie_llm/text_generator/cpp/*' '*connector/cpp/*' -o $GCOV_INFO_DIR/final.info --rc lcov_branch_coverage=1 >> $GCOV_DIR/log.txt
-    $GENHTML_PATH --rc lcov_branch_coverage=1 -o cover_result $GCOV_INFO_DIR/final.info -o cover_result >> $GCOV_DIR/log.txt
+    $GENHTML_PATH --rc lcov_branch_coverage=1 -o cover_result $GCOV_INFO_DIR/final.info -o cover_result >> $GCOV_DIR/log.txt || true
     tail -n 4 $GCOV_DIR/log.txt
     cd $OUTPUT_DIR
     tar -czf gcov.tar.gz gcov
+    touch result.txt
 
     coverage_info=$($LCOV_PATH --list-full-path --list $GCOV_INFO_DIR/final.info --rc lcov_branch_coverage=1)
 
