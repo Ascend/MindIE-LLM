@@ -228,8 +228,6 @@ class DmiConfig(BaseConfig):
         self.remote_unlink_cluster_id = {}
         self.remote_unlink_device_ips = {}
 
-        self.dp_inst_id_to_cluster_id = {}
-
     def init_dmi_config(self):
         self.role = self.parse("role", required=True)
         if (
@@ -379,6 +377,8 @@ class DmiConfig(BaseConfig):
             return
         remote_link_ranks = self.link_map[rank_mode]
 
+        new_dp_inst_id_to_cluster_id = {}
+
         for i in range(0, link_num):
             link_device = device_info[i]
             dp_instance_id = int(link_device[0][8])
@@ -404,7 +404,7 @@ class DmiConfig(BaseConfig):
                 else:
                     cluster_id = dp_instance_id
 
-                self.dp_inst_id_to_cluster_id.setdefault(dp_instance_id, []).append(cluster_id)
+                new_dp_inst_id_to_cluster_id.setdefault(dp_instance_id, []).append(cluster_id)
                 # 计算实际的 device 索引
                 device_index = device_start + remote_rank
                 link_device_ip = ip_array_to_string(link_device[device_index][:8])
@@ -439,6 +439,7 @@ class DmiConfig(BaseConfig):
         for i in range(link_num, link_num + unlink_num):
             unlink_device = device_info[i]
             dp_instance_id = int(unlink_device[0][8])
+            self.dp_inst_id_to_cluster_id.pop(dp_instance_id, None)
             device_start = host_ip_per_dp if is_cross_machine else 1
             instance_id = dp_instance_id if self.dp_size == 1 else dp_instance_id // 10000
             if instance_id not in self.remote_unlink_cluster_id.keys():
@@ -465,3 +466,5 @@ class DmiConfig(BaseConfig):
             f"remote_unlink_device_ips = {self.remote_unlink_device_ips}."
         )
         logger.info(log_msg)
+
+        self.dp_inst_id_to_cluster_id.update(new_dp_inst_id_to_cluster_id)
