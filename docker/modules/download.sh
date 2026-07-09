@@ -115,21 +115,37 @@ download_mindie_llm() {
     fi
 }
 
+download_mindie_sd() {
+    local mindie_sd_ver="$1" arch="$2" cp_tag="$3"
+    local url
+    url=$(url_mindie_sd_whl "$mindie_sd_ver" "$arch" "$cp_tag")
+    _download_file "$url" "mindiesd-${mindie_sd_ver}-${cp_tag}-${cp_tag}-linux_${arch}.whl"
+}
+
+download_mindie_motor() {
+    local mindie_motor_ver="$1" arch="$2" cp_tag="$3"
+    local url
+    url=$(url_mindie_motor_whl "$mindie_motor_ver" "$arch" "$cp_tag")
+    _download_file "$url" "mindie_motor-${mindie_motor_ver}-${cp_tag}-${cp_tag}-linux_${arch}.whl"
+}
+
 # ---------- orchestration ----------
 
 download_all() {
     local os="$1" chip="$2" arch="$3" type_="$4"
     local cann_ver="$5" mindie_llm_ver="$6" atb_llm_ver="$7"
-    local pta_tag="$8" python_ver="$9"
+    local pta_tag="$8" python_ver="$9" mindie_sd_ver="${10}" mindie_motor_ver="${11}"
 
     local cp_tag
     cp_tag=$(get_cp_tag "$python_ver")
 
     mkdir -p "$DOWNLOAD_DIR"
 
-    log_info "========== Download START (6 parallel) =========="
+    # 8 parallel downloads maximum (sd/motor are no-ops for run type)
+    local num_downloads=8
+    log_info "========== Download START (${num_downloads} parallel) =========="
 
-    # Run all 6 downloads in parallel, collect exit codes via temp files
+    # Run all downloads in parallel, collect exit codes via temp files
     local tmpdir
     tmpdir=$(mktemp -d)
     local pids=()
@@ -150,7 +166,13 @@ download_all() {
     (download_cann_kernels "$cann_ver" "$arch" "$chip"; echo $? >"$tmpdir/rc_cann_kernels") & pids+=($!)
 
     # 6. mindie llm
-    (download_mindie_llm "$mindie_llm_ver" "$atb_llm_ver" "$arch" "$cp_tag" "$type_"; echo $? >"$tmpdir/rc_mindie") & pids+=($!)
+    (download_mindie_llm "$mindie_llm_ver" "$atb_llm_ver" "$arch" "$cp_tag" "$type_"; echo $? >"$tmpdir/rc_mindie_llm") & pids+=($!)
+
+    # 7. mindie sd
+    (download_mindie_sd "$mindie_sd_ver" "$arch" "$cp_tag"; echo $? >"$tmpdir/rc_mindie_sd") & pids+=($!)
+
+    # 8. mindie motor
+    (download_mindie_motor "$mindie_motor_ver" "$arch" "$cp_tag"; echo $? >"$tmpdir/rc_mindie_motor") & pids+=($!)
 
     # Wait for all background jobs, return first non-zero exit code
     local overall_rc=0
@@ -159,8 +181,8 @@ download_all() {
     done
 
     # Check each exit code
-    local names=("pta" "python_src" "cann_toolkit" "cann_nnal" "cann_kernels" "mindie_llm")
-    local labels=("download_pta" "download_python_src" "download_cann_toolkit" "download_cann_nnal" "download_cann_kernels" "download_mindie_llm")
+    local names=("pta" "python_src" "cann_toolkit" "cann_nnal" "cann_kernels" "mindie_llm" "mindie_sd" "mindie_motor")
+    local labels=("download_pta" "download_python_src" "download_cann_toolkit" "download_cann_nnal" "download_cann_kernels" "download_mindie_llm" "download_mindie_sd" "download_mindie_motor")
     for i in "${!names[@]}"; do
         local rc_file="$tmpdir/rc_${names[$i]}"
         local rc=0

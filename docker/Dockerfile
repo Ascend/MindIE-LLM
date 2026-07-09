@@ -1,7 +1,8 @@
 # ============================================================
-# Dockerfile — MindIE-LLM multi-stage image
+# Dockerfile — MindIE multi-stage image
 # ============================================================
 # Build args drive OS, chip, arch, python, CANN, PTA selection.
+# A5 is not supported.
 # Usage:
 #   docker build --build-arg OS_TYPE=ubuntu --build-arg CHIP=910 \
 #     --build-arg ARCH=x86_64 --build-arg PYTHON_VERSION=3.11.10 \
@@ -101,7 +102,7 @@ RUN set -eux; \
 # ================================================================
 FROM hub.oepkgs.net/openeuler/openeuler:24.03-lts-sp3 AS base-openeuler
 
-ENV LD_LIBRARY_PATH=/usr/local/Ascend/driver/lib64/driver:/usr/local/Ascend/driver/lib64/common:/usr/lib64${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}
+ENV LD_LIBRARY_PATH=/usr/local/Ascend/driver/lib64/driver:/usr/local/Ascend/driver/lib64/common:/usr/lib64
 ENV TZ=Asia/Shanghai
 
 RUN dnf update -y && \
@@ -261,79 +262,146 @@ RUN export TORCH_DEVICE_BACKEND_AUTOLOAD=0 && \
     wait
 
 # ================================================================
-# Stage 5: MindIE-LLM
+# Stage 5: MindIE
 # ================================================================
 FROM mindstudio AS mindie
 
 ARG PYTHON_SHORT_VERSION
-ARG MINDIE_LLM_VERSION
-ARG ATB_LLM_VERSION
+ARG MINDIE_VERSION
 ARG ARCH
 ARG PKG_TYPE
 
-# Persist version for entrypoint banner
-ENV MINDIE_LLM_VER=${MINDIE_LLM_VERSION}
+# Persist version for agreement banner
+ENV MINDIE_VER=${MINDIE_VERSION}
 
 ENV PYTHON_SITE_PACKAGES=/usr/local/lib/python3.11/site-packages
-ENV MINDIE_LLM_HOME_PATH=${PYTHON_SITE_PACKAGES}/mindie_llm
-ENV LD_LIBRARY_PATH=${PYTHON_SITE_PACKAGES}/mindie_llm/lib:${PYTHON_SITE_PACKAGES}/mindie_llm/lib/grpc:$LD_LIBRARY_PATH
-ENV PYTHONPATH=${PYTHON_SITE_PACKAGES}/mindie_llm:${PYTHON_SITE_PACKAGES}/mindie_llm/lib:$PYTHONPATH
 
-ENV ATB_SPEED_HOME_PATH=${PYTHON_SITE_PACKAGES}/atb_llm
-ENV LD_LIBRARY_PATH=${PYTHON_SITE_PACKAGES}/atb_llm/lib:$LD_LIBRARY_PATH
-ENV PYTHONPATH=${PYTHON_SITE_PACKAGES}/atb_llm:$PYTHONPATH
-ENV PYTORCH_INSTALL_PATH=${PYTHON_SITE_PACKAGES}/torch
-ENV PYTORCH_NPU_INSTALL_PATH=${PYTHON_SITE_PACKAGES}/torch_npu
+# --------------------------------------------
+# mindie-sd
+# --------------------------------------------
+ENV ASCEND_CUSTOM_OPP_PATH=${PYTHON_SITE_PACKAGES}/mindiesd/ops/vendors/customize:${PYTHON_SITE_PACKAGES}/mindiesd/ops/vendors/aie_ascendc${ASCEND_CUSTOM_OPP_PATH:+:${ASCEND_CUSTOM_OPP_PATH}}
 
-ENV MINDIE_LLM_CONTINUOUS_BATCHING=1
-ENV MINDIE_LLM_RECOMPUTE_THRESHOLD=0.5
-ENV TASK_QUEUE_ENABLE=1
-ENV ATB_OPERATION_EXECUTE_ASYNC=1
-ENV ATB_CONTEXT_HOSTTILING_RING=1
-ENV ATB_CONTEXT_HOSTTILING_SIZE=102400
-ENV ATB_USE_TILING_COPY_STREAM=0
-ENV ATB_OPSRUNNER_KERNEL_CACHE_LOCAL_COUNT=1
-ENV ATB_OPSRUNNER_KERNEL_CACHE_GLOABL_COUNT=16
+# --------------------------------------------
+# mindie-motor (mindie-service)
+# --------------------------------------------
+ENV MIES_INSTALL_PATH=${PYTHON_SITE_PACKAGES}/mindie_motor \
+    LD_LIBRARY_PATH=${PYTHON_SITE_PACKAGES}/mindie_motor/lib:${PYTHON_SITE_PACKAGES}/mindie_motor/lib/grpc:$LD_LIBRARY_PATH \
+    PYTHONPATH=${PYTHON_SITE_PACKAGES}/mindie_motor/bin:$PYTHONPATH
 
-ENV MINDIE_LOG_TO_STDOUT=0
-ENV MINDIE_LOG_TO_FILE=1
-ENV ASCEND_SLOG_PRINT_TO_STDOUT=0
-ENV ASCEND_GLOBAL_LOG_LEVEL=3
-ENV ASCEND_GLOBAL_EVENT_ENABLE=0
-ENV ATB_LOG_TO_FILE_FLUSH=0
-ENV ASDOPS_LOG_TO_FILE=0
-ENV ASDOPS_LOG_TO_STDOUT=0
-ENV ASDOPS_LOG_LEVEL=ERROR
-ENV HCCL_BUFFSIZE=120
+ENV ATB_OPERATION_EXECUTE_ASYNC=1 \
+    TASK_QUEUE_ENABLE=1 \
+    HCCL_BUFFSIZE=120 \
+    MINDIE_LOG_TO_STDOUT=0 \
+    MINDIE_LOG_TO_FILE=1 \
+    ASCEND_SLOG_PRINT_TO_STDOUT=0 \
+    ASCEND_GLOBAL_LOG_LEVEL=3 \
+    ASCEND_GLOBAL_EVENT_ENABLE=0 \
+    ATB_LOG_TO_FILE_FLUSH=0 \
+    ASDOPS_LOG_TO_FILE=0 \
+    ASDOPS_LOG_TO_STDOUT=0 \
+    ASDOPS_LOG_LEVEL=ERROR
 
-# install mindie-llm: whl or run package
-RUN if [ "$PKG_TYPE" = "whl" ]; then \
+# --------------------------------------------
+# mindie-llm
+# --------------------------------------------
+ENV MINDIE_LLM_HOME_PATH=${PYTHON_SITE_PACKAGES}/mindie_llm \
+    LD_LIBRARY_PATH=${PYTHON_SITE_PACKAGES}/mindie_llm/lib:${PYTHON_SITE_PACKAGES}/mindie_llm/lib/grpc:$LD_LIBRARY_PATH \
+    PYTHONPATH=${PYTHON_SITE_PACKAGES}/mindie_llm:${PYTHON_SITE_PACKAGES}/mindie_llm/lib:$PYTHONPATH
+
+ENV MINDIE_LLM_CONTINUOUS_BATCHING=1 \
+    MINDIE_LLM_RECOMPUTE_THRESHOLD=0.5
+
+# --------------------------------------------
+# atb-llm
+# --------------------------------------------
+ENV ATB_SPEED_HOME_PATH=${PYTHON_SITE_PACKAGES}/atb_llm \
+    LD_LIBRARY_PATH=${PYTHON_SITE_PACKAGES}/atb_llm/lib:$LD_LIBRARY_PATH \
+    PYTHONPATH=${PYTHON_SITE_PACKAGES}/atb_llm:$PYTHONPATH \
+    PYTORCH_INSTALL_PATH=${PYTHON_SITE_PACKAGES}/torch \
+    PYTORCH_NPU_INSTALL_PATH=${PYTHON_SITE_PACKAGES}/torch_npu
+
+ENV TASK_QUEUE_ENABLE=1 \
+    ATB_OPERATION_EXECUTE_ASYNC=1 \
+    ATB_CONTEXT_HOSTTILING_RING=1 \
+    ATB_CONTEXT_HOSTTILING_SIZE=102400 \
+    ATB_USE_TILING_COPY_STREAM=0 \
+    ATB_OPSRUNNER_KERNEL_CACHE_LOCAL_COUNT=1 \
+    ATB_OPSRUNNER_KERNEL_CACHE_GLOABL_COUNT=16
+
+# Install triton-ascend + MindIE components
+RUN pip install triton-ascend==3.2.1 \
+        --extra-index-url https://triton-ascend.osinfra.cn/pypi/simple \
+        --trusted-host triton-ascend.osinfra.cn && \
+    if [ "$PKG_TYPE" = "whl" ]; then \
         cd /opt/package && \
         old_umask=$(umask); umask 027; \
-        pip install *.whl --no-deps; \
-        ln -sf /usr/local/bin/mindie_llm_server /usr/local/bin/mindieservice_daemon; \
-        umask $old_umask; \
-        mkdir -p ${MINDIE_LLM_HOME_PATH}/logs; \
-        chmod 750 ${MINDIE_LLM_HOME_PATH}/logs; \
+        pip install *.whl --no-deps && \
+        ln -sf /usr/local/bin/mindie_llm_server /usr/local/bin/mindieservice_daemon && \
+        ln -sf /usr/local/bin/mindie_motor_coordinator /usr/local/bin/ms_coordinator && \
+        ln -sf /usr/local/bin/mindie_motor_controller /usr/local/bin/ms_controller && \
+        umask $old_umask && \
+        mkdir -p ${MINDIE_LLM_HOME_PATH}/logs && \
+        chmod 750 ${MINDIE_LLM_HOME_PATH}/logs && \
+        mkdir -p ${MIES_INSTALL_PATH}/conf && \
+        cp -f ${MINDIE_LLM_HOME_PATH}/conf/config.json ${MIES_INSTALL_PATH}/conf/config.json && \
+        chmod 550 ${MIES_INSTALL_PATH}/examples/kubernetes_deploy_scripts/boot_helper/* && \
+        chmod 640 ${MIES_INSTALL_PATH}/examples/kubernetes_deploy_scripts/boot_helper/boot.sh && \
+        chmod 500 ${MIES_INSTALL_PATH}/scripts/http_client_ctl/* && \
+        chmod 700 /root && \
+        rm -f /opt/package/*.whl; \
     else \
         cd /opt/package && \
         chmod +x *.run && \
-        ./*.run --install -q; \
+        ./*.run --install -q && \
+        rm -f /opt/package/*.run; \
     fi && \
-    pip cache purge && \
-    rm -f /opt/package/*.whl /opt/package/*.run
+    pip cache purge
 
-ENV LD_LIBRARY_PATH=/usr/lib64:$LD_LIBRARY_PATH
+# Shared object path fallback
+ENV LD_LIBRARY_PATH=/usr/local/Ascend/driver/lib64:/usr/lib64:$LD_LIBRARY_PATH
+
+# --------------------------------------------
+# Static initialization (users, dirs, perms)
+# Common to all supported chips (310 / 910 / A3).
+# --------------------------------------------
+RUN mkdir -m 750 /var/driver && \
+    mkdir -m 750 /var/dmp && \
+    mkdir -m 750 /usr/slog && \
+    mkdir -m 755 /home/drv && \
+    mkdir -m 750 /home/drv/hdc_ppc && \
+    mkdir -m 750 -p /var/log/npu/slog && \
+    ldconfig && \
+    ln -sf /lib /lib64 && \
+    userdel -r ubuntu || true && \
+    groupadd -g 1000 HwHiAiUser && useradd -u 1000 -g HwHiAiUser -d /home/HwHiAiUser -m HwHiAiUser && \
+    groupadd -g 1101 HwDmUser && useradd -u 1101 -g HwDmUser -d /home/HwDmUser -m HwDmUser && \
+    groupadd -g 1102 HwBaseUser && useradd -u 1102 -g HwBaseUser -d /home/HwBaseUser -m HwBaseUser && \
+    groupadd -g 1100 HwSysUser && useradd -u 1100 -g HwSysUser -d /home/HwSysUser -m HwSysUser && \
+    usermod -a -G HwBaseUser HwHiAiUser && \
+    usermod -a -G HwDmUser HwHiAiUser && \
+    usermod -a -G HwBaseUser HwDmUser && \
+    usermod -a -G HwHiAiUser HwDmUser && \
+    usermod -a -G HwSysUser HwSysUser && \
+    chown HwDmUser:HwDmUser /var/dmp && \
+    chown HwHiAiUser:HwHiAiUser /var/driver && \
+    chown HwHiAiUser:HwHiAiUser /usr/slog && \
+    chown HwHiAiUser:HwHiAiUser /home/drv/hdc_ppc && \
+    chown HwHiAiUser:HwHiAiUser /var/log/npu/slog
 
 # Copy entrypoint script and license
 COPY entrypoint.sh /usr/local/bin/entrypoint.sh
 COPY LICENSE /opt/mindie/LICENSE
-
 RUN chmod +x /usr/local/bin/entrypoint.sh
 
-# License fallback: if entrypoint is overridden (e.g. --entrypoint=bash),
-# ~/.bashrc prints the license on every interactive shell start.
-RUN printf '\n# MindIE-LLM license fallback\ncat /opt/mindie/LICENSE 2>/dev/null || true\n' >> /root/.bashrc
+# Agreement banner (printed by entrypoint on every container start)
+WORKDIR /workspace
+RUN printf '%s\n' \
+    "Version: ${MINDIE_VERSION}" \
+    "Container image Copyright (c) 2026, Huawei Technologies Co., Ltd. All rights reserved." \
+    "This container image and its contents are governed by the Huawei Container License Agreement (\"License\"). By pulling and using the container, you accept the terms and conditions of this License." \
+    "A copy of this License is made available in this container at: https://www.hiascend.com/en/legal/ascendhub-download" \
+    "Note: You agree and undertake that when using Huawei or third-party software in this image, you will comply with the license agreement of the corresponding Huawei or third-party software." \
+    > /workspace/agreement.txt
 
 ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
-CMD ["bash"]
+CMD ["/bin/bash"]

@@ -1,27 +1,31 @@
-# MindIE-LLM
+# MindIE Docker
 
 > [English](./OVERVIEW.md) | 中文
 
+提供自动化构建脚本和多阶段 Dockerfile，支持从编译包构建 MindIE 推理服务镜像。构建流程涵盖 Python 编译、CANN 工具链安装、PyTorch/torch_npu（PTA）部署、以及 MindIE 组件安装（LLM / SD / Motor），并支持 8 路并行下载加速。
+
 ## 快速参考
 
-- MindIE-LLM 由 [MindIE community](https://www.hiascend.com/cn/developer/software/mindie) 维护
+- MindIE 由 [MindIE community](https://www.hiascend.com/cn/developer/software/mindie) 维护
 
 - 从哪里获取帮助
 
     - [MindIE 镜像仓库](https://www.hiascend.com/developer/ascendhub/detail/af85b724a7e5469ebd7ea13c3439d48f)
     - [MindIE-LLM 仓库](https://gitcode.com/Ascend/MindIE-LLM)
+    - [MindIE-SD 仓库](https://gitcode.com/Ascend/MindIE-SD)
+    - [MindIE-Motor 仓库](https://gitcode.com/Ascend/MindIE-Motor)
     - [昇腾开发者社区](https://www.hiascend.com/developer)
     - [问题反馈](https://gitcode.com/Ascend/MindIE-LLM/issues)
 
 ---
 
-## MindIE-LLM
+## MindIE
 
-**MindIE LLM**是昇腾的大语言模型推理加速套件，旨在通过深度优化的模型库和推理优化器，专门提升大模型在昇腾硬件上的推理性能和易用性。MindIE LLM基于昇腾硬件，提供业界通用大模型推理能力，多并发请求的调度，包含Continuous Batching、PagedAttention、FlashDecoding等加速特性，使能用户高性能推理需求。
+**MindIE** 是昇腾的推理加速套件，旨在通过深度优化的模型库和推理优化器，专门提升大模型在昇腾硬件上的推理性能和易用性。MindIE 基于昇腾硬件，提供业界通用大模型推理能力，多并发请求的调度，包含 Continuous Batching、PagedAttention、FlashDecoding 等加速特性，使能用户高性能推理需求。套件包含：
 
-## MindIE-LLM Docker
-
-提供自动化构建脚本和多阶段 Dockerfile，支持从编译包构建 MindIE-LLM 推理服务镜像。构建流程涵盖 Python 编译、CANN 工具链安装、PyTorch/torch_npu（PTA）部署、以及 MindIE-LLM 服务安装，并支持 6 路并行下载加速。
+- **MindIE LLM** — 大语言模型推理
+- **MindIE SD** — Stable Diffusion 图像生成
+- **MindIE Motor** — 推理服务编排
 
 ---
 
@@ -29,11 +33,11 @@
 
 | 文件 | 说明 |
 |------|------|
-| `build.sh` | 主入口脚本，负责参数解析、校验、下载编排与构建调用 |
-| `Dockerfile` | 多阶段 Docker 构建文件（7 个阶段） |
-| `modules/config.sh` | 集中配置：URL 模板、日志、校验、架构检测、Chip/OS 元数据 |
-| `modules/download.sh` | 下载层：6 路并行下载 PTA / Python / CANN / MindIE-LLM 包 |
-| `modules/build_image.sh` | 构建编排层：镜像 Tag 计算、Docker 构建、镜像导出 |
+| [build.sh](./build.sh) | 主入口脚本，负责参数解析、校验、下载编排与构建调用 |
+| [Dockerfile](./Dockerfile) | 多阶段 Docker 构建文件（7 个阶段） |
+| [modules/config.sh](./modules/config.sh) | 集中配置：URL 模板、日志、校验、架构检测、Chip/OS 元数据 |
+| [modules/download.sh](./modules/download.sh) | 下载层：8 路并行下载 PTA / Python / CANN / MindIE-LLM / MindIE-SD / MindIE-Motor 包 |
+| [modules/build_image.sh](./modules/build_image.sh) | 构建编排层：镜像 Tag 计算、Docker 构建、镜像导出 |
 
 ---
 
@@ -44,12 +48,12 @@
 Tag 遵循以下格式：
 
 ```text
-mindie-llm:<MindIE-LLM版本>-<产品系列>-<python版本>-<操作系统>-<架构类型>
+mindie:<MindIE版本>-<产品系列>-<python版本>-<操作系统>-<架构类型>
 ```
 
 | 字段 | 示例值 | 说明 |
 |------|--------|------|
-| `MindIE-LLM版本` | `3.0.0` | MindIE-LLM 版本号 |
+| `MindIE版本` | `3.0.0` | MindIE 版本号（驱动 LLM / SD / Motor） |
 | `产品系列` | `800I-A2`、`800I-A3`、`300I-Duo` | 目标昇腾产品系列 |
 | `python版本` | `py3.11` | Python 版本 |
 | `操作系统` | `ubuntu24.04`、`openeuler` | 基础操作系统 |
@@ -57,7 +61,7 @@ mindie-llm:<MindIE-LLM版本>-<产品系列>-<python版本>-<操作系统>-<架�
 
 ### 镜像仓库地址
 
-MindIE-LLM 镜像支持通过镜像仓库加速拉取基础镜像：
+MindIE 镜像支持通过镜像仓库加速拉取基础镜像：
 
 ```text
 swr.cn-north-4.myhuaweicloud.com/inference
@@ -66,7 +70,7 @@ swr.cn-north-4.myhuaweicloud.com/inference
 **完整镜像示例：**
 
 ```text
-mindie-llm:3.0.0-800I-A2-py3.11-ubuntu24.04-x86_64
+mindie:3.0.0-800I-A2-py3.11-ubuntu24.04-x86_64
 ```
 
 ### 产品系列映射
@@ -88,7 +92,7 @@ mindie-llm:3.0.0-800I-A2-py3.11-ubuntu24.04-x86_64
 | `--os` | 服务器操作系统 | 是 | — | ubuntu / openeuler |
 | `--chip` | 昇腾设备型号 | 是 | — | 310 / 910 / A3 |
 | `--arch` | 系统架构 | 是 | — | x86_64 / aarch64 |
-| `--mindie-llm` | MindIE-LLM 版本号 | 是 | — | 3.0.0 |
+| `--mindie` | MindIE 版本号（驱动 LLM / SD / Motor） | 是 | — | 3.0.0 |
 | `--cann` | CANN 版本号 | 是 | — | 9.0.0 |
 | `--pta-tag` | PTA 发布 Tag | 是 | — | v26.0.0-pytorch2.9.0 |
 | `--type` | 包类型 | 否 | `whl` | whl / run |
@@ -101,7 +105,7 @@ mindie-llm:3.0.0-800I-A2-py3.11-ubuntu24.04-x86_64
 
 2. pta-tag 参见 [Pytorch-NPU 社区](https://gitcode.com/Ascend/pytorch/releases)
 
-3. mindie-llm 版本号参见 [MindIE-LLM 社区](https://gitcode.com/Ascend/MindIE-LLM/releases)
+3. mindie 版本号参见 [MindIE-LLM 社区](https://gitcode.com/Ascend/MindIE-LLM/releases) / [MindIE-SD 社区](https://gitcode.com/Ascend/MindIE-SD/releases) / [MindIE-Motor 社区](https://gitcode.com/Ascend/MindIE-Motor/releases)
 
 ---
 
@@ -115,7 +119,7 @@ mindie-llm:3.0.0-800I-A2-py3.11-ubuntu24.04-x86_64
 
 ---
 
-### 构建 MindIE-LLM 镜像
+### 构建 MindIE 镜像
 
 在 `docker` 目录下执行构建脚本：
 
@@ -125,7 +129,7 @@ bash build.sh \
     --os=ubuntu \
     --chip=910 \
     --arch=x86_64 \
-    --mindie-llm=3.0.0 \
+    --mindie=3.0.0 \
     --cann=9.0.0 \
     --pta-tag=v26.0.0-pytorch2.9.0
 
@@ -134,7 +138,7 @@ bash build.sh \
     --os=openeuler \
     --chip=310 \
     --arch=aarch64 \
-    --mindie-llm=3.0.0 \
+    --mindie=3.0.0 \
     --cann=9.0.0 \
     --pta-tag=v26.0.0-pytorch2.9.0 \
     --type=run \
@@ -145,7 +149,7 @@ bash build.sh \
     --os=ubuntu \
     --chip=910 \
     --arch=x86_64 \
-    --mindie-llm=3.0.0 \
+    --mindie=3.0.0 \
     --cann=9.0.0 \
     --pta-tag=v26.0.0-pytorch2.9.0 \
     --dry-run
@@ -156,13 +160,15 @@ bash build.sh \
 构建过程依次完成以下步骤：
 
 1. **参数解析与校验** — `build.sh` 解析命令行参数，调用 `config.sh` 校验 OS/Chip/Arch/Type 合法性。
-2. **并行下载（6 路）** — `download.sh` 并行下载以下组件：
+2. **并行下载（8 路）** — `download.sh` 并行下载以下组件：
    - PTA（torch_npu wheel）
    - Python 源码包（仅 Ubuntu，openEuler 跳过）
    - CANN Toolkit
    - CANN NNAL
    - CANN Kernels（芯片相关算子包）
    - MindIE-LLM 包（whl 或 run）
+   - MindIE-SD 包（仅 whl）
+   - MindIE-Motor 包（仅 whl）
 3. **Docker 多阶段构建** — `build_image.sh` 调用 `Dockerfile` 执行 7 阶段构建：
    - **Stage 1a (base-ubuntu):** Ubuntu 24.04 + 从源码编译 Python
    - **Stage 1b (base-openeuler):** OpenEuler 24.03 + 预装 Python
@@ -170,7 +176,7 @@ bash build.sh \
    - **Stage 3 (cann):** 安装 CANN Toolkit + Kernels + NNAL
    - **Stage 4 (pta):** 安装 PyTorch + torch_npu
    - **Stage 4.5 (mindstudio):** 安装开发工具（git, cmake, gcc, ffmpeg 等）
-   - **Stage 5 (mindie):** 安装 MindIE-LLM 服务
+   - **Stage 5 (mindie):** 安装 MindIE 组件（LLM / SD / Motor）
 4. **镜像导出** — 将构建产物保存为 `output/` 目录下的 `.tar.gz` 文件。
 
 ### Dockerfile 多阶段构建图
@@ -188,6 +194,8 @@ base-openeuler┘
 | 组件 | 下载源 |
 |------|--------|
 | MindIE-LLM | `https://gitcode.com/Ascend/MindIE-LLM/releases/download` |
+| MindIE-SD | `https://gitcode.com/Ascend/MindIE-SD/releases/download` |
+| MindIE-Motor | `https://gitcode.com/Ascend/MindIE-Motor/releases/download` |
 | PTA (torch_npu) | `https://gitcode.com/Ascend/pytorch/releases/download` |
 | CANN | `https://ascend-repo.obs.cn-east-2.myhuaweicloud.com/CANN/CANN` |
 | Python 源码 | `https://mirrors.huaweicloud.com/python` |
@@ -212,6 +220,7 @@ base-openeuler┘
 |------|------|
 | `ASCEND_TOOLKIT_HOME` | CANN 工具链安装路径 |
 | `MINDIE_LLM_HOME_PATH` | MindIE-LLM 服务安装路径 |
+| `MIES_INSTALL_PATH` | MindIE-Motor（mindie-service）安装路径 |
 | `ATB_SPEED_HOME_PATH` | ATB-LLM 加速库路径 |
 | `MINDIE_LLM_CONTINUOUS_BATCHING` | 连续批处理开关（默认 1） |
 | `ASCEND_GLOBAL_LOG_LEVEL` | 全局日志级别（默认 3） |
@@ -220,6 +229,6 @@ base-openeuler┘
 
 ## 许可证
 
-查看 MindIE-LLM 的[许可证信息](../LICENSE.md)。
+查看 MindIE 的[许可证信息](../LICENSE.md)。
 
 与所有容器镜像一样，预装软件包（Python、系统库等）可能受其自身许可证约束。

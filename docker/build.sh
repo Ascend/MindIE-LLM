@@ -1,17 +1,21 @@
 #!/bin/bash
 # ============================================================
-# build.sh — MindIE-LLM Docker image build
+# build.sh — MindIE Docker image build
 # ============================================================
+# A single MindIE version drives llm / sd / motor / atb internally;
+# sd and motor are internal components, not exposed as user options.
+# A5 is not supported.
+#
 # Usage:
 #   ${SCRIPT_REL_PATH} --os=<os> --chip=<chip> --arch=<arch>          \
-#              --mindie-llm=<ver>                                  \
+#              --mindie=<ver>                                       \
 #              --cann=<ver> --pta-tag=<tag>                      \
 #              [--type=<whl|run>] [--python=<ver>]               \
 #              [--dry-run]
 #
 # Examples:
 #   ${SCRIPT_REL_PATH} --os=ubuntu --chip=910 --arch=x86_64          \
-#              --mindie-llm=3.0.0                                  \
+#              --mindie=3.0.0                                      \
 #              --cann=8.2.RC1 --pta-tag=v26.0.0-pytorch2.7.1    \
 #              --type=run --python=3.11.6
 #
@@ -38,7 +42,7 @@ Required:
   --os=OS                OS: ubuntu | openeuler
   --chip=CHIP            Chip: 310 | 910 | A3
   --arch=ARCH            Target arch: x86_64 | aarch64
-  --mindie-llm=VER       mindie-llm version (e.g. 3.0.0)
+  --mindie=VER           MindIE version (drives llm/sd/motor/atb) e.g. 3.0.0
   --cann=VER             CANN version (e.g. 9.0.0)
   --pta-tag=TAG          PTA release tag (e.g. v26.0.0-pytorch2.9.0)
 
@@ -49,9 +53,9 @@ Optional:
   -h, --help             Show this help
 
 Examples:
-  ${SCRIPT_REL_PATH} --os=ubuntu --chip=910 --arch=x86_64 --mindie-llm=3.0.0 --cann=9.0.0 --pta-tag=v26.0.0-pytorch2.9.0
+  ${SCRIPT_REL_PATH} --os=ubuntu --chip=910 --arch=x86_64 --mindie=3.0.0 --cann=9.0.0 --pta-tag=v26.0.0-pytorch2.9.0
 
-  ${SCRIPT_REL_PATH} --os=openeuler --chip=310 --arch=aarch64 --mindie-llm=3.0.0 --cann=9.0.0 --pta-tag=v26.0.0-pytorch2.9.0 \\
+  ${SCRIPT_REL_PATH} --os=openeuler --chip=310 --arch=aarch64 --mindie=3.0.0 --cann=9.0.0 --pta-tag=v26.0.0-pytorch2.9.0 \\
                 --type=run --python=3.11.6
 EOF
     exit 0
@@ -64,7 +68,7 @@ parse_args() {
     CHIP=""
     ARCH=""
     TYPE="whl"
-    MINDIE_LLM_VER=""
+    MINDIE_VER=""
     CANN_VER=""
     PTA_TAG=""
     PYTHON_VER="3.11.10"
@@ -76,7 +80,7 @@ parse_args() {
             --chip=*)            CHIP="${1#*=}" ;;
             --arch=*)            ARCH="${1#*=}" ;;
             --type=*)            TYPE="${1#*=}" ;;
-            --mindie-llm=*)      MINDIE_LLM_VER="${1#*=}" ;;
+            --mindie=*)          MINDIE_VER="${1#*=}" ;;
             --cann=*)            CANN_VER="${1#*=}" ;;
             --pta-tag=*)         PTA_TAG="${1#*=}" ;;
             --python=*)          PYTHON_VER="${1#*=}" ;;
@@ -106,7 +110,7 @@ validate_required() {
     check "$OS"              "os"
     check "$CHIP"            "chip"
     check "$ARCH"            "arch"
-    check "$MINDIE_LLM_VER"  "mindie-llm"
+    check "$MINDIE_VER"      "mindie"
     check "$CANN_VER"        "cann"
     check "$PTA_TAG"         "pta-tag"
 
@@ -123,13 +127,13 @@ validate_required() {
 
 show_config() {
     echo "=========================================="
-    echo "  MindIE-LLM Docker Build Configuration"
+    echo "  MindIE Docker Build Configuration"
     echo "=========================================="
     echo "  OS:           ${OS} (${OS_CODENAME[$OS]})"
     echo "  Arch:         ${ARCH}"
     echo "  Chip:         ${CHIP} (${CHIP_LABEL[$CHIP]})"
     echo "  Type:         ${TYPE}"
-    echo "  mindie-llm:   ${MINDIE_LLM_VER}"
+    echo "  mindie:       ${MINDIE_VER}"
     echo "  CANN:         ${CANN_VER}"
     echo "  pta-tag:      ${PTA_TAG}"
     echo "  Python:       ${PYTHON_VER}"
@@ -152,16 +156,20 @@ main() {
 
     # Step 1: Download
     source "${MODULES_DIR}/download.sh"
-    download_all "$OS" "$CHIP" "$ARCH" "$TYPE" "$CANN_VER" "$MINDIE_LLM_VER" "$MINDIE_LLM_VER" "$PTA_TAG" "$PYTHON_VER"
+    download_all "$OS" "$CHIP" "$ARCH" "$TYPE" "$CANN_VER" \
+        "$MINDIE_VER" "$MINDIE_VER" "$PTA_TAG" "$PYTHON_VER" \
+        "$MINDIE_VER" "$MINDIE_VER"
 
     # Step 2: Build
     source "${MODULES_DIR}/build_image.sh"
-    run_build "$OS" "$CHIP" "$ARCH" "$TYPE" "$CANN_VER" "$MINDIE_LLM_VER" "$MINDIE_LLM_VER" "$PTA_TAG" "$PYTHON_VER"
+    run_build "$OS" "$CHIP" "$ARCH" "$TYPE" "$CANN_VER" \
+        "$MINDIE_VER" "$MINDIE_VER" "$PTA_TAG" "$PYTHON_VER" \
+        "$MINDIE_VER" "$MINDIE_VER"
 
     # Step 3: License notice
     echo ""
     echo "=========================================="
-    echo "  MindIE-LLM image version: ${MINDIE_LLM_VER}"
+    echo "  MindIE image version: ${MINDIE_VER}"
     echo "=========================================="
     echo ""
     cat "${DOCKER_DIR}/LICENSE"
