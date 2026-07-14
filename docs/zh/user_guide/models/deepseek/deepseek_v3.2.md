@@ -115,7 +115,7 @@ MindIE-LLM 安装请参见[安装指南](../../install/installing_MindIE.md)，�
 
 #### 配置服务化环境变量
 
-在 2 台机器上都需要按照下述方法设置环境变量：
+在 2 台机器（如果是物理机安装方式，则选择物理机；如果使用镜像或容器安装方式，则选择对应的容器）上都需要按照下述方法设置环境变量：
 
 ```shell
 source /usr/local/Ascend/ascend-toolkit/set_env.sh       # 设置 CANN 环境变量，根据 CANN 包实际安装路径修改。
