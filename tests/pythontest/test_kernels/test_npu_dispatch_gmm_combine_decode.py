@@ -1,14 +1,11 @@
 import gc
 import os
-import sys
-from pathlib import Path
 
 import numpy as np
 import torch
 import torch.distributed as dist
 import torch.multiprocessing as mp
 import torch_npu
-import mie_ops
 import torchair
 
 

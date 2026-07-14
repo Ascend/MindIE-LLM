@@ -8,10 +8,7 @@
 
 import torch
 import torch_npu
-import torchair
-import mie_ops
 import numpy as np
-import torch.nn as nn
 
 from torch_npu.testing.testcase import TestCase, run_tests
 
@@ -19,9 +16,9 @@ device_id = 0
 torch_npu.npu.set_device(int(device_id))
 
 
-def _lightning_indexer(query, key, weights, actual_seq_lengths_query, actual_seq_lengths_key, layout_key,
-                       selected_count, sparse_mode):
-    layout_query = "BSND"
+def _lightning_indexer(
+    query, key, weights, actual_seq_lengths_query, actual_seq_lengths_key, layout_key, selected_count, sparse_mode
+):
     layout_key = layout_key
     selected_count = selected_count
     sparse_mode = sparse_mode
@@ -45,17 +42,17 @@ def _lightning_indexer(query, key, weights, actual_seq_lengths_query, actual_seq
     s2 = reduce_out.shape[3]
     if sparse_mode == 3:
         for i in range(s1):
-            reduce_out[:, :, -1 - i, s2 - i:] = float('-inf')
+            reduce_out[:, :, -1 - i, s2 - i :] = float("-inf")
     sorted_indices = np.argsort(-reduce_out, kind="stable", axis=-1)
     # sparse场景下索引输出下三角置为-1
     if sparse_mode == 3:
         for i in range(s1):
-            sorted_indices[:, :, -1 - i, s2 - i:] = -1
+            sorted_indices[:, :, -1 - i, s2 - i :] = -1
 
     sorted_res = sorted_indices[..., :selected_count]
     pad_width = [(0, 0)] * sorted_res.ndim
     pad_width[-1] = (0, selected_count - sorted_res.shape[-1])
-    sorted_res = np.pad(sorted_res, pad_width, mode='constant', constant_values=-1)
+    sorted_res = np.pad(sorted_res, pad_width, mode="constant", constant_values=-1)
 
     return sorted_res.astype(np.int32)
 
@@ -70,10 +67,10 @@ class TestCustomLightningIndexer(TestCase):
         D = 128
         block_size = 256
         T = 8192
-        layout_query = 'BSND'  # 'TND'
+        layout_query = "BSND"  # 'TND'
 
         np.random.seed(0)
-        if layout_query == 'BSND':
+        if layout_query == "BSND":
             query = torch.tensor(np.random.uniform(-10, 10, (B, S1, N1, D))).to(torch.bfloat16)
         else:
             query = torch.tensor(np.random.uniform(-10, 10, (T, N1, D))).to(torch.bfloat16)
@@ -83,13 +80,19 @@ class TestCustomLightningIndexer(TestCase):
         actual_seq_lengths_query = torch.tensor(np.random.uniform(S1, S1, (B))).to(torch.int32)
         actual_seq_lengths_key = torch.tensor(np.random.uniform(S2, S2, (B))).to(torch.int32)
         block_table = torch.tensor([range(B * S2 // block_size)], dtype=torch.int32).reshape(B, -1)
-        layout_key = 'PA_BSND'
+        layout_key = "PA_BSND"
         selected_count = 2048
         sparse_mode = 3
-        cpuout = _lightning_indexer(query.to(torch.float).numpy(), key.to(torch.float).numpy(),
-                                    weights.to(torch.float).numpy(), actual_seq_lengths_query.numpy(),
-                                    actual_seq_lengths_key.numpy(),
-                                    layout_key, selected_count, sparse_mode)
+        cpuout = _lightning_indexer(
+            query.to(torch.float).numpy(),
+            key.to(torch.float).numpy(),
+            weights.to(torch.float).numpy(),
+            actual_seq_lengths_query.numpy(),
+            actual_seq_lengths_key.numpy(),
+            layout_key,
+            selected_count,
+            sparse_mode,
+        )
 
         torch_npu.npu.set_device(int(device_id))
         query = query.to("npu:%s" % device_id)
@@ -100,11 +103,19 @@ class TestCustomLightningIndexer(TestCase):
         block_table = block_table.to("npu:%s" % device_id)
 
         # start run custom ops
-        print(f'======================== PTA eager BEGIN ========================')
+        print("======================== PTA eager BEGIN ========================")
         npu_out = torch.ops.mie_ops.npu_lightning_indexer(
-            query, key, weights, actual_seq_lengths_query=actual_seq_lengths_query,
-            actual_seq_lengths_key=actual_seq_lengths_key, block_table=block_table, layout_query=layout_query,
-            layout_key=layout_key, selected_count=selected_count, sparse_mode=sparse_mode)
+            query,
+            key,
+            weights,
+            actual_seq_lengths_query=actual_seq_lengths_query,
+            actual_seq_lengths_key=actual_seq_lengths_key,
+            block_table=block_table,
+            layout_query=layout_query,
+            layout_key=layout_key,
+            selected_count=selected_count,
+            sparse_mode=sparse_mode,
+        )
 
         # compare result
         npu_out = npu_out.reshape(B, S1, selected_count).cpu()
@@ -115,7 +126,7 @@ class TestCustomLightningIndexer(TestCase):
                     res = npu_out[i][j][k] == cpuout[i][j][k]
                     if not res.all():
                         print("B S K npu cpu = ", i, j, k, npu_out[i][j][k], cpuout[i][j][k])
-        print(f'======================== PTA eager FINISH ========================')
+        print("======================== PTA eager FINISH ========================")
 
 
 if __name__ == "__main__":
