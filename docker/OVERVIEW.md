@@ -77,9 +77,9 @@ mindie:3.0.0-800I-A2-py3.11-ubuntu24.04-x86_64
 
 | Chip Parameter | Product Series | Description |
 |----------------|---------------|-------------|
-| `310` | `300I-Duo` | Atlas 300I Pro / 300V Pro |
-| `910` | `800I-A2` | Atlas 800T A2 / 900 A2 PoD |
-| `A3` | `800I-A3` | Atlas 800T A3 |
+| `310` | `300I-Duo` | Atlas 300I Duo |
+| `910` | `800I-A2` | Atlas 800I A2 |
+| `A3` | `800I-A3` | Atlas 800I A3 |
 
 ---
 
@@ -206,9 +206,9 @@ base-openeuler┘
 
 | Chip Series | Product Examples | Architecture |
 |-------------|-----------------|--------------|
-| Atlas 910 | Atlas 800T A2, Atlas 900 A2 PoD | ARM64 / x86_64 |
-| Atlas A3 | Atlas 800T A3 | ARM64 / x86_64 |
-| Atlas 310 | Atlas 300I Pro, Atlas 300V Pro | ARM64 / x86_64 |
+| Atlas 910 | Atlas 800I A2 | ARM64 |
+| Atlas A3 | Atlas 800I A3 | ARM64 |
+| Atlas 310 | Atlas 300I Duo | ARM64 / x86_64 |
 
 ---
 
