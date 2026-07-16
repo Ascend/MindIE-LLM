@@ -184,7 +184,7 @@ function fn_main()
             IFS=',' read -ra ut_modules <<< "$1"
             for m in "${ut_modules[@]}"; do
                 m=$(echo "$m")
-                if [[ "$m" != *_ut ]]; then
+                if [[ "$m" != *_ut ]] && [[ "$m" != *_it ]] && [[ "$m" != *_st ]]; then
                     m="${m}_ut"
                 fi
                 UT_BUILD_TARGETS="$UT_BUILD_TARGETS MindIE-LLM_${m}"
