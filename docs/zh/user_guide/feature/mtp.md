@@ -8,9 +8,17 @@ MTP（Multi-Token Prediction，多Token预测）是DeepSeek中提出的一种用
 
 **表 1**  MTP特性补充参数：**ModelDeployConfig中的ModelConfig参数**  <a id="table1"></a>
 
-|配置项|取值类型|取值范围|配置说明|
-|--|--|--|--|
-|plugin_params|std::string|plugin_type: mtp<br>num_speculative_tokens: [1]|<ul><li>**plugin_type**设置为“mtp”，表示选择mtp特性。</li><li>**num_speculative_tokens**表示MTP的层数，可设置为1或2。</li><li>不需要生效任何插件功能时，请删除该配置项字段。</li></ul><br>配置示例：{\"plugin_type\":\"mtp\",\"num_speculative_tokens\": 1}<br>【注】num_speculative_tokens配置建议：对于低时延场景，可配置使用1或2，对于高吞吐场景，建议配置不超过1|
+| 配置项 | 取值类型 | 取值范围 | 配置说明 |
+| ------ | -------- | -------- | -------- |
+| plugin_params | std::string | plugin_type: mtp<br>num_speculative_tokens: [1,2] | <ul><li>**plugin_type**设置为`mtp`，表示选择mtp特性。</li><li>**num_speculative_tokens**表示MTP的层数，即每轮投机得到的草稿token的长度，可设置为`1`或`2`。</li></ul><br>配置示例：`{\"plugin_type\":\"mtp\",\"num_speculative_tokens\": 1}`<br> |
+
+> [!NOTE]说明
+> 不需要生效任何插件功能时，请删除`plugin_params`配置项字段。
+> 
+> **num_speculative_tokens**配置建议：
+> 
+> - 对于低时延场景，可配置使用1或2。
+> - 对于高吞吐场景，建议配置不超过1。
 
 ## 特性叠加
 
