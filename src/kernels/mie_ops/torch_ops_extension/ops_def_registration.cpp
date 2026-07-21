@@ -42,9 +42,8 @@ TORCH_LIBRARY(mie_ops, m) {
         "Tensor probs, "
         "str group, "
         "int max_output_size, "
-        "Tensor! out, "
-        "Tensor! expert_token_nums"
-        ") -> (Tensor, Tensor)");
+        "Tensor! out"
+        ") -> Tensor");
     m.def(
         "apply_top_k_top_p_custom("
         "Tensor logits, "

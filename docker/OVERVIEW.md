@@ -1,27 +1,31 @@
-# MindIE-LLM Docker
+# MindIE Docker
 
 > English | [中文](./OVERVIEW.zh.md)
 
+Provides automated build scripts and a multi-stage Dockerfile for building MindIE inference service images from compiled packages. The build pipeline covers Python compilation, CANN toolchain installation, PyTorch/torch_npu (PTA) deployment, and MindIE component installation (LLM / SD / Motor), with 8-way parallel downloads for acceleration.
+
 ## Quick Reference
 
-- MindIE-LLM is maintained by the [MindIE community](https://www.hiascend.com/cn/developer/software/mindie)
+- MindIE is maintained by the [MindIE community](https://www.hiascend.com/cn/developer/software/mindie)
 
 - Where to get help
 
     - [MindIE Image Registry](https://www.hiascend.com/developer/ascendhub/detail/af85b724a7e5469ebd7ea13c3439d48f)
     - [MindIE-LLM Repository](https://gitcode.com/Ascend/MindIE-LLM)
+    - [MindIE-SD Repository](https://gitcode.com/Ascend/MindIE-SD)
+    - [MindIE-Motor Repository](https://gitcode.com/Ascend/MindIE-Motor)
     - [Developer Community](https://www.hiascend.com/developer)
     - [Issue Tracker](https://gitcode.com/Ascend/MindIE-LLM/issues)
 
 ---
 
-## MindIE-LLM
+## MindIE
 
-MindIE LLM is Huawei Atlas’s large language model (LLM) inference acceleration suite. It leverages a highly optimized model library and inference engine to boost LLM performance and usability on Atlas hardware. MindIE LLM supports industry-standard model inference, multi-request scheduling, and features like Continuous Batching, PagedAttention, and FlashDecoding to enable high-performance inference.
+MindIE is Huawei Atlas's inference acceleration suite. It leverages a highly optimized model library and inference engine to boost performance and usability on Atlas hardware. MindIE supports industry-standard model inference, multi-request scheduling, and features like Continuous Batching, PagedAttention, and FlashDecoding to enable high-performance inference. The suite includes:
 
-## MindIE-LLM Docker
-
-Provides automated build scripts and a multi-stage Dockerfile for building MindIE-LLM inference service images from compiled packages. The build pipeline covers Python compilation, CANN toolchain installation, PyTorch/torch_npu (PTA) deployment, and MindIE-LLM service installation, with 6-way parallel downloads for acceleration.
+- **MindIE LLM** — large language model inference
+- **MindIE SD** — stable diffusion image generation
+- **MindIE Motor** — inference service orchestration
 
 ---
 
@@ -29,11 +33,11 @@ Provides automated build scripts and a multi-stage Dockerfile for building MindI
 
 | File | Description |
 |------|-------------|
-| `build.sh` | Main entry point — argument parsing, validation, download orchestration, and build invocation |
-| `Dockerfile` | Multi-stage Docker build file (7 stages) |
-| `modules/config.sh` | Central configuration: URL templates, logging, validation, arch detection, Chip/OS metadata |
-| `modules/download.sh` | Download layer: 6 parallel downloads for PTA / Python / CANN / MindIE-LLM packages |
-| `modules/build_image.sh` | Build orchestration layer: image tag computation, Docker build, image export |
+| [build.sh](./build.sh) | Main entry point — argument parsing, validation, download orchestration, and build invocation |
+| [Dockerfile](./Dockerfile) | Multi-stage Docker build file (7 stages) |
+| [modules/config.sh](./modules/config.sh) | Central configuration: URL templates, logging, validation, arch detection, Chip/OS metadata |
+| [modules/download.sh](./modules/download.sh) | Download layer: 8 parallel downloads for PTA / Python / CANN / MindIE-LLM / MindIE-SD / MindIE-Motor packages |
+| [modules/build_image.sh](./modules/build_image.sh) | Build orchestration layer: image tag computation, Docker build, image export |
 
 ---
 
@@ -44,12 +48,12 @@ Provides automated build scripts and a multi-stage Dockerfile for building MindI
 Tags follow this format:
 
 ```text
-mindie-llm:<MindIE-LLM-version>-<product-series>-<python-version>-<os>-<arch>
+mindie:<MindIE-version>-<product-series>-<python-version>-<os>-<arch>
 ```
 
 | Field | Example | Description |
 |-------|---------|-------------|
-| `MindIE-LLM-version` | `3.0.0` | MindIE-LLM version number |
+| `MindIE-version` | `3.0.0` | MindIE version number (drives LLM / SD / Motor) |
 | `product-series` | `800I-A2`, `800I-A3`, `300I-Duo` | Target Atlas product series |
 | `python-version` | `py3.11` | Python version |
 | `os` | `ubuntu24.04`, `openeuler` | Base operating system |
@@ -57,7 +61,7 @@ mindie-llm:<MindIE-LLM-version>-<product-series>-<python-version>-<os>-<arch>
 
 ### Image Registry
 
-MindIE-LLM images support base image pre-pulling through a mirror registry:
+MindIE images support base image pre-pulling through a mirror registry:
 
 ```text
 swr.cn-north-4.myhuaweicloud.com/inference
@@ -66,16 +70,16 @@ swr.cn-north-4.myhuaweicloud.com/inference
 **Full image example:**
 
 ```text
-mindie-llm:3.0.0-800I-A2-py3.11-ubuntu24.04-x86_64
+mindie:3.0.0-800I-A2-py3.11-ubuntu24.04-x86_64
 ```
 
 ### Product Series Mapping
 
 | Chip Parameter | Product Series | Description |
 |----------------|---------------|-------------|
-| `310` | `300I-Duo` | Atlas 300I Pro / 300V Pro |
-| `910` | `800I-A2` | Atlas 800T A2 / 900 A2 PoD |
-| `A3` | `800I-A3` | Atlas 800T A3 |
+| `310` | `300I-Duo` | Atlas 300I Duo |
+| `910` | `800I-A2` | Atlas 800I A2 |
+| `A3` | `800I-A3` | Atlas 800I A3 |
 
 ---
 
@@ -88,7 +92,7 @@ Build parameters are passed as command-line arguments to `build.sh`:
 | `--os` | Server operating system | Yes | — | ubuntu / openeuler |
 | `--chip` | Atlas device model | Yes | — | 310 / 910 / A3 |
 | `--arch` | System architecture | Yes | — | x86_64 / aarch64 |
-| `--mindie-llm` | MindIE-LLM version | Yes | — | 3.0.0 |
+| `--mindie` | MindIE version (drives LLM / SD / Motor) | Yes | — | 3.0.0 |
 | `--cann` | CANN version | Yes | — | 9.0.0 |
 | `--pta-tag` | PTA release tag | Yes | — | v26.0.0-pytorch2.9.0 |
 | `--type` | Package type | No | `whl` | whl / run |
@@ -101,7 +105,7 @@ Build parameters are passed as command-line arguments to `build.sh`:
 
 2. PTA tag: see [Pytorch-NPU Community](https://gitcode.com/Ascend/pytorch/releases)
 
-3. MindIE-LLM version: see [MindIE-LLM Community](https://gitcode.com/Ascend/MindIE-LLM/releases)
+3. MindIE version: see [MindIE-LLM Community](https://gitcode.com/Ascend/MindIE-LLM/releases) / [MindIE-SD Community](https://gitcode.com/Ascend/MindIE-SD/releases) / [MindIE-Motor Community](https://gitcode.com/Ascend/MindIE-Motor/releases)
 
 ---
 
@@ -115,7 +119,7 @@ Build parameters are passed as command-line arguments to `build.sh`:
 
 ---
 
-### Building the MindIE-LLM Image
+### Building the MindIE Image
 
 Run the build script from the `docker` directory:
 
@@ -125,7 +129,7 @@ bash build.sh \
     --os=ubuntu \
     --chip=910 \
     --arch=x86_64 \
-    --mindie-llm=3.0.0 \
+    --mindie=3.0.0 \
     --cann=9.0.0 \
     --pta-tag=v26.0.0-pytorch2.9.0
 
@@ -134,7 +138,7 @@ bash build.sh \
     --os=openeuler \
     --chip=310 \
     --arch=aarch64 \
-    --mindie-llm=3.0.0 \
+    --mindie=3.0.0 \
     --cann=9.0.0 \
     --pta-tag=v26.0.0-pytorch2.9.0 \
     --type=run \
@@ -145,7 +149,7 @@ bash build.sh \
     --os=ubuntu \
     --chip=910 \
     --arch=x86_64 \
-    --mindie-llm=3.0.0 \
+    --mindie=3.0.0 \
     --cann=9.0.0 \
     --pta-tag=v26.0.0-pytorch2.9.0 \
     --dry-run
@@ -156,13 +160,15 @@ bash build.sh \
 The build process runs through the following steps in order:
 
 1. **Argument Parsing & Validation** — `build.sh` parses CLI arguments and calls `config.sh` to validate OS/Chip/Arch/Type values.
-2. **Parallel Downloads (6-way)** — `download.sh` downloads the following components in parallel:
+2. **Parallel Downloads (8-way)** — `download.sh` downloads the following components in parallel:
    - PTA (torch_npu wheel)
    - Python source tarball (Ubuntu only; openEuler skips)
    - CANN Toolkit
    - CANN NNAL
    - CANN Kernels (chip-specific operator package)
    - MindIE-LLM package (whl or run)
+   - MindIE-SD package (whl only)
+   - MindIE-Motor package (whl only)
 3. **Docker Multi-Stage Build** — `build_image.sh` invokes the `Dockerfile` through 7 stages:
    - **Stage 1a (base-ubuntu):** Ubuntu 24.04 + compile Python from source
    - **Stage 1b (base-openeuler):** OpenEuler 24.03 + pre-installed Python
@@ -170,7 +176,7 @@ The build process runs through the following steps in order:
    - **Stage 3 (cann):** Install CANN Toolkit + Kernels + NNAL
    - **Stage 4 (pta):** Install PyTorch + torch_npu
    - **Stage 4.5 (mindstudio):** Install dev tools (git, cmake, gcc, ffmpeg, etc.)
-   - **Stage 5 (mindie):** Install MindIE-LLM service
+   - **Stage 5 (mindie):** Install MindIE components (LLM / SD / Motor)
 4. **Image Export** — Save the built image as a `.tar.gz` file in the `output/` directory.
 
 ### Dockerfile Multi-Stage Build Diagram
@@ -188,6 +194,8 @@ base-openeuler┘
 | Component | Source |
 |-----------|--------|
 | MindIE-LLM | `https://gitcode.com/Ascend/MindIE-LLM/releases/download` |
+| MindIE-SD | `https://gitcode.com/Ascend/MindIE-SD/releases/download` |
+| MindIE-Motor | `https://gitcode.com/Ascend/MindIE-Motor/releases/download` |
 | PTA (torch_npu) | `https://gitcode.com/Ascend/pytorch/releases/download` |
 | CANN | `https://ascend-repo.obs.cn-east-2.myhuaweicloud.com/CANN/CANN` |
 | Python Source | `https://mirrors.huaweicloud.com/python` |
@@ -198,9 +206,9 @@ base-openeuler┘
 
 | Chip Series | Product Examples | Architecture |
 |-------------|-----------------|--------------|
-| Atlas 910 | Atlas 800T A2, Atlas 900 A2 PoD | ARM64 / x86_64 |
-| Atlas A3 | Atlas 800T A3 | ARM64 / x86_64 |
-| Atlas 310 | Atlas 300I Pro, Atlas 300V Pro | ARM64 / x86_64 |
+| Atlas 910 | Atlas 800I A2 | ARM64 |
+| Atlas A3 | Atlas 800I A3 | ARM64 |
+| Atlas 310 | Atlas 300I Duo | ARM64 / x86_64 |
 
 ---
 
@@ -212,6 +220,7 @@ The following key environment variables are set during the Docker build:
 |----------|-------------|
 | `ASCEND_TOOLKIT_HOME` | CANN toolchain installation path |
 | `MINDIE_LLM_HOME_PATH` | MindIE-LLM service installation path |
+| `MIES_INSTALL_PATH` | MindIE-Motor (mindie-service) installation path |
 | `ATB_SPEED_HOME_PATH` | ATB-LLM acceleration library path |
 | `MINDIE_LLM_CONTINUOUS_BATCHING` | Continuous batching toggle (default 1) |
 | `ASCEND_GLOBAL_LOG_LEVEL` | Global log level (default 3) |
@@ -220,6 +229,6 @@ The following key environment variables are set during the Docker build:
 
 ## License
 
-View the MindIE-LLM [license information](../LICENSE.md).
+View the MindIE [license information](../LICENSE.md).
 
 As with all container images, pre-installed software packages (Python, system libraries, etc.) may be subject to their own licenses.

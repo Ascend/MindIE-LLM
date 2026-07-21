@@ -201,6 +201,14 @@ void ModelExecOutputHandler::ProcessSequenceStatus(SequenceId seqId, int64_t fin
     if (finishReason == static_cast<int64_t>(InferStatusType::ITERATION_CONTINUE)) {
         return;
     }
+
+    if (schedulerConfig_->enableChunkedPrefill) {
+        SequenceGroupSPtr seqGrp = LiveInferContext::GetInstance(localDPRank_)->GetSeqGroup(seqId);
+        if (seqGrp != nullptr && !seqGrp->isLastChunk_) {
+            return;
+        }
+    }
+
     MINDIE_LLM_LOG_INFO_REQUEST("[LlmEngine|Request-End] DP RankId: " << dpRankId_ << ". Sequence finished. seqId: "
                                                                       << seqId << "; finishReason: " << finishReason);
     if (finishReason == static_cast<int64_t>(InferStatusType::END_OF_SENTENCE)) {

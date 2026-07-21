@@ -23,6 +23,7 @@ from torch.distributed import ProcessGroup
 import torch.distributed as dist
 import torch_npu._C._distributed_c10d as dist_c
 from mindie_llm.runtime.utils.distributed.utils import even_divide
+from mindie_llm.utils.log.logging import logger
 
 
 DEFAULT_BUFFER_SIZE = 128
@@ -342,6 +343,32 @@ class ParallelInfoManager:
         if parallel_type not in self._parallel_type_map:
             raise KeyError(f"Unsupported ParallelType: {parallel_type}")
         return self._parallel_type_map[parallel_type]
+
+    def destroy_cpu_process_group(self, parallel_type: ParallelType) -> None:
+        parallel_info = self.get(parallel_type)
+        process_group = parallel_info._cpu_process_group
+        current_group_ranks = tuple(sorted(parallel_info.rank_per_group[parallel_info.current_group_id]))
+        cpu_cache_key = (current_group_ranks, GLOO_BACKEND, None, -1)
+
+        with self._process_group_cache_lock:
+            parallel_info._cpu_process_group = None
+            if process_group is None:
+                process_group = self._process_group_cache.get(cpu_cache_key)
+            cached_keys = [
+                key
+                for key, cached_process_group in self._process_group_cache.items()
+                if cached_process_group is process_group
+            ]
+            for key in cached_keys:
+                self._process_group_cache.pop(key, None)
+
+        if process_group is None:
+            return
+
+        try:
+            dist.destroy_process_group(process_group)
+        except Exception as exc:
+            logger.warning("[CPU_PG_RECOVERY] Destroy CPU process group for %s failed: %s", parallel_type, exc)
 
     def _make_process_group_factory(self, parallel_info: ParallelInfo) -> Callable[[], ProcessGroup]:
         """

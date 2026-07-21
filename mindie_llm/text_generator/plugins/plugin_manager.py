@@ -64,6 +64,27 @@ LAUNCH_DONE_TIMEOUT = 20 * 60  # unit: second
 MEM_DETECT_INTERVAL = 1000  # unit: second
 
 
+class _AsyncToHostHandle:
+    def __init__(self, host_instance: Any, tensor_fields: list[tuple[str, torch.Tensor, torch.dtype]], event):
+        self.host_instance = host_instance
+        self.tensor_fields = tensor_fields
+        self.event = event
+        self._finalized = False
+
+    def finalize(self):
+        if not self._finalized:
+            if self.event is not None:
+                self.event.synchronize()
+            for field_name, host_tensor, source_dtype in self.tensor_fields:
+                if source_dtype == torch.bfloat16:
+                    host_array = host_tensor.float().numpy()
+                else:
+                    host_array = host_tensor.numpy()
+                setattr(self.host_instance, field_name, host_array)
+            self._finalized = True
+        return self.host_instance
+
+
 class MemPoolType(IntEnum):
     DISABLED = 0
     SYNC_WRITE = 1
@@ -116,6 +137,7 @@ class PluginManager:
         self.error_code_collected_in_async = None
         self.mempool_type = MemPoolType.DISABLED
         self.warmup_is_end = True
+        self.to_host_stream = None
         # 结构化输出管理器 (延迟初始化)
         self._structured_output_manager: Optional[Any] = None
         self._structured_output_enabled = kwargs.get("enable_structured_output", True)
@@ -159,6 +181,69 @@ class PluginManager:
                 setattr(new_instance, field.name, host_array)
         return new_instance
 
+    @staticmethod
+    def _empty_host_like(tensor: torch.Tensor) -> torch.Tensor:
+        shape = tuple(tensor.shape)
+        try:
+            return torch.empty(shape, dtype=tensor.dtype, device="cpu", pin_memory=True)
+        except (RuntimeError, TypeError):
+            return torch.empty(shape, dtype=tensor.dtype, device="cpu")
+
+    def _get_to_host_stream(self):
+        if self.to_host_stream is None:
+            self.to_host_stream = torch.npu.Stream(device=torch.npu.current_device())
+        return self.to_host_stream
+
+    def _to_host_async(self, data_instance: Any, execution_done=None):
+        if data_instance is None:
+            return None
+
+        copy_stream = self._get_to_host_stream()
+        host_instance = copy.copy(data_instance)
+        tensor_fields = []
+        copy_done_event = torch.npu.Event()
+
+        with torch.npu.stream(copy_stream):
+            if execution_done is not None:
+                if hasattr(copy_stream, "wait_event"):
+                    copy_stream.wait_event(execution_done)
+                elif hasattr(execution_done, "wait"):
+                    execution_done.wait(copy_stream)
+                else:
+                    execution_done.synchronize()
+
+            for field in fields(data_instance):
+                field_value = getattr(data_instance, field.name)
+                if isinstance(field_value, torch.Tensor):
+                    if getattr(field_value, "is_npu", False):
+                        host_tensor = self._empty_host_like(field_value)
+                        field_value.record_stream(copy_stream)
+                        host_tensor.copy_(field_value, non_blocking=True)
+                        tensor_fields.append((field.name, host_tensor, field_value.dtype))
+                        setattr(host_instance, field.name, host_tensor)
+                    else:
+                        host_tensor = field_value.clone()
+                        tensor_fields.append((field.name, host_tensor, field_value.dtype))
+                        setattr(host_instance, field.name, host_tensor)
+                else:
+                    setattr(host_instance, field.name, copy.deepcopy(field_value))
+
+            copy_done_event.record(copy_stream)
+
+        return _AsyncToHostHandle(host_instance, tensor_fields, copy_done_event)
+
+    @staticmethod
+    def _wait_async_to_host_event(async_to_host_handle):
+        if async_to_host_handle is None or async_to_host_handle.event is None:
+            return
+        current_stream = torch.npu.current_stream()
+        if hasattr(current_stream, "wait_event"):
+            current_stream.wait_event(async_to_host_handle.event)
+        elif hasattr(async_to_host_handle.event, "wait"):
+            async_to_host_handle.event.wait(current_stream)
+        else:
+            async_to_host_handle.event.synchronize()
+
     def initialize(self):
         if self.is_mix_model:
             from .splitfuse.splitfuse_plugin import SplitfusePlugin
@@ -200,6 +285,7 @@ class PluginManager:
 
     @timer.track_time_async("generate_token")
     def generate_token(self, input_metadata: InputMetadata, warmup=False) -> GenerationOutput:
+        trace_ids = ""
         try:
             prof = span_start("preprocess")
             cache_ids, model_inputs, sampling_metadata, trace_ids = self.preprocess(input_metadata, warmup=warmup)
@@ -396,6 +482,14 @@ class PluginManager:
             span_end(prof)
 
             is_mock = model_output_wrapper.is_mock
+            async_to_host_handle = None
+            if ENV.model_runner_exp and model_output_wrapper.sampling_output is not None:
+                async_to_host_handle = self._to_host_async(
+                    model_output_wrapper.sampling_output,
+                    execution_done=model_output_wrapper.execution_done,
+                )
+                model_input_wrapper.previous_to_host_handle = async_to_host_handle
+
             # Move '_fill_in_model_result' into 'forward_loop' to reduce inter-token latency.
             # This requires 'Sampler' to perform on-device post-processing.
             if not ENV.model_runner_exp:
@@ -449,9 +543,12 @@ class PluginManager:
                 # Maintain backward compatibility with the previous implementation
                 sampling_output = model_output_wrapper.sampling_output
                 if ENV.model_runner_exp:
-                    if model_output_wrapper.execution_done is not None:
-                        model_output_wrapper.execution_done.synchronize()
-                    sampling_output = self._to_host(model_output_wrapper.sampling_output)
+                    if async_to_host_handle is not None:
+                        sampling_output = async_to_host_handle.finalize()
+                    else:
+                        if model_output_wrapper.execution_done is not None:
+                            model_output_wrapper.execution_done.synchronize()
+                        sampling_output = self._to_host(model_output_wrapper.sampling_output)
                 self.watcher.watch_npu_mem(
                     self.rank,
                     "In asyn inference mode, before postprocess",
@@ -727,6 +824,7 @@ class PluginManager:
             if ENV.model_runner_exp:
                 prof = span_start("fill_in_model_result")
                 if model_output_wrapper is not None:
+                    self._wait_async_to_host_event(getattr(model_input_wrapper, "previous_to_host_handle", None))
                     self._fill_in_model_result_exp(model_input_wrapper, model_output_wrapper)
                 span_end(prof)
             try:

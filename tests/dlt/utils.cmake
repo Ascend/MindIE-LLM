@@ -70,7 +70,7 @@ function(build_test module type list_libraries list_includes)
     add_executable(${TEST_BINARY} ${TEST_SOURCES})
     # 控制权限放开，private函数可测试
     target_compile_options(${TEST_BINARY} PRIVATE -fno-access-control)
-    set_target_properties(${TEST_BINARY} PROPERTIES LINK_FLAGS "-Wl,--as-needed")
+    set_target_properties(${TEST_BINARY} PROPERTIES LINK_FLAGS "-Wl,--no-as-needed")
     target_link_options(${TEST_BINARY} PRIVATE -rdynamic)
 
     set(INCLUDES "")

@@ -29,6 +29,7 @@ from ...utils.tensor import op
 from ...utils.validation import parse_config, ParseType, MODEL_CONFIG_KEY_TYPE
 from .recovery_utils import check_and_recover_uce_in_cache
 from ...text_generator.plugins.plugin_manager import MemPoolType
+from mindie_llm.utils.log.error_code import is_force_stop_exception
 
 MAX_WORLD_SIZE = 1048576
 MAX_KEY_LENGTH = 256
@@ -142,7 +143,7 @@ class GeneratorBackend:
         model_config["max_loras"] = max_loras
         model_config["max_lora_rank"] = max_lora_rank
         model_config["sampler_config"] = sampler_config
-        model_config['block_size'] = self.block_size
+        model_config["block_size"] = self.block_size
         model_config["lwdNextPHeadPrior"] = lwd_next_p_head_prior
         if bool(self.kv_pool_config_path) and bool(self.kv_pool_backend):
             model_config["mempool_type"] = (
@@ -318,6 +319,13 @@ class GeneratorBackend:
         raise NotImplementedError("Subclasses must implement _execute_cmd_reinit_npu")
 
     def _wait_for_force_stop_exception(self):
+        try:
+            torch_npu.npu.synchronize()
+        except Exception as e:
+            if is_force_stop_exception(e):
+                self.notify_force_stop_exception()
+            else:
+                raise
         if not self.is_fault_device:
             timeout = 60.0
             exception_detected = self.force_stop_exception_occurred.wait(timeout=timeout)

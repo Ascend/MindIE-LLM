@@ -11,10 +11,10 @@ readonly DOCKERFILE="${DOCKER_DIR}/Dockerfile"
 # ---------- tag computation ----------
 
 _image_tag() {
-    local os="$1" chip="$2" arch="$3" mindie_llm_ver="$4"
+    local os="$1" chip="$2" arch="$3" mindie_ver="$4"
     local os_code="${OS_CODENAME[$os]}"
     local chip_label="${CHIP_LABEL[$chip]}"
-    echo "mindie-llm:${mindie_llm_ver}-${chip_label}-py3.11-${os_code}-${arch}"
+    echo "mindie:${mindie_ver}-${chip_label}-py3.11-${os_code}-${arch}"
 }
 
 # ---------- cleanup ----------
@@ -69,14 +69,14 @@ _prepull_base_image() {
 
 run_build() {
     local os="$1" chip="$2" arch="$3" type="$4"
-    local cann_ver="$5" mindie_llm_ver="$6" atb_llm_ver="$7"
-    local pta_tag="$8" python_ver="$9"
+    local cann_ver="$5" mindie_ver="$6" atb_llm_ver="$7"
+    local pta_tag="$8" python_ver="$9" mindie_sd_ver="${10}" mindie_motor_ver="${11}"
 
     local py_short py_major cann_device image_tag
     py_short=$(get_py_short "$python_ver")
     py_major=$(get_py_major "$python_ver")
     cann_device="${CANN_DEVICE[$chip]}"
-    image_tag=$(_image_tag "$os" "$chip" "$arch" "$mindie_llm_ver")
+    image_tag=$(_image_tag "$os" "$chip" "$arch" "$mindie_ver")
 
     log_info "========== Build START =========="
     log_info "image tag: ${image_tag}"
@@ -99,8 +99,7 @@ run_build() {
         --build-arg PYTHON_SHORT_VERSION="$py_short" \
         --build-arg CANN_VERSION="$cann_ver" \
         --build-arg CANN_DEVICE="$cann_device" \
-        --build-arg MINDIE_LLM_VERSION="$mindie_llm_ver" \
-        --build-arg ATB_LLM_VERSION="$atb_llm_ver" \
+        --build-arg MINDIE_VERSION="$mindie_ver" \
         --network=host \
         -t "$image_tag" \
         -f "$DOCKERFILE" \

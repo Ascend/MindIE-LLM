@@ -125,3 +125,8 @@ endif()
 if(USE_PYTHONTEST_TEST OR USE_FUZZ_TEST OR DOMAIN_LAYERED_TEST)
     add_subdirectory(tests)
 endif()
+
+if(USE_HITESTWRAPPER)
+    set_property(GLOBAL PROPERTY RULE_LAUNCH_COMPILE hitestwrapper)
+    set_property(GLOBAL PROPERTY RULE_LAUNCH_LINK hitestwrapper)
+endif()

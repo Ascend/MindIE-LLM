@@ -21,7 +21,7 @@ rm -rf /dev/shm/* #对于共享内存小的测试场景，每次启动前都清�
 export MINDIE_LLM_HOME_PATH="${mindie_llm_path}"
 
 export MINDIE_LLM_RECOMPUTE_THRESHOLD=0.5
-export PYTORCH_INSTALL_PATH="$(python3 -c 'import torch, os; print(os.path.dirname(os.path.abspath(torch.__file__)))')"
+export PYTORCH_INSTALL_PATH="$(python3 -c 'import torch, os; print(os.path.dirname(os.path.abspath(torch.__file__)))' | grep "site-packages/torch")"
 if [ -n "$PYTORCH_INSTALL_PATH" ]; then
     export LD_LIBRARY_PATH="$PYTORCH_INSTALL_PATH/lib:$PYTORCH_INSTALL_PATH/../torch.libs:$LD_LIBRARY_PATH"
 fi

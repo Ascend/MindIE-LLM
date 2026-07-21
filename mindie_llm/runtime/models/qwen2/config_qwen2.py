@@ -123,6 +123,8 @@ class Qwen2Config(HuggingFaceConfig):
             (".mlp.c_proj.", ".mlp.down_proj."),  # ".mlp.c_proj." must before ".c_proj."
             (".c_proj.", ".o_proj."),
             (".w2_w1.", ".gate_up_proj."),
+            (".ln_1", ".input_layernorm"),
+            (".ln_2", ".post_attention_layernorm"),
         ]
 
         mapped_name = weight_name

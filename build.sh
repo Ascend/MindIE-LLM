@@ -14,6 +14,7 @@
 # limitations under the License.
 
 set -e
+export TORCH_DEVICE_BACKEND_AUTOLOAD=0
 export CODE_ROOT=$(cd $(dirname -- $0); pwd)
 SCRIPT_DIR=$CODE_ROOT/scripts
 
@@ -55,11 +56,13 @@ function fn_build()
     fi
 
     fn_build_src
-    cp $OUTPUT_DIR/lib/libfoundation.so $MINDIE_LLM_LIB_DIR/foundation.so
-    if [ "$build_type" = "release" ]; then
-        fn_extract_debug_symbols $OUTPUT_DIR "$CODE_ROOT/llm_debug_symbols"
+    if [ -z "$UT_BUILD_TARGETS" ]; then
+        cp $OUTPUT_DIR/lib/libfoundation.so $MINDIE_LLM_LIB_DIR/foundation.so
+        if [ "$build_type" = "release" ]; then
+            fn_extract_debug_symbols $OUTPUT_DIR "$CODE_ROOT/llm_debug_symbols"
+        fi
+        fn_build_for_ci
     fi
-    fn_build_for_ci
     cp $SCRIPT_DIR/set_env.sh $OUTPUT_DIR
 }
 
@@ -81,8 +84,66 @@ function fn_clean() {
     echo "Clean completed."
 }
 
+function fn_hitest_env(){
+    mkdir -p ${WORKSPACE}/opt
+    cd ${WORKSPACE}/opt
+    if [ "${ARCH}"x == "aarch64"x ]; then
+        wget -q https://mindie.obs.cn-north-4.myhuaweicloud.com/Hitest-tool/Aurogon-compile-arm-v6.2.0-simple.zip
+        unzip -q -o Aurogon-compile-arm-v6.2.0-simple.zip
+        rm -rf Aurogon-compile-arm-v6.2.0-simple.zip
+        cd hitest/linux_avatar_arm_64
+        chmod +x *
+        hitest_tool="linux_avatar_arm_64"
+    else
+        wget -q https://mindie.obs.cn-north-4.myhuaweicloud.com/Hitest-tool/Aurogon-compile-v6.2.0-simple.zip
+        unzip -q -o Aurogon-compile-v6.2.0-simple.zip
+        rm -rf Aurogon-compile-v6.2.0-simple.zip
+        cd hitest/linux_avatar_x86_64
+        chmod +x *
+        hitest_tool="linux_avatar_x86_64"
+    fi
+    ls ${WORKSPACE}/opt
+    HitestHome=${WORKSPACE}/opt/hitest/${hitest_tool} # hitest的根目录
+    export isOverlappedCompile=0
+    export HITEST_PRINT_LOG_ENABLE=0
+    export LLT_EXCLUDEFILE=sequence_group.cpp
+    export PlatformToken=BOARD
+    export gcovmode=0
+    export TimerPolicy=1         #是否开启线程定时器采集覆盖率数据, 1: 开启, 0: 不开启
+    export TimeInterval=60       #线程定时器，各隔多少秒采集一次数据，60表示60秒
+    export SignalPolicy=1        #是否开启发信号采集覆盖率，1: 开启, 0: 不开启
+    export SignalNUM=34          #kill -34 pid 采覆盖率， kill -44 pid 重置覆盖率
+    export lltwrapper_cfg=0      # 0: 普通模式，4: 无OS极简模式(单模块), 5: 无OS通用模式
+    export HITEST_AGENT_INSIDE=1 # 1: 使用内嵌agent.o, 0: 不使用内嵌agent.o
+    export USE_HLLT_COVERAGE=1
+    export USE_HLLT_TESTCASE=0
+    export simplemode=0                                 # 0: 非精简模式, 1: 精简模式
+    export ncs_coverage_stub_mold=1       # 0: 非计数模式, 1: 计数模式
+    export HITEST_ENABLE_SOKCET=0         # 覆盖率实时展示服务端开关：1-打开；0-关闭。默认关闭，默认端口60005
+    export hitest_disable_cfg=0           # 是否需要导出CFG控制流图, 默认导出 0:导出  1:不导出
+    export hitest_disable_dfg=1           # 是否需要导出污点数据, 默认不导出 0:导出  1:不导出
+    export hitest_disable_ir=1            # 是否需要导出IR，进而探索函数指针调用信息，0：导出  1：不导出
+    export HITEST_DISABLE_MACRO=0         # 1:禁止宏插桩，0:允许宏插桩，默认开启宏插桩
+    export HITEST_REMOVE_INCLUDE_DIR=0    # 不删除编译命令中的-I和-include编译选项
+    export HITEST_AGENT_SET_THREADNAME_PRCTL=1 # 使用版本的api给线程设置名称
+    export HITEST_INST_HEADER_FILE=0      # 1:插桩h文件，0:不插桩h文件，默认值为0，4.9.0版本以上才有这个功能
+    export HITEST_USER_ACCOUNT=a00000000
+    export lltcovRootpath=/tmp/shiqiang/task/covdata          #(测试执行环境中，覆盖率数据保存的根目录)
+    export HITEST_COVSTUB_ROOT_DIR=/tmp/shiqiang/daily/  #设置covstub生成路径
+    export PATH=${HitestHome}:$PATH             #(添加工具包到PATH环境变量)
+    export LD_LIBRARY_PATH=${HitestHome}:$LD_LIBRARY_PATH           #(添加工具包到LD_LIBRARY_PATH环境变量)
+    find ${HITEST_COVSTUB_ROOT_DIR}/covstub -mindepth 1 -maxdepth 1 -type d ! -name 'hitest_log' ! -name 'LLTTEMP' -exec rm -rf {} + || echo "Find covstub"
+
+}
+
 function fn_main()
 {
+    # 检查参数中是否包含 --coverage
+    if [[ "$*" =~ "--coverage" ]]; then
+        echo "插桩编译"
+        COMPILE_OPTIONS="${COMPILE_OPTIONS} -DUSE_HITESTWRAPPER=ON"
+        fn_hitest_env
+    fi
     get_version
     if [[ "$BUILD_OPTION_LIST" =~ "$1" ]];then
         if [[ -z "$1" ]];then
@@ -113,8 +174,26 @@ function fn_main()
         parse_args "$@"
     fi
 
+    UT_BUILD_TARGETS=""  # unittest 模式下精准编译的 target 列表
+    ut_target_next=""    # 状态变量：等待下一个参数作为 -t 的值
+
     until [[ -z "$1" ]]
     do {
+        # 上一个参数是 -t，当前参数是它的值
+        if [ -n "$ut_target_next" ]; then
+            IFS=',' read -ra ut_modules <<< "$1"
+            for m in "${ut_modules[@]}"; do
+                m=$(echo "$m")
+                if [[ "$m" != *_ut ]] && [[ "$m" != *_it ]] && [[ "$m" != *_st ]]; then
+                    m="${m}_ut"
+                fi
+                UT_BUILD_TARGETS="$UT_BUILD_TARGETS MindIE-LLM_${m}"
+            done
+            ut_target_next=""
+            shift
+            continue
+        fi
+
         arg2=$1
         case "${arg2}" in
         "--use_cxx11_abi=1")
@@ -128,6 +207,9 @@ function fn_main()
             ;;
         "--ini=version_item")
             VERSION_INFO_FILE=$CODE_ROOT/../CI/config/version_item.ini
+            ;;
+        "-t" | "--target")
+            ut_target_next="true"
             ;;
         esac
         shift

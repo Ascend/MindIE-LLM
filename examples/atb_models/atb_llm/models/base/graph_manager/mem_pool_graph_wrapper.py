@@ -10,7 +10,7 @@
 from atb_llm.models.base.graph_manager.graph_wrapper import ATBGraphWrapper
 from atb_llm.models.base.graph_manager.compatible_matrix import FeatureType
 from atb_llm.models.base.flash_causal_lm import FlashForCausalLM
-from atb_llm.runner.model_runner import generate_mem_pool_event_key
+from atb_llm.utils.mempool_utils import generate_mem_pool_event_key
 from mindie_llm.text_generator.plugins.plugin_manager import MemPoolType
 
 

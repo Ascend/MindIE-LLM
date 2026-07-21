@@ -18,7 +18,7 @@ readonly MIRROR_REGISTRY="swr.cn-north-4.myhuaweicloud.com/inference"
 # Logging
 # ================================================================
 
-readonly LOG_PREFIX="[MindIE-LLM-Docker]"
+readonly LOG_PREFIX="[MindIE-Docker]"
 
 log_info()  { echo "${LOG_PREFIX} [INFO] $*"; }
 log_warn()  { echo "${LOG_PREFIX} [WARN] $*" >&2; }
@@ -28,7 +28,9 @@ log_error() { echo "${LOG_PREFIX} [ERROR] $*" >&2; }
 # Base URLs — centralized, single source of truth
 # ================================================================
 
-readonly BASE_URL_MINDIE="https://gitcode.com/Ascend/MindIE-LLM/releases/download"
+readonly BASE_URL_MINDIE_LLM="https://gitcode.com/Ascend/MindIE-LLM/releases/download"
+readonly BASE_URL_MINDIE_SD="https://gitcode.com/Ascend/MindIE-SD/releases/download"
+readonly BASE_URL_MINDIE_MOTOR="https://gitcode.com/Ascend/MindIE-Motor/releases/download"
 readonly BASE_URL_PTA_RELEASE="https://gitcode.com/Ascend/pytorch/releases/download"
 readonly BASE_URL_TORCH="https://pytorch-package.obs.cn-north-4.myhuaweicloud.com/pta/torch"
 readonly BASE_URL_CANN="https://ascend-repo.obs.cn-east-2.myhuaweicloud.com/CANN/CANN"
@@ -106,19 +108,33 @@ get_py_short() {
 # pattern: mindie_llm-{ver}-{cp_tag}-{cp_tag}-linux_{arch}.whl
 url_mindie_llm_whl() {
     local ver="$1" arch="$2" cp_tag="$3"
-    echo "${BASE_URL_MINDIE}/${ver}/mindie_llm-${ver}-${cp_tag}-${cp_tag}-linux_${arch}.whl"
-}
-
-# atb-llm .whl
-url_atb_llm_whl() {
-    local ver="$1" arch="$2" cp_tag="$3"
-    echo "${BASE_URL_MINDIE}/${ver}/atb_llm-${ver}-${cp_tag}-${cp_tag}-linux_${arch}.whl"
+    echo "${BASE_URL_MINDIE_LLM}/${ver}/mindie_llm-${ver}-${cp_tag}-${cp_tag}-linux_${arch}.whl"
 }
 
 # mindie-llm .run package
 url_mindie_llm_run() {
     local ver="$1" arch="$2"
-    echo "${BASE_URL_MINDIE}/${ver}/Ascend-mindie_${ver}_linux-${arch}_abi1.run"
+    echo "${BASE_URL_MINDIE_LLM}/${ver}/Ascend-mindie_${ver}_linux-${arch}_abi1.run"
+}
+
+# atb-llm .whl
+url_atb_llm_whl() {
+    local ver="$1" arch="$2" cp_tag="$3"
+    echo "${BASE_URL_MINDIE_LLM}/${ver}/atb_llm-${ver}-${cp_tag}-${cp_tag}-linux_${arch}.whl"
+}
+
+# mindie-sd .whl
+# pattern: mindiesd-{ver}-{cp_tag}-{cp_tag}-linux_{arch}.whl
+url_mindie_sd_whl() {
+    local ver="$1" arch="$2" cp_tag="$3"
+    echo "${BASE_URL_MINDIE_SD}/${ver}/mindiesd-${ver}-${cp_tag}-${cp_tag}-linux_${arch}.whl"
+}
+
+# mindie-motor .whl
+# pattern: mindie_motor-{ver}-{cp_tag}-{cp_tag}-linux_{arch}.whl
+url_mindie_motor_whl() {
+    local ver="$1" arch="$2" cp_tag="$3"
+    echo "${BASE_URL_MINDIE_MOTOR}/${ver}/mindie_motor-${ver}-${cp_tag}-${cp_tag}-linux_${arch}.whl"
 }
 
 url_pta_whl() {

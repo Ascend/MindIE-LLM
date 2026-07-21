@@ -27,6 +27,16 @@ CODE_ROOT=$(pwd)
 CPP_TEST_ENABLE=0
 PYTHON_TEST_ENABLE=1
 
+HAS_COVERAGE=0
+for arg in "$@"; do
+    if [[ "$arg" == "--coverage" ]]; then
+        HAS_COVERAGE=1
+    else
+        filtered_args+=("$arg")
+    fi
+done
+set -- "${filtered_args[@]}"
+
 function export_mindie_llm_env()
 {
     if [ $CPP_TEST_ENABLE -eq 1 ] || [ $PYTHON_TEST_ENABLE -eq 1 ]; then
@@ -46,25 +56,52 @@ function fn_build_dt()
         fi
     fi
 
-    if [ $CPP_TEST_ENABLE -eq 1 ]; then
-        bash ${PROJECT_DIR}/build.sh unittest
-    elif [ $PYTHON_TEST_ENABLE -eq 1 ]; then
-        bash ${PROJECT_DIR}/build.sh
+    if [ $HAS_COVERAGE -eq 1 ]; then
+        if [ $CPP_TEST_ENABLE -eq 1 ]; then
+            bash ${PROJECT_DIR}/build.sh unittest --coverage
+        elif [ $PYTHON_TEST_ENABLE -eq 1 ]; then
+            bash ${PROJECT_DIR}/build.sh
+        fi
+    else
+        if [ $CPP_TEST_ENABLE -eq 1 ]; then
+            bash ${PROJECT_DIR}/build.sh unittest "$@"
+        elif [ $PYTHON_TEST_ENABLE -eq 1 ]; then
+            bash ${PROJECT_DIR}/build.sh "$@"
+        fi
     fi
 }
 
 function fn_run_dt() {
     local build_dir="${1:-build}"
-    shift
+    shift  # 移除第一个参数(build_dir)，保留剩余参数传递给ctest
 
     if [[ ! -d "$build_dir" ]]; then
         echo "Error: Build directory '$build_dir' not found"
         return 1
     fi
 
-    echo "Running tests in $build_dir..."
-    ctest --test-dir "$build_dir" --verbose --output-on-failure "$@"
+    if [ $HAS_COVERAGE -eq 1 ]; then
+        # 逐个执行测试
+        for test_name in $(ctest --test-dir "$build_dir" -N 2>/dev/null | grep -oP 'Test\s+#\d+:\s+\K\S+'); do
+            echo "=== Running: $test_name ==="
+
+            # 执行单个测试，遇到失败的继续执行|| true
+            ctest --test-dir "$build_dir" --verbose --output-on-failure -R "^${test_name}$" || true
+
+            # 1. 创建目标目录（-p 确保父目录存在）
+            mkdir -p "/tmp/shiqiang/task/${test_name}"
+
+            # 2. 移动 covdata 目录
+            mv "/tmp/shiqiang/task/covdata" "/tmp/shiqiang/task/${test_name}/covdata"
+
+            echo ""
+        done
+    else
+        echo "Running tests in $build_dir..."
+        ctest --test-dir "$build_dir" --verbose --output-on-failure "$@"
+    fi
 }
+
 
 # 构建cpp代码覆盖率
 function fn_build_coverage()
@@ -102,10 +139,11 @@ function fn_build_coverage()
     $LCOV_PATH -c -d $GCOV_CACHE_DIR -o $GCOV_INFO_DIR/cover.info --rc lcov_branch_coverage=1 >> $GCOV_DIR/log.txt --rc lcov_excl_br_line='MINDIE_LLM_LOG_*'
     $LCOV_PATH -a $GCOV_INFO_DIR/init.info -a $GCOV_INFO_DIR/cover.info -o $GCOV_INFO_DIR/total.info --rc lcov_branch_coverage=1 >> $GCOV_DIR/log.txt
     $LCOV_PATH --remove $GCOV_INFO_DIR/total.info '*/third_party/*' '*torch/*' '*c10/*' '*ATen/*' '*cpu_logits_handler/*' '*/c++/7*' '*/llm_backend/*' '*/src/*' '*tests/*' '*tools/*' '/usr/*' '*ascend-transformer-boost/*' '*python_api/*' '*/server/* */src/utils/common_util.cpp ' '*/mindie_llm/text_generator/cpp/*' '*connector/cpp/*' -o $GCOV_INFO_DIR/final.info --rc lcov_branch_coverage=1 >> $GCOV_DIR/log.txt
-    $GENHTML_PATH --rc lcov_branch_coverage=1 -o cover_result $GCOV_INFO_DIR/final.info -o cover_result >> $GCOV_DIR/log.txt
+    $GENHTML_PATH --rc lcov_branch_coverage=1 -o cover_result $GCOV_INFO_DIR/final.info -o cover_result >> $GCOV_DIR/log.txt || true
     tail -n 4 $GCOV_DIR/log.txt
     cd $OUTPUT_DIR
     tar -czf gcov.tar.gz gcov
+    touch result.txt
 
     coverage_info=$($LCOV_PATH --list-full-path --list $GCOV_INFO_DIR/final.info --rc lcov_branch_coverage=1)
 
@@ -147,18 +185,43 @@ function fn_run_pythontest()
 
     for device in "${devices[@]}"; do
         (
-            pytest ${PROJECT_DIR}/tests/pythontest/$device --cov=${PROJECT_DIR}/mindie_llm --cov-branch --cov-append \
-            --cov-report xml:coverage.xml --cov-report html --continue-on-collection-errors --forked \
-            --ignore=${PROJECT_DIR}/tests/pythontest/npu/llm_manager \
-            --ignore=${PROJECT_DIR}/tests/pythontest/npu/text_generator/test_plugins/test_plugin_manager_edge.py \
-            --ignore=${PROJECT_DIR}/tests/pythontest/npu/text_generator/separate_deployment_engine/test_generator_pd_separate.py \
-            --ignore=${PROJECT_DIR}/tests/pythontest/npu/text_generator/separate_deployment_engine/test_separate_deployment_engine.py \
-            --ignore=${PROJECT_DIR}/tests/pythontest/npu/test_block_copy.py \
-            --ignore=${PROJECT_DIR}/tests/pythontest/cpu/runtime ;
+            if [ $HAS_COVERAGE -eq 1 ]; then
+                for test_file in $(find ${PROJECT_DIR}/tests/pythontest/$device -name "test_*.py"); do
 
+                    test_name=$(basename "$test_file" .py)
+                    mkdir -p /tmp/shiqiang/python/task/$test_name/covdata/
+                    export COVERAGE_FILE="/tmp/shiqiang/python/task/$test_name/covdata/coverage"
+
+                    echo "▶ 执行测试：$test_file"
+                    python -m coverage run --rcfile=/tmp/shiqiang/python/coveragerc -m pytest \
+                        "$test_file" \
+                        --cov=${PROJECT_DIR}/mindie_llm \
+                        --cov-branch \
+                        --cov-append \
+                        --continue-on-collection-errors \
+                        --forked \
+                        --ignore=${PROJECT_DIR}/tests/pythontest/npu/llm_manager \
+                        --ignore=${PROJECT_DIR}/tests/pythontest/npu/text_generator/test_plugins/test_plugin_manager_edge.py \
+                        --ignore=${PROJECT_DIR}/tests/pythontest/npu/text_generator/separate_deployment_engine/test_generator_pd_separate.py \
+                        --ignore=${PROJECT_DIR}/tests/pythontest/npu/text_generator/separate_deployment_engine/test_separate_deployment_engine.py \
+                        --ignore=${PROJECT_DIR}/tests/pythontest/npu/test_block_copy.py \
+                        --ignore=${PROJECT_DIR}/tests/pythontest/cpu/runtime ;
+                    echo "✅ 完成：$test_file"
+                    rm -f ${PROJECT_DIR}/output/lib/.nfs* 2>/dev/null
+                done
+            else
+                pytest ${PROJECT_DIR}/tests/pythontest/$device --cov=${PROJECT_DIR}/mindie_llm --cov-branch --cov-append \
+                --cov-report xml:coverage.xml --cov-report html --continue-on-collection-errors --forked \
+                --ignore=${PROJECT_DIR}/tests/pythontest/npu/llm_manager \
+                --ignore=${PROJECT_DIR}/tests/pythontest/npu/text_generator/test_plugins/test_plugin_manager_edge.py \
+                --ignore=${PROJECT_DIR}/tests/pythontest/npu/text_generator/separate_deployment_engine/test_generator_pd_separate.py \
+                --ignore=${PROJECT_DIR}/tests/pythontest/npu/text_generator/separate_deployment_engine/test_separate_deployment_engine.py \
+                --ignore=${PROJECT_DIR}/tests/pythontest/npu/test_block_copy.py \
+                --ignore=${PROJECT_DIR}/tests/pythontest/cpu/runtime ;
+            fi
         ) &
- 	    pids+=($!)
-    done
+        pids+=($!)
+        done
 
     # 等待所有设备测试完成
  	for pid in "${pids[@]}"; do
@@ -208,7 +271,7 @@ function fn_coverage_gate()
         echo "Dt test failed, please check the following message:"
         cat temp.txt
         rm temp.txt
-        exit -1
+        return 1
     fi
 }
 
@@ -246,14 +309,16 @@ function fn_main()
         fi
     fi
 
-    local ctest_args=("$@")
-
-    # 兼容旧的 TEST_MODE 用法 (cpp / python)，不作为 ctest 参数传递
-    case "${1:-}" in
+    if [ $HAS_COVERAGE -eq 1 ]; then
+        fn_run_dt build
+    else
+        local ctest_args=("$@")
+        # 兼容旧的 TEST_MODE 用法 (cpp / python)，不作为 ctest 参数传递
+        case "${1:-}" in
         cpp|python) ctest_args=("${@:2}") ;;
-    esac
-
-    fn_run_dt build "${ctest_args[@]}"
+        esac
+        fn_run_dt build "${ctest_args[@]}"
+    fi
 
     export_mindie_llm_env
 
@@ -282,17 +347,25 @@ function fn_main()
 
     # 门禁包含修改文件列表时，启动覆盖率检测，修改文件的行覆盖率小于80%或者分支覆盖率小于30%时，门禁不予通过
     cd $PROJECT_DIR
+    GATE_FAILED=0
     if [ -e "modify_files.txt" ]; then
-        fn_coverage_gate
+        fn_coverage_gate || GATE_FAILED=1
+    fi
+    if [ $GATE_FAILED -eq 1 ]; then
+        exit 1
     fi
 }
 
 case "$1" in
+    fn_run_pythontest)
+        shift  # 移除第一个参数
+        fn_run_pythontest
+        ;;
     fn_build_dt)
         shift  # 移除第一个参数
-        fn_build_dt
+        fn_build_dt "$@"
         ;;
     *)
-        fn_main "$@"
+        fn_main "$@" # 执行原来抽离编译的逻辑
         ;;
 esac

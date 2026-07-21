@@ -336,7 +336,8 @@ class Generator(PDInterface):
         ):
             raise ValueError("Prefix Cache is not supported on D nodes under PD separation!")
 
-        if self.enable_prefix_cache and self.is_mix_model and dp > 1:
+        # 该约束仅适用于 PD 混部场景；PD 分离（role 为 prefill/decoder）不受此限制
+        if self.enable_prefix_cache and self.is_mix_model and dp > 1 and self.pd_config.model_role == STANDARD_TAG:
             raise ValueError("Prefix Cache, splitfuse and DP (Data Parallelism) cannot be enable at the same time!")
 
         self.layerwise_disaggregated = parse_config(
@@ -922,6 +923,13 @@ class Generator(PDInterface):
             # Delegate pause to generator backend
             self.is_inference_pause = True
             self.plugin_manager.is_inference_pause = True
+            # fault can happen during executing cpu collective, thus should destroy and rebuild when recovering
+            try:
+                logger.info("[CPU_PG_RECOVERY] Start destroying ATTN_DP CPU process group during pause")
+                get_parallel_info_manager().destroy_cpu_process_group(ParallelType.ATTN_DP)
+                logger.info("[CPU_PG_RECOVERY] Finished destroying ATTN_DP CPU process group during pause")
+            except Exception as e:
+                logger.warning("[CPU_PG_RECOVERY] Failed to destroy ATTN_DP CPU process group during pause: %s", e)
             ret_dict = self.generator_backend.execute_recover_command(command)
 
         elif command == "CMD_PAUSE_ENGINE_ROCE":

@@ -32,15 +32,15 @@
 
 | 特性 | Data Parallel | Context Parallel | W8A8 量化 | 异步调度 | Chunked Prefill | MTP  | Prefix Cache | Function Call | 思考解析 | PD 分离 |
 | :-----: | :-----: | :-----: | :-----: | :-----: | :-----: | :-----: | :-----: | :-----: | :-----: | :-----: |
-| Data Parallel    | ✅ |
-| Context Parallel | ❌ | ✅ |
-| W8A8 量化        | ✅ | ✅ | ✅ |
-| 异步调度          | ✅ | ❌ | ✅ | ✅ |
-| Chunked Prefill  | ✅ | ❌ | ✅ | ✅ | ✅ |
-| MTP             | ✅ | ✅ | ✅ | ✅ | 混部❌<br/>PD分离✅ | ✅ |
-| Prefix Cache    | ✅ | ❌ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| Function Call   | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| 思考解析          | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Data Parallel    | ✅ |   |    |   |    |   |    |    |     |    |
+| Context Parallel | ❌ | ✅ |   |    |    |   |   |     |    |    |
+| W8A8 量化        | ✅ | ✅ | ✅ |    |    |   |   |     |    |    |
+| 异步调度          | ✅ | ❌ | ✅ | ✅ |    |   |   |     |    |    |
+| Chunked Prefill  | ✅ | ❌ | ✅ | ✅ | ✅ |   |   |     |    |    |
+| MTP             | ✅ | ✅ | ✅ | ✅ | 混部❌<br/>PD分离✅ | ✅ |   | | | |
+| Prefix Cache    | ✅ | ❌ | ✅ | ✅ | ✅ | ✅ | ✅ |    |   |    |
+| Function Call   | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |    |   |
+| 思考解析          | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |   |
 | PD 分离          | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 
 ---
@@ -59,7 +59,7 @@
 
 #### 使用 msmodelslim 工具生成量化权重
 
-可以使用 [msmodelslim](https://gitcode.com/Ascend/msmodelslim) 生成量化权重，请参考[一键量化使用指南](https://gitcode.com/Ascend/msmodelslim/blob/master/docs/zh/feature_guide/quick_quantization_v1/usage.md)进行配置并完成量化权重的生成，下面给出量化方式简介和相对应的生成命令。
+可以使用 [msmodelslim](https://gitcode.com/Ascend/msmodelslim) 生成量化权重。
 
 **量化策略说明：**
 
@@ -105,7 +105,7 @@ chmod 750 {/path-to-weights/DeepSeek-V3.2}
 
 ## 安装
 
-MindIE-LLM 安装请参见[安装指南](../../install/installing_MindIE.md)。
+MindIE-LLM 安装请参见[安装指南](../../install/installing_MindIE.md)，本文后续以[镜像安装](../../install/source/image_usage_guide.md)为例，说明如何运行 DeepSeek-V3.2 模型的服务化推理。
 
 ---
 
@@ -115,10 +115,13 @@ MindIE-LLM 安装请参见[安装指南](../../install/installing_MindIE.md)。
 
 #### 配置服务化环境变量
 
-在 2 台机器上都需要按照下述方法设置环境变量：
+在 2 台机器（如果是物理机安装方式，则选择物理机；如果使用镜像或容器安装方式，则选择对应的容器）上都需要按照下述方法设置环境变量：
 
 ```shell
-source /usr/local/lib/python3.11/site-packages/mindie_llm/set_env.sh # 设置 MindIE-LLM 运行所需环境变量
+source /usr/local/Ascend/ascend-toolkit/set_env.sh       # 设置 CANN 环境变量，根据 CANN 包实际安装路径修改。
+source /usr/local/Ascend/nnal/atb/set_env.sh             # 设置 ATB 环境变量，根据 ATB 包实际安装路径修改。
+source /usr/local/Ascend/atb-models/set_env.sh           # 设置 ATB-Models 模型环境变量，根据 atb-llm 包实际安装路径修改。如果使用whl包，则路径为 /usr/local/lib/python3.11/site-packages/atb_llm/set_env.sh
+source /usr/local/Ascend/mindie/set_env.sh               # 设置 MindIE-LLM 运行所需环境变量，根据 MindIE 包实际安装路径修改。如果使用whl包，则路径为 /usr/local/lib/python3.11/site-packages/mindie_llm/set_env.sh
 export MINDIE_LOG_TO_STDOUT=1                            # 开启日志输出到屏幕（可选）
 export TASK_QUEUE_ENABLE=0                               # 关闭任务队列，避免多流场景下精度问题
 export HCCL_OP_EXPANSION_MODE="HOST"                     # 使用 HOST 模式，避免通信算子偶发报错
@@ -147,13 +150,14 @@ unset http_proxy https_proxy
 
 - `MIES_CONTAINER_IP` 优先级高于配置文件中的 `ipAddress`，设置后发送请求时，以主节点的 `MIES_CONTAINER_IP` 为准。
 - `GLOO_SOCKET_IFNAME` 需要根据 MIES_CONTAINER_IP 对应的网卡名，可以通过 `ifconfig` 查看网卡列表，设置为对应的网卡名，参考[FAQ](https://gitcode.com/Ascend/MindIE-LLM/blob/master/docs/zh/faq/faq.md#gloo%E8%BF%9E%E6%8E%A5%E5%A4%B1%E8%B4%A5%E6%8A%A5%E9%94%99%EF%BC%9Aerror-failed-to-connect-errorso_error-connection-refused)。
+- MindIE-LLM 支持编译 run 包和 whl 包，两者的安装路径有所不同，发布的镜像中默认安装的是 run 包。run 包默认将二进制文件存储在 `/usr/local/Ascend/mindie` 目录下，并将 Python 文件存储在 Python whl 包默认安装目录（如 `/usr/local/lib/python3.11/site-packages/mindie_llm`）；whl 包将二进制文件和 Python 文件都存储在 Python 包默认安装目录。
 
 #### 配置服务化参数
 
-在 2 台机器上都需要按照下述方法修改服务化参数，进入 MindIE-LLM 安装目录，编辑服务化配置文件：
+在 2 台机器（或容器）按照下述方法修改服务化参数，进入 MindIE-LLM 安装目录，编辑服务化配置文件：
 
 ```shell
-cd /usr/local/lib/python3.11/site-packages/mindie_llm
+cd /usr/local/Ascend/mindie/latest/mindie-service  # 如果使用whl包，则路径为 /usr/local/lib/python3.11/site-packages/mindie_llm
 vim conf/config.json
 ```
 
@@ -207,8 +211,11 @@ vim conf/config.json
 #### 拉起服务
 
 ```shell
-# 拉起服务化，在 2 台环境上都需要执行
-mindie_llm_server
+# 拉起服务化，在 2 台环境（宿主机或容器）上都需要执行
+cd /usr/local/Ascend/mindie/latest/mindie-service  # 根据实际安装路径修改
+./bin/mindieservice_dameon
+
+# 如果为whl包，则可以直接执行 mindie_llm_server
 ```
 
 执行命令后，首先会打印本次启动所用的所有参数，然后直到 2 台环境上都出现以下输出，表示服务拉起成功：
@@ -273,6 +280,7 @@ user_config_base_A3.json       # 针对 A3 硬件的服务配置
   },
   "mindie_server_decode_env": {
     ...
+    "INF_NAN_MODE_ENABLE": 1,
     "TASK_QUEUE_ENABLE": 0,            # 关闭任务队列，避免多流场景下精度问题
     "NPU_MEMORY_FRACTION": 0.8,
     "HCCL_CONNECT_TIMEOUT": 7200,
