@@ -22,7 +22,7 @@
 
     | 产品型号      | 参考文档                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
     | ------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-    | Atlas 800I A2 | 下载[固件与驱动](https://hiascend.com/hardware/firmware-drivers/community)，安装请参考《CANN 软件安装》中的"[安装 NPU 驱动和固件](https://www.hiascend.com/document/detail/zh/canncommercial/850/softwareinst/instg/instg_0005.html?Mode=PmIns&InstallType=local&OS=openEuler)"章节（商用版）或"[安装 NPU 驱动和固件](https://www.hiascend.com/document/detail/zh/CANNCommunityEdition/850/softwareinst/instg/instg_0005.html?Mode=PmIns&InstallType=local&OS=openEuler)"章节（社区版）。 |
+    | Atlas 800I A2 | 下载[固件与驱动](https://hiascend.com/hardware/firmware-drivers/community)，安装请参考《CANN 软件安装》中的"[安装 NPU 驱动和固件](https://www.hiascend.com/document/detail/zh/CANNCommunityEdition/latest/softwareinst/instg/instg_0005.html?OS=openEuler&InstallType=local)"章节。 |
 
 - 执行以下命令查看 Docker 是否已安装并启动。Docker 的安装可参见[安装 Docker](../install/source/docker_installation.md)。
 
@@ -406,7 +406,7 @@
     │ Total Token Throughput   │ total    │ 723.5273 token/s   │
     ```
 
-    性能测试结果主要关注 TTFT、TPOT、Request Throughput 和 Output Token Throughput 输出参数，参数详情信息请参见《MindIE Motor 开发指南》中的“配套工具 \> 性能/精度测试工具”章节的“表 2 性能测试结果指标对比”。
+    性能测试结果主要关注 TTFT、TPOT、Request Throughput 和 Output Token Throughput 输出参数，参数详情信息请参见《MindIE Motor CPP开发指南》中的“配套工具 \> 性能/精度测试工具”章节的“表 2 性能测试结果指标对比”。
 
     > [!NOTE] 说明
     > 任务执行的过程最终会落盘在默认的输出路径，该输出路径在运行中的打印日志中有提示，日志内容如下所示：

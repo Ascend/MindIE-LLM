@@ -1,4 +1,4 @@
-# 安装指南
+# MindIE LLM安装指南
 
 - [安装说明](installation_introduction.md)
 - [安装MindIE]()

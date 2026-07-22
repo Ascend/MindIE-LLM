@@ -191,7 +191,7 @@
 
 ### 前提条件
 
-已在环境上安装CANN、PyTorch、Torch-NPU、ATB Models、MindIE LLM和MindIE Motor，详情请参见《MindIE安装指南》。
+已在环境上安装CANN、PyTorch、Torch-NPU、ATB Models、MindIE LLM和MindIE Motor CPP，详情请参见《MindIE安装指南》。
 
 ### 使用实例
 
@@ -226,7 +226,7 @@
 
 2. 启动服务化并发送请求。
 
-    MindIE服务化使用方法请参考《MindIE Motor开发指南》中的“快速入门 \> [启动服务](https://gitcode.com/Ascend/MindIE-Motor/blob/dev/docs/zh/user_guide/quick_start.md)”章节。服务化参数配置请参考[配置参数说明（服务化）](service_parameter_configuration.md)。
+    MindIE服务化使用方法请参考《MindIE Motor CPP开发指南》中的“快速入门 \> [启动服务](https://gitcode.com/Ascend/MindIE-Motor-CPP/blob/dev/docs/zh/user_guide/quick_start.md)”章节。服务化参数配置请参考[配置参数说明（服务化）](service_parameter_configuration.md)。
 
     服务化配置中默认使用ATB Models作为模型后端。
 
@@ -246,7 +246,7 @@
     "backendType": "atb"
     ```
 
-    服务化API接口请参考《MindIE Motor开发指南》中的“服务化接口”章节。
+    服务化API接口请参考《MindIE Motor CPP开发指南》中的“服务化接口”章节。
 
     用户可使用HTTPS客户端（Linux curl命令，Postman工具等）发送HTTPS请求，此处以Linux curl命令为例进行说明。重开一个窗口，使用以下命令发送请求。
 

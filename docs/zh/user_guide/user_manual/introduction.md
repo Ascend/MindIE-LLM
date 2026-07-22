@@ -1,10 +1,13 @@
-# 简介
+# MindIE LLM简介
 
 ## 概述
 
 **MindIE LLM**（Mind Inference Engine for Large Language Models）是昇腾的大语言模型（Large Language Model，LLM）推理加速套件，旨在通过深度优化的模型库和推理优化器，专门提升大模型在昇腾硬件上的推理性能和易用性。MindIE LLM基于昇腾硬件，提供业界通用大模型推理能力，多并发请求的调度，包含Continuous Batching、PagedAttention、FlashDecoding等加速特性，使能用户高性能推理需求。
 
 MindIE LLM 主要对外提供 **C++ 与 Python API**（Application Programming Interface），包括大模型推理、并发请求调度和 LLM Manager API 等，便于用户在业务系统中集成与调用。
+
+> [!NOTE]说明
+> 由于技术架构升级，MindIE 3.0.0及以往版本的MindIE Motor更名为“MindIE Motor CPP”，MindIE Motor CPP只支持对接MindIE LLM，MindIE Motor 3.1.0版本只支持对接vLLM-Ascend。
 
 ## MindIE LLM架构图
 

@@ -104,7 +104,7 @@ Service侧加载模型后快速退出程序，出现“Socket bind failed”报�
 
 ### 原因分析
 
-MindIE Motor使用HTTP或者HTTPS协议进行通信，让客户端先断开连接可以减少服务器的负担，保证资源的合理释放，包括端口资源等。
+MindIE Motor CPP使用HTTP或者HTTPS协议进行通信，让客户端先断开连接可以减少服务器的负担，保证资源的合理释放，包括端口资源等。
 
 ### 解决措施
 

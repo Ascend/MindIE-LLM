@@ -1,6 +1,6 @@
 # LLM用户指南
 
-- [简介](./introduction.md)
+- [MindIE LLM简介](./introduction.md)
 - [AclGraph 模型迁移指南](../../developer_guide/migration_and_adaptation_guide/aclgraph_migration_and_adaptation_guide.md)
 - [核心概念与配置]()
   - [配置参数说明（服务化）](service_parameter_configuration.md)
@@ -52,5 +52,6 @@
     - [思考解析](../feature/enable_reasoning.md)
     - [思考预算](../feature/thinking_budget.md)
 - [附录]()
+  - [MindIE Motor CPP用户指南](https://gitcode.com/Ascend/MindIE-Motor-CPP/blob/dev/docs/zh/user_guide/menu_user_manual.md)
   - [FAQ](../../faq/faq.md)
   - [环境变量说明](environment_variable.md)

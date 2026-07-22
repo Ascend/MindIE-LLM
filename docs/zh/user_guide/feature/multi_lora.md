@@ -64,7 +64,7 @@ LoRA权重中需包含"adapter\_config.json"和"adapter\_model.safetensors"文�
 - 服务化使用：
 
     > [!NOTE]说明
-    > lora\_adapter.json文件配置方式已下线，新的配置方式是在MindIE Motor的config.json文件中添加LoraModules字段开启Multi LoRA特性，详细操作步骤如下所示。
+    > lora\_adapter.json文件配置方式已下线，新的配置方式是在MindIE Motor CPP的config.json文件中添加LoraModules字段开启Multi LoRA特性，详细操作步骤如下所示。
 
     以LLaMA3.1 70B模型为例，简单介绍Multi LoRA如何使用。
 

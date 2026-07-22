@@ -73,6 +73,6 @@
     >- Qwen3-30B-A3B模型："qwen3"字段应修改为"qwen3\_moe"。
     >- 在thinking_budget设置过低的情况下，推理结果有概率切换到与提示词相同的语言。
 
-3. 启动服务。PD混部场景可请参考《MindIE Motor开发指南》中的“快速入门 \> [启动服务](https://gitcode.com/Ascend/MindIE-Motor/blob/dev/docs/zh/user_guide/quick_start.md)”章节，
-PD分离场景可参考《MindIE Motor开发指南》中的“集群服务部署 \> [PD分离服务部署](https://gitcode.com/Ascend/MindIE-Motor/blob/master/docs/zh/user_guide/service_deployment/pd_separation_service_deployment.md)”章节。
-4. 发送请求。参数说明见《MindIE LLM开发指南》中的“[服务化接口使用指导](https://gitcode.com/Ascend/MindIE-LLM/blob/master/docs/zh/user_guide/user_manual/service_APIs_usage_guidance.md)”章节。
+3. 启动服务。PD混部场景可请参考《MindIE Motor CPP开发指南》中的“快速入门 \> [启动服务](https://gitcode.com/Ascend/MindIE-Motor-CPP/blob/dev/docs/zh/user_guide/quick_start.md)”章节，
+PD分离场景可参考《MindIE Motor CPP开发指南》中的“集群服务部署 \> [PD分离服务部署](https://gitcode.com/Ascend/MindIE-Motor-CPP/blob/master/docs/zh/user_guide/service_deployment/pd_separation_service_deployment.md)”章节。
+4. 发送请求。参数说明见《MindIE LLM开发指南》中的“[服务化接口使用指导](../user_manual/service_APIs_usage_guidance.md)”章节。

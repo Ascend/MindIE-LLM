@@ -90,4 +90,4 @@
         ./bin/mindieservice_daemon
         ```
 
-4. 发送请求。参数说明见《MindIE Motor开发指南》中的“集群管理组件 \> 调度器（Coordinator） \> RESTful接口API \> 用户侧接口 \> OpenAI推理接口”章节。
+4. 发送请求。参数说明见《MindIE Motor CPP开发指南》中的“集群管理组件 \> 调度器（Coordinator） \> RESTful接口API \> 用户侧接口 \> OpenAI推理接口”章节。

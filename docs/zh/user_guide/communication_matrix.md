@@ -3,7 +3,7 @@
 提供了MindIE LLM的通信矩阵，包括产品开放的端口、该端口使用的传输层协议、通过该端口与对端通信的通信网元名称、认证方式、用途等信息说明。
 
 > [!NOTE]说明
-> datadist、HCCL、LCCL和ATB相关通信矩阵请参考《[CANN 通信矩阵](https://www.hiascend.com/document/detail/zh/CANNCommunityEdition/850/maintenref/commumatrix/commumatrix_01.html)》。
+> datadist、HCCL、LCCL和ATB相关通信矩阵请参考《[CANN 通信矩阵](https://www.hiascend.com/document/detail/zh/CANNCommunityEdition/latest/maintenref/refdoc/refer001.html)》。
 
 |源设备|源IP地址|源端口|目的设备|目的IP地址|目的端口（侦听）|协议|端口说明|侦听端口是否可更改|认证方式|加密方式|所属平面|版本|特殊场景|备注|
 |--|--|--|--|--|--|--|--|--|--|--|--|--|--|--|

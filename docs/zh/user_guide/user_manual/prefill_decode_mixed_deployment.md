@@ -136,7 +136,7 @@
 > - Ascend-cann-toolkit工具会在执行服务启动的目录下生成kernel_meta_temp_xxxx目录，该目录为算子的cce文件保存目录。因此需要在当前用户拥有写权限目录下（例如Ascend-mindie-server_{version}_linux-{arch}_{abi}目录，或者用户在Ascend-mindie-server_{version}_linux-{arch}目录下自行创建临时目录）启动推理服务。
 > - 如需切换用户，请在切换用户后执行rm -f /dev/shm/*命令，删除由之前用户运行创建的共享文件。避免切换用户后，该用户没有之前用户创建的共享文件的读写权限，造成推理失败。
 > - 标准输出流捕获到的文件output.log支持用户自定义文件和路径。
-> - 服务启动报缺失lib*.so依赖的错误时，处理方法请参见启动MindIE Motor服务时，出现找不到libboost_thread.so.1.82.0报错章节。
+> - 服务启动报缺失lib*.so依赖的错误时，处理方法请参见启动MindIE Motor CPP服务时，出现找不到libboost_thread.so.1.82.0报错章节。
 > - 不建议在同一容器中反复拉起服务，重复拉起前请清理容器“/dev/shm/”目录下的*llm_backend_*和llm_tokenizer_shared_memory_*文件，参考命令如下：
 >
 >      ```shell
@@ -294,7 +294,7 @@
 > - 如需切换用户，请在切换用户后执行rm -f /dev/shm/*命令，删除由之前用户运行创建的共享文件。避免切换用户后，该用户没有之前用户创建的共享文件的读写权限，造成推理失败。
 > - bin目录按照安全要求，目录权限为550，没有写权限，但执行推理过程中，算子会在当前目录生成kernel\_meta文件夹，需要写权限，因此不能直接在bin启动mindieservice\_daemon。
 > - 标准输出流捕获到的文件output.log支持用户自定义文件和路径。
-> - 服务启动报缺失lib*.so依赖的错误时，处理方法请参见启动MindIE Motor服务时，出现找不到libboost_thread.so.1.82.0报错章节。
+> - 服务启动报缺失lib*.so依赖的错误时，处理方法请参见启动MindIE Motor CPP服务时，出现找不到libboost_thread.so.1.82.0报错章节。
 > - 不建议在同一容器中反复拉起服务，重复拉起前请清理容器“/dev/shm/”目录下的*llm_backend_*和llm_tokenizer_shared_memory_*文件，参考命令如下：
 >
 >      ```shell
@@ -588,7 +588,7 @@ ranktable.json文件权限需要设置为640，详细内容请根据以下样例
 > - Ascend-cann-toolkit工具会在执行服务启动的目录下生成kernel_meta_temp_xxxx目录，该目录为算子的cce文件保存目录。因此需要在当前用户拥有写权限目录下（例如Ascend-mindie-server_{version}_linux-{arch}_{abi}目录，或者用户在Ascend-mindie-server_{version}_linux-{arch}目录下自行创建临时目录）启动推理服务。
 > - 如需切换用户，请在切换用户后执行rm -f /dev/shm/*命令，删除由之前用户运行创建的共享文件。避免切换用户后，该用户没有之前用户创建的共享文件的读写权限，造成推理失败。
 > - 标准输出流捕获到的文件output.log支持用户自定义文件和路径。
-> - 服务启动报缺失lib*.so依赖的错误时，处理方法请参见启动MindIE Motor服务时，出现找不到libboost_thread.so.1.82.0报错章节。
+> - 服务启动报缺失lib*.so依赖的错误时，处理方法请参见启动MindIE Motor CPP服务时，出现找不到libboost_thread.so.1.82.0报错章节。
 > - 不建议在同一容器中反复拉起服务，重复拉起前请清理容器“/dev/shm/”目录下的*llm_backend_*和llm_tokenizer_shared_memory_*文件，参考命令如下：
 
     ```bash
@@ -808,7 +808,7 @@ ranktable.json文件权限需要设置为640，详细内容请根据以下样例
 > - Ascend-cann-toolkit工具会在执行服务启动的目录下生成kernel_meta_temp_xxxx目录，该目录为算子的cce文件保存目录。因此需要在当前用户拥有写权限目录下（例如Ascend-mindie-server_{version}_linux-{arch}_{abi}目录，或者用户在Ascend-mindie-server_{version}_linux-{arch}目录下自行创建临时目录）启动推理服务。
 > - 如需切换用户，请在切换用户后执行rm -f /dev/shm/*命令，删除由之前用户运行创建的共享文件。避免切换用户后，该用户没有之前用户创建的共享文件的读写权限，造成推理失败。
 > - 标准输出流捕获到的文件output.log支持用户自定义文件和路径。
-> - 服务启动报缺失lib*.so依赖的错误时，处理方法请参见启动MindIE Motor服务时，出现找不到libboost_thread.so.1.82.0报错章节。
+> - 服务启动报缺失lib*.so依赖的错误时，处理方法请参见启动MindIE Motor CPP服务时，出现找不到libboost_thread.so.1.82.0报错章节。
 > - 不建议在同一容器中反复拉起服务，重复拉起前请清理容器“/dev/shm/”目录下的*llm_backend_*和llm_tokenizer_shared_memory_*文件，参考命令如下：
 
     ```bash

@@ -59,4 +59,4 @@
         ./bin/mindieservice_daemon
         ```
 
-5. 使用AISBench工具开始调优，AISBench工具详细说明请参见《MindIE Motor开发指南》中的“配套工具 > 性能/精度测试工具”章节。
+5. 使用AISBench工具开始调优，AISBench工具详细说明请参见《MindIE Motor CPP开发指南》中的“配套工具 > 性能/精度测试工具”章节。
