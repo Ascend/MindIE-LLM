@@ -6,7 +6,7 @@ The haveged service has been installed.
 
 ## Procedure
 
-> [!NOTE]NOTE
+> [!NOTE]
 >
 > - The Server supports bidirectional HTTPS authentication to authenticate HTTP requests initiated by clients. When HTTPS is enabled, to encrypt the password of the server key, the random number generation algorithm used by the encryption tool KMC requires the haveged component to supplement entropy. Perform the following operations on all nodes where the Server is installed.
 > - The MindIE MS server uses the KMC tool. The haveged component is also required for entropy supplementation on the management node where MindIE MS is deployed.

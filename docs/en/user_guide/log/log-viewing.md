@@ -31,13 +31,13 @@ By default,  MindIE  collects logs of the Informational level or higher.[Table 1
 
 The log file name format is mindie-_Component name_\_pid\_datetime.log. You can locate a log file based on the component name, process ID, and timestamp.
 
-[**Example 1**]  MindIE Motor log file:
+[**Example 1**] MindIE Motor log file:
 
 ```bash
 mindie-service_123_202410080206.log
 ```
 
-You can run the  **cat** _Log file_  command to view logs.
+You can run the **cat** _Log file_ command to view logs.
 
 [**Example 2**] View the  MindIE Motor  log file:
 

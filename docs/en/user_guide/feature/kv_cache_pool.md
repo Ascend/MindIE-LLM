@@ -13,11 +13,11 @@ However, the prefix cache uses only on-chip memory by default, which has limited
 - Currently, only DRAM pooling is supported, forming a two-level cache structure with the prefix cache.
 - To use the KV cache pooling feature, the prefix cache feature must be enabled.
 - The underlying layer uses the pooling backend based on HCCL one-sided communication, which occupies additional on-chip memory, mainly including the queue memory required for HCCL link setup. The details are as follows:
-   - Each HCCL link occupies 4 MB of graphics memory. Due to limitations of the HCCL backend, a maximum of 512 links can be established.
-   - Based on the number of cards participating in pooling, the additional graphics memory usage is calculated as follows: (Total pooled cards/total Number of dies – 1) × 4 MB.
-   - The system supports releasing space by reducing the graphics memory factor for HCCL link setup. Each time the graphics memory factor is reduced by 0.01, 600 MB of graphics memory can be released. The graphics memory factor can be reduced by up to 0.01, meeting the link setup upper limit requirements in the pooling scenario. Note that reducing the graphics memory factor also decreases the supported context length.
-   - In scale-out scenarios, you are advised to reserve graphics memory by reducing the graphics memory factor by 0.04. This prevents OOM caused by HCCL link setup when new nodes are dynamically added. For example, if the default graphics memory factor is 0.92, set it to 0.08 in scale-out scenarios.
-   - In non-scale-out scenarios, calculate the graphics memory required for HCCL link setup based on the total number of cards participating in pooling across all nodes and reduce the graphics memory factor accordingly. For example, when 4 + 4 Atlas 800I A3 servers are configured, the additional graphics memory required for HCCL link setup is calculated as follows: (8 × 16 – 1) × 4 MB = 508 MB. The default graphics memory factor is 0.92. Reducing it by 0.01 can meet the requirements (about 600 MB of graphics memory is released, which is greater than 508 MB). Note that the context length will be reduced accordingly.
+  - Each HCCL link occupies 4MB of graphics memory. Due to limitations of the HCCL backend, a maximum of 512 links can be established.
+  - Based on the number of cards participating in pooling, the additional graphics memory usage is calculated as follows: (Total pooled cards/total Number of dies – 1) × 4MB.
+  - The system supports releasing space by reducing the graphics memory factor for HCCL link setup. Each time the graphics memory factor is reduced by 0.01, 600MB of graphics memory can be released. The graphics memory factor can be reduced by up to 0.04, meeting the link setup upper limit requirements in the pooling scenario. Note that reducing the graphics memory factor also decreases the supported context length.
+  - In scale-out scenarios, you are advised to reserve graphics memory by reducing the graphics memory factor by 0.04. This prevents OOM caused by HCCL link setup when new nodes are dynamically added. For example, if the default graphics memory factor is 0.92, set it to 0.88 in scale-out scenarios.
+  - In non-scale-out scenarios, calculate the graphics memory required for HCCL link setup based on the total number of cards participating in pooling across all nodes and reduce the graphics memory factor accordingly. For example, when 4 + 4 Atlas 800I A3 servers are configured, the additional graphics memory required for HCCL link setup is calculated as follows: (8 × 16 – 1) × 4MB = 508MB. The default graphics memory factor is 0.92. Reducing it by 0.01 can meet the requirements (about 600MB of graphics memory is released, which is greater than 508MB). Note that the context length will be reduced accordingly.
 - The underlying layer uses the pooling backend based on HCCL one-sided communication. Due to limitations of the HCCL backend, a maximum of 512 HCCL links can be established at a time. Therefore, when a unified logical pool is built, it is recommended that the total number of cards or dies be equal to or less than 512, so that performance remains stable during long-duration transmissions and is not impacted by frequent link disconnections or link rebuilding.
 
 ## Parameter Description
@@ -79,7 +79,7 @@ However, the prefix cache uses only on-chip memory by default, which has limited
                     {
                         "modelInstanceType" : "Standard",
                         "modelName" : "dsr1",
-                        "modelWeightPath": "/*Weight_path*/deepseek_r1_w8a8_mtp,"
+                        "modelWeightPath": "/*Weight_path*/deepseek_r1_w8a8_mtp",
                         "worldSize" : 8,
                         "cpuMemSize" : 0,
                         "npuMemSize" : -1,

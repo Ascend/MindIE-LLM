@@ -16,7 +16,7 @@ To ensure secure running of a Docker container, you are advised to configure the
 - Do not share namespaces, including the network namespace, UTS namespace, and user namespace.
 - Do not mount **docker.sock** to the container.
 - Ensure that no user is added to the Docker user group.
-- Exercise caution when configuring parameters such as environment variables and ConfigMaps during API call related to container or template creation or update, and ensure that secure images are used. Do not transfer sensitive information through environment variables or ConfigMaps to prevent sensitive data leakage or privilege escalation risks caused by improper configuration. You are advised to fully verify data before using it based on your services.
+- Exercise caution when configuring parameters such as environment variables and configuration files during API call related to container or template creation or update, and ensure that secure images are used. Do not transfer sensitive information through environment variables or ConfigMaps to prevent sensitive data leakage or privilege escalation risks caused by improper configuration. You are advised to fully verify data before using it based on your services.
 - Create a non-root user in the base image, start the image and process as the non-root user, and grant only necessary capabilities to the user to prevent security risks such as container escape caused by high-privileged users.
 - Properly control the owners and permissions of files in the image to prevent security risks such as container escape caused by unnecessarily unauthorized access.
 - Fix vulnerabilities in the base image in a timely manner.

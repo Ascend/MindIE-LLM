@@ -60,19 +60,20 @@ By default, the device SSH service is disabled, which can improve the system sec
 
 4. Reboot the host.
 
-    After the device SSH service is enabled through the DSMI, run the following command on the host to reboot the host for the configuration to take effect:
+    After the device SSH service is disabled through the DSMI, run the following command on the host to reboot the host for the configuration to take effect:
 
     ```bash
     reboot
     ```
 
-    > [!NOTE]NOTE
-    > To enable the device SSH service through the DSMI, perform the following steps:
-    > 1. Log in to the DSMI and go to the device management page.
-    > 2. Select the device on which the SSH service needs to be enabled and click **Configure**.
-    > 3. On the device configuration page, click the **SSH Service** tab.
-    > 4. On the **SSH Service** tab page, enable the SSH service.
-    > 5. Set the port number of the SSH service, which generally defaults to `22`.
-    > 6. Set the user name and password for logging in to the SSH service.
-    > 7. Click **Save** to save the settings.
-    > After the preceding steps are complete, the DSMI automatically enables the device SSH service and sets the user name, password, and port number. You can use the SSH client tool to connect to the device SSH service to perform related operations and management.
+> [!NOTE]
+> To enable the device SSH service through the DSMI, perform the following steps:
+>
+> 1. Log in to the DSMI and go to the device management page.
+> 2. Select the device on which the SSH service needs to be enabled and click **Configure**.
+> 3. On the device configuration page, click the **SSH Service** tab.
+> 4. On the **SSH Service** tab page, enable the SSH service.
+> 5. Set the port number of the SSH service, which generally defaults to `22`.
+> 6. Set the user name and password for logging in to the SSH service.
+> 7. Click **Save** to save the settings.
+> After the preceding steps are complete, the DSMI automatically enables the device SSH service and sets the user name, password, and port number. You can use the SSH client tool to connect to the device SSH service to perform related operations and management.

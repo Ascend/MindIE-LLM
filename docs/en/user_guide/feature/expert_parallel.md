@@ -59,7 +59,7 @@ Example when `ep_level` is set to `2`:
 }
 ```
 
-> [!NOTE]NOTE
+> [!NOTE]
 > Generally, you are not advised to add `"alltoall_ep_buffer_scale_factors"`.
 
 Example when `ep_level` is set to `1` in the long sequence scenario:

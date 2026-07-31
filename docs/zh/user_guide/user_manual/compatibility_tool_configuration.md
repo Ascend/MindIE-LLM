@@ -6,7 +6,7 @@
 
 > [!NOTE]说明
 >
-> 不支持回退到低版本，不支持同版本更新配置，即target\_version必须大于源config.json的版本号。
+> 不支持回退到低版本，不支持同版本更新配置，即--new\_version必须大于源config.json的版本号。
 
 ## 命令介绍
 

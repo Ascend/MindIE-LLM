@@ -31,7 +31,7 @@ This document explains how to build the MindIE-LLM `.whl` package from source an
     export NO_CHECK_CERTIFICATE=1
     ```
 
-    >[!NOTE]NOTE
+    >[!NOTE]
     >Running this command will disable the certificate, which may cause security risks. Therefore, pay attention to data protection. You can also manually download a third-party ZIP package and upload it.
 
 4. (Optional) Run the following command to download the unzip tool:
@@ -107,6 +107,6 @@ This document explains how to build the MindIE-LLM `.whl` package from source an
     export LD_LIBRARY_PATH=${ATB_LLM_PATH}/lib:${LD_LIBRARY_PATH}
     ```
 
-    > [!TIP]Tips
+    > [!TIP]
     > - You are advised to write the preceding commands into the `~/.bashrc` or startup script to avoid manual setting each time.
     > - This environment variable is built into the MindIE image. If you use the image, you do not need to manually set it.

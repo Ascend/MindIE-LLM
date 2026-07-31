@@ -73,8 +73,8 @@ FA3量化搭配W8A8量化后权重目录结构：
 
 ## 生成权重
 
-1. 请参见[msModelSlim工具](https://gitcode.com/Ascend/msit/blob/master/msmodelslim/docs/%E5%AE%89%E8%A3%85%E6%8C%87%E5%8D%97.md)，安装**msModelSlim**工具。
-2. 请参见[msModelSlim的量化说明](https://gitcode.com/Ascend/msit/blob/master/msmodelslim/example/DeepSeek/README.md)，完成**DeepSeek-V3/R1运行前必检内容**。
+1. 请参见[msModelSlim工具](https://gitcode.com/Ascend/msmodelslim/blob/26.0.0/docs/zh/getting_started/install_guide.md)，安装**msModelSlim**工具。
+2. 请参见[msModelSlim的量化说明](https://gitcode.com/Ascend/msmodelslim/blob/26.0.0/example/DeepSeek/README.md)，完成**DeepSeek-V3/R1运行前必检内容**。
 3. 进入“msmodelslim/example/DeepSeek/”目录，执行如下量化命令。
 
     ```bash

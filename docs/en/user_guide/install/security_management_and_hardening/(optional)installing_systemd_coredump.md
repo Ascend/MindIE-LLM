@@ -12,7 +12,7 @@ Install systemd-coredump on the host and save the core dump file. No operation i
     apt install systemd-coredump
     ```
 
-    > [!NOTE]NOTE
+    > [!NOTE]
     > After systemd-coredump is installed, network shared storage may report an "Input/Output Error". Restarting the host resolves the issue.
 
 2. Check whether the installation is successful.

@@ -53,7 +53,7 @@ class MultimodalInput:
 
 The following uses InternVL2.5 as an example. The model uses images and text as inputs.
 
-If multiple images are inferred at the same time, the path of each image must be parsed and stored in the corresponding variable of `MultimodalInput.image_path`. During model inference, elements in `input_texts` and `image_path` are paired sequentially—each pair forming a group of inputs for inference. For example, the first element in `input_texts` corresponds to the first element in `image_path`, the second to the second, and so forth.
+If multiple images are inferred at the same time, the path of each image must be parsed and stored in the corresponding variable of `MultimodalInput.image_path`. During model inference, elements in `input_texts` and `image_path` are paired sequentially-each pair forming a group of inputs for inference. For example, the first element in `input_texts` corresponds to the first element in `image_path`, the second to the second, and so forth.
 
 ### Initialization and Warm-up
 
@@ -182,7 +182,7 @@ if __name__ == '__main__':
                                      None),
         "batch_size": args.max_batch_size,
         "max_output_length": args.max_output_length,
-        "ignore_eos": args.ignore_eos,
+        "ignore_eos": args.ignore_eos
     }
     pa_runner.warm_up()
     generate_texts, token_nums, latency = pa_runner.infer(**infer_params)
@@ -794,7 +794,7 @@ In the process, `tokenize()` in `Router` and `make_context()` in `InputBuilder` 
            return input_ids
     ```
 
-    > [!NOTE]NOTE
+    > [!NOTE]
     > The code contains `Important Attention`. shm_name_save_path in the code specifies the storage path for the shared memory address file, enabling the service side to retrieve the address and subsequently release the shared memory. The release of resources on the service side is tightly coupled with the path of the input multimedia data. This parameter must be set to `None` during serving.
     >- If the interface is called by serving, this parameter is set to `None` by default. The code searches for the address using the multimedia path passed from the service side.
     >- If the interface is called by the pure model, this parameter needs to be specified, and the shared memory is released after model inference is executed in `run_pa.py`. For details, see `run_pa.py` of Qwen-VL.
@@ -807,7 +807,7 @@ In the process, `tokenize()` in `Router` and `make_context()` in `InputBuilder` 
 
  3. `forward()` multimedia data processing
 
-    `forward()` is a member of the model's `flashcacusal` class. It is the inverse transformation of `tokenize()`.
+    `forward()` is a member of the model's `flash_causal` class. It is the inverse transformation of `tokenize()`.
 
     The following uses Qwen-VL as an example to describe the `forward()` operation.
 

@@ -10,7 +10,7 @@ During weight loading, MindIE fully loads the weight files in `safetensors` form
 - This feature cannot be enabled together with the shared expert and routed expert merging feature.
 - This feature cannot be enabled together with the dynamic load balancing feature.
 
-## Offline Weight Sharding
+## Generating Weights
 
 The following uses the Atlas 800I A3 SuperPoD server single-node scenario as an example. You can use the following script to shard the weights.
 
@@ -28,9 +28,9 @@ The following uses dual Atlas 800I A2 inference servers as an example. You can u
 export DEEPSEEK_MTP=1
 export RANK_TABLE_FILE={Ranktable_file_path}
 # Weight Sharding
-torchrun --nnodes=2 --nproc_per_node 8 --node_rank=0 --master_addr=*"IP address of the master node"* --master_port 20030 -m examples.convert.weight_sharder --model_path *{Path_to_the_complete_set_of_weights}* --dp 2 --tp 8 --moe_tp 4 --moe_ep 4 --save_directory *{Path_to_the_sharded_weights}*
+torchrun --nnodes=2 --nproc_per_node 8 --node_rank=0 --master_addr="IP address of the master node" --master_port 20030 -m examples.convert.weight_sharder --model_path *{Path_to_the_complete_set_of_weights}* --dp 2 --tp 8 --moe_tp 4 --moe_ep 4 --save_directory *{Path_to_the_sharded_weights}*
 
-torchrun --nnodes=2 --nproc_per_node 8 --node_rank=1 --master_addr=*"IP address of the master node"* --master_port 20030 -m examples.convert.weight_sharder --model_path *{Path_to_the_complete_set_of_weights}* --dp 2 --tp 8 --moe_tp 4 --moe_ep 4 --save_directory *{Path_to_the_sharded_weights}*
+torchrun --nnodes=2 --nproc_per_node 8 --node_rank=1 --master_addr="IP address of the master node" --master_port 20030 -m examples.convert.weight_sharder --model_path *{Path_to_the_complete_set_of_weights}* --dp 2 --tp 8 --moe_tp 4 --moe_ep 4 --save_directory *{Path_to_the_sharded_weights}*
 ```
 
 Weight directory structure after sharding:
@@ -75,7 +75,7 @@ Weight directory structure after sharding:
 └── tokenizer_config.json
 ```
 
-> [!NOTE]NOTE
+> [!NOTE]
 >
 >- After sharding, the model weights are stored in different directories based on the model layer, norm module, attention module, dense module, and moe module.
 >- After sharding, the `model_sharded_metadata.json` file is created to index the sharding policy and sharded files.

@@ -8,7 +8,7 @@ The LLM sparse quantization tool provides three functions: sparsification, quant
 - Quantization: Both the weights and activations are quantized. The high-precision floating-point numbers are converted into 8-bit numbers, which directly reduces the size of the weights and brings performance benefits.
 - Compression: The weight compression tool further encodes and compresses model weights using a compression algorithm to minimize the weight size and generate compressed weights and an index file.
 
-> [!NOTE]NOTE
+> [!NOTE]
 >
 >- Compression algorithms are highly dependent on hardware capabilities, and sparse quantization is supported only by the Atlas 300I Duo inference card.
 >- The bfloat16 weight does not support sparse quantization.
@@ -39,7 +39,7 @@ The following is a partial view of `quant_model_description.json` after quantiza
   "model.layers.0.self_attn.q_proj.input_scale": "W8A8S",
   "model.layers.0.self_attn.q_proj.input_offset": "W8A8S",
   "model.layers.0.self_attn.q_proj.quant_bias": "W8A8S",
-  "model.layers.0.self_attn.q_proj.deq_scale": "W8A8S",
+  "model.layers.0.self_attn.q_proj.deq_scale": "W8A8S"
 }
 ```
 
@@ -80,7 +80,7 @@ The following shows part of the quantized weight description file `part0-of-4/qu
   "transformer.h.0.attn.c_attn.input_scale": "W8A8S",
   "transformer.h.0.attn.c_attn.input_offset": "W8A8S",
   "transformer.h.0.attn.c_attn.deq_scale": "W8A8S",
-  "transformer.h.0.attn.c_attn.quant_bias": "W8A8S",
+  "transformer.h.0.attn.c_attn.quant_bias": "W8A8S"
 }
 ```
 
@@ -98,7 +98,7 @@ Compared with quantization, the compressed MatMul weights include an index. The 
 
 ## Prerequisites
 
-Before using the sparse quantization script, install the msModelSlim tool. For details about the installation procedure, see [msModelSlim Installation](https://gitcode.com/Ascend/msit/blob/master/msmodelslim/docs/%E5%AE%89%E8%A3%85%E6%8C%87%E5%8D%97.md)
+Before using the sparse quantization script, install the msModelSlim tool. For details about the installation procedure, see [msModelSlim Installation](https://gitcode.com/Ascend/msmodelslim/blob/26.0.0/docs/en/getting_started/install_guide.md)
 
 ## Weight Generation
 

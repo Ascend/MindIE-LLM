@@ -83,13 +83,13 @@ This image comes pre-configured with the base environment required for model exe
            mindie:3.0.0-800I-A2-py311-openeuler24.03-lts bash
     ```
 
-     > [!NOTE]NOTE
+     > [!NOTE]
      > - `mindie:3.0.0-800I-A2-py311-openeuler24.03-lts` is the image name, which can be changed as required.
      > - For the `--device` parameter, the mount permission is set to `rwm` instead of the less permissive `rw` or `r`, for the following reasons:
      > - For Atlas 800I A2 inference servers, setting the mount permission to `rw` allows normal container entry. The `npu-smi` command can still display NPU usage info, and MindIE workloads run correctly. However, if the mounted NPU (e.g., `davinci0` for `npu0`) is already occupied by other tasks, `npu-smi` will print an error, and MindIE tasks will fail (e.g., `torch.npu.set_device()` will fail).
      > - For Atlas 800I A3 SuperPoD servers, setting the mount permission to `rw` may cause `npu-smi` to return an error inside the container, and MindIE tasks will fail (e.g., `torch.npu.set_device()` will fail).
 
-    **Table 1** Parameter description
+    **Table 3** Parameter description
 
     |Parameter|Description|
     |--|--|
@@ -109,18 +109,18 @@ This image comes pre-configured with the base environment required for model exe
      docker exec -it <container-name> /bin/bash
      ```
 
-     > [!NOTE]NOTE
+     > [!NOTE]
      > For details, see [Starting a Container](https://gitee.com/ascend/ascend-docker-image/tree/dev/mindie#%E5%90%AF%E5%8A%A8%E5%AE%B9%E5%99%A8).
 
 ## Model Inference
 
-1. If the default installation path is used, run the following command to go to the MindIE installation directory::
+1. If the default installation path is used, run the following command to go to the MindIE installation directory:
 
      ```bash
      cd /usr/local/Ascend/mindie/latest
      ```
 
-2. Check whether the directory/file permissions are the same as those shown in the following. If no, run the corresponding commands to modify the permissions.:
+2. Check whether the directory/file permissions are the same as those shown in the following. If no, run the corresponding commands to modify the permissions.
 
      ```bash
     chmod 750 mindie-service
@@ -138,7 +138,7 @@ This image comes pre-configured with the base environment required for model exe
     chmod -R 700 mindie-service/security/*
      ```
 
-     > [!NOTE]NOTE
+     > [!NOTE]
      > If the file permission does not meet the requirements, the service will fail to be started.
 
 3. Set environment variables. <a id="step3"></a>
@@ -169,8 +169,7 @@ This image comes pre-configured with the base environment required for model exe
 
     b. Press **i** to enter insert mode and modify the parameters in the `config.json` file as required. (The following uses Qwen2-7B as an example. The parameters to be modified are in bold.)
 
-    ``` json
-
+    ```json
      {
         "ServerConfig" :
             {
@@ -241,7 +240,7 @@ This image comes pre-configured with the base environment required for model exe
     Daemon start success!
     ```
 
-     > [!CAUTION]NOTE
+     > [!CAUTION]
      >- To avoid conflicts with an earlier version of MindIE (default install path: `/usr/local/Ascend/mindie`), run the `mv /usr/local/Ascend/mindie /usr/local/Ascend/mindie-bak` command. This removes files in the old installation path and prevents the system from linking to outdated libraries.
      >- To meet security requirements, the `bin` directory is set with `550` permissions (no write access). However, during inference execution, operators need to generate a `kernel_meta` folder in the current directory, which requires write permission. Therefore, `mindieservice_daemon` cannot be started directly in the `bin` directory.
      >- When Ascend-CANN-Toolkit is used, the inference service generates a `kernel_meta_temp_xxxx` directory in the launch directory to store operator `.cce` files. Therefore, the service must be started in a directory where the current user has write permissions, such as `Ascend-mindie-server_{version}_linux-{arch}`, or a user-created temporary directory under it.
@@ -271,7 +270,7 @@ This image comes pre-configured with the base environment required for model exe
 
 ## Accuracy Test
 
-> [!NOTE]NOTE
+> [!NOTE]
 >
 >- Before the accuracy and performance tests, open another window to access the container and set environment variables by referring to [3](#step3).
 >- The following uses the AISBench tool as an example to describe the accuracy test. For details about how to use the AISBench tool, see [AISBench](https://gitee.com/aisbench/benchmark).
@@ -286,7 +285,7 @@ This image comes pre-configured with the base environment required for model exe
     pip3 install -r requirements/extra.txt
     ```
 
-    > [!NOTE]NOTE
+    > [!NOTE]
     > The `pip` installation mode applies to scenarios where the latest functions of AISBench are used (except the scenario where MindIE is installed using an image). AISBench has been pre-installed in the MindIE image. You can run the following command to view the installation path of AISBench in the MindIE image:
         >
         >```bash
@@ -344,7 +343,7 @@ This image comes pre-configured with the base environment required for model exe
 
 ## Performance Test
 
-> [!NOTE]NOTE
+> [!NOTE]
 > The following uses the AISBench tool as an example to describe the performance test. For details about how to use the AISBench tool, see [AISBench](https://gitee.com/aisbench/benchmark).
 
 1. Download and install AISBench.
@@ -357,7 +356,7 @@ This image comes pre-configured with the base environment required for model exe
     pip3 install -r requirements/extra.txt
     ```
 
-    > [!NOTE]NOTE
+    > [!NOTE]
     > The·`pip` installation mode applies to scenarios where the latest functions of AISBench are used (except the scenario where MindIE is installed using an image). AISBench has been pre-installed in the MindIE image. You can run the following command to view the installation path of AISBench in the MindIE image:
         >
         >```bash
@@ -443,7 +442,7 @@ This image comes pre-configured with the base environment required for model exe
 
     Performance test results focus primarily on TTFT, TPOT, Request Throughput, and Output Token Throughput. For detailed parameter descriptions, refer to "Table 2: Performance Test Result Metric Comparison" in "Auxiliary Tools" > "Performance/Accuracy Test Tools" in *MindIE Motor Development Guide*.
 
-    > [!NOTE]NOTE
+    > [!NOTE]
     > The task execution result is ultimately written to the default output directory, as indicated in the runtime log:
         >
         >```text

@@ -12,7 +12,7 @@ The LoRA weights must contain the `adapter_config.json` and `adapter_model.safet
 
 | File Name                   | Description                                                    | Example                                                        |
 | --------------------------- | ------------------------------------------------------------ | ------------------------------------------------------------ |
-| `adapter_config.json`       | Contains hyperparameters of the LoRA weights.                                        | `r` (rank size in LoRA fine-tuning), `rank_pattern`, `lora_alpha` (scaling factor for the LoRA low-rank matrice), and `alpha_pattern`.|
+| `adapter_config.json`       | Contains hyperparameters of the LoRA weights.                                        | `r` (rank size in LoRA fine-tuning), `rank_pattern`, `lora_alpha` (scaling factor for the LoRA low-rank matrices), and `alpha_pattern`.|
 | `adapter_model.safetensors` | Contains weights, which are saved as key-value pairs. The `base_model.model` prefix and the `lora_A.weight` and `lora_B.weight` suffixes are added to the start and end of the base model key name to form the LoRA weight key names.| Base model key name: `model.layers.9.self_attn.v_proj.weight` <br>LoRA weight key names: `base_model.model.model.layers.9.self_attn.v_proj.lora_A.weight` and `base_model.model.model.layers.9.self_attn.v_proj.lora_B.weight`|
 
 ## Constraints
@@ -30,7 +30,7 @@ The LoRA weights must contain the `adapter_config.json` and `adapter_model.safet
 
 To enable the Multi-LoRA feature, the service parameters that need to be configured are shown in **Table Multi-LoRA parameters in ModelDeployConfig**.
 
-### Table 1 Multi-LoRA parameters in ModelDeployConfig
+### Table 2 Multi-LoRA parameters in ModelDeployConfig
 
 | Parameter                     | Value  | Value Range                                                    | Configuration Description                                                    |
 | --------------------------- | ---------- | ------------------------------------------------------------ | ------------------------------------------------------------ |
@@ -156,7 +156,7 @@ The following part uses Llama 3.1 70B as an example to describe how to use Multi
    - **Unloading request**:
 
      ```bash
-     curl -X POST http:127.0.0.2:1026/v1/unload_lora_adapter \
+     curl -X POST http://127.0.0.2:1026/v1/unload_lora_adapter \
        -d '{
              "lora_name": "adapter2"
            }'

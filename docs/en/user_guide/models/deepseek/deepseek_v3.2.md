@@ -97,8 +97,8 @@ msmodelslim quant \
 - If you deploy the service as a common user (for example, user `HwHiAiUser` with ID `1001`), change the owner of the model directory and files in the directory to `1001` (this step can be omitted if using `root` privileges) and change the permission on the weight directory to `750`.
 
 ```shell
-chown -R 1001:1001 {/path-to-weights/DeepSeek-V3.2}
-chmod 750 {/path-to-weights/DeepSeek-V3.2}
+chown -R 1001:1001 /path-to-weights/DeepSeek-V3.2
+chmod 750 /path-to-weights/DeepSeek-V3.2
 ```
 
 ---
@@ -131,7 +131,7 @@ export PYTORCH_NPU_ALLOC_CONF="expandable_segments:True" # Configure the expanda
 export HCCL_ALGO="level0:NA;level1:pipeline"             # Set the HCCL algorithm.
 export MINDIE_ASYNC_SCHEDULING_ENABLE=1                  # Enable asynchronous inference. (This step is optional but recommended. Peak performance optimization depends on asynchronous inference. The host and device latencies are mutually overlapped.)
 
-# Environment variables related to multi-sever inference. Set them based on the actual environment.
+# Environment variables related to multi-server inference. Set them based on the actual environment.
 export HCCL_CONNECT_TIMEOUT=7200                         # Set the HCCL connection timeout interval to prevent service startup failures caused by connection timeout.
 export RANK_TABLE_FILE="/path/to/rank_table_file.json"   # Path to the rank_table_file.json file preconfigured in the environment setup section.
 export MASTER_IP=xxx.xxx.xxx.xxx                         # IP address of the primary node
@@ -163,14 +163,14 @@ Change the following parameters:
 {
     "ServerConfig" :
     {
-        "httpsEnabled" : false, # After HTTPS is disabled, requests between the client and server are transmitted in plaintext. You are advised to disable HTTPS only on the secure intranet.
+        "httpsEnabled" : false, // After HTTPS is disabled, requests between the client and server are transmitted in plaintext. You are advised to disable HTTPS only on the secure intranet.
         ...
     },
 
     "BackendConfig" : {
-        "npuDeviceIds" : [[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15]], # NPUs that can be used on the current host. For A3, each NPU has two devices, and eight NPUs have 16 devices in total.
-        "multiNodesInferEnabled" : true,     # Enable multi-node inference.
-        "interNodeTLSEnabled" : false,       # After cross-node TLS is disabled, communication data between nodes is transmitted in plaintext. You are advised to disable TLS only on the secure intranet.
+        "npuDeviceIds" : [[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15]], // NPUs that can be used on the current host. For A3, each NPU has two devices, and eight NPUs have 16 devices in total.
+        "multiNodesInferEnabled" : true,     // Enable multi-node inference.
+        "interNodeTLSEnabled" : false,       // After cross-node TLS is disabled, communication data between nodes is transmitted in plaintext. You are advised to disable TLS only on the secure intranet.
         ...
         "ModelDeployConfig" :
         {
@@ -178,20 +178,20 @@ Change the following parameters:
             "ModelConfig" : [
                 {
                     ...
-                    "modelName" : "DeepSeek-V3.2",                                      # Model name, which does not affect the startup of the serving service.
-                    "modelWeightPath" : "/mnt/weights/DeepSeek-V3.2-w8a8-mtp-QuaRot",   # Weight path.
+                    "modelName" : "DeepSeek-V3.2",                                      // Model name, which does not affect the startup of the serving service.
+                    "modelWeightPath" : "/mnt/weights/DeepSeek-V3.2-w8a8-mtp-QuaRot",   // Weight path.
                     "worldSize" : 16,
                     "cpuMemSize" : 0,
                     "npuMemSize" : -1,
-                    "backendType" : "torch",  # Select the backend of the inference framework. For DeepSeek-V3.2, torch must be selected.
-                    "dp": 4,                  # Data parallelism
-                    "tp": 8,                  # Tensor parallelism
-                    "cp": 1,                  # Context parallelism
-                    "sp": 1,                  # Sequence parallelism
-                    "pp": 1,                  # Pipeline parallelism
-                    "moe_ep": 32,             # MOE expert parallelism
-                    "moe_tp": 1,              # MOE tensor parallelism
-                    "plugin_params": "{\"plugin_type\":\"mtp\",\"num_speculative_tokens\":2}" # Enable the MTP feature and set the number of speculative tokens to 2.
+                    "backendType" : "torch",  // Select the backend of the inference framework. For DeepSeek-V3.2, torch must be selected.
+                    "dp": 4,                  // Data parallelism
+                    "tp": 8,                  // Tensor parallelism
+                    "cp": 1,                  // Context parallelism
+                    "sp": 1,                  // Sequence parallelism
+                    "pp": 1,                  // Pipeline parallelism
+                    "moe_ep": 32,             // MOE expert parallelism
+                    "moe_tp": 1,              // MOE tensor parallelism
+                    "plugin_params": "{\"plugin_type\":\"mtp\",\"num_speculative_tokens\":2}" // Enable the MTP feature and set the number of speculative tokens to 2.
                     ...
                 }
             ]
@@ -237,7 +237,7 @@ If the following information is displayed, the request is sent and the inference
 
 ### Atlas 800I A2 Eight-Server MoE EP Deployment
 
-Obtain the MoE EP initialization script by referring to [MindIE-Motor](https://gitcode.com/Ascend/MindIE-Motor/blob/v3.0.0/docs/en/user_guide/service_deployment/pd_separation_service_deployment.md#%E5%AE%89%E8%A3%85%E9%83%A8%E7%BD%B2).
+Obtain the MoE EP initialization script by referring to [MindIE-Motor](https://gitcode.com/Ascend/MindIE-Motor-CPP/blob/v3.0.0/docs/en/user_guide/service_deployment/pd_separation_service_deployment.md#deploying-a-single-node-pd-disaggregation-service-using-kubectl).
 The deployment directory structure is as follows:
 
 ```shell
@@ -261,22 +261,22 @@ Modify `conf/mindie_env.json` (or `conf/mindie_env_a3.json` for A3).
 {
   "mindie_common_env": {
     ...
-    "TASK_QUEUE_ENABLE": 0,            # Disable the task queue to avoid precision issues in multi-stream scenarios.
+    "TASK_QUEUE_ENABLE": 0,            // Disable the task queue to avoid precision issues in multi-stream scenarios.
     "HCCL_BUFFSIZE": 1050,
-    "HCCL_EXEC_TIMEOUT": 1200,         # Increase the value to avoid timeout. Note: In the earlier version of boot_helper/boot.sh, this variable is repeatedly defined. Increase the value accordingly.
-    "MASTER_PORT": 10000               # Add this line. If the port is occupied, change the value to another free port.
+    "HCCL_EXEC_TIMEOUT": 1200,         // Increase the value to avoid timeout. Note: In the earlier version of boot_helper/boot.sh, this variable is repeatedly defined. Increase the value accordingly.
+    "MASTER_PORT": 10000               // Add this line. If the port is occupied, change the value to another free port.
   },
   "mindie_server_prefill_env": {
     ...
-    "HCCL_OP_EXPANSION_MODE": "HOST",  # Use the host mode to avoid occasional errors of communication operators.
+    "HCCL_OP_EXPANSION_MODE": "HOST",  // Use the host mode to avoid occasional errors of communication operators.
     "NPU_MEMORY_FRACTION": 0.8
   },
   "mindie_server_decode_env": {
     ...
-    "TASK_QUEUE_ENABLE": 0,            # Disable the task queue to avoid precision issues in multi-stream scenarios.
+    "TASK_QUEUE_ENABLE": 0,            // Disable the task queue to avoid precision issues in multi-stream scenarios.
     "NPU_MEMORY_FRACTION": 0.8,
     "HCCL_CONNECT_TIMEOUT": 7200,
-    "HCCL_OP_EXPANSION_MODE": "HOST",  # Use the host mode to avoid occasional errors of communication operators.
+    "HCCL_OP_EXPANSION_MODE": "HOST",  // Use the host mode to avoid occasional errors of communication operators.
     ...
   }
 }
@@ -295,7 +295,7 @@ Modify `user_config.json` (or `user_config_base_A3.json` for A3).
     "single_d_instance_pod_num": 4,
     "p_pod_npu_num": 8,
     "d_pod_npu_num": 8,
-    "image_name": "mindie:xxx",     # Set the image to be used.
+    "image_name": "mindie:xxx",     // Set the image to be used.
     ...
   },
   "mindie_server_prefill_config": {
@@ -327,7 +327,7 @@ Modify `user_config.json` (or `user_config_base_A3.json` for A3).
             ...
             "backendType": "torch",
             ...
-            "dp": 1,                                                   // The following lines configure dp, cp, and dp. You need to manually add them.
+            "dp": 1,                                                   // The following lines configure dp and cp. You need to manually add them.
             "cp": 32,
             "tp": 1,
             "sp": 1,
@@ -355,7 +355,7 @@ Modify `user_config.json` (or `user_config_base_A3.json` for A3).
             "modelWeightPath": "/path/to/DeepSeek-V3.2",
             ...
             "backendType": "torch",
-            "dp": 16,  # Manually add configurations such as dp.
+            "dp": 16,  // Manually add configurations such as dp.
             "cp": 1,
             "tp": 2,
             "sp": 1,
@@ -455,7 +455,7 @@ Response example:
 bash delete.sh
 ```
 
-#### 128K context configuration
+#### 128k context configuration
 
 For 128K contexts, enable chunked prefill on the P node. The configuration of the A2 4+4 8-server MoE EP cluster is as follows:
 
@@ -484,17 +484,17 @@ For 128K contexts, enable chunked prefill on the P node. The configuration of th
             "sp": 1,
             "moe_ep": 32,
             "pp": 1,
-            "plugin_params": "{\"plugin_type\":\"mtp, splitfuse\",\"num_speculative_tokens\": 2}",   # Add the SplitFuse feature.
+            "plugin_params": "{\"plugin_type\":\"mtp, splitfuse\",\"num_speculative_tokens\": 2}",   // Add the SplitFuse feature.
             "moe_tp": 1,
             ...
           }
         ]
       },
       "ScheduleConfig": {
-        "templateType": "Mix",          # If this configuration does not exist, manually add this line.
+        "templateType": "Mix",          // If this configuration does not exist, manually add this line.
         ...
         "maxPrefillBatchSize": 10,
-        "maxPrefillTokens": 8192        # Number of tokens in each chunk.
+        "maxPrefillTokens": 8192        // Number of tokens in each chunk.
       }
     }
   },
@@ -523,7 +523,7 @@ For 128K contexts, enable chunked prefill on the P node. The configuration of th
       },
       "ScheduleConfig": {
         ...
-        "maxPrefillTokens": 128000,    # Required for verification. This value is not read in decoding.
+        "maxPrefillTokens": 128000,    // Required for verification. This value is not read in decoding.
         "maxBatchSize": 64,
         "maxIterTimes": 128000,
         ...
@@ -558,7 +558,7 @@ unzip gsm8k.zip
 AISBench provides multiple configuration templates. This test mainly uses the following files in the `<aisbench_install_path>/benchmark/configs/models/vllm_api/` directory:
 
 - `vllm_api_general_chat.py`: non-streaming inference configuration. Both non-streaming and streaming accuracy can be used.
-- `vllm_api_stream_chat`: streaming inference configuration. Streaming is required for performance testing.
+- `vllm_api_stream_chat.py`: streaming inference configuration. Streaming is required for performance testing.
 - `vllm_api_function_call_chat.py`: Function call is used when the BFCL dataset is tested.
 
 The following uses `vllm_api_general_chat.py` as an example to describe the configuration:
@@ -743,14 +743,14 @@ The typical deployment modes of DeepSeek V3.2 are as follows:
 
 | Deployment Configuration|Deployment Mode|  Machine Quantity| Card Quantity| Maximum Context Length| Parallelism Strategy| MTP Quantization<br>mtp=2 | chunked prefill | HCCL_BUFFSIZE (MB)|  NPU_MEM_FRACTION |
 |:--|:--|:--|:--|:--|:--|:--|:--|:--|:--|
-| A2 four-server cluster  | Prefill-decode co-location| 4 | 32  | 32K | MLA: DP4+TP8<br>MOE: EP32+TP1 | ✅ | ❌  | 512 | 0.8 |
-| A2 four-server cluster  | Prefill-decode co-location| 4 | 32  | 64K | MLA: DP4+TP8<br>MOE: EP32+TP1 | ❌ | ✅  | 512 | 0.8 |
+| A2 four-server cluster  | Prefill-decode co-location| 4 | 32  | 32k | MLA: DP4+TP8<br>MOE: EP32+TP1 | ✅ | ❌  | 512 | 0.8 |
+| A2 four-server cluster  | Prefill-decode co-location| 4 | 32  | 64k | MLA: DP4+TP8<br>MOE: EP32+TP1 | ❌ | ✅  | 512 | 0.8 |
 | A2 MoE EP | Prefill-decode disaggregation| 8 | 64  | 64K | P:<br>MLA: DP1+TP2+CP16<br>MOE: EP32+TP1<br>D:<br>MLA: DP8+TP4<br>MOE: EP32+TP1 | ✅ | ❌ | 1050 | 0.8 |
 | A2 MoE EP| Prefill-decode disaggregation| 8 | 64  | 128K | P:<br>MLA: DP4+TP8<br>MOE: EP32+TP1<br>D:<br>MLA: DP4+TP8<br>MOE: EP32+TP1 | ✅ | P✅ D❌ | 1050 | 0.8 |
-| A3 two-server cluster | Prefill-decode co-location| 2 | 16  | 32K | MLA: DP4+TP8<br>MOE: EP32+TP1 | ✅ | ❌ | 1050 | 0.92 |
-| A3 two-server cluster | Prefill-decode co-location| 2 | 16  | 64K | MLA: DP4+TP8<br>MOE: EP32+TP1 | ❌ | ✅ | 1050 | 0.92 |
-| A3 MoE EP| Prefill-decode disaggregation| 4 | 32  | 64K | P:<br>MLA: DP1+TP2+CP16<br>MOE: EP32+TP1<br>D:<br>MLA: DP8+TP4<br>MOE: EP32+TP1 | ✅ | ❌ | 1050 | 0.8 |
-| A3 MoE EP| Prefill-decode disaggregation| 4 | 32  | 128K | P:<br>MLA: DP4+TP8<br>MOE: EP32+TP1<br>D:<br>MLA: DP4+TP8<br>MOE: EP32+TP1 | ✅ | P✅ D❌ | 1050 | 0.8 |
+| A3 two-server cluster | Prefill-decode co-location| 2 | 16  | 32k | MLA: DP4+TP8<br>MOE: EP32+TP1 | ✅ | ❌ | 1050 | 0.92 |
+| A3 two-server cluster | Prefill-decode co-location| 2 | 16  | 64k | MLA: DP4+TP8<br>MOE: EP32+TP1 | ❌ | ✅ | 1050 | 0.92 |
+| A3 MoE EP| Prefill-decode disaggregation| 4 | 32  | 64k | P:<br>MLA: DP1+TP2+CP16<br>MOE: EP32+TP1<br>D:<br>MLA: DP8+TP4<br>MOE: EP32+TP1 | ✅ | ❌ | 1050 | 0.8 |
+| A3 MoE EP| Prefill-decode disaggregation| 4 | 32  | 128k | P:<br>MLA: DP4+TP8<br>MOE: EP32+TP1<br>D:<br>MLA: DP4+TP8<br>MOE: EP32+TP1 | ✅ | P✅ D❌ | 1050 | 0.8 |
 
 ---
 

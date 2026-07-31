@@ -16,7 +16,7 @@ MindIE supports two load balancing modes: static load balancing in redundancy mo
 - The DeepSeek R1/V3 and Qwen-MoE models support this feature.
 - This feature is applicable exclusively during All2All collective communication in MoE architectures (`ep_level` is set to `2` in the model configuration file). In the prefill-decode disaggregation scenario, prefill and decode instances usually use different collective communication modes. Therefore, parameters for configuring load balancing must be set separately.
 - Forcible load balancing only represents the theoretical upper limit of load balancing and cannot be used in official services.
-- Static load balancing in redundancy mode is implemented by deploying redundant experts on NPUs hosting routing experts. Deploying one additional redundant expert on each NPU requires 2.4 GB extra graphics memory.
+- Static load balancing in redundancy mode is implemented by deploying redundant experts on NPUs hosting routing experts. Deploying one additional redundant expert on each NPU requires 2.4GB extra graphics memory.
 
 ## Usage Process
 
@@ -43,7 +43,7 @@ This step is to obtain expert hotspot distribution in the actual service data or
 
 2. Run model inference services and generate files containing hotspot information.
 
-    > [!NOTE]NOTE
+    > [!NOTE]
     > If the collection is performed in serving mode, disable the mode in a timely manner after the dataset is executed.
 
 3. After the hotspot information is generated, manually gather the expert hotspot information on all servers into a single folder. Alternatively, set the file export paths on all servers to shared disk paths.
@@ -52,7 +52,7 @@ This step is to obtain expert hotspot distribution in the actual service data or
 
 After the hotspot information is collected, each NPU generates a .csv file that contains a matrix (`num_moe_layer` × the number of experts per NPU). Each number in the matrix represents the number of tokens processed by experts in that layer. The matrix is appended to the collection file at an interval of eight tokens.
 
-Based on the collected expert hotspot information, use the `elb` component of the [msit](https://gitcode.com/Ascend/msit/blob/master/msit/docs/install/README.md) tool to generate a redundant expert deployment table.
+Based on the collected expert hotspot information, use the `elb` component of the [msit](https://gitcode.com/Ascend/msit/blob/26.0.0/msit/docs/expert_load_balancing/%E5%B7%A5%E5%85%B7-%E8%B4%9F%E8%BD%BD%E5%9D%87%E8%A1%A1%E4%BA%B2%E5%92%8C%E4%B8%93%E5%AE%B6%E5%AF%BB%E4%BC%98_EN.md) tool to generate a redundant expert deployment table.
 
 1. The following describes how to install the `elb` component.
 
@@ -104,7 +104,7 @@ Based on the collected expert hotspot information, use the `elb` component of th
 
     msit provides two load balancing algorithms: compute-communication load balancing (C2LB) and speculative-moe interface algorithms. Currently, the optimal result is obtained by using the speculative-moe level 2 mixed algorithm (al 5).
 
-    > [!NOTE]NOTE
+    > [!NOTE]
     >- In the prefill-decode disaggregation scenario, redundant expert deployment tables can be generated for the prefill and decode phases, respectively.
     >- The prefill-decode overlap scenario requires redundant expert deployment tables for the decode phase only to enhance performance.
     >- If OOM occurs when you collect expert hotspot information in long-sequence scenarios, you are advised to reduce the sequence length.

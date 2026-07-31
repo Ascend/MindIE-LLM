@@ -6,7 +6,7 @@ Kubernetes needs to be hardened as follows:
 
 - kube-controller
 
-    Add `-serviceaccount-token` to `--controllers` in the YAML configuration file of kube-controller, to disable the default service account of the namespace. This prevents unnecessary service accounts from being generated in the user-defined namespace when cluster services are deployed.
+    Add `-serviceaccount` to `--controllers` in the YAML configuration file of kube-controller, to disable the default service account of the namespace. This prevents unnecessary service accounts from being generated in the user-defined namespace when cluster services are deployed.
 
 - kube-proxy
   - Add `--nodeport-addresses` to the startup parameter of kube-proxy.
@@ -40,7 +40,7 @@ Kubernetes needs to be hardened as follows:
   - Modify or add `--audit-policy-file` to configure the audit policy of Kubernetes. For details, see the official Kubernetes documentation.
 
 - kubelet
-  - To prevent a single pod from occupying too many processes, you can enable `SupportPodPidsLimit` and set `--pod-max-pids`. Add `--feature-gates=SupportPodPidsLimit=true --pod-max-pids=<max pid number>` to `KUBELET_KUBEADM_ARGS` in the kubelet configuration file. After the modification, restart the system for the modification to take effect. For details, see the official Kubernetes documentation.
+  - To prevent a single pod from occupying too many processes, you can enable `SupportPodPidsLimit` and set `--pod-max-pids`. Add `--feature-gates=SupportPodPidsLimit=true --pod-max-pids=<max pid number>` to `KUBELET_KUBEADM_ARGS` in the kubelet configuration file. After the modification, restart the kubelet service for the modification to take effect. For details, see the official Kubernetes documentation.
   - Set `--address` or change the value of the `address` field in the startup configuration file to the host IP address.
   - Configure `--tls-min-version` or modify `tlsMinVersion` in the startup configuration file. For example, `tlsMinVersion: VersionTLS13` indicates that TLS 1.3 is used to encrypt communication during kubelet configuration.
   - Modify or add `--tls-cipher-suites` as follows to avoid risks caused by insecure TLS cipher suites.
@@ -52,20 +52,20 @@ Kubernetes needs to be hardened as follows:
         CM_SHA384
         ```
 
-        > [!NOTE]NOTE
+        > [!NOTE]
         > Kubernetes v1.19 and later versions support TLS v1.3 cipher suites. It is recommended that TLS v1.3 cipher suites be added when Kubernetes of a later version is used.
 
 - If the OS kernel version used by the Kubernetes cluster is 4.6 or later, manually enable AppArmor or SELinux after Kubernetes is installed.
 - To make the bandwidth limit of the inference service pod take effect, install the bandwidth plugin in the CNI bin directory (`/opt/cni/bin` by default), modify the CNI configuration file (`/etc/cni/net.d` by default), and add `bandwidth` to `plugins`.
 
-     ```json
+      ```json
 
-     {
-     "type": "bandwidth",
-     "capabilities": {"bandwidth": true}
-     }
+      {
+      "type": "bandwidth",
+      "capabilities": {"bandwidth": true}
+      }
 
-     ```
+      ```
 
 - Workload security:
   - Do not use privileged containers to start pods.

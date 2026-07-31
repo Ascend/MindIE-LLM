@@ -7,7 +7,7 @@
 
 Anti-Outlier is used to solve the problem of accuracy drop caused by abnormal activation value distribution (outlier) in model quantization. During LLM quantization, if there are outliers with extremely large values in the activation values, the quantization range (scale) is enlarged. As a result, the quantization resolution of most normal values is reduced, which severely affects the model accuracy. This technology smooths or suppresses outliers to effectively improve data distribution and ensure that the quantized model can still maintain high inference accuracy.
 
-> [!NOTE]NOTE
+> [!NOTE]
 > Anti-Outlier can be used together with other quantization methods, such as W4A8, W8A8, and W8A8C8.
 
 The following shows part of the content in weight description file `quant_model_description.json` after the W8A8 + Anti-Outlier + PDMIX quantization:
@@ -42,7 +42,7 @@ In the actual model weight, the offset tensor of `norm_bias` at the linear layer
 - Per-token scenario: Represented by the common bias `bias` at the linear layer.
     - The preceding `model.layers.0.self_attn.q_proj.bias` is an example.
 
-> [!NOTE]NOTE
+> [!NOTE]
 >
 > * **If the original linear layer has a bias** (for example, in Qwen2 series), the offset tensor is directly fused into the original bias.
 > * **If the original linear layer does not have a bias** (for example, in Qwen3-32B), create a new bias layer to store the value.
@@ -62,7 +62,7 @@ In the PDMIX scenario (per-token quantization is used in the P phase), the anti-
 
 ## Weight Generation
 
-You can use the [msModelSlim](https://gitcode.com/Ascend/msit/blob/master/msmodelslim/README.md) tool to generate quantized weights.
+You can use the [msModelSlim](https://gitcode.com/Ascend/msmodelslim/blob/26.0.0/README_EN.md) tool to generate quantized weights.
 
 The following uses Qwen3-14B as an example. After installing msModelSlim, you can run the following command to quickly generate the W8A8PDMIX quantization weights with outlier suppression:
 

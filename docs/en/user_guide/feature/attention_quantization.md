@@ -4,7 +4,7 @@
 
 This quantization method quantizes q, k, and v to 8-bit values, reducing the graphics memory usage of the KV cache, optimizing the speed of the attention operator in the decode phase, and improving throughput.
 
-> [!NOTE]NOTE
+> [!NOTE]
 >
 >- Only the Atlas 800I A2 inference server supports attention quantization.
 >- This method must be used together with W8A8.
@@ -51,7 +51,7 @@ The following is a partial view of `quant_model_description.json` after quantiza
   "model.layers.0.self_attn.o_proj.input_scale": "W8A8",
   "model.layers.0.self_attn.o_proj.input_offset": "W8A8",
   "model.layers.0.self_attn.o_proj.quant_bias": "W8A8",
-  "model.layers.0.self_attn.o_proj.deq_scale": "W8A8",
+  "model.layers.0.self_attn.o_proj.deq_scale": "W8A8"
 
 }
 ```

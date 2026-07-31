@@ -10,7 +10,7 @@ The LoRA weight files must include the `adapter_config.json` and `adapter_model.
 
 |File|Description|Example|
 |--|--|--|
-|adapter_config.json|Contains hyperparameters of the LoRA weights.|`r` (rank size in LoRA fine-tuning), `rank_pattern`, `lora_alpha` (scaling factor for the LoRA low-rank matrice), and `alpha_pattern`.|
+|adapter_config.json|Contains hyperparameters of the LoRA weights.|`r` (rank size in LoRA fine-tuning), `rank_pattern`, `lora_alpha` (scaling factor for the LoRA low-rank matrices), and `alpha_pattern`.|
 |adapter_model.safetensors|Contains weights, which are saved as key-value pairs. The `base_model.model` prefix and the `lora_A.weight` and `lora_B.weight` suffixes are added to the start and end of the base model key name to form the LoRA weight key names.|Base model key name: `model.layers.9.self_attn.v_proj.weight` <br>LoRA weight key names: `base_model.model.model.layers.9.self_attn.v_proj.lora_A.weight` and `base_model.model.model.layers.9.self_attn.v_proj.lora_B.weight`|
 
 ## Constraints
@@ -45,7 +45,7 @@ The LoRA weight files must include the `adapter_config.json` and `adapter_model.
 
     CANN and ATB Models have been installed in the environment. For details, see *MindIE Installation Guide*.
 
-    > [!NOTE]NOTE
+    > [!NOTE]
     > The following installation path is used as an example to
     > install ATB Models and initialize the ATB Models environment variables. The `${ATB_SPEED_HOME_PATH}` environment variable initialization is contained in the `set_env.sh` script of the model repository. Therefore, sourcing the `set_env.sh` script from the model repository also initializes the `${ATB_SPEED_HOME_PATH}` environment variable.
 
@@ -53,8 +53,8 @@ The LoRA weight files must include the `adapter_config.json` and `adapter_model.
 
     Use `lora_modules` to specify the binding relationship between the base model and the LoRA weights.
 
-    - The weight name is a weight alias, containing a maximum of 256 characters. It is used to specify the LoRA weight for inference in subsequent requests.
-    - Multiple LoRA weights can be configured.
+  - The weight name is a weight alias, containing a maximum of 256 characters. It is used to specify the LoRA weight for inference in subsequent requests.
+  - Multiple LoRA weights can be configured.
 
     ```bash
     cd ${ATB_SPEED_HOME_PATH}
@@ -63,7 +63,7 @@ The LoRA weight files must include the `adapter_config.json` and `adapter_model.
 
 - Serving usage:
 
-    > [!NOTE]NOTE
+    > [!NOTE]
     > The `lora_adapter.json` file is no longer used for configuration. Add the `LoraModules` field to the `config.json` file of MindIE Motor to enable Multi-LoRA. The following describes the procedure.
 
     The following part uses Llama 3.1 70B as an example to describe how to use Multi-LoRA.
@@ -93,7 +93,7 @@ The LoRA weight files must include the `adapter_config.json` and `adapter_model.
                 "ipAddress" : "127.0.0.1",
                 "managementIpAddress" : "127.0.0.2",
                 "port" : 1025,
-                "managementPort" : 1026,
+                "managementPort" : 1026
             },
             "BackendConfig": {
                 "backendName" : "mindieservice_llm_engine",
@@ -133,7 +133,7 @@ The LoRA weight files must include the `adapter_config.json` and `adapter_model.
                     "path" : "/data/lora_model_weights/llama3.1-70b-lora",
                     "baseModelName" : "llama3.1-70b"
                     }]
-                },
+                }
             }
         }
         ```

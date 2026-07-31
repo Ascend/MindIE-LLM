@@ -2,7 +2,7 @@
 
 You can enable the CPU high-performance mode, Transparent Huge Pages (THP), and jemalloc optimization to improve performance. The three modes are independent of each other. You can enable one or more of them.
 
-> [!NOTE]NOTE
+> [!NOTE]
 > When a 92-core server processes low-concurrency long-sequence jobs, the CPU load tends to be high. As a result, the CPU becomes a system bottleneck, causing TPOP performance fluctuation and deterioration. You are advised to perform optimization by referring to this section.
 
 ## Enabling the CPU High-Performance Mode and THP
@@ -21,7 +21,7 @@ Run the following commands on the bare-metal server (BMS) to enable high-perform
      echo always > /sys/kernel/mm/transparent_hugepage/enabled
      ```
 
-     > [!NOTE]NOTE
+     > [!NOTE]
      > The service process may compete with model execution processes for CPU resources, leading to fluctuations in performance and latency. To mitigate the impact of CPU contention, you can manually bind the service process to an odd-numbered CPU core when starting the service. The detailed method is as follows:
      >1. Run the `lscpu` command to check the CPU configuration of the system.
      >

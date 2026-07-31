@@ -4,7 +4,7 @@ To ensure user security, you need to set the validity period of a user. You can 
 
 Command:
 
-```linux
+```bash
 chage [-m mindays] [-M maxdays] [-d lastday] [-I inactive] [-E expiredate] [-W warndays] user  # typos:ignore
 ```
 
@@ -12,7 +12,7 @@ For details about related parameters, see [Table 1](#table1).
 
 **Table 1** Setting the validity period of a user <a id="table1"></a>
 
-|Parameter|Parameters|
+|Parameter|Description|
 |--|--|
 |-d--lastday|Displays the date when the valid period was changed the last time.|
 |-E--expiredate|Displays the date when a user account expires. The user account is unavailable when the account validity period has expired.|
@@ -25,7 +25,7 @@ For details about related parameters, see [Table 1](#table1).
 |-R--root|Sets the root directory where the command is executed to a specified directory.|
 |-W--warndays|Specifies the number of days in advance when users are notified that their passwords are about to expire.|
 
-> [!NOTE]NOTE
+> [!NOTE]
 >
 >- The date format is YYYY-MM-DD. For example,`chage -E 2017-12-01 test` indicates that the password of the user `test` will expire on December 1, 2017.
 >- `user` must be specified. Replace it with the actual user name. The default user is `root`.

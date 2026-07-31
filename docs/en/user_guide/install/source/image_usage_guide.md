@@ -47,7 +47,7 @@ The following describes how to install the MindIE container image. Before that, 
         mindie:3.0.0-800I-A2-py311-openeuler24.03-lts bash
     ```
 
-    > [!NOTE]NOTE
+    > [!NOTE]
     >- The image name and tag `mindie:3.0.0-800I-A2-py311-openeuler24.03-lts` can be modified as needed. You can run the `docker images` command on the host to view the existing images on the host.
     >- For the `--device` parameter, the mount permission is set to `rwm` instead of the less permissive `rw` or `r`, for the following reasons:
         >- For the Atlas 800I A2 inference server, if the mount permission is set to `rw`, the container launches successfully. The `npu-smi` command can be used to view NPU usage, and MindIE services run normally. However, if the mounted NPU (e.g., `davinci0` for `npu0` in mount options) is already occupied by another task, `npu-smi` will return an error and MindIE tasks will fail (e.g., `torch.npu.set_device()` will not work).
@@ -74,7 +74,7 @@ The following describes how to install the MindIE container image. Before that, 
 
 3. Install the dependency.
 
-    Before running inference with a model, install its dependencies. The path of the dependency installation file (requirements\__xxx_.txt) for each model is as follows: `/usr/local/Ascend/atb-models/requirements/models`. To install dependencies for Llama 3 series models (example), run the following commands:
+    Before running inference with a model, install its dependencies. The path of the dependency installation file (requirements_xxx_.txt) for each model is as follows: `/usr/local/Ascend/atb-models/requirements/models`. To install dependencies for Llama 3 series models (example), run the following commands:
 
     ```bash
     cd /usr/local/Ascend/atb-models/requirements/models
@@ -112,7 +112,7 @@ The following describes how to install the MindIE container image. Before that, 
     python examples/run_pa.py --model_path /path-to-weights --input_texts "What is deep learning?"  # Change the weight path
     ```
 
-    > [!NOTE]NOTE
+    > [!NOTE]
     > `$ATB_SPEED_HOME_PATH` has been set in the .bashrc file. You do not need to modify it.
 
 6. MindIE Motor is an inference serving framework designed for general-purpose models, establishing an adaptable and open inference service structure. It interfaces with prominent industry inference frameworks, meeting the high-performance inference needs of LLMs.

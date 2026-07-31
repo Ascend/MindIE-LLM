@@ -4,9 +4,9 @@
 
 The tool can upgrade the configuration of an earlier version to that of a specified new version. The configurations of the previous three versions are compatible.
 
-> [!NOTE]NOTE
+> [!NOTE]
 >
->- Restoring the tool to an earlier version is not supported. The configuration cannot be updated within the same version. The `target_version` must be greater than the version number in the source `config.json`.
+>- Restoring the tool to an earlier version is not supported. The configuration cannot be updated within the same version. The `--new_version` must be greater than the version number in the source `config.json`.
 >- `pipelineNumber` used in version 1.0.RC1 has been deleted for later versions. Instead, `modelInstanceNumber` is added to indicate the number of model instances and must be correctly set based on the configuration relationship.
 
 ## Command Description

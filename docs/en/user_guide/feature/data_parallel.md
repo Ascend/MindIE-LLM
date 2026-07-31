@@ -25,7 +25,7 @@ When the graphics memory is sufficient, the data parallel feature can be enabled
 |cp|int32_t|<ul><li>When this parallelism mode is not used: `1`</li><li> When used together with `sp`, the value of `dp * tp * cp` must be equal to that of the `worldSize` parameter, and `dp` must be set to `1`.</li></ul><br>For example, if `worldSize` is set to `16`, `tp` is set to `8`, and `sp` is set to `8`, `dp` must be set to `1` and `cp` must be set to `2`.|(Optional) The default value is `1`, indicating that context parallelism is not performed.<br>Number of context parallelism processes in the Attention module.|
 |sp|int32_t|<ul><li>When this parallelism mode is not used: `1`</li><li>When used together with `tp`, the value of `sp` must be equal to that of `tp`.</li></ul><br>For example, if `worldSize` is set to `16`, `tp` is set to `8`, and `dp` is set to `2`, `sp` must be set to `8`.|(Optional) The default value is `1`, indicating that sequence parallelism is not performed.<br>Number of sequence parallelism processes in the Attention module.|
 
-> [!NOTE]NOTE
+> [!NOTE]
 > If the preceding supplementary parameters are not set, the `tp` and `moe_tp` parallelism modes are used by default during inference.
 
 ## Inference
@@ -76,7 +76,7 @@ CANN and MindIE have been installed in the environment. For details, see *MindIE
     ]
     ```
 
-    In the preceding parameter settings, eight devices are used for inference, the Attention module uses DP, and the MoE model uses tensor parallelism.
+    In the preceding parameter settings, eight devices are used for inference, the Attention module uses DP, and the MoE model does not use tensor parallelism.
 
 4. Start the service.
 

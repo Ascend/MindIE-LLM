@@ -71,7 +71,7 @@ Some LLMs include the thinking process in their outputs. This feature is designe
             },
     ```
 
-    > [!NOTE]NOTE
+    > [!NOTE]
     >- Qwen3-30B-A3B: Change `qwen3` to `qwen3_moe`.
     >- DeepSeek-R1: Change `qwen3` to `deepseekv2` and change `model_type` in the DeepSeek-R1 weight file to `deepseek_v3`.
     >- DeepSeek-V3.2: Change `qwen3` to `deepseek_v32`.

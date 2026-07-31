@@ -32,7 +32,7 @@ directory    ```bash
     ./bin/mindieservice_daemon
     ```
 
-    > [!NOTE]Note
+    > [!NOTE]
     > Structured Output is automatically enabled when the request includes the `response_format` parameter. No additional plugin configuration is required in `config.json` for this feature.
 
 2. Send a request to the service. For parameter descriptions, see "Serving APIs" \> "RESTful APIs on the EndPoint Service Plane" \> "Compatible with OpenAI APIs" \> "Inference API" in *MindIE Motor Development Guide*.

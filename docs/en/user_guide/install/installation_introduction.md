@@ -14,7 +14,7 @@ The following describes the application scenarios, advantages, and disadvantages
 - Offline installation: In this method, software such as CANN, PyTorch, and MindIE and dependencies can be installed on physical machines or containers. The `.run` and `.whl` packages can be installed offline.
 - Source code installation: To experience the latest functions or modify and enhance the source code, download the code from the repository, compile the code, and install it. WHL package installation is supported for source builds.
   
-    > [!NOTE]NOTE
+    > [!NOTE]
     >
     > - The `.whl` package installation is recommended for new users.
     > - For existing users upgrading their installation, the `.run` package method is recommended.

@@ -46,7 +46,7 @@ Advantages:
 |Parameter|Value Type|Value Range|Configuration Description|
 |--|--|--|--|
 |**deepseekv2**|-|-|-|
-|**kv_cache_option**|-|-|-|
+|**kv_cache_options**|-|-|-|
 |enable_nz|bool|<ul><li>true</li><li>false</li></ul>|Specifies whether to enable the NZ format for the KV cache.<br><ul><li>Only the DeepSeek-R1, DeepSeek-V3, and DeepSeek-V3.1 models support this feature. The NZ format is automatically enabled in the FA3 quantization scenario. </li><li>This format must be enabled for the DeepSeek-R1, DeepSeek-V3, and DeepSeek-V3.1 models. For other models, it is disabled. </li><li>Default value: `false`</li></ul>|
 
 ## Inference
@@ -100,10 +100,10 @@ The following uses multi-round dialog as an example to describe how to use the p
     },
     ```
 
-    > [!NOTE]NOTE
+    > [!NOTE]
     >- For non-DeepSeek models, the `models` field is not required.
     >- If multiple features need to be used together, such as prefix cache and MTP, separate the feature names with commas (,) as follows:
-    > **"plugin\_params": "\{\\"plugin\_type\\":\\"mtp,prefix\_cache\\",\\"num\_speculative\_tokens\\": 1\}"**,
+    > **"plugin_params": "{\"plugin_type\":\"mtp,prefix_cache\",\"num_speculative_tokens\": 1}"**,
 
 3. Start the service.
 

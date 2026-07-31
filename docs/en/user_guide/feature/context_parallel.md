@@ -49,7 +49,7 @@ Context parallelism (CP) performs parallel computing for the self-attention modu
     vi conf/config.json
     ```
 
-2. Set serving parameters. Add the `cp` field (the following information in bold) to the `config.json` file of the server. For details about the parameters, see [Parameter Description](#Parameter Description). For details about the serving parameters, see [Configuration Parameters (Serving)](../user_manual/service_parameter_configuration.md). The following is an example of parameter settings.
+2. Set serving parameters. Add the `cp` field (the following information in bold) to the `config.json` file of the server. For details about the parameters, see [Parameter Description](#description). For details about the serving parameters, see [Configuration Parameters (Serving)](../user_manual/service_parameter_configuration.md). The following is an example of parameter settings.
 
     ```json
     "ModelDeployConfig" :

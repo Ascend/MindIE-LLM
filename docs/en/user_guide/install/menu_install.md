@@ -10,7 +10,7 @@
     - [Installing the MindIE](./source/installation_on_a_physical_machine.md)
   - [Method 3: Installation from Source Code]()
     - [Installing MindIE LLM from Source Code](../../developer_guide/build_guide_llm.md)
-    - [Installing MindIE Motor from Source Code](https://gitcode.com/Ascend/MindIE-Motor/blob/v3.0.0/docs/en/developer_guide/build_guide.md)
+    - [Installing MindIE Motor from Source Code](https://gitcode.com/Ascend/MindIE-Motor-CPP/blob/v3.0.0/docs/en/developer_guide/build_guide.md)
     - [Installing MindIE SD from Source Code](https://gitcode.com/Ascend/MindIE-SD/blob/v3.0.0/docs/en/installation.md)
 - [Upgrade](./source/upgrade.md)
 - [Uninstallation](./source/uninstallation.md)

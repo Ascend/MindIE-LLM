@@ -67,10 +67,10 @@ Data streams are synchronized using the event mechanism, ensuring that computati
              "models": {
                 "qwen3": {
                     "ccl": {
-                        "enable_mc2": false,
+                        "enable_mc2": false
                     },
                     "stream_options": {
-                        "micro_batch": true,
+                        "micro_batch": true
                     }
                 }
              }

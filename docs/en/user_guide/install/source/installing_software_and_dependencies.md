@@ -63,9 +63,9 @@ For the `.run` package installation, ATB Models does not provide an independent 
 
 4. Upload the obtained ATB Models software package **Ascend-mindie-atb-models_{version}_linux-{arch}_pyxxx_torchx.x.x-{abi}.tar.gz** to the directory. The ATB Models software package is stored in the ```/opt/package``` directory of the MindIE image package.
 
-    > [!NOTE]NOTE
+    > [!NOTE]
     > The ABI version of ATB Models must be the same as that used during PyTorch compilation. You can call the torch.compiled_with_cxx11_abi() API to view the ABI version.
-    > 
+    >
     > - If False is returned, set abi=0.
     > - If True is returned, set abi=1.
 

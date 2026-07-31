@@ -51,7 +51,7 @@
 |metricsTlsCrlPath|std::string|metricsTlsCrlPath+metricsTlsCrlFiles路径长度范围为[1,4096]。实际路径为工程路径+metricsTlsCrlPath。|内部接口证书吊销列表文件夹路径，只支持软件包安装路径下的相对路径。<ul><li>**httpsEnabled**=**true**且**ipAddress**!=**managementIpAddress**生效，生效后选填，默认值："security/metrics/certs/"。</li><li>**httpsEnabled**=**false**不启用吊销列表。</li></ul>|
 |metricsTlsCrlFiles|std::set`<std::string>`|metricsTlsCrlPath+metricsTlsCrlFiles路径长度范围为[1,4096]。列表元素个数最小为1，最大为3。|内部接口吊销列表名称列表。<br>**httpsEnabled**=**true**生效，生效后选填，默认值：["server_crl.pem"]。|
 |kmcKsfMaster|std::string|文件路径长度范围为[1,4096]。实际路径为工程路径+kmcKsfMaster。|KMC密钥库文件路径，只支持软件包安装路径下的相对路径。<br>**httpsEnabled**=**true**生效，生效后必填，默认值："tools/pmt/master/ksfa"。|
-|kmcKsfStandby|std::string|文件路径长度范围为[1,4096]。实际路径为工程路径+kmcKsStandby1。|KMC密钥库备份文件路径，只支持软件包安装路径下的相对路径。<br>**httpsEnabled**=**true**生效，生效后必填，默认值："tools/pmt/standby/ksfb"。|
+|kmcKsfStandby|std::string|文件路径长度范围为[1,4096]。实际路径为工程路径+kmcKsStandby。|KMC密钥库备份文件路径，只支持软件包安装路径下的相对路径。<br>**httpsEnabled**=**true**生效，生效后必填，默认值："tools/pmt/standby/ksfb"。|
 |inferMode|std::string|<ul><li>standard</li><li>dmi</li></ul>|必填，默认值：standard。<br>标识是否PD分离<ul><li>standard：表示PD混部模式；</li><li>dmi：表示PD分离模式。</li></ul>|
 |interCommTLSEnabled|bool|<ul><li>true</li><li>false</li></ul>|选填，默认值：true，需要配置证书相关内容。<br>集群内部实例间的通信是否启用TLS。<ul><li>true：启用</li><li>false：不启用</li></ul><br>取值为false或**inferMode**为**standard**时，忽略后续集群内部通信相关参数。|
 |interCommPort|uint16_t|[1024, 65535]|选填，默认值：1121。<br>集群内部实例间的通信端口。|
@@ -65,7 +65,7 @@
 |openAiSupport|std::string|字符串|选填，默认值："vllm"。<br>是否启用vLLM兼容的OpenAI。<ul><li>取值为"vllm"或者配置字段缺失时，代表/v1/chat/completions接口使用vLLM兼容的OpenAI接口版本。</li><li>取值为其他字符时，代表/v1/chat/completions接口使用原生OpenAI接口版本。</li></ul>此配置支持热更新。|
 |tokenTimeout|uint32_t|[1, 3600]|每个token的推理超时时间。默认值：600；单位：秒。<br>PD分离场景该参数无效。|
 |e2eTimeout|uint32_t|[1, 65535]|端到端（接受请求开始到推理结束）超时时间。默认值：600；单位：秒。<br>PD分离场景该参数无效。|
-|maxRequestLength|uint32_t|[1, 100]|选填，默认值：40；单位：MB。<br>输入请求体的最大字符数。|
+|maxRequestLength|uint32_t|[1, 100]|选填，默认值：40；单位：MB。<br>输入请求体的最大大小。|
 |distDPServerEnabled|bool|<ul><li>true</li><li>false</li></ul>|必填，默认值false。<br>是否开启分布式部署，该参数只在大规模专家并行场景下生效。|
 |HealthCheckConfig|map|-|健康检查相关配置，详情请参见[HealthCheckConfig参数说明](#healthcheckconfig参数说明)。|
 
@@ -130,7 +130,7 @@
 |npuMemSize|int32_t|<ul><li>-1</li><li>整型数字，取值范围：(0, 2147483647]</li></ul>|必填，默认值：-1，建议值：-1，单位：GB。<br>单个NPU中可以用来申请KV Cache的size上限。<ul><li>自动分配KV Cache：当配置值为-1时，kv cache会根据可用显存自动进行分配。<br>KV Cache快速计算公式：npuMemSize=单卡总内存\*内存分配比例-单卡权重占用内存-运行时相关变量占用内存-系统占用内存<ul><li>单卡总内存：通过**npu-smi info**命令查看总显存。</li><li>内存分配比例：默认值0.8；可通过环境变量NPU_MEMORY_FRACTION控制；**当出现权重加载OOM情况时，可适当调高分配比例或使用更多显卡进行推理**。</li><li>单卡权重占用内存：约等于权重大小\*类型大小（浮点为2，int8类型为1）/卡数；以实际加载权重为准。</li><li>运行时相关变量占用内存：模型输入变量、输出变量、中间变量等内存。</li><li>系统占用内存：通过**npu-smi info**命令查看静息状态下使用显存。</li></ul></li><li>手动分配KV Cache：当配置值大于0时，根据设置值会固定分配KV Cache大小。</li><li>当前版本中一些性能优化算法可能导致设备内存占用增多，若您在旧版本中设置了npuMemSize为固定值，并在更新版本后运行服务中出现了OOM现象，建议将npuMemSize改为-1或适当改小。</li></ul>**说明**<br>1. 对于多模态模型，**npuMemSize**不支持设置为-1，因为需要给ViT部分预留空间。可根据以下公式计算，并向上取整后得到**npuMemSize**的值：4\*num_hidden_layers\*num_key_value_heads\*(hidden_size/num_attention_heads)*(maxPrefillBatchSize×maxSeqLen)/worldSize/(1024×1024×1024)，其中：num_hidden_layers、num_key_value_heads、hidden_size、num_attention_heads为权重路径下配置文件config.json中的参数。<br>2. 当**backendType**为**ms**时，**npuMemSize**=-1仅支持PD混合部署下的前端并行模型ParallelLlamaForCausalLM。<br>3. 为快速确定最佳显存参数取值范围，提供了快速计算公式。该公式计算的结果仅作为取值参考，为了达到最佳性能，可以适当向上调整该值并进行性能压力测试。<br>4. 如果设置的**npuMemSize**参数超过系统可分配最大显存值，会出现推理服务启动失败、推理服务启动卡死等异常现象，需要减小该值并重试。<br>5. PD分离部署场景中，当**backendType**选择**atb**时该参数才可以设置为-1。|
 |backendType|std::string|<ul><li>"atb"</li><li>"torch"</li></ul> |必填，默认值："atb"。<br>对接的后端类型。<ul><li>atb：推理引擎后端为加速库；</li><li>torch: 兼容 torch 框架。</li></ul>|
 |trustRemoteCode|bool|<ul><li>true</li><li>false</li></ul>|选填，默认值：false。<br>是否信任远程代码。<ul><li>false：不信任远程代码。</li><li>true：信任远程代码。</li></ul>**说明**<br>如果设置为true，会存在信任远程代码行为，可能会导致恶意代码注入风险，请自行保障代码注入安全风险。|
-|kv_trans_timeout|int32_t|上限根据显存和用户需求来决定。当取值小于或等于0时，会自动修改为1。|PD分离场景中，D节点从P节点拉取KV Cache的超时时间，只需要在D节点进行设置。默认值：10，单位：秒。<ul><li>仅用于PD分离场景，非PD分离场景下该值不生效。</li><li>建议值：大于网络包重传次数*每次重传的超时时间</li><li>配置该参数时，需要同步关注“HCCL_RDMA_RETRY_CNT”和“HCCL_RDMA_TIMEOUT”两个环境变量。详细请参见《MindIE Motor开发指南》中的[使用kubectl部署单机PD分离服务示例](https://gitcode.com/Ascend/MindIE-Motor/blob/master/docs/zh/user_guide/service_deployment/pd_separation_service_deployment.md#%E4%BD%BF%E7%94%A8kubectl%E9%83%A8%E7%BD%B2%E5%8D%95%E6%9C%BApd%E5%88%86%E7%A6%BB%E6%9C%8D%E5%8A%A1%E7%A4%BA%E4%BE%8B)章节。</li></ul>|
+|kv_trans_timeout|int32_t|上限根据显存和用户需求来决定。当取值小于或等于0时，会自动修改为1。|PD分离场景中，D节点从P节点拉取KV Cache的超时时间，只需要在D节点进行设置。默认值：10，单位：秒。<ul><li>仅用于PD分离场景，非PD分离场景下该值不生效。</li><li>建议值：大于网络包重传次数*每次重传的超时时间</li><li>配置该参数时，需要同步关注“HCCL_RDMA_RETRY_CNT”和“HCCL_RDMA_TIMEOUT”两个环境变量。详细请参见《MindIE Motor开发指南》中的[使用kubectl部署单机PD分离服务示例](https://gitcode.com/Ascend/MindIE-Motor-CPP/blob/v3.0.0/docs/zh/user_guide/service_deployment/pd_separation_service_deployment.md#%E4%BD%BF%E7%94%A8kubectl%E9%83%A8%E7%BD%B2%E5%8D%95%E6%9C%BApd%E5%88%86%E7%A6%BB%E6%9C%8D%E5%8A%A1%E7%A4%BA%E4%BE%8B)章节。</li></ul>|
 |kv_link_timeout|int32_t|上限根据显存和用户需求来决定。当取值小于或等于0时，会自动修改为默认值1080。|PD分离场景中，用于建立KV Cache传输的通信域的超时时间。超时时间内，通信域如果创建失败会自动进行重试，直至通信域创建成功或者超时退出。默认值为：1080，建议值：1080，单位：秒。<ul><li>仅用于PD分离场景，非PD分离场景下该值不生效。</li><li>若无网络问题，默认值无需修改；若集群规模较小，且出现网络故障导致通信域持续建立失败，可以适当降低超时时间，进行快速调试。</li></ul>|
 
 ### ScheduleConfig参数说明

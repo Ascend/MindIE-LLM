@@ -4,7 +4,7 @@
 
 Hybrid quantization is to use different quantization modes for different levels of a model. W4A8 hybrid quantization of DeepSeek R1/V3: The first three layers of MLP use W8A8 dynamic quantization, the MLA and shared expert layers use W8A8 quantization, and the routing expert layer uses W4A8 dynamic quantization. W4A8 dynamic quantization uses per-channel and per-group to perform 4-bit quantization on weights and 8-bit quantization on activations.
 
-> [!NOTE]NOTE
+> [!NOTE]
 >
 >- Only DeepSeek-R1 and DeepSeek-V3 models are supported.
 >- This feature can be used together with only anti-outlier processing but not KV cache INT8 quantization..
@@ -67,5 +67,5 @@ This quantization mode supports quantization of the original weights of the floa
 |dtype|int4|bfloat32|bfloat32|uint64|
 |shape|[n, k]|[n, 1]|[n, group_num]|[n,group_num]|
 
-> [!NOTE]NOTE
+> [!NOTE]
 > The quantized weight has bias only when the floating-point weight has bias.

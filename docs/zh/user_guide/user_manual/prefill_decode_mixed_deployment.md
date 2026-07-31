@@ -551,7 +551,7 @@ ranktable.json文件权限需要设置为640，详细内容请根据以下样例
     export LD_LIBRARY_PATH=${ATB_LLM_PATH}/lib:${LD_LIBRARY_PATH}
     ```
 
-10. 配置环境变量“RANK_TABLE_FILE”和“MIES_CONTAINER_IP”（以[ranktable文件样例](https://gitcode.com/Ascend/MindIE-Motor/blob/dev/docs/zh/user_guide/service_deployment/pd_separation_service_deployment.md)中的ranktable为例，具体参见表4）。
+10. 配置环境变量“RANK_TABLE_FILE”和“MIES_CONTAINER_IP”（以[ranktable文件样例](https://gitcode.com/Ascend/MindIE-Motor-CPP/blob/dev/docs/zh/user_guide/service_deployment/pd_separation_service_deployment.md)中的ranktable为例，具体参见表4）。
 
     - Master节点容器中
 

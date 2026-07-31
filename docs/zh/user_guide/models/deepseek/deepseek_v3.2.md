@@ -32,15 +32,15 @@
 
 | 特性 | Data Parallel | Context Parallel | W8A8 量化 | 异步调度 | Chunked Prefill | MTP  | Prefix Cache | Function Call | 思考解析 | PD 分离 |
 | :-----: | :-----: | :-----: | :-----: | :-----: | :-----: | :-----: | :-----: | :-----: | :-----: | :-----: |
-| Data Parallel    | ✅ |
-| Context Parallel | ❌ | ✅ |
-| W8A8 量化        | ✅ | ✅ | ✅ |
-| 异步调度          | ✅ | ❌ | ✅ | ✅ |
-| Chunked Prefill  | ✅ | ❌ | ✅ | ✅ | ✅ |
-| MTP             | ✅ | ✅ | ✅ | ✅ | 混部❌<br/>PD分离✅ | ✅ |
-| Prefix Cache    | ✅ | ❌ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| Function Call   | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| 思考解析          | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Data Parallel    | ✅ |-|-|-|-|-|-|-|-|-|
+| Context Parallel | ❌ | ✅ |-|-|-|-|-|-|-|-|
+| W8A8 量化        | ✅ | ✅ | ✅ |-|-|-|-|-|-|-|
+| 异步调度          | ✅ | ❌ | ✅ | ✅ |-|-|-|-|-|-|
+| Chunked Prefill  | ✅ | ❌ | ✅ | ✅ | ✅ |-|-|-|-|-|
+| MTP             | ✅ | ✅ | ✅ | ✅ | 混部❌<br/>PD分离✅ | ✅ |-|-|-|-|
+| Prefix Cache    | ✅ | ❌ | ✅ | ✅ | ✅ | ✅ | ✅ |-|-|-|
+| Function Call   | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |-|-|
+| 思考解析          | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |-|
 | PD 分离          | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 
 ---
@@ -59,7 +59,7 @@
 
 #### 使用 msmodelslim 工具生成量化权重
 
-可以使用 [msmodelslim](https://gitcode.com/Ascend/msmodelslim) 生成量化权重，请参考[一键量化使用指南](https://gitcode.com/Ascend/msmodelslim/blob/master/docs/zh/feature_guide/quick_quantization_v1/usage.md)进行配置并完成量化权重的生成，下面给出量化方式简介和相对应的生成命令。
+可以使用 [msmodelslim](https://gitcode.com/Ascend/msmodelslim) 生成量化权重，请参考[一键量化使用指南](https://gitcode.com/Ascend/msmodelslim/blob/26.0.0/docs/zh/feature_guide/quick_quantization_v1/usage.md#%E4%B8%80%E9%94%AE%E9%87%8F%E5%8C%96%E5%AE%8C%E6%95%B4%E6%8C%87%E5%8D%97)进行配置并完成量化权重的生成，下面给出量化方式简介和相对应的生成命令。
 
 **量化策略说明：**
 
@@ -237,7 +237,7 @@ curl -H "Accept: application/json" -H "Content-type: application/json" -X POST -
 
 ### Atlas 800I A2 八机大 EP 部署
 
-参考 [MindIE-Motor](https://gitcode.com/Ascend/MindIE-Motor/blob/master/docs/zh/user_guide/service_deployment/pd_separation_service_deployment.md#%E5%AE%89%E8%A3%85%E9%83%A8%E7%BD%B2) 获取大 EP 初始化脚本，部署目录
+参考 [MindIE-Motor](https://gitcode.com/Ascend/MindIE-Motor-CPP/blob/master/docs/zh/user_guide/service_deployment/pd_separation_service_deployment.md#%E5%AE%89%E8%A3%85%E9%83%A8%E7%BD%B2) 获取大 EP 初始化脚本，部署目录
 结构如下：
 
 ```shell
@@ -558,7 +558,7 @@ unzip gsm8k.zip
 aisbench 已经有多种配置模板，本测试主要用到 `<aisbench_install_path>/benchmark/configs/models/vllm_api/` 下面的文件，主要包括：
 
 - `vllm_api_general_chat.py`：非流式推理配置，精度可以使用非流失，也可以使用流式
-- `vllm_api_stream_chat`：流式推理配置，测试性能需要使用流式
+- `vllm_api_stream_chat.py`：流式推理配置，测试性能需要使用流式
 - `vllm_api_function_call_chat.py`：测试BFCL数据集时会用到function call
 
 以修改 `vllm_api_general_chat.py` 为例，配置内容示例如下：**

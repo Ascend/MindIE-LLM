@@ -11,12 +11,12 @@ pip install mindie_llm-{version}-{python_tag}-{platform_tag}.whl
 
 ```
 
-> [!NOTE]NOTE
+> [!NOTE]
 > The preceding uses the `mindie_llm` package as an example. If you want to upgrade MindIE Motor or MindIE SD, replace it with the corresponding `.whl` package name.
 
 If the upgrade is performed between the same versions, add the `--force-reinstall` parameter to forcibly reinstall the package.
 
-> [!CAUTION]NOTE
+> [!CAUTION]
 > During the reinstallation of MindIE LLM, the entire installation directory (`/mindie_llm`) will be deleted before installing the new version. If you need to retain configuration files, certificate files, etc., back them up in advance.
 
 ## Installation Using the RUN Package
@@ -53,7 +53,7 @@ To upgrade MindIE, obtain the software package of the target version and run the
        ./software_package_name.run --upgrade
        ```
 
-       > [!NOTE]NOTE
+       > [!NOTE]
        > If the upgrade path is not specified, the software is upgraded to the default path. The default upgrade path is as follows:
        > - root user: /usr/local/Ascend
        > - Non-root user: /home/{current user name}/Ascend

@@ -11,7 +11,7 @@ pip uninstall mindie_llm-{version}-{python_tag}-{platform_tag}.whl
 
 ```
 
-> [!NOTE]NOTE
+> [!NOTE]
 > The preceding uses the `mindie_llm` package as an example. To uninstall MindIE Motor or MindIE SD, replace the package name with the corresponding `.whl` package name.
 
 If the following information is displayed, the software is successfully uninstalled:
@@ -47,7 +47,7 @@ If the following information is printed, the software is successfully uninstalle
 
 ```xxx``` indicates the name of a software package to be uninstalled.
 
-> [!NOTE]NOTE
+> [!NOTE]
 > After the uninstallation is complete, you are advised to run the following command to cancel the configuration of the **TUNE_BANK_PATH** environment variable:
 >
 > ```bash
@@ -82,7 +82,7 @@ If the following information is printed, the software is successfully uninstalle
 
 ```xxx``` indicates the name of the software package to be uninstalled.
 
-> [!NOTE]NOTE
+> [!NOTE]
 > After the uninstallation is complete, you are advised to run the following command to cancel the configuration of the TUNE_BANK_PATH environment variable:
 >
 > ```bash

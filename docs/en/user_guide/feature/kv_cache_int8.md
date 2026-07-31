@@ -4,12 +4,12 @@
 
 In this quantization method, the k cache and v cache are quantized to 8-bit values, reducing the graphics memory usage of the KV cache. In scenarios where the graphics memory is limited (for example, in long-sequence scenarios), the number of recomputations can be reduced to improve the throughput.
 
-> [!NOTE]NOTE
+> [!NOTE]
 >
 >- Only the Atlas 800I A2 inference server supports int8 quantization of the KV cache.
 >- This method must be used together with W8A8.
 >- Only LLaMA3.1-70B, Qwen2-72B and Qwen2.5-72B-Instruct are supported.
->- Only the float16 data type is supported.
+>- Only the float16 and bfloat16 data types are supported.
 
 Directory structure of quantized weights after KV Cache INT8 and W8A8 quantization:
 

@@ -148,13 +148,13 @@ Use either of the following methods to change the permission:
 
 - Change the permission on the `config.json` file.
   
-  ```python
+  ```bash
   chmod 640 {model_path}/config.json
   ```
 
 - Change the permission on the entire model weight folder.
   
-  ```python
+  ```bash
   chmod -R 640 {model_path}
   ```
 
@@ -283,7 +283,7 @@ In the prefill-decode disaggregation scenario, the KV cache of the decode node n
 
 - (Recommended) Check the number of network transmission retries. If certain devices exhibit an unusually high retry count, inspect the corresponding optical modules.
   
-  ```python
+  ```bash
     for i in $(seq 0 7); do echo "============> $i";hccn_tool -i $i -stat -g |grep rty;done
   ```
 
@@ -307,7 +307,7 @@ Go to the `/Service_installation_path/logs` directory, open Python logs, and ins
 
 ## What to Do If Error Message "out of memory" Is Displayed During Model Loading
 
-*### Symptom
+### Symptom
 
 During MindIE LLM deployment, the error message "out of memory" is displayed when the model is loaded, as shown in the following figure.
 
@@ -451,7 +451,7 @@ When the multimodal model input (`image_url`/`video_url`/`audio_url`) is used, t
 
 ### Cause Analysis
 
-The input image, audio, or video is encoded using Base64 (the data after Base64 encoding is usually 4/3 times that of the original data). As a result, the entire `message/prompt/text_input` exceeds 4 MB, and an error is reported.
+The input image, audio, or video is encoded using Base64 (the data after Base64 encoding is usually 4/3 times that of the original data). As a result, the entire `message/prompt/text_input` exceeds 4MB, and an error is reported.
 
 <br>
 
@@ -461,29 +461,29 @@ The input image, audio, or video is encoded using Base64 (the data after Base64 
   
   - OpenAI API:
     
-      The total size of all fields in the messages parameter in the request cannot exceed 4 MB. For details, see **inference APIs**.
+      The total size of all fields in the messages parameter in the request cannot exceed 4MB. For details, see **inference APIs**.
   
   - vLLM API:
     
-      The total size of all fields under the `prompt` parameter in the request cannot exceed 4 MB. For details, see "API Reference" \> "RESTful API Reference" > "EndPoint Service Plane RESTful APIs" > "Compatible with vLLM 0.6.4 APIs" > "Text/Streaming Inference APIs" in *MindIE LLM Development Guide*.
+      The total size of all fields under the `prompt` parameter in the request cannot exceed 4MB. For details, see "API Reference" \> "RESTful API Reference" > "EndPoint Service Plane RESTful APIs" > "Compatible with vLLM 0.6.4 APIs" > "Text/Streaming Inference APIs" in *MindIE LLM Development Guide*.
   
   - Triton API:
     
-      The total size of all fields under the `text_input` parameter in the request cannot exceed 4 MB. For details, see "API Description" > "RESTful API Reference" > "EndPoint Service Plane RESTful APIs" > "Compatible with Triton APIs" > "Text Inference APIs" in *MindIE LLM Development Guide*.
+      The total size of all fields under the `text_input` parameter in the request cannot exceed 4MB. For details, see "API Description" > "RESTful API Reference" > "EndPoint Service Plane RESTful APIs" > "Compatible with Triton APIs" > "Text Inference APIs" in *MindIE LLM Development Guide*.
     
-    > [!NOTE]NOTE
+    > [!NOTE]
     > 
-    > - If the size of a Base64-encoded image is 1 MB and the number of other request characters under `message/prompt/text_input` is greater than 3 MB, the total size of `message/prompt/text_input` will exceed 4 MB, and an error will be reported.
-    > - If `image_url`, `video_url`, or `audio_url` is set to a local image, video, or audio file, or a remote URL, the total number of characters under the URL string and the other request characters under `message/prompt/text_input` must be less than 4 MB. After the URL is passed, the URL is loaded and parsed to obtain the image, video, or audio file.
-    >   - Image: no more than 20 MB
-    >   - Video: no more than 512 MB
-    >   - Audio: no more than 20 MB
+    > - If the size of a Base64-encoded image is 1MB and the number of other request characters under `message/prompt/text_input` is greater than 3MB, the total size of `message/prompt/text_input` will exceed 4MB, and an error will be reported.
+    > - If `image_url`, `video_url`, or `audio_url` is set to a local image, video, or audio file, or a remote URL, the total number of characters under the URL string and the other request characters under `message/prompt/text_input` must be less than 4MB. After the URL is passed, the URL is loaded and parsed to obtain the image, video, or audio file.
+    >   - Image: no more than 20MB
+    >   - Video: no more than 512MB
+    >   - Audio: no more than 20MB
     > - The input encoded using Base64 is more likely to exceed the limit. In the current version, an error is reported because security issues are involved. You are advised to use a web address or local address.
     > - If the Base64 format is used, do not use the terminal curl. You are advised to use the Python script because the character length of the data after Base64 encoding may exceed the system terminal limit. As a result, the request is truncated.
 
 - Method 2: Manually modifying the source code
   
-    For example, change the upper limit of `inputs` to 10 MB by modifying the code as follows:
+    For example, change the upper limit of `inputs` to 10MB by modifying the code as follows:
   
     **Figure 1** Example 1
   
@@ -523,7 +523,7 @@ The issue may stem from a `concat`-related operator where tensor 5 has size 1 in
 
 Example: If an operator (such as concat or MatMul) expects a dimension to exist and match a specific value (for example, 2), an error will occur if that dimension has been removed by a squeeze operation.
 
-> [!NOTE]NOTE
+> [!NOTE]
 > This issue exists in versions earlier than MindIE 2.0 and has been resolved in MindIE 2.0 and later versions.
 
 <br>
@@ -543,7 +543,7 @@ Running Qwen2.5-VL series models fails, and an error message similar to either o
 - Error message 1:
   
   ```text
-  You are using a model of type qwen2_5_vl to instantiate a model of type. This is not supported for all configurations of models and can yiled errors.
+  You are using a model of type qwen2_5_vl to instantiate a model of type. This is not supported for all configurations of models and can yield errors.
   ```
 
 - Error message 2:
@@ -606,7 +606,7 @@ The model configuration is not supported because the installed dependencies are 
   
         Based on experience, try to keep `free_mem >= (weight/num_machines) * 1.3`.
   
-        >[!NOTE]NOTE
+        >[!NOTE]
         >Each time a model is run, check the memory usage on the host to prevent model running failures caused by insufficient memory.
   
     5. Import the following environment variables:
@@ -622,7 +622,7 @@ The model configuration is not supported because the installed dependencies are 
   
     7. Restart the server and restart the service.
   
-    >[!NOTE]NOTE
+    >[!NOTE]
     >- Updating the hardware environments, version mapping, drivers, and images to the latest versions can effectively avoid such errors.
     >- For details about how to handle this error, see [handling procedure](https://www.hiascend.com/developer/blog/details/02112175404775067102).
 
@@ -656,7 +656,7 @@ RuntimeError: NPU out of memory. Tried to allocate xxx GiB."
    export OMP_NUM_THREADS=1
    ```
 
-2. Lower the values of parameters such as `maxSeqLen`, `maxInputTokenLen`, `maxPrefillBatchSize`, `maxPrefillTokens`, and `maxBatchSize` in the serving configuration file `config.json`. Focus primarily on adjusting `maxPrefillTokens`, `maxSeqLen`, and `maxPrefillTokens`.
+2. Lower the values of parameters such as `maxSeqLen`, `maxInputTokenLen`, `maxPrefillBatchSize`, `maxPrefillTokens`, and `maxBatchSize` in the serving configuration file `config.json`. Focus primarily on adjusting `maxPrefillTokens`, and `maxSeqLen`.
    
     - The value of `maxPrefillTokens` must be greater than or equal to that of `maxInputToken`.
    
@@ -811,7 +811,7 @@ Failed to get vocab size from tokenizer wrapper with exception...
   - Check the required `transformers` version for each model, typically listed in the model's `requirements.txt` file. Then, check whether the `transformers` version in the `config.json` file under the model weight path is the same as that in the `config.json` file under the model weight path.
   
   - Use the following `tokenizer` verification method to create a Python script. If the script runs successfully, the `tokenizer` can be loaded correctly.
-    
+  
     ```python
     from transformers import AutoTokenizer  tokenizer = AutoTokenizer.from_pretrained('path/to/model')
     ```

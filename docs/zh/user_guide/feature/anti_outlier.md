@@ -62,7 +62,7 @@
 
 ## 生成权重
 
-您可以使用msModelSlim工具生成量化权重：[msModelSlim](https://gitcode.com/Ascend/msit/blob/master/msmodelslim/README.md)
+您可以使用msModelSlim工具生成量化权重：[msModelSlim](https://gitcode.com/Ascend/msmodelslim/blob/26.0.0/README.md)
 
 以Qwen3-14B为例，安装msModelSlim工具后，可以使用如下命令快速生成一份带有离群值抑制的W8A8PDMIX量化权重：
 

@@ -114,7 +114,7 @@ Advantages:
                 "prefillChunkSize" : 1024,
                 "maxNumPartialPrefills" : 64,
                 "longPrefillTokenThreshold" : 1024,
-                "maxLongPartialPrefills" : 8,
+                "maxLongPartialPrefills" : 8
             }
     ```
 

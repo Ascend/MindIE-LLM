@@ -17,7 +17,7 @@ This document describes how to install MindIE on a physical machine. Select the 
    pip install mindie_llm-{version}-{python_tag}-{platform_tag}.whl --no-deps
    ```
 
-   > [!NOTE]NOTE
+   > [!NOTE]
    >
    > - The preceding uses the `mindie_llm` package as an example. If you want to install MindIE Motor or MindIE SD, replace it with the corresponding `.whl` package name.
    > - If you need to use the source code for compilation and installation, go to the corresponding code repository to obtain the compilation guide. For example, for MindIE-LLM, see [build guide](../../../developer_guide/build_guide_llm.md).
@@ -81,7 +81,7 @@ MindIE Motor, MindIE LLM, and MindIE SD will be installed in sequence when you i
    ./software_package_name.run --install --quiet
    ```
 
-   > [!NOTE]NOTE
+   > [!NOTE]
    >
    > - If the installation is performed by the root user, do not specify the installation path in the directory of a non-root user.
    > - If you do not specify an installation path, the software is installed in the default path. The default installation paths are as follows:

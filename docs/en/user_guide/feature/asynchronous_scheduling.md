@@ -25,7 +25,7 @@ Therefore, this feature is typically applicable to scenarios where `max_batch_si
     export MINDIE_ASYNC_SCHEDULING_ENABLE=1
     ```
 
-    > [!NOTE]NOTE
+    > [!NOTE]
     > In the prefill-decode disaggregation scenario, perform this operation only on the decode node.
 
 2. Open the `config.json` file of the server.
@@ -59,4 +59,4 @@ Therefore, this feature is typically applicable to scenarios where `max_batch_si
     ./bin/mindieservice_daemon
     ```
 
-5. Use the AISBench tool to start tuning. For details about the AISBench tool, see "Auxiliary Tools" > "Performance/Accuracy Test Tool" in *MindIE Motor Development Guide*.
+5. (Optional) Use the AISBench tool to start tuning. For details about the AISBench tool, see "Auxiliary Tools" > "Performance/Accuracy Test Tool" in *MindIE Motor Development Guide*.

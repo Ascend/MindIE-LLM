@@ -24,7 +24,7 @@ The following uses tool use to represent the function call feature.
 - The function call feature can be used with the quantization, long sequence, multi-server inference, prefill-decode disaggregation, MoE, Multi-LoRA, SplitFuse, parallel decoding, expert parallelism, MTP, prefix cache, reasoning analysis (excluding DeepSeek-V3.1, which does not support enabling both function call and reasoning analysis in a single request), tensor parallelism, and MLA features. However, the SplitFuse, parallel decoding, and MTP features cannot be used with the function call feature in streaming inference.
 - Currently, the function call feature does not support the postprocessing parameters `include_stop_str_in_output`, `stop`, `best_of`, `n`, `use_beam_search`, and `logprobs`. If the temperature is set to a large value (which will increase sampling randomness), the stability of function call triggering may be affected.
 - The function call feature supports non-streaming inference. Only the function call feature of the Qwen3-32B, Qwen3-235B-A22B, Qwen3-30B-A3B, and DeepSeek-R1-0528 models supports streaming inference.
-- When a request packet contains the function call function, the current version supports a maximum JSON nesting depth of 10 levels.
+- When a request packet contains the function call feature, the current version supports a maximum JSON nesting depth of 10 levels.
 
 ## Parameter Description
 
@@ -108,7 +108,7 @@ The following uses DeepSeek-V3.1 as an example to describe how to use the functi
             },
     ```
 
-    > [!NOTE]NOTE
+    > [!NOTE]
     >- DeepSeek-V3.1: `tool_call_parser` must be set to `deepseek_v31`. Otherwise, `deepseek_v3` is used by default, which is incompatible with the DeepSeek-V3.1 model format and may cause incorrect parsing.
     >- Other models: Steps 1 and 2 are not required. The system automatically matches the tool call parsing mode for the corresponding model. If this parameter is configured, change the value of `deepseekv2` to `model_type` of the corresponding model.
     >- `chat_template`: If this parameter is specified, it will override the default `chat_template` defined in the model's `tokenizer_config.json` file. For DeepSeek-V3.1, DeepSeek-R1-0528, and DeepSeek-V3-0324, the default `chat_template` in the model weights' `tokenizer_config.json` file does not support function call. Therefore, you need to set `chat_template` to specify a template that supports function call.

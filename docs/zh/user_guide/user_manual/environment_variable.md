@@ -17,7 +17,7 @@ MindIE LLM安装完成后，提供进程级环境变量设置脚本“set_env.sh
 |ATB_OPERATION_EXECUTE_ASYNC|控制ATB graph的异步调度，默认使用二级流水。当CPU数量不受限时，可尝试开启三级流水进行性能调优。|0：不开启<br>1：开启二级流水<br>2：开启三级流水|1|
 |ATB_SPEED_HOME_PATH|ATB模型lib路径的环境变量，必须配置。|必须是ATB模型lib路径|None|
 |HCCL_INTRA_PCIE_ENABLE|控制是否开启All2All分层通信及INT8通信特性。“HCCL_INTRA_PCIE_ENABLE”和“HCCL_INTRA_ROCE_ENABLE”必须同时设置为开启，才能开启该功能。<br>这两个环境变量的更多描述请参见《CANN 环境变量参考》中的“集合通信”章节。<br>说明：建议在Atlas 800I A2 推理服务器和Atlas 800I A3 超节点服务器，MoE模型的Combine INT8算子场景下打开 ，提升性能优化。|0：关闭<br>1：开启|N/A|
-|HCCL_INTRA_ROCE_ENABLE|控制是否开启All2All分层通信及INT8通信特性。“HCCL_INTRA_PCIE_ENABLE”和“HCCL_INTRA_ROCE_ENABLE”必须同时设置为开启，才能开启该功能。<br>这两个环境变量的更多描述请参见《CANN 环境变量参考》中的“集合通信”章节。<br>说明：建议在Atlas 800I A2 推理服务器和Atlas 800I A3 超节点服务器，MoE模型的Combine INT8算子场景下打开 ，提升性能优化。|0：开启<br>1：关闭|N/A|
+|HCCL_INTRA_ROCE_ENABLE|控制是否开启All2All分层通信及INT8通信特性。“HCCL_INTRA_PCIE_ENABLE”和“HCCL_INTRA_ROCE_ENABLE”必须同时设置为开启，才能开启该功能。<br>这两个环境变量的更多描述请参见《CANN 环境变量参考》中的“集合通信”章节。<br>说明：建议在Atlas 800I A2 推理服务器和Atlas 800I A3 超节点服务器，MoE模型的Combine INT8算子场景下打开 ，提升性能优化。|0：关闭<br>1：开启|N/A|
 |**Ascend Extension for PyTorch相关环境变量**||-|-|
 |MASTER_IP|多机服务化设置的主机ip|若值非空，则IP应该是合法ip|None|
 |MASTER_PORT|多机服务化设置的主机接口|若值非空，则端口号[0,65535]|None|
@@ -39,7 +39,7 @@ Server相关环境变量请参考**表2**。
 |LD_LIBRARY_PATH|lib所在的路径。|路径参数。|${MINDIE_LLM_HOME_PATH}/lib:${LD_LIBRARY_PATH}|
 |ASCEND_SLOG_PRINT_TO_STDOUT|CANNDEV日志打印控制开关。|1：打印。<br>0：写入到~/ascend目录。|0|
 |ASCEND_GLOBAL_LOG_LEVEL|CANNDEV日志级别。|0：debug<br>1：info<br>2：warn<br>3：error|3|
-|ASCEND_GLOBAL_EVENT_ENABLE|设置应用类日志是否开启Event日志。|0：关闭Event<br>日志。1：开启Event日志。|0|
+|ASCEND_GLOBAL_EVENT_ENABLE|设置应用类日志是否开启Event日志。|0：关闭Event日志。<br>1：开启Event日志。|0|
 |HCCL_BUFFSIZE|控制两个NPU之间共享数据的缓存区大小。|大于或等于1，单位：MB。|120|
 |EP_OPENSSL_PATH|EndPoint开启HTTPS认证后，通过该环境变量来指定openssl加载运行时so文件。该环境变量在EndPoint模块启动时自动设置，不需要用户手动设置。|路径参数。|${MINDIE_LLM_HOME_PATH}/lib|
 |HSECEASY_PATH|EndPoint开启HTTPS认证后，使用HSECEASY工具对密钥口令进行加密。该环境变量指定HSECEASY加载运行时so文件路径。|路径参数。|${MINDIE_LLM_HOME_PATH}/lib|
@@ -64,7 +64,7 @@ MindIE\_LLM相关环境变量请参考**表3**。
 |MIES_USE_MB_SWAPPER|高性能Swap开关。|0：不开启<br>1：开启|0|
 |MINDIE_CHECK_INPUTFILES_PERMISSION|是否需要检验外部文件的权限信息，包括文件所有者和其他人对文件的写权限。|0：不需要检验外部文件的权限信息<br>其他值或None：需要检验外部文件的权限信息。|None|
 |MINDIE_LLM_BENCHMARK_ENABLE|是否开启MindIE LLM模块的Benchmark功能，开启后将会输出性能数据到指定文件路径。|0：不开启<br>1：开启|0|
-|MINDIE_LLM_BENCHMARK_FILEPATH|指定MindIE LLM模块的Benchmark功能输出的性能数据文件路径。|N/A|"{MINDIE_LLM_HOME_PATH}/logs/benchmark.jsonl"|
+|MINDIE_LLM_BENCHMARK_FILEPATH|指定MindIE LLM模块的Benchmark功能输出的性能数据文件路径。|N/A|"${MINDIE_LLM_HOME_PATH}/logs/benchmark.jsonl"|
 |MINDIE_LLM_BENCHMARK_RESERVING_RATIO|当性能数据文件超过最大文件大小限制时，旧数据会被新数据覆盖。此环境变量指定保留旧数据的比例，默认为0.1。|[0.0, 1.0]|0.1|
 |NPU_DEVICE_IDS|使用的NPU卡号。|[0,卡号]<br>例：[0, 1, 2,...]|N/A|
 |NPU_MEMORY_FRACTION|NPU显存利用率，代表总显存分配给模型权重、kvcache和work space的比例。不包含HCCL和PyTorch申请的空间。建议将该值设置为可拉起服务的最小值。具体方法是：按照默认配置启动服务，若无法拉起服务，则上调参数至可拉起为止；若拉起服务成功，则下调该参数至刚好拉起服务为止。总之，在服务能正常拉起的前提下，更低的值可以保障更高的服务系统稳定性。|(0.0, 1.0]Kimi K2模型，推荐设置为0.9。|在ATB Models中默认值为1.0在MindIE LLM中默认值为0.8|

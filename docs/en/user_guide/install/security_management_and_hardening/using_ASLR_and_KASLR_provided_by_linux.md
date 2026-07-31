@@ -22,9 +22,9 @@
         CONFIG_RANDOMIZE_BASE=y
         ```
 
-  2. Open the `/etc/default/grub` configuration file and add `kasl` to the line where `GRUB_CMDLINE_LINUX_DEFAULT` is located.
+  2. Open the `/etc/default/grub` configuration file and add `kaslr` to the line where `GRUB_CMDLINE_LINUX_DEFAULT` is located.
 
-        ```json
+        ```bash
         GRUB_CMDLINE_LINUX_DEFAULT="kaslr"
         ```
 

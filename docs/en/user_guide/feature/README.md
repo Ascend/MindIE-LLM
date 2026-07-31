@@ -13,19 +13,19 @@ MindIE LLM supports foundational, quantization, long-sequence, scheduling, accel
         <td>MoE</td><td>Enables sparse-activated expert networks to scale up model parameters without significantly increasing computational cost, thereby enhancing model capability. For details, see <a href="./moe.md">MoE</a>. </td><td>Accommodates massive knowledge with trillions of parameters, outperforming dense models in potential performance.</td>
     </tr>
     <tr>
-        <td>MLA</td><td>Uses low-rank key-value joint compression to  to eliminate inference bottlenecks and enable efficient inference. For details, see <a href="./mla.md">MLA</a>. </td><td>Efficiently processes ultra-long contexts.</td>
+        <td>MLA</td><td>Uses low-rank key-value joint compression to eliminate inference bottlenecks and enable efficient inference. For details, see <a href="./mla.md">MLA</a>. </td><td>Efficiently processes ultra-long contexts.</td>
     </tr>
     <tr>
         <td>Load balancing</td><td>Reduces the imbalance between NPUs, thereby improving the model inference performance. For details, see <a href="./expert_parallelism_load_balancer.md">Load balancing</a>. </td><td>Reduce delay. </td>
     </tr>
     <tr>
-        <td>External shared expert</td><td>Deploys shared experts on a dedicated NPU card, separating them from routing and redundant experts. For details, see <a href="./mix_shared_routing.md">External shared expert</a>. </td><td>Optimize TPOT.</td>;
+        <td>External shared expert</td><td>Deploys shared experts on a dedicated NPU card, separating them from routing and redundant experts. For details, see <a href="./mix_shared_routing.md">External shared expert</a>. </td><td>Optimize TPOT.</td>
     </tr>
     <tr>
         <td>Expert parallel</td><td>Deploys experts across devices to enable expert-level parallel computation. For details, see <a href="./expert_parallel.md">Expert Parallel</a>. </td><td>Reduce the latency and increase throughput.</td>
     </tr>
     <tr>
-        <td>Data parallel</td><td>Batch splits inference requests across devices for parallel processing. For details, see <a href="./data_parallel.md">Data Parallel</a>. </td><td>Increase throughput. </td>;
+        <td>Data parallel</td><td>Batch splits inference requests across devices for parallel processing. For details, see <a href="./data_parallel.md">Data Parallel</a>. </td><td>Increase throughput. </td>
     </tr>
     <tr>
         <td>Tensor parallel</td><td>Shard tensors (e.g., weight matrices, activations) across multiple devices (e.g., NPUs) to enable distributed model inference. For details, see <a href="./tensor_parallel.md">Tensor Parallel</a>. </td><td>Reduce graphics memory per card.</td>
@@ -112,14 +112,14 @@ The compatibility of several features is indicated by the following symbols:
 - ❌ = Incompatible
 - ❔ = To be determined
 
-> [!NOTE]NOTE
+> [!NOTE]
 >
 > - For the cases marked with ❌ or ❔, associate them with [issues](https://gitcode.com/Ascend/MindIE-LLM/issues) for tracking.
 > - Here, only mainstream models DeepSeek and Qwen are listed.
 
 ## DeepSeek models
 
-| Feature                               | Load balancing | External deployment of shared experts | Expert parallel | Data parallel | Anti-Outlier | PD MIX quantization | W8A8 quantization | W4A8 mixed quantization | FA3 quantization | Context parallel | Sequence parallel | Asynchronous scheduling | SLO scheduling Tuning | Micro batch | MTP | Prefix cache | KV cache pooling | Function call | Thinking analysis |
+| Feature                               | Load balancing | External deployment of shared experts | Expert parallel | Data parallel | Anti-Outlier | PD MIX quantization | W8A8 quantization | W4A8 mixed quantization | FA3 quantization | Context parallel | Sequence parallel | Asynchronous scheduling | SLO scheduling tuning | Micro batch | MTP | Prefix cache | KV cache pooling | Function call | Thinking analysis |
 |:-------------------------------------:|:--------------:|:-------------------------------------:|:---------------:|:-------------:|:------------:|:-------------------:|:-----------------:|:-----------------------:|:----------------:|:----------------:|:-----------------:|:-----------------------:|:---------------------:|:-----------:|:---:|:------------:|:----------------:|:-------------:|:-----------------:|
 | Load balancing                        | ✅              |                                       |                 |               |              |                     |                   |                         |                  |                  |                   |                         |                       |             |     |              |                  |               |                   |
 | External deployment of shared experts | ✅              | ✅                                     |                 |               |              |                     |                   |                         |                  |                  |                   |                         |                       |             |     |              |                  |               |                   |
@@ -141,7 +141,7 @@ The compatibility of several features is indicated by the following symbols:
 | Function call                         | ✅              | ✅                                     | ✅               | ✅             | ✅            | ✅                   | ✅                 | ✅                       | ✅                | ✅                | ✅                 | ✅                       | ✅                     | ❌           | ✅   | ✅            | ✅                | ✅             |                   |
 | Thinking analysis                     | ✅              | ✅                                     | ✅               | ✅             | ✅            | ✅                   | ✅                 | ✅                       | ✅                | ✅                | ✅                 | ✅                       | ✅                     | ❌           | ✅   | ✅            | ✅                | ✅             | ✅                 |
 
-> [!NOTE]NOTE
+> [!NOTE]
 >
 > - For the DeepSeek models, the following features can be used together: context parallel, sequence parallel, prefix cache, KV cache pooling, MTP, asynchronous scheduling, and FA3 quantization, supporting any combination of all seven. For short sequences (context length less than 16k), Context parallel and sequence parallel do not need to be enabled. For long sequences (context length 128k), the MTP feature cannot be used together with other features.
 

@@ -56,7 +56,7 @@ The following old environment variables have been removed. Use the new standardi
 
 | Configuration Item        | Before                                  | After                                   |
 |:------------------------- |:--------------------------------------- |:--------------------------------------- |
-| **Default Rotation Size** | 1 GB                                    | 20 MB (Synchronized with C++)           |
+| **Default Rotation Size** | 1GB                                    | 20MB (Synchronized with C++)           |
 | **Number of Rotations**   | Fixed at 10                             | Configurable `[1, 64]`, default 10      |
 | **Rotation File Suffix**  | `mindie-llm_{pid}_{datetime}.log.{num}` | `mindie-llm_{pid}_{datetime}.{num}.log` |
 
@@ -102,10 +102,10 @@ The following old environment variables have been removed. Use the new standardi
 | MINDIE_LOG_PATH      | Controls the log write path.                                                 | N/A                                                                                                                                                                                                                                                                                                           | ~/mindie/log/debug        | In Use                              | Yes                                                                                                                                                       |
 | MINDIE_LOG_VERBOSE   | Controls the log format.                                                     | {0, 1, true, false}                                                                                                                                                                                                                                                                                           | true                      | In Use                              | Yes                                                                                                                                                       |
 | MINDIE_LOG_ROTATE    | Controls log rotation.                                                       | `-fs`: each process log file rotation size. When the log file exceeds this value, the current file is saved as an archive and a new file is created. Range: [1, 500].  <br/>`-r`: number of rotated log files to retain per process. Older files beyond this count are automatically deleted. Range: [1, 64]. | `-fs`: `20`<br>`-r`: `10` | In Use                              | Yes                                                                                                                                                       |
-| PYTHON_LOG_MAXSIZE   | Controls the rotation size of each process log file  on the ATB Python side. | [0, 524288000] bytes                                                                                                                                                                                                                                                                                          | None                      | To be discontinued in December 2026 | Only affects the ATB Python side, equivalent to "-fs" in "MINDIE_LOG_ROTATE". If both variables are configured, "MINDIE_LOG_ROTATE" takes higher priority |
+| PYTHON_LOG_MAXSIZE   | Controls the rotation size of each process log file  on the ATB Python side. | [0, 524288000] Bytes                                                                                                                                                                                                                                                                                          | None                      | To be discontinued in December 2026 | Only affects the ATB Python side, equivalent to "-fs" in "MINDIE_LOG_ROTATE". If both variables are configured, "MINDIE_LOG_ROTATE" takes higher priority |
 
 Note:
-`mindie-llm-token` logs are rotated at 1 MB per process, with up to 2 retained files per process rotation. The `MINDIE_LOG_ROTATE` setting does not apply. These logs are written only to files, not to the terminal.
+`mindie-llm-token` logs are rotated at 1MB per process, with up to 2 retained files per process rotation. The `MINDIE_LOG_ROTATE` setting does not apply. These logs are written only to files, not to the terminal.
 
 #### Log Format Description
 
@@ -191,7 +191,7 @@ export MINDIE_LOG_PATH='~/mindie/log/debug'
 # Enable verbose log format for all components.
 export MINDIE_LOG_VERBOSE=1
 
-# Rotate logs: max 20 MB per file, keep 10 rotated files.
+# Rotate logs: max 20MB per file, keep 10 rotated files.
 export MINDIE_LOG_ROTATE='-fs 20 -r 10'
 ```
 
@@ -213,7 +213,7 @@ export MINDIE_LOG_PATH='llm:/path/to/llm_log;llmmodels:/path/to/llmmodels_log'
 # llm: verbose log format; llmmodels: simple log format
 export MINDIE_LOG_VERBOSE='llm:true;llmmodels:false'
 
-# llm: max rotate size 1 MB, 1 rotated file; llmmodels: max 2 MB, 2 rotated files
+# llm: max rotate size 1MB, 1 rotated file; llmmodels: max 2MB, 2 rotated files
 export MINDIE_LOG_ROTATE='llm:-fs 1 -r 1;llmmodels:-fs 2 -r 2'
 
 For example, with the above configuration for the `llmmodels` component, log files are named as follows:
@@ -249,7 +249,7 @@ export MINDIE_LOG_TO_STDOUT=1 # Enable this option for pure model inference to v
 
 #### Supported Components
 
-- **llm**: large language lodel service component
+- **llm**: large language model service component
 
 - **llmmodels**: model inference component
 

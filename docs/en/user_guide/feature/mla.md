@@ -1,6 +1,6 @@
 # MLA
 
-Multi-head latent attention (MLA) uses the low-rank key-value joint compression to eliminate the bottleneck of key-value cache during inference, thereby supporting efficient inference. Currently, MindIE supports the single-cache MLA mechanism. The head of attention can be compressed to 1 to implement a storage- and access–friendly inference mechanism. Compared with MHA, MLA can compress 96.5% of the KV cache on the DeepSeek V2 model, greatly reducing the memory usage.
+Multi-head latent attention (MLA) uses the low-rank key-value joint compression to eliminate the bottleneck of key-value cache during inference, thereby supporting efficient inference. Currently, MindIE supports the single-cache MLA mechanism. The head of attention can be compressed to 1 to implement a storage- and access-friendly inference mechanism. Compared with MHA, MLA can compress 96.5% of the KV cache on the DeepSeek V2 model, greatly reducing the memory usage.
 
 ## Inference
 

@@ -4,7 +4,7 @@
 
     Set the owner and owner group of the TLS CA certificate file to `root:root`, and set the permission to `400`.
 
-    The TLS CA certificate file (the path of the CA certificate file is specified by `--tlscacert`) needs to be protected from being tampered with. The certificate file is used by the specified CA certificate to authenticate the Docker server. Therefore, the owner and owner group of the CA certificate must be `root`, and the permission must be 400 to ensure the integrity of the CA certificate.
+    The TLS CA certificate file (the path of the CA certificate file is specified by `--tlscacert`) needs to be protected from being tampered with. The certificate file is used to authenticate the Docker server. Therefore, the owner and owner group of the CA certificate must be `root`, and the permission must be 400 to ensure the integrity of the CA certificate.
 
     You can perform the following operations to set the file owner and permission:
 
@@ -14,7 +14,7 @@
         chown root:root {path to TLS CA certificate file}
         ```
 
-        > [!NOTE]NOTE
+        > [!NOTE]
         > Generally, `{path to TLS CA certificate file}` is `/usr/local/share/ca-certificates`.
 
     2. Set the file permission to `400`.
@@ -50,7 +50,7 @@
 
         **Table 1** Permissions on Docker-related directories and files
 
-         |Directory|File Owner|File Permission|
+        |Directory|File Owner|File Permission|
         |--|--|--|
         |/etc/default/docker|root:root|644 or higher|
         |/etc/sysconfig/docker|root:root|644 or higher|
@@ -59,5 +59,5 @@
         |/etc/docker|root:root|755 or higher|
         |docker.socket|root:root|644 or higher|
 
-        > [!NOTE]NOTE
+        > [!NOTE]
         > If the file or directory does not exist, ignore this part.

@@ -12,7 +12,7 @@ Log format of all  MindIE  components:
 [date time] [pid] [tid] [Component name] [Log level in uppercase] [file:line] : [error code] [*] log message
 ```
 
->[!NOTE]NOTE
+>[!NOTE]
 >The asterisk * indicates that if a component contains subcomponents or smaller functional modules, they are displayed prior to the log information.
 
 The content in bold must be filled, and other fields are optional. You can configure the fields using the environment variable  **MINDIE\_LOG\_VERBOSE**. For details, see [Configuring the Log Content](configuring_log_content.md).

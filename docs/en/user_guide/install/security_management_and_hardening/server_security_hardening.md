@@ -1,6 +1,6 @@
 # Server Security Hardening
 
-> [!NOTE]NOTE
+> [!NOTE]
 > The Server provides only part of flow control capabilities, which do not apply to the public network. You need to guarantee Server flow control and isolation between the public network and LAN. For example, you can use the open-source software Nginx (install it by referring to [Nginx official document](http://nginx.org/en/docs/)) for isolation.
 
 The following describes how to configure Nginx.

@@ -4,7 +4,7 @@
 
 The Server provides EndPoint to encapsulate inference serving protocols and APIs. It is compatible with third-party framework APIs such as Triton, OpenAI, TGI, and vLLM. After the Server is installed in single-server mode, you can use a client (Linux curl command, Postman tool, and etc.) to send HTTP/HTTPS requests to call APIs provided by EndPoint.
 
->[!NOTE]NOTE
+>[!NOTE]
 >HTTPS is recommended, as it is more secure than HTTP.
 
 ## Description of EndPoint RESTful APIs
@@ -12,8 +12,8 @@ The Server provides EndPoint to encapsulate inference serving protocols and APIs
 The IP address and port number of an HTTP/HTTPS request URL are configured in the `config.json` file. For details, see [ServerConfig parameters](./service_parameter_configuration.md#parameters-in-serverconfig).
 
 - URL format of a generate request sent by Linux curl:
-    - Operation type: POST
-    - URL: `http[s]://{ip}:{port}/generate`
+  - Operation type: POST
+  - URL: `http[s]://{ip}:{port}/generate`
 
 - Inference request sent with HTTPS disabled:
 
@@ -59,7 +59,7 @@ The IP address and port number of an HTTP/HTTPS request URL are configured in th
     }'
     ```
 
-    >[!NOTE]NOTE
+    >[!NOTE]
     >- --`cacert`: path to the signature verification certificate file.
     >- `ca.pem`: signature verification certificate or root certificate of the Server certificate.
     >- --`cert`: path to the client certificate file.
@@ -77,10 +77,10 @@ The following table lists the provided RESTful APIs.
 |Server Live|GET|/v2/health/live|Checks whether the server is online.|Triton|
 |Server Ready|GET|/v2/health/ready|Checks whether the server is ready.|Triton|
 |Model Ready|GET|/v2/models/${MODEL_NAME}[/versions/\${MODEL_VERSION}]/ready|Checks whether the model is ready.|Triton|
-|health|GET|/health|Performs service health checks.|TGIvLLM|
+|health|GET|/health|Performs service health checks.|<ul><li>TGI</li><li>vLLM</li></ul>|
 |TGI Endpoint information query|GET|/info|Queries the TGI EndPoint information.|TGI|
 |Slot statistics|GET|/v2/models/${MODEL_NAME}[/versions/\${MODEL_VERSION}]/getSlotCount|Queries customized slot statistics based on the Triton format.|Native|
-|Health probe|GET|/health/timed[-$\{TIMEOUT\}]|Checks whether an inference process is normal.|Native|
+|Health probe|GET|/health/timed[-${TIMEOUT}]|Checks whether an inference process is normal.|Native|
 |Graceful exit|GET|/stopService|Implements graceful exit of the entire service. When this API is called, the system stops a service until all requests that are being executed and waiting are complete. During the waiting, all inference APIs are unavailable.|Native|
 |Collecting static configurations|GET|/v1/config|Collects static configurations.|Native|
 |Collecting dynamic status|GET|/v1/status|Collects dynamic status.|Native|
@@ -99,8 +99,8 @@ The following table lists the provided RESTful APIs.
 |Model list|GET|/v1/models|Lists available models.|OpenAI|
 |Model details|GET|/v1/models/{model}|Queries model information.|OpenAI|
 |Service metadata query|GET|/v2|Obtains service metadata.|Triton|
-|Model metadata query|GET|/v2/models/${MODEL_NAME}[/versions/\${MODEL_VERSION}]|Queries model metadata.|Triton|
-|Model configuration query|GET|/v2/models/${MODEL_NAME}[/versions/\${MODEL_VERSION}]/config|Queries model configurations.|Triton|
+|Model metadata query|GET|/v2/models/\${MODEL_NAME}[/versions/${MODEL_VERSION}]|Queries model metadata.|Triton|
+|Model configuration query|GET|/v2/models/\${MODEL_NAME}[/versions/${MODEL_VERSION}]/config|Queries model configurations.|Triton|
 
 **Table 3** Inference APIs (service APIs on the service plane)
 
@@ -120,7 +120,7 @@ The following table lists the provided RESTful APIs.
 |Inference Job|POST|/v1/tokenizer|Calculation of the number of tokens.|Native|
 |Inference Job|GET|/dresult|There is a persistent connection between the coordinator and the decode instance. Each time the decode instance generates an inference result, the result is returned to the coordinator through the persistent connection.|Prefill-decode disaggregation|
 
->[!NOTE]NOTE
+>[!NOTE]
 >
 >- The `${MODEL_NAME}` field specifies the name of the model to be queried.
 >- The `[/versions/${MODEL_VERSION}]` field is not supported currently and is not passed.

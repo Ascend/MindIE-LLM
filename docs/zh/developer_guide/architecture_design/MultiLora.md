@@ -30,7 +30,7 @@ LoRA权重中需包含 `adapter_config.json` 和 `adapter_model.safetensors` 文
 
 开启Multi-LoRA特性，需要配置的服务化参数如表 **Multi-LoRA特性补充参数：ModelDeployConfig中的参数** 所示。
 
-### 表1 Multi-LoRA特性补充参数：ModelDeployConfig中的参数
+### 表2 Multi-LoRA特性补充参数：ModelDeployConfig中的参数
 
 | 配置项                      | 取值类型   | 取值范围                                                     | 配置说明                                                     |
 | --------------------------- | ---------- | ------------------------------------------------------------ | ------------------------------------------------------------ |
@@ -155,7 +155,7 @@ torchrun --nproc_per_node 8 --master_port 20030 -m examples.run_pa \
    - **卸载请求**：
 
      ```bash
-     curl -X POST http:127.0.0.2:1026/v1/unload_lora_adapter \
+     curl -X POST http://127.0.0.2:1026/v1/unload_lora_adapter \
        -d '{
              "lora_name": "adapter2"
            }'

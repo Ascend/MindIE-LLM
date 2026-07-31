@@ -2,9 +2,9 @@
 
 ## Overview
 
-Flash Attention 3 (FA3) quantization is similar to attention quantization. The difference is that DeepSeek uses the MLA algorithm and the value of k rope changes too much, which is not suitable for quantization. Therefore, in this quantization method, the non-rope tensor of k is quantized to 8 bits, and the rope tensor of k is not quantized. The currently used quantization scheme is perhead quantization. Partial quantization of k is performed to reduce the graphics memory usage of the KV cache, optimize the speed of the attention operator in the decode phase, and improve the throughput.
+Flash Attention 3 (FA3) quantization is similar to attention quantization. The difference is that DeepSeek uses the MLA algorithm and the value of K RoPE changes too much, which is not suitable for quantization. Therefore, in this quantization method, the non-rope tensor of k is quantized to 8bits, and the rope tensor of k is not quantized. The currently used quantization scheme is perhead quantization. Partial quantization of k is performed to reduce the graphics memory usage of the KV cache, optimize the speed of the attention operator in the decode phase, and improve the throughput.
 
-> [!NOTE]NOTE
+> [!NOTE]
 >
 >- The Atlas 800I A2 inference server and Atlas 800I A3 SuperPoD server support FA3 quantization.
 >- W8A8 can be used together.
@@ -52,7 +52,7 @@ The following is a partial view of `quant_model_description.json` after quantiza
   "model.layers.0.self_attn.o_proj.input_scale": "W8A8",
   "model.layers.0.self_attn.o_proj.input_offset": "W8A8",
   "model.layers.0.self_attn.o_proj.quant_bias": "W8A8",
-  "model.layers.0.self_attn.o_proj.deq_scale": "W8A8",
+  "model.layers.0.self_attn.o_proj.deq_scale": "W8A8"
 }
 ```
 
@@ -62,7 +62,7 @@ Compared with the W8A8 weight quantization, description field `fa_quant_type` as
 
 ![](./figures/fa3_quantization.png)
 
-**Table 1** dtype and shape information after float16 weight quantization (assuming that shape of the original weight is [n, k]`)
+**Table 1** dtype and shape information after float16 weight quantization (assuming that shape of the original weight is [n, k])
 
 |Tensor|dtype|shape|
 |--|--|--|
@@ -73,8 +73,8 @@ Compared with the W8A8 weight quantization, description field `fa_quant_type` as
 
 ## Weight Generation
 
-1. Install [msModelSlim](https://gitcode.com/Ascend/msit/blob/master/msmodelslim/docs/%E5%AE%89%E8%A3%85%E6%8C%87%E5%8D%97.md).
-2. Complete the required checks before running DeepSeek-V3/R1. For details, see the [msModelSlim quantization description](https://gitcode.com/Ascend/msit/blob/master/msmodelslim/example/DeepSeek/README.md).
+1. Install [msModelSlim](https://gitcode.com/Ascend/msmodelslim/blob/26.0.0/docs/en/getting_started/install_guide.md).
+2. Complete the required checks before running DeepSeek-V3/R1. For details, see the [msModelSlim quantization description](https://gitcode.com/Ascend/msmodelslim/blob/26.0.0/example/DeepSeek/README_EN.md).
 3. Go to the `msmodelslim/example/DeepSeek/` directory and run the following quantization command:
 
     ```bash
@@ -118,7 +118,7 @@ Compared with the W8A8 weight quantization, description field `fa_quant_type` as
         ]
         ```
 
-    > [!NOTE]NOTE
+    > [!NOTE]
     > During PD disaggregation inference, set `enable_nz` to `true` in the configuration file.
 
 2. You can run the following commands to perform a dialog test. The inference content is "What's deep learning?".

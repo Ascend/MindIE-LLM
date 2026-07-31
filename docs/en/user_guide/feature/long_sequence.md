@@ -1,6 +1,6 @@
 # Long Sequence
 
-A long sequence is defined as a text whose sequence length exceeds 32K or even reaches 1M. The primary goal of the long sequence feature is to ensure that the model's answering effectiveness and performance are maintained, even when the input text is excessively long. In long sequence scenarios, the memory consumed by attention and KV cache increases exponentially. Therefore, optimizing the graphics memory is the key to the long sequence feature. Key algorithmic technologies include KV cache quantization, KV multi-header compression, and short-sequence training with long-sequence inference.
+A long sequence is defined as a text whose sequence length exceeds 32k or even reaches 1M. The primary goal of the long sequence feature is to ensure that the model's answering effectiveness and performance are maintained, even when the input text is excessively long. In long sequence scenarios, the memory consumed by attention and KV cache increases quadratically and linearly, respectively. Therefore, optimizing the graphics memory is the key to the long sequence feature. Key algorithmic technologies include KV cache quantization, KV multi-header compression, and short-sequence training with long-sequence inference.
 
 - Long-sequence training/inference: During training, a long text is used to train weights of a model, so that the model can still maintain a good capability for long-sequence input in an inference process.
 - Short-sequence training and long-sequence inference: A model uses technologies such as ALiBi encoding or sequence compression algorithms (such as NTK and YaRN) to ensure a strong auto-scale capability. In this way, the model can obtain a better capability in long-sequence inference phase after short-sequence training.
@@ -47,7 +47,7 @@ cd ${ATB_SPEED_HOME_PATH}
 torchrun --nproc_per_node [Number_of_running_cards] --master_port 20030 -m examples.run_pa --model_path [Model_weight_path] --max_output_length [Maximum_output_length] --max_input_length [Maximum_input_length] --input_texts [Input_text, which can be a file or character string]
 ```
 
-> [!NOTE]NOTE
+> [!NOTE]
 > You are advised to use a text file (such as `*.txt`) as the input for long sequence inference.
 
 **Inference serving**
@@ -60,14 +60,14 @@ Once the model weights have been configured to enable long sequence support, you
     "ModelDeployConfig": {
       ...
       "maxInputTokenLen": 130048,
-      "maxSeqLen": 131072,
+      "maxSeqLen": 131072
     },
     "ScheduleConfig": {
       ...
       "maxBatchSize": 1,
       "maxIterTimes": 1024,
       "maxPrefillBatchSize": 1,
-      "maxPrefillTokens": 130048,
+      "maxPrefillTokens": 130048
     }
   }
 }

@@ -36,7 +36,7 @@ The following shows part of the content in weight description file `quant_model_
   "model.layers.0.self_attn.q_proj.input_offset": "W8A8_MIX",
   "model.layers.0.self_attn.q_proj.deq_scale": "W8A8_MIX",
   "model.layers.0.self_attn.q_proj.weight_scale": "W8A8_MIX",
-  "model.layers.0.self_attn.q_proj.weight_offset": "W8A8_MIX",
+  "model.layers.0.self_attn.q_proj.weight_offset": "W8A8_MIX"
 }
 ```
 
@@ -53,17 +53,17 @@ This quantization mode supports quantization of the original weights of the bflo
 |dtype|int8|int32|bf16|bf16|fp32|bf16|bf16|
 |shape|[n,k]|[n]|[1]|[1]|[n]|[n,1]|[n,1]|
 
-> [!NOTE]NOTE
+> [!NOTE]
 > The quantized weight has bias only when the floating-point weight has bias.
 
 ## Weight Generation
 
-You can use the [msModelSlim](https://gitcode.com/Ascend/msit/blob/master/msmodelslim/README.md) tool to generate quantized weights.
+You can use the [msModelSlim](https://gitcode.com/Ascend/msmodelslim/blob/26.0.0/README_EN.md) tool to generate quantized weights.
 
 The following uses Qwen3-14B as an example. After installing msModelSlim, you can run the following command to quickly generate the W8A8PDMIX quantization weights:
 
 ```sh
-msmodelslim quant --model_path {*Floating_point_weight_path*} --save_path {*W8A8PDMIX_-quantized_weight_path*} --device npu --model_type Qwen3-14B --quant_type w8a8 --trust_remote_code True
+msmodelslim quant --model_path {*Floating_point_weight_path*} --save_path {*W8A8PDMIX_quantized_weight_path*} --device npu --model_type Qwen3-14B --quant_type w8a8 --trust_remote_code True
 ```
 
 The preceding command is a best practice of msModelSlim. For details about more quantization parameter configurations, see the msModelSlim documentation.

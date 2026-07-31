@@ -8,11 +8,11 @@ MindIE, CANN, and Ascend Extension for PyTorch must be used together. [Table 1](
 
 **Table 1** Version mapping <a id="table1"></a>
 
-|MindIE|CANN|Ascend Extension for Pytorch|
+|MindIE|CANN|Ascend Extension for PyTorch|
 |-----------|------------|----------|
 |3.0.0|8.5.1|7.3.0 (torch and torch_npu: 2.9.0) (recommended)<br> 7.2.0 (torch, torch_npu: 2.1.0)|
 
-> [!NOTE]NOTE
+> [!NOTE]
 > DeepSeek-V3.2 does not support torch and torch_npu 2.1.0.
 
 ## Software Package Preparation
@@ -53,7 +53,7 @@ MindIE, CANN, and Ascend Extension for PyTorch must be used together. [Table 1](
 |Ascend Extension for PyTorch|apex-<*apex_version>*_ascend-cp*xxx*-cp*xxx*-<*arch*>.whl|WHL package of the Apex module.|Compile it based on Python3.10. For details, see [Installing the Apex Module](https://www.hiascend.com/document/detail/zh/Pytorch/730/configandinstg/instg/docs/installing_apex.md) in Ascend Extension for PyTorch Software Installation Guide.|
 |Ascend Extension for PyTorch|torch-<*torch_version>*+cpu-cp*xxx*-cp*xxx*-linux_<*arch>*.whl|WHL package of the PyTorch framework.|<ul><li>PyTorch framework and torch_npu plugin (2.1.0): Obtain it from "[Installing the PyTorch Framework](https://www.hiascend.com/document/detail/zh/Pytorch/720/configandinstg/instg/insg_0004.html)"。</li><li>PyTorch framework and torch_npu plugin (2.6.0): Obtain it from "[Installing PyTorch](https://www.hiascend.com/document/detail/zh/Pytorch/730/configandinstg/instg/docs/zh/installation_guide/installation_via_binary_package.md)" in Ascend Extension for PyTorch Software Installation Guide.</li></ul>|
 
-> [!NOTE]NOTE
+> [!NOTE]
 >
 > - `<version>`, `<torch_version>`, and `<apex_version>` indicate software versions.
 > - `<arch>` indicates the CPU architecture.
@@ -68,7 +68,7 @@ Download [PGP Verify](https://support.huawei.com/enterprise/en/tool/pgp-verify-T
 
 [Table 4](#table4) lists the dependencies required by MindIE.
 
-> [!NOTE]NOTE
+> [!NOTE]
 > Use stable versions (vulnerability-free versions are recommended) of open-source software.
 
 **Table 4** Dependency list <a id="table4"></a>

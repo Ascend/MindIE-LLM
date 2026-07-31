@@ -6,7 +6,7 @@
 
 CANN, PyTorch, Torch-NPU, and ATB Models have been installed in the environment. For details, see *MindIE Installation Guide*.
 
-> [!NOTE]NOTE
+> [!NOTE]
 > The following installation path is used as an example to
 > install ATB Models and initialize the ATB Models environment variables. The `${ATB_SPEED_HOME_PATH}` environment variable initialization is contained in the `set_env.sh` script of the model repository. Therefore, sourcing the `set_env.sh` script from the model repository also initializes the `${ATB_SPEED_HOME_PATH}` environment variable.
 
@@ -98,7 +98,7 @@ The following uses LLaMA3-8B as an example to describe how to perform dialog inf
         torchrun --nproc_per_node 8 --master_port 20030 -m examples.run_pa --model_path /data/Llama-3-8b --input_texts "What's deep learning?" "Hello World." --max_batch_size 2
         ```
 
-        > [!NOTE]NOTE
+        > [!NOTE]
         > For details about the environment variables, see [Environment Variables](environment_variable.md).
 
     - You can pass token IDs to perform inference.
@@ -119,13 +119,13 @@ The following uses LLaMA3-8B as an example to describe how to perform dialog inf
 
         Run the following command to generate token IDs:
 
-        ```python
+        ```bash
         python test.py
         ```
 
         Run the following command to start inference. In the following example, the token ID `1,15043,2787` corresponds to the first inference content and the token ID `1,306,626,2691` corresponds to the second inference content. The inference content is separated by spaces.
 
-        ```linux
+        ```bash
         # Inference
         torchrun --nproc_per_node 8 --master_port 20030 -m examples.run_pa --model_path /data/Llama-3-8b --input_ids 1,15043,2787 1,306,626,2691 --max_batch_size 2
         ```
@@ -138,7 +138,7 @@ The following uses LLaMA3-8B as an example to describe how to perform dialog inf
         |--input_texts|No|string|"What's deep learning?"|Inference text or inference text path. Multiple inference texts are separated by spaces.|
         |--input_ids|No|string|None|Token ID list obtained after the inference text is processed by the model tokenizer. Multiple inference requests are separated by spaces. Each token in a single inference request is separated by a comma (,).|
         |--input_file|No|string|None|Only JSONL files are supported. Each line must be dialog data sorted by time in List[Dict] format. Each dictionary must contain at least the `role` and `content` fields.|
-        |--input_dict|No|parse_list_of_json|None|Inference text and the corresponding adapter name. Format example: '[{"prompt": "A robe takes 2 bolts of blue fiber and half that much white fiber.How many bolts in total does it take?", "adapter": "adapter1"}, {"prompt": "What is deep learning?", "adapter": "base"}]'|
+        |--input_dict|No|string|None|Inference text and the corresponding adapter name. Format example: '[{"prompt": "A robe takes 2 bolts of blue fiber and half that much white fiber.How many bolts in total does it take?", "adapter": "adapter1"}, {"prompt": "What is deep learning?", "adapter": "base"}]'|
         |--max_prefill_batch_size|No|int or None|None|Maximum prefill batch size for model inference.|
         |--max_position_embeddings|No|int or None|None|Maximum context length supported by the model. If this parameter is set to `None`, the length is read from the model weight file.|
         |--max_input_length|No|int|1024|Maximum number of tokens in the inference text.|
@@ -147,13 +147,13 @@ The following uses LLaMA3-8B as an example to describe how to perform dialog inf
         |--max_batch_size|No|int|1|Maximum batch size for model inference.|
         |--block_size|No|int|128|Maximum number of tokens stored in each KV cache block. The default value is `128`.|
         |--chat_template|No|string or None|None|Prompt template of the dialog model.|
-        |--ignore_eos|No|bool|store_true|Whether to end the inference when an EOS token (sentence end identifier) is encountered in the inference result. If this parameter is passed, the EOS token is ignored.|
-        |--is_chat_model|No|bool|store_true|Whether to support the dialog mode. If this parameter is passed, the dialog mode is entered.|
-        |--is_embedding_model|No|bool|store_true|Whether the model is an embedding model. By default, the model is a causal inference model. If this parameter is passed, the model is an embedding model.|
+        |--ignore_eos|No|bool|False|Whether to end the inference when an EOS token (sentence end identifier) is encountered in the inference result. If this parameter is passed, the EOS token is ignored.|
+        |--is_chat_model|No|bool|False|Whether to support the dialog mode. If this parameter is passed, the dialog mode is entered.|
+        |--is_embedding_model|No|bool|False|Whether the model is an embedding model. By default, the model is a causal inference model. If this parameter is passed, the model is an embedding model.|
         |--load_tokenizer|No|bool|True|Whether to load the tokenizer. If `False` is passed, `input_ids` is necessary, and the inference output is token ID.|
-        |--enable_atb_torch|No|bool|store_true|Whether to use the Python graph. By default, the C++ graph is used. If this parameter is passed, the Python graph is used.|
+        |--enable_atb_torch|No|bool|False|Whether to use the Python graph. By default, the C++ graph is used. If this parameter is passed, the Python graph is used.|
         |--kw_args|No|string|""|Extended parameter, which can be used to extend functions.|
-        |--trust_remote_code|No|bool|store_true|Whether to trust the custom code file in the model weight path. This operation is not executed by default. If this parameter is passed, Transformers will execute the custom code files in the model weight path. The use is responsible for the security of these code files. Check the security in advance.|
+        |--trust_remote_code|No|bool|False|Whether to trust the custom code file in the model weight path. This operation is not executed by default. If this parameter is passed, Transformers will execute the custom code files in the model weight path. The use is responsible for the security of these code files. Check the security in advance.|
         |--dp|No|int|-1|Number of data parallel processes. By default, data parallelism is not performed.|
         |--tp|No|int|-1|Number of tensor parallel processes on the entire network. If the value is `-1`, this number is the value of `worldSize` by default.|
         |--sp|No|int|-1|Number of sequence parallel processes. By default, sequence parallelism is not performed. If sequence parallelism is enabled, the number of sequence parallel processes is generally the same as the number of tensor parallel processes.|
@@ -164,7 +164,7 @@ The following uses LLaMA3-8B as an example to describe how to perform dialog inf
         |--max_loras|No|int|0|Maximum number of LoRAs that can be stored in LoRA scenarios. This parameter is mandatory in dynamic LoRA scenarios and optional in static LoRA scenarios. If the input value is too large, an out_of_memory error is reported because too much weight space is reserved. For example: "RuntimeError: NPU out of memory.Tried to allocate xxx GiB."|
         |--max_lora_rank|No|int|0|Maximum LoRA rank in dynamic LoRA loading and unloading scenarios. This parameter is mandatory in dynamic LoRA scenarios and optional in static LoRA scenarios. If the input value is too large, an out_of_memory error is reported because too much weight space is reserved. For example: "RuntimeError: NPU out of memory.Tried to allocate xxx GiB."|
 
-        > [!NOTE]NOTE
+        > [!NOTE]
         > The `run_pa.py` script in this section is used for quick pure model test. No strong verification is added to the script. If an exception occurs, an exception message will be thrown. Example:
         > - `input_texts`, `input_ids`, `input_file`, and `input_dict` contain the inference content. The data processing time of the program is in direct proportion to the input data volume. These inputs are converted into token IDs and transferred to the NPU. If the input data volume is too large, the NPU tensors may occupy too much memory. As a result, an error message, for example, "req: xx input length: xx is too long, max_prefill_tokens: xx", is displayed due to out of memory.
         > - `chat_template` supports two types of inputs: template text or template file path. When you input a long template text, the system may run slowly.
@@ -184,7 +184,7 @@ The following uses LLaMA3-8B as an example to describe how to perform dialog inf
 
     The time consumption result is displayed on the console and saved in the `./benchmark_result/benchmark.csv` file.
 
-    > [!NOTE]NOTE
+    > [!NOTE]
     > After the performance test, you can use the msprof tool to collect and analyze performance data for performance tuning. For usage of the `msprof` tool, see "[msprof Command-Line Tool](https://www.hiascend.com/document/detail/en/mindstudio/700/TITools/Profiling/atlasprofiling_16_0010.html)" in *Performance Tuning Tools*.
 
 ## ATB Models Serving Usage

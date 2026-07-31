@@ -38,10 +38,10 @@ export MINDIE_LOG_LEVEL="debug"
 export MINDIE_LOG_LEVEL="llm:error ; debug"
 ```
 
-【示例3】将MindIE LLM的日志级别设成“error”，将MindIE Client的日志级别设成“debug”。
+【示例3】将MindIE LLM的日志级别设成“error”，将Server的日志级别设成“debug”。
 
 ```bash
-export MINDIE_LOG_LEVEL="llm:error ; client:debug"
+export MINDIE_LOG_LEVEL="llm:error ; server:debug"
 ```
 
 【示例4】除了Server的日志级别设成“debug”，其余组件的级别都设置为“info”。

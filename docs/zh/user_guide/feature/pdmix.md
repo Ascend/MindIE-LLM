@@ -58,7 +58,7 @@ PDMIX量化是指在模型推理的Prefill阶段和Decode阶段使用不同的�
 
 ## 生成权重
 
-您可以使用msModelSlim工具生成量化权重：[msModelSlim](https://gitcode.com/Ascend/msit/blob/master/msmodelslim/README.md)
+您可以使用msModelSlim工具生成量化权重：[msModelSlim](https://gitcode.com/Ascend/msmodelslim/blob/26.0.0/README.md)
 
 以Qwen3-14B为例，安装msModelSlim工具后，可以使用如下命令快速生成一份W8A8PDMIX量化权重：
 

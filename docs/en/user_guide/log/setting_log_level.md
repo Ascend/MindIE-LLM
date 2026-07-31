@@ -23,7 +23,7 @@ The format for setting the log level of a component:_Component name_:  _Log leve
 - If there is no component name before the colon \(:\), all components will be set in a unified manner by default.
 - If multiple components are set at the same time, use semicolons \(;\) to separate them. The latest setting takes precedence and overwrites any previous configurations.
 
->[!NOTE]NOTE
+>[!NOTE]
 >The components and log levels are case insensitive.
 
 [**Example 1**] Set the log levels of all  MindIE  components to  **debug**  in a unified manner:
@@ -38,10 +38,10 @@ export MINDIE_LOG_LEVEL="debug"
 export MINDIE_LOG_LEVEL="llm:error ; debug"
 ```
 
-[**Example 3**] Set the log level of  MindIE LLM  to  **error**  and the log level of  MindIE Client  to  **debug**:
+[**Example 3**] Set the log level of  MindIE LLM  to  **error**  and the log level of Server to  **debug**:
 
 ```bash
-export MINDIE_LOG_LEVEL="llm:error ; client:debug"
+export MINDIE_LOG_LEVEL="llm:error ; server:debug"
 ```
 
 [**Example 4**] Set the log level of  Server  to  **debug**  and the log levels of other components to  **info**:

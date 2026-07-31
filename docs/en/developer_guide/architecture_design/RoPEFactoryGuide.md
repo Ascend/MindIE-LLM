@@ -91,7 +91,7 @@ class DeepseekV3YarnRotaryEmbedding(YarnScalingRotaryEmbedding):
         """
         self.mscale_all_dim = mscale_all_dim
         super().__init__(dim, dim, original_max_position_embeddings, base,
-        dtype=dtype,
+            dtype=dtype,
             is_neox_style=is_neox_style,
             factor=factor,
             beta_fast=beta_fast,
@@ -99,7 +99,7 @@ class DeepseekV3YarnRotaryEmbedding(YarnScalingRotaryEmbedding):
             mscale=mscale
         )
 
-    def set_cos_sin_indexed_cache(self, positions) -> None:
+        def set_cos_sin_indexed_cache(self, positions) -> None:
         """Create position-indexed cosine/sine caches with dimension doubling.
 
         Extracts position-specific rotary values from precomputed caches and
@@ -115,7 +115,7 @@ class DeepseekV3YarnRotaryEmbedding(YarnScalingRotaryEmbedding):
         self.register_buffer("cos_indexed_cache", cos_indexed_cache, persistent=False) # [seq_len, 1, 1, rotary_dim]
         self.register_buffer("sin_indexed_cache", sin_indexed_cache, persistent=False)
 
-    def _compute_cos_sin_cache(self) -> None:
+        def _compute_cos_sin_cache(self) -> None:
         """Precompute cosine/sine caches with DeepSeek-V3 specific magnitude scaling.
 
         Applies dual scaling factors (mscale and mscale_all_dim) to preserve attention

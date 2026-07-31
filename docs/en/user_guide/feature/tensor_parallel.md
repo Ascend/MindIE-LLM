@@ -71,12 +71,12 @@ Tensor parallelism (TP) is a model parallelism strategy that splits tensors (suc
              "npuMemSize" : -1,
              "backendType" : "atb",
              "trustRemoteCode" : false,
-             "tp": 2
+             "tp": 2,
              "models": {
                 "deepseekv2": {
                     "parallel_options": {
                         "lm_head_local_tp": -1,
-                        "o_proj_local_tp": -1,
+                        "o_proj_local_tp": -1
                     }
                 }
              }

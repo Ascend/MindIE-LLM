@@ -54,7 +54,7 @@ cp mooncake-transfer-engine/src/libtransfer_engine.so /usr/local/lib/python3.11/
 cp mooncake-store/src/libmooncake_store.so /usr/local/lib/python3.11/site-packages/mooncake
 ```
 
-**Step 3:** Copy `/etc/hccn.conf` from the host to `/etc/hccn.conf` inside the container—Mooncake Ascend Direct Transport requires this configuration file.
+**Step 3:** Copy `/etc/hccn.conf` from the host to `/etc/hccn.conf` inside the container-Mooncake Ascend Direct Transport requires this configuration file.
 
 **Step 4:** Check whether the installation is successful. If no error information is displayed, the installation is successful.
 

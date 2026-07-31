@@ -150,13 +150,13 @@ MindIE Motor使用HTTP或者HTTPS协议进行通信，让客户端先断开连�
 
 - 执行如下命令，修改“config.json文件”的权限，：
 
-    ```python
+    ```bash
     chmod 640 {model_path}/config.json
     ```
 
 - 执行如下命令，修改模型权重整个文件夹的权限：
 
-    ```python
+    ```bash
     chmod -R 640 {model_path}
     ```
 
@@ -285,7 +285,7 @@ PD分离场景中，D节点的KV cache需要从P节点那里拉取，出现这�
 
 - （推荐）使用如下命令查看网络重传次数，如果有部分卡网络重传次数过高，请检查该光模块。
 
-    ```python
+    ```bash
       for i in $(seq 0 7); do echo "============> $i";hccn_tool -i $i -stat -g |grep rty;done
     ```
 
@@ -309,7 +309,7 @@ ibis缺少Python依赖。
 
 ## 加载模型时出现out of memory报错提示
 
-*### 问题描述
+### 问题描述
 
 部署MindIE LLM服务，加载模型时出现out of memory报错提示，如下图所示。
 
@@ -655,7 +655,7 @@ RuntimeError: NPU out of memory. Tried to allocate xxx GiB."
     export OMP_NUM_THREADS=1
     ```
 
-2. 适当调低服务化配置文件config.json中maxSeqLen、maxInputTokenLen、maxPrefillBatchSize、maxPrefillTokens、maxBatchSize等参数的值，主要是调整maxPrefillTokens、maxSeqLen和maxPrefillTokens参数。
+2. 适当调低服务化配置文件config.json中maxSeqLen、maxInputTokenLen、maxPrefillBatchSize、maxPrefillTokens、maxBatchSize等参数的值，主要是调整maxPrefillTokens和maxSeqLen参数。
     - maxPrefillTokens需要大于等于maxInputToken。
     - maxPrefillTokens会影响到atb初始化阶段的workspace，其值过大时拉起服务后可能直接出现Out of memory报错。
 

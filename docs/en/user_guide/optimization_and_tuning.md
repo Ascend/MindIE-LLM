@@ -77,7 +77,7 @@ The following is an example of serving configuration for enabling local TP parti
             "models": {
                 "deepseekv2": {
                     "lm_head_local_tp": 16,
-                    "o_proj_local_tp": 2,
+                    "o_proj_local_tp": 2
                 }
             }
         }
@@ -172,7 +172,7 @@ Two EP modes are currently implemented:
 | moe_tp   | int     | [1, worldSize] | MoE TP size defaults to the same as TP. When `ep_level=2`, `moe_tp` must be `1`.|
 | moe_ep   | int     | [1, worldSize] | Number of EP partitions for the MoE part. Must satisfy `moe_ep * moe_tp == world_size`.        |
 
-The following an example of the configuration of serving parameters for DeepSeek-V3.
+The following is an example of the configuration of serving parameters for DeepSeek-V3.
 
 ``` json
 {
