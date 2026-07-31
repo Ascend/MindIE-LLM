@@ -12,7 +12,7 @@ MindIE默认收集Informational级别及以上的日志，日志文件的默认�
 
 日志文件命名格式统一为：mindie-_组件名称_\_pid\_datetime.log。可以根据组件名称，进程号，和时间戳来定位到相关的日志文件。
 
-【示例1】MindIE Motor的日志文件。
+【示例1】MindIE Motor CPP的日志文件。
 
 ```text
 mindie-service_123_202410080206.log
@@ -20,7 +20,7 @@ mindie-service_123_202410080206.log
 
 使用如下命令，查看日志：cat  _日志文件_
 
-【示例2】查看MindIE Motor的日志文件。
+【示例2】查看MindIE Motor CPP的日志文件。
 
 ```bash
 cat mindie-service_123_202410080206.log

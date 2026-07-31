@@ -1,6 +1,6 @@
 # 准备软件包和依赖
 
-介绍安装MindIE前，需要准备的软件包和依赖。
+本节介绍安装MindIE前，需要准备的软件包和依赖。
 
 ## 版本配套
 
@@ -29,7 +29,7 @@ whl包安装方式需要准备的软件包如[表2](#table2)所示。
 |--|--|--|--|
 |MindIE LLM|mindie_llm-<*version>*-cp<*xxx>*-cp<*xxx>*-linux_<*arch>*.whl|MindIE LLM组件安装包。|[获取链接](https://www.hiascend.com/developer/download/community/result?module=ie%2Bpt%2Bcann)|
 |ATB-Model|atb_llm-<*version>*-cp<*xxx>*-cp<*xxx>*-linux_<*arch>*.whl|模型库安装包。使用MindIE LLM组件时，需要安装。|[获取链接](https://www.hiascend.com/developer/download/community/result?module=ie%2Bpt%2Bcann)|
-|MindIE Motor|mindie_motor-<*version>*-cp<*xxx>*-cp<*xxx>*-linux_<*arch>*.whl|MindIE Motor组件安装包。|[获取链接](https://www.hiascend.com/developer/download/community/result?module=ie%2Bpt%2Bcann)|
+|MindIE Motor CPP|mindie_motor-<*version>*-cp<*xxx>*-cp<*xxx>*-linux_<*arch>*.whl|MindIE Motor CPP组件安装包。|[获取链接](https://www.hiascend.com/developer/download/community/result?module=ie%2Bpt%2Bcann)|
 |MindIE SD|mindiesd-<*version>*-cp<*xxx>*-cp<*xxx>*-linux_<*arch>*.whl|MindIE SD组件安装包。|[获取链接](https://www.hiascend.com/developer/download/community/result?module=ie%2Bpt%2Bcann)|
 |CANN|Ascend-cann-toolkit_<*version>*_linux-<*arch>*.run|CANN开发套件包（Toolkit）。|[获取链接](https://www.hiascend.com/developer/download/community/result?module=ie%2Bpt%2Bcann)|
 |CANN|Ascend-cann-<*chip_type>*-ops_<*version>*_linux-<*arch>*.run|CANN二进制算子包（ops）。<br> 安装ops前，需已安装同一版本的Toolkit软件包，请选择运行设备对应的ops软件包。|[获取链接](https://www.hiascend.com/developer/download/community/result?module=ie%2Bpt%2Bcann)|
@@ -47,7 +47,7 @@ run包安装方式需要准备的软件包如[表3](#table3)所示。
 |软件类型|软件包名称|软件说明|获取链接|
 |--|--|--|--|
 |MindIE|Ascend-mindie_<*version>*\_linux-<*arch>*_\<abi>.run|推理引擎软件包，主要用于用户开发基于MindIE的应用。|[获取链接](https://www.hiascend.com/developer/download/community/result?module=ie%2Bpt%2Bcann)|
-|ATB-Model|Ascend-mindie-atb-models-<*version>*\_linux_<*arch>*_pyxxx_torchx.x.x-\<abi>.tar.gz|模型库安装包。使用MindIE Motor和MindIE LLM组件时，需要安装。|[获取链接](https://www.hiascend.com/developer/download/community/result?module=ie%2Bpt%2Bcann)|
+|ATB-Model|Ascend-mindie-atb-models-<*version>*\_linux_<*arch>*_pyxxx_torchx.x.x-\<abi>.tar.gz|模型库安装包。使用MindIE Motor CPP和MindIE LLM组件时，需要安装。|[获取链接](https://www.hiascend.com/developer/download/community/result?module=ie%2Bpt%2Bcann)|
 |CANN|Ascend-cann-toolkit_<*version>*_linux-<*arch>*.run|CANN开发套件包（Toolkit）。|[获取链接](https://www.hiascend.com/developer/download/community/result?module=ie%2Bpt%2Bcann)|
 |CANN|Ascend-cann-<*chip_type>*-ops_<*version>*_linux-<*arch>*.run|CANN二进制算子包（ops）。<br> 安装ops前，需已安装同一版本的Toolkit软件包，请选择运行设备对应的ops软件包。|[获取链接](https://www.hiascend.com/developer/download/community/result?module=ie%2Bpt%2Bcann)|
 |CANN|Ascend-cann-nnal_<*version>*_linux-<*arch>*.run|CANN神经网络加速库（NNAL）。|[获取链接](https://www.hiascend.com/developer/download/community/result?module=ie%2Bpt%2Bcann)|
@@ -73,7 +73,7 @@ MindIE所需依赖如[表4](#table4)所示。
 > [!NOTE]说明
 > 针对用户自行安装的开源软件，请使用稳定版本（尽量使用无漏洞的版本）。
 
-**表 3**  依赖列表 <a id="table4"></a>
+**表 4**  依赖列表 <a id="table4"></a>
 
 |软件|版本要求|变更记录|
 |--|--|--|

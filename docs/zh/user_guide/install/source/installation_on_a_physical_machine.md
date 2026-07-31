@@ -21,7 +21,7 @@
 
    > [!NOTE]说明
    >
-   > - 上方以mindie_llm包为例，如安装MindIE Motor或MindIE SD，请替换为对应的whl包名。
+   > - 上方以mindie_llm包为例，如安装MindIE Motor CPP或MindIE SD，请替换为对应的whl包名。
    > - 如果需要使用源码编译安装，请跳转到对应代码仓里获取编译指导。以MindIE-LLM为例，编译指导请[单击](../../../developer_guide/build_guide_llm.md)。
 
 3. 安装完成后，若打印如下信息，则说明软件安装成功：
@@ -30,7 +30,7 @@
     Successfully installed xxx
     ```
 
-    ```xxx``` 表示安装的实际软件包名。
+    `xxx` 表示安装的实际软件包名。
 
 4. (可选)执行如下命令，查询软件版本号和安装路径。
 
@@ -47,7 +47,7 @@
 
 ## run包安装方式
 
-介绍通过run包方式安装MindIE的操作步骤，该方式将会依次安装MindIE Motor、MindIE LLM和MindIE SD各组件，组件包的路径在MindIE的子路径下。
+介绍通过run包方式安装MindIE的操作步骤，该方式将会依次安装MindIE Motor CPP、MindIE LLM和MindIE SD各组件，组件包的路径在MindIE的子路径下。
 
 1. 以CANN软件包的安装用户登录安装环境。
 2. 将获取到的MindIE软件包上传到安装环境任意路径（如/home/package）。
@@ -126,6 +126,6 @@
 
     用户也可以通过修改\~/.bashrc文件的方式设置永久环境变量，操作如下：
 
-        a. 以运行用户在任意目录下执行`vi \~/.bashrc`命令，打开.bashrc文件，在文件最后一行后面添加上述内容。
-        b. 执行`:wq!`命令保存文件并退出。
-        c. 执行`source \~/.bashrc`命令使其立即生效。
+    a. 以运行用户在任意目录下执行`vi \~/.bashrc`命令，打开.bashrc文件，在文件最后一行后面添加上述内容。
+    b. 执行`:wq!`命令保存文件并退出。
+    c. 执行`source \~/.bashrc`命令使其立即生效。

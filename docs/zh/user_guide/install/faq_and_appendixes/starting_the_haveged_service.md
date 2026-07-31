@@ -8,7 +8,7 @@
 
 > [!NOTE]说明
 >
-> - Server支持使用HTTPS双向认证，对客户端发起的HTTP请求进行身份认证。当开启HTTPS时，为了给服务器密钥进行口令加密，加密工具KMC使用的随机数生成算法需要haveged组件进行补熵。需要在所有Server服务安装节点上执行以下操作。
+> - Server支持使用HTTPS双向认证，对客户端发起的HTTPS请求进行身份认证。当开启HTTPS时，为了给服务器密钥进行口令加密，加密工具KMC使用的随机数生成算法需要haveged组件进行补熵。需要在所有Server服务安装节点上执行以下操作。
 > - MindIE MS服务端使用了KMC工具，部署MS的管理节点同样需要haveged组件补熵。
 > - MindIE MS部署MindIE Server时在容器内自动生成证书需要调用KMC解密，生成随机口令，对熵值（4096）要求较高，需要在计算节点安装haveged组件补熵。
 

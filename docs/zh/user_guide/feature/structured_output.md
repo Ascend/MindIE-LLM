@@ -35,7 +35,7 @@
     > [!NOTE]说明
     > 结构化输出在请求带有`response_format`参数时自动启用，无需在 config.json 中为本特性单独增加插件配置。
 
-2. 向服务发送请求。参数说明见《MindIE Motor开发指南》中的「服务化接口 \> EndPoint业务面RESTful接口 \> 兼容OpenAI接口 \> 推理接口」章节。
+2. 向服务发送请求。参数说明见《MindIE Motor CPP开发指南》中的「服务化接口 \> EndPoint业务面RESTful接口 \> 兼容OpenAI接口 \> 推理接口」章节。
 
     **json_object 模式**：要求模型输出任意合法的 JSON 对象 **（该模式下仅保证输出为合法 JSON；若需约束具体键与类型，请使用 json_schema 模式）**。
 

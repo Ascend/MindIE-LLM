@@ -32,7 +32,7 @@
 
     | 参数名称              | 说明                                             | 注意事项                                                     |
     | --------------------- | ------------------------------------------------ | ------------------------------------------------------------ |
-    | httpsEnabled          | 开启HTTPS通信（即“httpsEnabled”=false时）        | 不开启，会存在较高的网络安全风险                             |
+    | httpsEnabled          | 开启HTTPS通信（即“httpsEnabled”=true时）        | 不开启，会存在较高的网络安全风险                             |
     | maxLinkNum            | 默认值为1000，推荐设置为300                      | 1000并发能力受模型性能影响，受限支持；一般在较小模型、较低序列长度下才可以使用1000并发 |
     | MIES_CONFIG_JSON_PATH | 用户可通过设置该环境变量提供此Server的配置文件   | 需要用户自行保障此配置文件的安全性                           |
     | modelWeightPath       | 模型权重路径，此路径下的所有文件由用户自行提供   | 需要用户自行保障此处所有文件的安全性；且该路径下的config.json文件需保证其用户组和用户名与当前用户一致，并且为非软链接，文件权限不高于750，若不符合要求将会导致Server启动失败 |
@@ -60,7 +60,7 @@
     vim config.json
     ```
 
-    b. 按“i”进入编辑模式，根据用户需要修改配置参数，参数详情请参见[配置参数说明（服务化）](service_parameter_configuration.md)”章节。
+    b. 按“i”进入编辑模式，根据用户需要修改配置参数，参数详情请参见[配置参数说明（服务化）](service_parameter_configuration.md)章节。
 
     c. 按“Esc”键，输入`:wq!`，按“Enter”保存并退出编辑。
 
@@ -76,21 +76,20 @@
 
       表1 证书文件清单  <a id="table1"></a>
 
-        | 证书文件               | 默认目标路径                                             | 说明                                              |
-        | ---------------------- | -------------------------------------------------------| ------------------------------------------------- |
-        | 根证书                 | {MindIE安装目录}/latest/mindie-service/security/ca/    | 支持多个CA证书。<br/><br/>开启HTTPS后必选。       |
-        | 服务证书               | {MindIE安装目录}/latest/mindie-service/security/certs/ | 开启HTTPS后必选。                                 |
-        | 服务证书私钥            | {MindIE安装目录}/latest/mindie-service/security/keys/  | 支持私钥文件加密场景。<br/><br/>开启HTTPS后必选。 |
-        | 服务证书吊销列表        | {MindIE安装目录}/latest/mindie-service/security/certs/  | 开启HTTPS后可选。                                 |
+    | 证书文件               | 默认目标路径                                             | 说明                                              |
+    | ---------------------- | -------------------------------------------------------| ------------------------------------------------- |
+    | 根证书                 | {MindIE安装目录}/latest/mindie-service/security/ca/    | 支持多个CA证书。<br/><br/>开启HTTPS后必选。       |
+    | 服务证书               | {MindIE安装目录}/latest/mindie-service/security/certs/ | 开启HTTPS后必选。                                 |
+    | 服务证书私钥            | {MindIE安装目录}/latest/mindie-service/security/keys/  | 支持私钥文件加密场景。<br/><br/>开启HTTPS后必选。 |
+    | 服务证书吊销列表        | {MindIE安装目录}/latest/mindie-service/security/certs/  | 开启HTTPS后可选。                                 |
 
     b. 在{MindIE安装目录}下执行以下命令修改证书文件的用户权限。
 
-        ```bash
-          chmod 400 mindie-service/security/ca/*
-          chmod 400 mindie-service/security/certs/*
-          chmod 400 mindie-service/security/keys/*
-
-        ```
+    ```bash
+        chmod 400 mindie-service/security/ca/*
+        chmod 400 mindie-service/security/certs/*
+        chmod 400 mindie-service/security/keys/*
+    ```
 
 5. 使用以下命令配置环境变量。
 
@@ -213,7 +212,7 @@
 
 4. （可选）若开启了HTTPS认证（即“httpsEnabled” : true时，默认开启）。
 
-    a. 导入证书，各证书信息如[表1](#table1)所示。
+    a. 导入证书，各证书信息如[表2](#table2)所示。
 
     > [!NOTE]说明
     > - HTTPS使用三面隔离时，HTTPS的业务面和管理面不建议使用同一套安全证书，使用同一套安全证书会存在较高的网络安全风险。
@@ -221,22 +220,22 @@
     > - 导入证书时，对于用户导入CA证书的脚本权限要求为600，服务证书的脚本权限要求为600，私钥证书的脚本权限要求为400，吊销列表证书的脚本权限要求为600。
     > - 如果导入证书超时，请参考[启动haveged服务](../install/faq_and_appendixes/starting_the_haveged_service.md)处理。
 
-      表1 证书文件清单  <a id="table1"></a>
+      表1 证书文件清单  <a id="table2"></a>
 
-        | 证书文件               | 默认目标路径                                             | 说明                                              |
-        | ---------------------- | -------------------------------------------------------| ------------------------------------------------- |
-        | 根证书                 | {MindIE安装目录}/latest/mindie-service/security/ca/    | 支持多个CA证书。<br/><br/>开启HTTPS后必选。       |
-        | 服务证书               | {MindIE安装目录}/latest/mindie-service/security/certs/ | 开启HTTPS后必选。                                 |
-        | 服务证书私钥            | {MindIE安装目录}/latest/mindie-service/security/keys/  | 支持私钥文件加密场景。<br/><br/>开启HTTPS后必选。 |
-        | 服务证书吊销列表        | {MindIE安装目录}/latest/mindie-service/security/certs/  | 开启HTTPS后可选。                                 |
+    | 证书文件               | 默认目标路径                                             | 说明                                              |
+    | ---------------------- | -------------------------------------------------------| ------------------------------------------------- |
+    | 根证书                 | {MindIE安装目录}/latest/mindie-service/security/ca/    | 支持多个CA证书。<br/><br/>开启HTTPS后必选。       |
+    | 服务证书               | {MindIE安装目录}/latest/mindie-service/security/certs/ | 开启HTTPS后必选。                                 |
+    | 服务证书私钥            | {MindIE安装目录}/latest/mindie-service/security/keys/  | 支持私钥文件加密场景。<br/><br/>开启HTTPS后必选。 |
+    | 服务证书吊销列表        | {MindIE安装目录}/latest/mindie-service/security/certs/  | 开启HTTPS后可选。                                 |
 
     b. 在{MindIE安装目录}下执行以下命令修改证书文件的用户权限。
 
-        ```bash
-          chmod 400 mindie-service/security/ca/*
-          chmod 400 mindie-service/security/certs/*
-          chmod 400 mindie-service/security/keys/*
-        ```
+    ```bash
+        chmod 400 mindie-service/security/ca/*
+        chmod 400 mindie-service/security/certs/*
+        chmod 400 mindie-service/security/keys/*
+    ```
 
 5. 使用以下命令配置环境变量。
 
@@ -266,27 +265,27 @@
 
     -（推荐）：使用后台进程方式启动服务。后台进程方式启动服务后，关闭窗口时进程也会保留。
 
-        ```bash
-        nohup ./bin/mindieservice_daemon > output.log 2>&1 &
-        ```
+    ```bash
+    nohup ./bin/mindieservice_daemon > output.log 2>&1 &
+    ```
 
-        在标准输出流捕获到的文件中，打印如下信息说明启动成功。
+    在标准输出流捕获到的文件中，打印如下信息说明启动成功。
 
-        ```text
-        Daemon start success!
-        ```
+    ```text
+    Daemon start success!
+    ```
 
     - 直接启动服务。
 
-        ```bash
-        ./bin/mindieservice_daemon
-        ```
+    ```bash
+    ./bin/mindieservice_daemon
+    ```
 
-        回显如下则说明启动成功。
+    回显如下则说明启动成功。
 
-        ```text
-        Daemon start success!
-        ```
+    ```text
+    Daemon start success!
+    ```
 
 > [!NOTE]说明
 >
@@ -448,14 +447,14 @@ ranktable.json文件权限需要设置为640，详细内容请根据以下样例
 
     a. 进入conf目录，打开“config.json”文件。
 
-        ```bash
-        cd mindie_llm/conf
-        vim config.json
-        ```
+    ```bash
+    cd mindie_llm/conf
+    vim config.json
+    ```
 
-    b. 按“i”进入编辑模式，设置“multiNodesInferEnabled”=true开启多机推理，并根据用户需要修改表1的参数，参数详情请参见[配置参数说明（服务化）](service_parameter_configuration.md)。
+    b. 按“i”进入编辑模式，设置“multiNodesInferEnabled”=true开启多机推理，并根据用户需要修改表3的参数，参数详情请参见[配置参数说明（服务化）](service_parameter_configuration.md)。
 
-        表1 多机推理相关配置
+    表3 多机推理相关配置
 
     | 配置项                 | 配置说明                                                     |
     | ---------------------- | ------------------------------------------------------------ |
@@ -477,15 +476,15 @@ ranktable.json文件权限需要设置为640，详细内容请根据以下样例
 
 5. （可选）若开启了GRPC双向认证（即“interNodeTLSEnabled”=true时）。
 
-    a. 导入证书。各证书文件信息如[表2](#table2)所示。
+    a. 导入证书。各证书文件信息如[表4](#table4)所示。
 
-        > [!NOTE]说明
-        > - HTTPS使用三面隔离时，HTTPS的业务面和管理面不建议使用同一套安全证书，使用同一套安全证书会存在较高的网络安全风险。
-        > - HTTPS和GRPC不建议使用同一套安全证书，使用同一套安全证书会存在较高的网络安全风险。
-        > - 导入证书时，对于用户导入的CA文件证书工具要求的权限为600，服务证书文件证书工具要求的权限为600，私钥文件证书工具要求的权限要求为400，吊销列表证书工具要求的权限为600。
-        > - 如果导入证书超时，请参考[启动haveged服务](../install/faq_and_appendixes/starting_the_haveged_service.md)处理。
+    > [!NOTE]说明
+    > - HTTPS使用三面隔离时，HTTPS的业务面和管理面不建议使用同一套安全证书，使用同一套安全证书会存在较高的网络安全风险。
+    > - HTTPS和GRPC不建议使用同一套安全证书，使用同一套安全证书会存在较高的网络安全风险。
+    > - 导入证书时，对于用户导入的CA文件证书工具要求的权限为600，服务证书文件证书工具要求的权限为600，私钥文件证书工具要求的权限要求为400，吊销列表证书工具要求的权限为600。
+    > - 如果导入证书超时，请参考[启动haveged服务](../install/faq_and_appendixes/starting_the_haveged_service.md)处理。
 
-    表2 证书文件信息    <a id="table2"></a>
+    表4 证书文件信息    <a id="table4"></a>
 
     | 证书文件               | 默认目标路径                        | 说明                                                         |
     | ---------------------- | ----------------------------------- | ------------------------------------------------------------ |
@@ -504,7 +503,7 @@ ranktable.json文件权限需要设置为640，详细内容请根据以下样例
 
 6. （可选）若开启了HTTPS认证（即“httpsEnabled”: true时，默认开启）。
 
-    a. 导入证书，各证书信息如[表3](#table3)所示。
+    a. 导入证书，各证书信息如[表5](#table5)所示。
 
     > [!NOTE]说明
     > - HTTPS使用三面隔离时，HTTPS的业务面和管理面不建议使用同一套安全证书，使用同一套安全证书会存在较高的网络安全风险。
@@ -512,36 +511,36 @@ ranktable.json文件权限需要设置为640，详细内容请根据以下样例
     > - 导入证书时，对于用户导入CA证书的脚本权限要求为600，服务证书的脚本权限要求为600，私钥证书的脚本权限要求为400，吊销列表证书的脚本权限要求为600。
     > - 如果导入证书超时，请参考[启动haveged服务](../install/faq_and_appendixes/starting_the_haveged_service.md)处理。
 
-      表3 证书文件清单  <a id="table3"></a>
+      表5 证书文件清单  <a id="table5"></a>
 
-        | 证书文件               | 默认目标路径                                             | 说明                                              |
-        | ---------------------- | -------------------------------------------------------- | ------------------------------------------------- |
-        | 根证书                 | {MindIE安装目录}/latest/mindie-service/security/ca/    | 支持多个CA证书。<br>开启HTTPS后必选。            |
-        | 服务证书               | {MindIE安装目录}/latest/mindie-service/security/certs/ | 开启HTTPS后必选。                                 |
-        | 服务证书私钥           | {MindIE安装目录}/latest/mindie-service/security/keys/  | 支持私钥文件加密场景。<br>开启HTTPS后必选。      |
-        | 服务证书吊销列表       | {MindIE安装目录}/latest/mindie-service/security/certs/   | 开启HTTPS后可选。                                 |
+    | 证书文件               | 默认目标路径                                             | 说明                                              |
+    | ---------------------- | -------------------------------------------------------- | ------------------------------------------------- |
+    | 根证书                 | {MindIE安装目录}/latest/mindie-service/security/ca/    | 支持多个CA证书。<br>开启HTTPS后必选。            |
+    | 服务证书               | {MindIE安装目录}/latest/mindie-service/security/certs/ | 开启HTTPS后必选。                                 |
+    | 服务证书私钥           | {MindIE安装目录}/latest/mindie-service/security/keys/  | 支持私钥文件加密场景。<br>开启HTTPS后必选。      |
+    | 服务证书吊销列表       | {MindIE安装目录}/latest/mindie-service/security/certs/   | 开启HTTPS后可选。                                 |
 
     b. 在{MindIE安装目录}下执行以下命令修改证书文件的用户权限。
 
-        ```bash
-          chmod 400 mindie-service/security/ca/*
-          chmod 400 mindie-service/security/certs/*
-          chmod 400 mindie-service/security/keys/*
-        ```
+    ```bash
+        chmod 400 mindie-service/security/ca/*
+        chmod 400 mindie-service/security/certs/*
+        chmod 400 mindie-service/security/keys/*
+    ```
 
 7. 使用以下命令配置环境变量。
 
-        ```bash
-        source /usr/local/Ascend/ascend-toolkit/set_env.sh                           # CANN
-        source /usr/local/Ascend/nnal/atb/set_env.sh                                 # ATB
-        source /usr/local/lib/python3.11/site-packages/mindie_llm/set_env.sh         # ATB Models
-        ```
+    ```bash
+    source /usr/local/Ascend/ascend-toolkit/set_env.sh                           # CANN
+    source /usr/local/Ascend/nnal/atb/set_env.sh                                 # ATB
+    source /usr/local/lib/python3.11/site-packages/mindie_llm/set_env.sh         # ATB Models
+    ```
 
 8. 将模型权重文件（由用户自行准备）拷贝到config.json中模型配置参数“modelWeightPath”指定的目录下。
 
-        ```bash
-        cp -r {模型权重文件所在路径} {modelWeightPath}
-        ```
+    ```bash
+    cp -r {模型权重文件所在路径} {modelWeightPath}
+    ```
 
 9. 配置ATB Models的运行环境变量。
 
@@ -551,7 +550,7 @@ ranktable.json文件权限需要设置为640，详细内容请根据以下样例
     export LD_LIBRARY_PATH=${ATB_LLM_PATH}/lib:${LD_LIBRARY_PATH}
     ```
 
-10. 配置环境变量“RANK_TABLE_FILE”和“MIES_CONTAINER_IP”（以[ranktable文件样例](https://gitcode.com/Ascend/MindIE-Motor/blob/dev/docs/zh/user_guide/service_deployment/pd_separation_service_deployment.md)中的ranktable为例，具体参见表4）。
+10. 配置环境变量“RANK_TABLE_FILE”和“MIES_CONTAINER_IP”（以[ranktable文件样例](https://gitcode.com/Ascend/MindIE-Motor-CPP/blob/v3.1.0/docs/zh/user_guide/service_deployment/pd_separation_service_deployment.md)中的ranktable为例，具体参见表4）。
 
     - Master节点容器中
 
@@ -591,10 +590,10 @@ ranktable.json文件权限需要设置为640，详细内容请根据以下样例
 > - 服务启动报缺失lib*.so依赖的错误时，处理方法请参见启动MindIE Motor CPP服务时，出现找不到libboost_thread.so.1.82.0报错章节。
 > - 不建议在同一容器中反复拉起服务，重复拉起前请清理容器“/dev/shm/”目录下的*llm_backend_*和llm_tokenizer_shared_memory_*文件，参考命令如下：
 
-    ```bash
-    find /dev/shm -name '*llm_backend_*' -type f -delete
-    find /dev/shm -name 'llm_tokenizer_shared_memory_*' -type f -delete
-    ```
+```bash
+find /dev/shm -name '*llm_backend_*' -type f -delete
+find /dev/shm -name 'llm_tokenizer_shared_memory_*' -type f -delete
+```
 
 ### 操作步骤 (run包方式)
 
@@ -658,14 +657,14 @@ ranktable.json文件权限需要设置为640，详细内容请根据以下样例
 
     a. 进入conf目录，打开“config.json”文件。
 
-        ```bash
-        cd ../conf
-        vim config.json
-        ```
+    ```bash
+    cd ../conf
+    vim config.json
+    ```
 
-    b. 按“i”进入编辑模式，设置“multiNodesInferEnabled”=true开启多机推理，并根据用户需要修改表1的参数，参数详情请参见[配置参数说明（服务化）](service_parameter_configuration.md)。
+    b. 按“i”进入编辑模式，设置“multiNodesInferEnabled”=true开启多机推理，并根据用户需要修改表6的参数，参数详情请参见[配置参数说明（服务化）](service_parameter_configuration.md)。
 
-        表1 多机推理相关配置
+    表6 多机推理相关配置
 
     | 配置项                 | 配置说明                                                     |
     | ---------------------- | ------------------------------------------------------------ |
@@ -687,15 +686,15 @@ ranktable.json文件权限需要设置为640，详细内容请根据以下样例
 
 5. （可选）若开启了GRPC双向认证（即“interNodeTLSEnabled”=true时）。
 
-    a. 导入证书。各证书文件信息如[表2](#table2)所示。
+    a. 导入证书。各证书文件信息如[表7](#table7)所示。
 
-        > [!NOTE]说明
-        > - HTTPS使用三面隔离时，HTTPS的业务面和管理面不建议使用同一套安全证书，使用同一套安全证书会存在较高的网络安全风险。
-        > - HTTPS和GRPC不建议使用同一套安全证书，使用同一套安全证书会存在较高的网络安全风险。
-        > - 导入证书时，对于用户导入的CA文件证书工具要求的权限为600，服务证书文件证书工具要求的权限为600，私钥文件证书工具要求的权限要求为400，吊销列表证书工具要求的权限为600。
-        > - 如果导入证书超时，请参考[启动haveged服务](../install/faq_and_appendixes/starting_the_haveged_service.md)处理。
+    > [!NOTE]说明
+    > - HTTPS使用三面隔离时，HTTPS的业务面和管理面不建议使用同一套安全证书，使用同一套安全证书会存在较高的网络安全风险。
+    > - HTTPS和GRPC不建议使用同一套安全证书，使用同一套安全证书会存在较高的网络安全风险。
+    > - 导入证书时，对于用户导入的CA文件证书工具要求的权限为600，服务证书文件证书工具要求的权限为600，私钥文件证书工具要求的权限要求为400，吊销列表证书工具要求的权限为600。
+    > - 如果导入证书超时，请参考[启动haveged服务](../install/faq_and_appendixes/starting_the_haveged_service.md)处理。
 
-    表2 证书文件信息    <a id="table2"></a>
+    表7 证书文件信息    <a id="table7"></a>
 
     | 证书文件               | 默认目标路径                        | 说明                                                         |
     | ---------------------- | ----------------------------------- | ------------------------------------------------------------ |
@@ -714,7 +713,7 @@ ranktable.json文件权限需要设置为640，详细内容请根据以下样例
 
 6. （可选）若开启了HTTPS认证（即“httpsEnabled”: true时，默认开启）。
 
-    a. 导入证书，各证书信息如[表3](#table3)所示。
+    a. 导入证书，各证书信息如[表8](#table8)所示。
 
     > [!NOTE]说明
     > - HTTPS使用三面隔离时，HTTPS的业务面和管理面不建议使用同一套安全证书，使用同一套安全证书会存在较高的网络安全风险。
@@ -722,36 +721,36 @@ ranktable.json文件权限需要设置为640，详细内容请根据以下样例
     > - 导入证书时，对于用户导入CA证书的脚本权限要求为600，服务证书的脚本权限要求为600，私钥证书的脚本权限要求为400，吊销列表证书的脚本权限要求为600。
     > - 如果导入证书超时，请参考[启动haveged服务](../install/faq_and_appendixes/starting_the_haveged_service.md)处理。
 
-      表3 证书文件清单  <a id="table3"></a>
+      表8 证书文件清单  <a id="table8"></a>
 
-        | 证书文件               | 默认目标路径                                             | 说明                                              |
-        | ---------------------- | -------------------------------------------------------- | ------------------------------------------------- |
-        | 根证书                 | {MindIE安装目录}/latest/mindie-service/security/ca/    | 支持多个CA证书。<br>开启HTTPS后必选。            |
-        | 服务证书               | {MindIE安装目录}/latest/mindie-service/security/certs/ | 开启HTTPS后必选。                                 |
-        | 服务证书私钥           | {MindIE安装目录}/latest/mindie-service/security/keys/  | 支持私钥文件加密场景。<br>开启HTTPS后必选。      |
-        | 服务证书吊销列表       | {MindIE安装目录}/latest/mindie-service/security/certs/   | 开启HTTPS后可选。                                 |
+    | 证书文件               | 默认目标路径                                             | 说明                                              |
+    | ---------------------- | -------------------------------------------------------- | ------------------------------------------------- |
+    | 根证书                 | {MindIE安装目录}/latest/mindie-service/security/ca/    | 支持多个CA证书。<br>开启HTTPS后必选。            |
+    | 服务证书               | {MindIE安装目录}/latest/mindie-service/security/certs/ | 开启HTTPS后必选。                                 |
+    | 服务证书私钥           | {MindIE安装目录}/latest/mindie-service/security/keys/  | 支持私钥文件加密场景。<br>开启HTTPS后必选。      |
+    | 服务证书吊销列表       | {MindIE安装目录}/latest/mindie-service/security/certs/   | 开启HTTPS后可选。                                 |
 
     b. 在{MindIE安装目录}下执行以下命令修改证书文件的用户权限。
 
-        ```bash
-          chmod 400 mindie-service/security/ca/*
-          chmod 400 mindie-service/security/certs/*
-          chmod 400 mindie-service/security/keys/*
-        ```
+    ```bash
+        chmod 400 mindie-service/security/ca/*
+        chmod 400 mindie-service/security/certs/*
+        chmod 400 mindie-service/security/keys/*
+    ```
 
 7. 使用以下命令配置环境变量。
 
-        ```bash
-        source /usr/local/Ascend/ascend-toolkit/set_env.sh                           # CANN
-        source /usr/local/Ascend/nnal/atb/set_env.sh                                 # ATB
-        source /usr/local/Ascend/atb-models/set_env.sh                                # ATB Models
-        ```
+    ```bash
+    source /usr/local/Ascend/ascend-toolkit/set_env.sh                           # CANN
+    source /usr/local/Ascend/nnal/atb/set_env.sh                                 # ATB
+    source /usr/local/Ascend/atb-models/set_env.sh                                # ATB Models
+    ```
 
 8. 将模型权重文件（由用户自行准备）拷贝到config.json中模型配置参数“modelWeightPath”指定的目录下。
 
-        ```bash
-        cp -r {模型权重文件所在路径} {modelWeightPath}
-        ```
+    ```bash
+    cp -r {模型权重文件所在路径} {modelWeightPath}
+    ```
 
 9. 加载环境变量。
 
@@ -781,27 +780,27 @@ ranktable.json文件权限需要设置为640，详细内容请根据以下样例
 
     -（推荐）：使用后台进程方式启动服务。后台进程方式启动服务后，关闭窗口时进程也会保留。
 
-        ```bash
-        nohup ./bin/mindieservice_daemon > output.log 2>&1 &
-        ```
+    ```bash
+    nohup ./bin/mindieservice_daemon > output.log 2>&1 &
+    ```
 
-        在标准输出流捕获到的文件中，打印如下信息说明启动成功。
+    在标准输出流捕获到的文件中，打印如下信息说明启动成功。
 
-        ```text
-        Daemon start success!
-        ```
+    ```text
+    Daemon start success!
+    ```
 
     - 方式二：直接启动服务。
 
-        ```bash
-        ./bin/mindieservice_daemon
-        ```
+    ```bash
+    ./bin/mindieservice_daemon
+    ```
 
-        回显如下则说明启动成功。
+    回显如下则说明启动成功。
 
-        ```text
-        Daemon start success!
-        ```
+    ```text
+    Daemon start success!
+    ```
 
 > [!NOTE]说明
 >
@@ -811,7 +810,7 @@ ranktable.json文件权限需要设置为640，详细内容请根据以下样例
 > - 服务启动报缺失lib*.so依赖的错误时，处理方法请参见启动MindIE Motor CPP服务时，出现找不到libboost_thread.so.1.82.0报错章节。
 > - 不建议在同一容器中反复拉起服务，重复拉起前请清理容器“/dev/shm/”目录下的*llm_backend_*和llm_tokenizer_shared_memory_*文件，参考命令如下：
 
-    ```bash
-    find /dev/shm -name '*llm_backend_*' -type f -delete
-    find /dev/shm -name 'llm_tokenizer_shared_memory_*' -type f -delete
-    ```
+```bash
+find /dev/shm -name '*llm_backend_*' -type f -delete
+find /dev/shm -name 'llm_tokenizer_shared_memory_*' -type f -delete
+```

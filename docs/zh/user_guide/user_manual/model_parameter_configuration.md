@@ -1,6 +1,6 @@
 # 配置参数说明（模型侧）
 
-模型侧atb-models安装目录下的配置文件获取路径为：$\{ATB_SPEED_HOME_PATH\}/atb_llm/conf/config.json
+模型侧atb-models安装目录下的配置文件获取路径为：${ATB_SPEED_HOME_PATH}/atb_llm/conf/config.json
 
 模型的配置文件config.json格式如下：
 
@@ -65,7 +65,7 @@
       "ep_level": 1,
       "enable_dispatch_combine_v2": true,
       "communication_backend": {
-        "prefill":"lccl",
+        "prefill": "lccl",
         "decode": "lccl"
       },
       "mix_shared_routing": false,
@@ -102,8 +102,8 @@
 |**engine**|-|-|-|
 |graph|string|<ul><li>cpp</li><li>python</li></ul>|开启cpp组图或python组图。<ul><li>仅LLaMA3.1-8B、Qwen2.5-7B、Qwen3-14B、Qwen3-32B模型支持Python组图。</li><li>默认值：cpp</li></ul>|
 |**parallel_options**|-|-|-|
-|o_proj_local_tp|int|[1，worldSize / 节点数]|表示Attention O矩阵切分数。<ul><li>仅DeepSeek-R1、DeepSeek-V3和DeepSeek-V3.1模型支持此特性。</li><li>默认值：-1，表示不开启切分</li></ul>|
-|lm_head_local_tp|int|[1，worldSize / 节点数]|表示LmHead张量并行切分数。<ul><li>仅DeepSeek-R1、DeepSeek-V3和DeepSeek-V3.1模型支持此特性。</li><li>默认值：-1。表示不开启切分</li></ul>|
+|o_proj_local_tp|int|[1, worldSize / 节点数]|表示Attention O矩阵切分数。<ul><li>仅DeepSeek-R1、DeepSeek-V3和DeepSeek-V3.1模型支持此特性。</li><li>默认值：-1，表示不开启切分</li></ul>|
+|lm_head_local_tp|int|[1, worldSize / 节点数]|表示LmHead张量并行切分数。<ul><li>仅DeepSeek-R1、DeepSeek-V3和DeepSeek-V3.1模型支持此特性。</li><li>默认值：-1。表示不开启切分</li></ul>|
 |hccl_buffer|int|≥1|表示除MoE通信域外，其余通信域共享数据的缓存区大小。<ul><li>默认值：128</li><li>设置过大会产生“out of memory”的错误提示，建议设置为默认值。</li></ul>|
 |hccl_moe_ep_buffer|int|≥512|表示MoE专家并行相关通信域共享数据的缓存区大小。<ul><li>默认值：512</li><li>设置过大会产生“out of memory”的错误提示，建议设置为默认值。</li></ul>|
 |hccl_moe_tp_buffer|int|≥64|表示MoE张量并行相关通信域共享数据的缓存区大小。<ul><li>默认值：64</li><li>设置过大会产生“out of memory”的错误提示，建议设置为默认值。</li></ul>|
@@ -126,20 +126,20 @@
 |topk_scaling_factor|float|(0,1]|topk截断参数。<ul><li>“ep_level”=“1”时，每台设备的hidden_states后段部分为无效数据，可设置截断参数减小显存开销。</li><li>需同时配置 "enable_init_routing_cutoff"="true"。</li></ul>|
 |enable_init_routing_cutoff|bool|<ul><li>true</li><li>false</li></ul>|是否允许topk截断。<ul><li>默认值：false（关闭）</li><li>“ep_level”=“1”时，可配置该参数。</li></ul>|
 |alltoall_ep_buffer_scale_factors|list[list[int, float]]|列表每个成员包含两个数：第一个数为非负整数，第二个数为大于0的浮点数。<br>排列顺序按照第一个数的大小降序排列。|AllToAll通信buffer大小，第二层list包含两个元素，第一个数为序列长度、第二个数为buffer系数。序列长度为buffer系数的选择判断条件。示例：<br>[[1048576, 1.32], [524288, 1.4], [262144, 1.53], [131072, 1.8], [32768, 3.0], [8192, 5.2], [0, 8.0]]<ul><li>“ep_level”=“2”时，且用户需要精细化地管理显存的时候建议配置该项。</li><li>“ep_level”=“1”时该参数配置不生效。</li></ul>|
-|num_dangling_shared_experts|int|正整数|共享专家外置的数量。<br>当前只支持Atlas 800I A3 超节点服务器 144卡且不开负载均衡的场景。建议配置成32。<br>默认值：0（关闭）|
+|num_dangling_shared_experts|int|非负整数|共享专家外置的数量。<br>当前只支持Atlas 800I A3 超节点服务器 144卡且不开负载均衡的场景。建议配置成32。<br>默认值：0（关闭）|
 |enable_mlapo_prefetch|bool|<ul><li>true</li><li>false</li></ul>|控制是否开启mlapo预取。<ul><li>true：开启</li><li>false：关闭</li></ul>默认值：false|
-|enable_oproj_prefetch|bool|<ul><li>true</li><li>false</li></ul>|控制是否开启oproj预取。<br>Atlas 800I A2 推理服务器不建议开启。Atlas 800I A3 超节点服务器建议与OprojTp同时开启，推荐OprojTp设置为2。<ul><li>true：开启</li><li>false：关闭</li></ul>默认值：false|
+|enable_oproj_prefetch|bool|<ul><li>true</li><li>false</li></ul>|控制是否开启oproj预取。<br>Atlas 800I A2 推理服务器不建议开启。Atlas 800I A3 超节点服务器建议与o_proj_local_tp同时开启，推荐o_proj_local_tp设置为2。<ul><li>true：开启</li><li>false：关闭</li></ul>默认值：false|
 |**eplb**|-|-|-|
 |level|int|[0, 3]|<ul><li>0 : 不开启负载均衡</li><li>1 : 开启静态冗余负载均衡</li><li>2 : 开启动态冗余负载均衡（暂不支持）</li><li>3 : 开启强制负载均衡</li></ul>默认值：0|
 |expert_map_file|string|文件路径|静态冗余负载专家部署表路径。<br>默认值：""|
 |num_redundant_experts|int|[0, n_routed_experts]|**当前版本暂不支持该参数。**<br>冗余专家的个数。<br>默认值：0|
 |aggregate_threshold|int|≥1|**当前版本暂不支持该参数。**<br>表示动态EPLB算法触发的频率，单位是decode次数。<br>例如：50表示50次decode，触发一次动态EPLB算法，若算法认为热度超过一定阈值时，则调整路由表来降低算法热度。|
-|buffer_expert_layer_num|int|[1, num_moe_layers]|**当前版本暂不支持该参数。**<br>表示动态EPLB每次搬运的layer个数。<br>由于权重搬运为异步搬运，在不影响原decode情况下，需要一个额外的buffer内存来存放被搬运中的新权重，配置为1层时，则为一次只搬运一层，然后刷新掉一层layer的权重和路由表。<br>影响的内存公式为：buffer_expert_layer_num*local_experts_num*44M (44M为一个int8的专家大小)|
+|buffer_expert_layer_num|int|[1, num_moe_layers]|**当前版本暂不支持该参数。**<br>表示动态EPLB每次搬运的layer个数。<br>由于权重搬运为异步搬运，在不影响原decode情况下，需要一个额外的buffer内存来存放被搬运中的新权重，配置为1层时，则为一次只搬运一层，然后刷新掉一层layer的权重和路由表。<br>影响的内存公式为：buffer_expert_layer_num*local_experts_num*44MB (44MB为一个int8的专家大小)|
 |num_expert_update_ready_countdown|int|≥1|**当前版本暂不支持该参数。**<br>表示检查host->device搬运是否结束的频率，单位为decode次数。<br>因为搬运权重为异步搬运，必须所有ep卡搬运完毕后才能刷新权重和路由表，这里引入了通信，在搬运层较多的情况下，可以降低该频率，从而减少EPLB框架侧开销。|
 |**h3p**|-|-|-|
 |enable_qkvdown_dp|bool|<ul><li>true</li><li>false</li></ul>|控制是否开启qkvdown dp特性，减少计算及通信量，提升Prefill阶段性能。<br>默认值：“true”|
 |enable_gating_dp|bool|<ul><li>true</li><li>false</li></ul>|控制是否开启gating dp特性，减少计算及通信量，提升Prefill阶段性能。<br>默认值：“true”<br>仅“ep_level”=“1”时，支持该特性。|
 |enable_shared_expert_dp|bool|<ul><li>true</li><li>false</li></ul>|控制是否开启共享专家dp特性，提升Prefill阶段性能。<br>默认值：“false”<ul><li>仅“ep_level”=“1”时，支持该特性。</li><li>开启会占用额外显存从而可能产生“out of memory”的错误提示，建议设置为默认值。</li></ul>|
-|enable_shared_expert_overlap|bool|<ul><li>true</li><li>false</li></ul>|控制是否开启共享专家的通信和计算双流掩盖特性，提升特定场景下（输入序列长度为2K~16K）的Prefill阶段性能。<br>默认值：“false”<ul><li>仅“ep_level”=“1”且“enable_shared_expert_dp”=“true”时支持该特性。</li><li>开启会占用额外显存从而可能产生“out of memory”的错误提示，建议设置为默认值。</li></ul>|
+|enable_shared_expert_overlap|bool|<ul><li>true</li><li>false</li></ul>|控制是否开启共享专家的通信和计算双流掩盖特性，提升特定场景下（输入序列长度为2k~16k）的Prefill阶段性能。<br>默认值：“false”<ul><li>仅“ep_level”=“1”且“enable_shared_expert_dp”=“true”时支持该特性。</li><li>开启会占用额外显存从而可能产生“out of memory”的错误提示，建议设置为默认值。</li></ul>|
 |enable_dispatch_combine_v2|bool|<ul><li>true</li><li>false</li></ul>|当“ep_level”=“2”时，控制是否开启dispatch算子和combine算子的v2版本，提升Decode阶段性能。<br>默认值：true|
 |mix_shared_routing|bool|<ul><li>true</li><li>false</li></ul>|控制共享专家和路由专家是否合并的开关, 达到共享专家和路由专家并行计算的目的。<ul><li>不支持与CP特性叠加使用。</li><li>PD分离场景下，仅支持在D节点开启该开关。</li><li>默认值：false</li></ul>|

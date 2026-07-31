@@ -1,6 +1,6 @@
 # 安装软件包和依赖
 
-介绍安装MindIE前，需要安装的相关软件包和依赖。
+本节介绍安装MindIE前，需要安装的相关软件包和依赖。
 
 ## 安装CANN
 
@@ -15,7 +15,7 @@ source /usr/local/Ascend/nnal/atb/set_env.sh
 
 以上命令以root用户安装后的默认路径为例，请用户根据set_env.sh的实际路径进行替换。
 
-## 安装Pytorch和Torch NPU
+## 安装PyTorch和Torch NPU
 
 - 如果操作系统是ubuntu 22.04，请安装torch_npu 2.1.0；如果操作系统是ubuntu 24.04 LTS，请安装torch_npu 2.9.0。
 - 请参考《Ascend Extension for PyTorch 软件安装指南》中的“[安装PyTorch](https://www.hiascend.com/document/detail/zh/Pytorch/730/configandinstg/instg/docs/zh/installation_guide/installation_via_binary_package.md)”章节安装PyTorch框架和torch_npu插件。
@@ -26,7 +26,7 @@ MindIE中各组件依赖PyTorch框架和torch_npu插件，依赖情况如下表�
 
 |组件名称|是否需要安装PyTorch框架|是否需要安装torch_npu插件|
 |--|--|--|
-|MindIE Motor|**必装**|**必装**|
+|MindIE Motor CPP|**必装**|**必装**|
 |MindIE LLM|**必装**|**必装**|
 |MindIE SD|**必装**|**必装**|
 
@@ -63,7 +63,7 @@ pip install atb_llm-<version>-cp<xxx>-cp<xxx>-linux_<arch>.whl
 4. 将获取的ATB Models软件包Ascend-mindie-atb-models\__\{version\}_\_linux-_\{arch\}\_py_xxx\__torch_x.x.x__-_\{abi\}_.tar.gz上传至该目录，ATB Models软件包存在于MindIE镜像包的/opt/package目录中。
 
     >[!NOTE]说明
-    >ATB Models的abi版本需要根据环境中安装的PyTorch环境来选择，其版本需要与PyTorch编译时使用的abi版本保持一致，调用torch.compiled\_with\_cxx11\_abi\(\)接口可以查看使用的abi版本：
+    >ATB Models的abi版本需要根据环境中安装的PyTorch环境来选择，其版本需要与PyTorch编译时使用的abi版本保持一致，调用torch.compiled_with_cxx11_abi()接口可以查看使用的abi版本：
     >- 如果返回False，则选择abi=0；
     >- 如果返回True，则选择abi=1。
 
@@ -76,7 +76,7 @@ pip install atb_llm-<version>-cp<xxx>-cp<xxx>-linux_<arch>.whl
 
 6. 检查pip包安装路径权限。
 
-    为避免whl包安装成功后，在使用中出现“module not found”错误。使用pip安装whl包时，需要保证当前用户对pip包安装位置拥有写权限，pip包安装路径可以通过`**pip show **\{已存在包的包名\}`方式获得，示例如下。
+    为避免whl包安装成功后，在使用中出现“module not found”错误。使用pip安装whl包时，需要保证当前用户对pip包安装位置拥有写权限，pip包安装路径可以通过`pip show\{已存在包的包名\}`方式获得，示例如下。
 
     ```bash
     pip show pip

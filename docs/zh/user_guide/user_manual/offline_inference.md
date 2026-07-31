@@ -19,7 +19,7 @@
 
 当前ATB Models包含三类Readme文档指导您执行推理流程，了解模型支持特性以及提供基础的调测和问题定位手段。
 
-**图 1** ATB Models  Readme文档关系示意图
+**图 1** ATB Models Readme文档关系示意图
 
 ![](./figures/atb_models_readme.png "ATB-Models-Readme文档关系示意图")
 
@@ -125,7 +125,7 @@
 
         执行如下命令进行推理，如下以生成的第一个推理内容对应的Token id为"1,15043,2787"，第二个推理内容对应的Token id为"1,306,626,2691"为例，其中推理内容间以空格分开。
 
-        ```linux
+        ```bash
         # 执行推理
         torchrun --nproc_per_node 8 --master_port 20030 -m examples.run_pa --model_path /data/Llama-3-8b --input_ids 1,15043,2787 1,306,626,2691 --max_batch_size 2
         ```
@@ -147,13 +147,13 @@
         |--max_batch_size|否|int|1|模型推理最大batch size。|
         |--block_size|否|int|128|KV Cache分块存储，每块存储的最大token数，默认为128。|
         |--chat_template|否|string或者None|None|对话模型的prompt模板。|
-        |--ignore_eos|否|bool|store_true|当推理结果中遇到eos token（句子结束标识符）时，是否结束推理。若传入此参数，则忽略eos token。|
-        |--is_chat_model|否|bool|store_true|是否支持对话模式。若传入此参数，则进入对话模式。|
-        |--is_embedding_model|否|bool|store_true|是否为embedding类模型。默认为因果推断类模型，若传入此参数，则为embedding类模型。|
+        |--ignore_eos|否|bool|False|当推理结果中遇到eos token（句子结束标识符）时，是否结束推理。若传入此参数，则忽略eos token。|
+        |--is_chat_model|否|bool|False|是否支持对话模式。若传入此参数，则进入对话模式。|
+        |--is_embedding_model|否|bool|False|是否为embedding类模型。默认为因果推断类模型，若传入此参数，则为embedding类模型。|
         |--load_tokenizer|否|bool|True|是否加载tokenizer。若传入False，则必须传入input_ids参数，且推理输出为token id。|
-        |--enable_atb_torch|否|bool|store_true|是否使用Python组图。默认使用C++组图，若传入此参数，则使用Python组图。|
+        |--enable_atb_torch|否|bool|False|是否使用Python组图。默认使用C++组图，若传入此参数，则使用Python组图。|
         |--kw_args|否|string|""|扩展参数，支持用户通过扩展参数进行功能扩展。|
-        |--trust_remote_code|否|bool|store_true|是否信任模型权重路径下的自定义代码文件。默认不执行。若传入此参数，则transformers会执行用户权重路径下的自定义代码文件，这些代码文件的功能的安全性需由用户保证，请提前做好安全性检查。|
+        |--trust_remote_code|否|bool|False|是否信任模型权重路径下的自定义代码文件。默认不执行。若传入此参数，则transformers会执行用户权重路径下的自定义代码文件，这些代码文件的功能的安全性需由用户保证，请提前做好安全性检查。|
         |--dp|否|int|-1|数据并行数，默认不进行数据并行。|
         |--tp|否|int|-1|整网张量并行数，若值为“-1”，默认张量并行数为worldSize值。|
         |--sp|否|int|-1|序列并行数，默认不进行序列并行。若开启序列并行数，一般与张量并行数保持一致。|

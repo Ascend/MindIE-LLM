@@ -1,6 +1,6 @@
 # MindIE LLM安装指南
 
-- [安装说明](installation_introduction.md)
+- [安装说明](./installation_introduction.md)
 - [安装MindIE]()
   - [方式一：镜像安装](./source/image_usage_guide.md)
   - [方式二：离线安装]()
@@ -10,7 +10,7 @@
     - [安装MindIE软件包](./source/installation_on_a_physical_machine.md)
   - [方式三：源码安装]()
     - [MindIE LLM源码安装](../../developer_guide/build_guide_llm.md)
-    - [MindIE Motor源码安装](https://gitcode.com/Ascend/MindIE-Motor/blob/dev/docs/zh/developer_guide/build_guide.md)
+    - [MindIE Motor CPP源码安装](https://gitcode.com/Ascend/MindIE-Motor-CPP/blob/v3.1.0/docs/zh/developer_guide/build_guide.md)
     - [MindIE SD源码安装](https://gitcode.com/Ascend/MindIE-SD/blob/dev/docs/zh/installation.md)
 - [升级](./source/upgrade.md)
 - [卸载](./source/uninstallation.md)
@@ -50,7 +50,7 @@
   - [其他安全加固](./security_management_and_hardening/other_measures_for_security_hardening.md)
   - [（可选）安装systemd-coredump工具](./security_management_and_hardening/(optional)installing_systemd_coredump.md)
 - [FAQ]()
-  - [启动MindIE-Motor服务时-出现找不到libboost_thread-so-1-82-0报错](./faq_and_appendixes/error_libboost_thread_motor_started.md)
+  - [启动MindIE-Motor-CPP服务时-出现找不到libboost_thread-so-1-82-0报错](./faq_and_appendixes/error_libboost_thread_motor_started.md)
   - [安装MindIE后-使用curl命令报错](./faq_and_appendixes/curl_command_failed.md)
 - [附录]()
   - [软件包参数说明](./faq_and_appendixes/software_package_options.md)

@@ -22,9 +22,9 @@
         CONFIG_RANDOMIZE_BASE=y
         ```
 
-  2. 打开配置文件/etc/default/grub，在GRUB\_CMDLINE\_LINUX\_DEFAULT所在行的添加kaslr参数，示例如下所示。
+  2. 打开配置文件/etc/default/grub，在GRUB\_CMDLINE\_LINUX\_DEFAULT所在行添加kaslr参数，示例如下所示。
 
-        ```json
+        ```bash
         GRUB_CMDLINE_LINUX_DEFAULT="kaslr"
         ```
 

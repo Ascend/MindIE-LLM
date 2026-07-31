@@ -34,7 +34,7 @@ SLO（Service Level Objective，服务级别目标）指在设定时间段内为
 
 本章节简单介绍如何使用SLO调度优化功能。
 
-1. 打开MindIE Motor的config.json文件。
+1. 打开MindIE Motor CPP的config.json文件。
 
     - **whl包安装方式：**
 

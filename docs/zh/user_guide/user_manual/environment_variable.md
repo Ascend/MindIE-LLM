@@ -9,15 +9,15 @@ MindIE LLM安装完成后，提供进程级环境变量设置脚本“set_env.sh
 |环境变量名|功能描述|取值范围|默认值|
 |--|--|--|--|
 |**MindIE_LLM相关环境变量**|-|-|-|
-|MINDIE_LLM_HOME_PATH|MindIE LLM主目录所在路径。|N/A|N/A|
+|MINDIE_LLM_HOME_PATH|MindIE LLM主目录所在路径。|路径参数。|/usr/local/Ascend/mindie/latest/mindie-service|
 |MINDIE_LLM_RECOMPUTE_THRESHOLD|MindIE LLM中重计算阈值。|[0,1]|0.5|
 |PYTORCH_INSTALL_PATH|torch三方件的安装路径，使用以下方式获取python3 -c 'import torch, os; print(os.path.dirname(os.path.abspath(torch.__file__)))'。|N/A|N/A|
 |PYTORCH_NPU_INSTALL_PATH|torch_npu三方件的安装路径，使用以下方式获取python3 -c 'import torch, torch_npu, os; print(os.path.dirname(os.path.abspath(torch_npu.__file__)))'。|N/A|N/A|
 |**ATB_Models相关环境变量**|-|-|-|
 |ATB_OPERATION_EXECUTE_ASYNC|控制ATB graph的异步调度，默认使用二级流水。当CPU数量不受限时，可尝试开启三级流水进行性能调优。|0：不开启<br>1：开启二级流水<br>2：开启三级流水|1|
 |ATB_SPEED_HOME_PATH|ATB模型lib路径的环境变量，必须配置。|必须是ATB模型lib路径|None|
-|HCCL_INTRA_PCIE_ENABLE|控制是否开启All2All分层通信及INT8通信特性。“HCCL_INTRA_PCIE_ENABLE”和“HCCL_INTRA_ROCE_ENABLE”必须同时设置为开启，才能开启该功能。这两个环境变量的更多描述请参见《CANN 环境变量参考》中的“[集合通信](https://www.hiascend.com/document/detail/zh/CANNCommunityEdition/latest/API/hcclug/docs/zh/user_guide/hccl_intro.md)”章节。建议在Atlas 800I A2 推理服务器和Atlas 800I A3 超节点服务器，MoE模型的Combine INT8算子场景下打开 ，提升性能优化。|0：关闭<br>1：开启|N/A|
-|HCCL_INTRA_ROCE_ENABLE|控制是否开启All2All分层通信及INT8通信特性。“HCCL_INTRA_PCIE_ENABLE”和“HCCL_INTRA_ROCE_ENABLE”必须同时设置为开启，才能开启该功能。这两个环境变量的更多描述请参见《CANN 环境变量参考》中的“[集合通信](https://www.hiascend.com/document/detail/zh/CANNCommunityEdition/latest/API/hcclug/docs/zh/user_guide/hccl_intro.md)”章节。建议在Atlas 800I A2 推理服务器和Atlas 800I A3 超节点服务器，MoE模型的Combine INT8算子场景下打开 ，提升性能优化。|0：开启<br>1：关闭|N/A|
+|HCCL_INTRA_PCIE_ENABLE|控制是否开启All2All分层通信及INT8通信特性。“HCCL_INTRA_PCIE_ENABLE”和“HCCL_INTRA_ROCE_ENABLE”必须同时设置为开启，才能开启该功能。这两个环境变量的更多描述请参见《CANN 环境变量参考》中的“集合通信”章节。建议在Atlas 800I A2 推理服务器和Atlas 800I A3 超节点服务器，MoE模型的Combine INT8算子场景下打开 ，提升性能优化。|0：关闭<br>1：开启|N/A|
+|HCCL_INTRA_ROCE_ENABLE|控制是否开启All2All分层通信及INT8通信特性。“HCCL_INTRA_PCIE_ENABLE”和“HCCL_INTRA_ROCE_ENABLE”必须同时设置为开启，才能开启该功能。这两个环境变量的更多描述请参见《CANN 环境变量参考》中的“集合通信”章节。建议在Atlas 800I A2 推理服务器和Atlas 800I A3 超节点服务器，MoE模型的Combine INT8算子场景下打开 ，提升性能优化。|<ul><li>0：开启</li><li>1：关闭</li></ul>|N/A|
 |**Ascend Extension for PyTorch相关环境变量**|-|-|-|
 |MASTER_IP|多机服务化设置的主机ip|若值非空，则IP应该是合法ip|None|
 |MASTER_PORT|多机服务化设置的主机接口|若值非空，则端口号[0,65535]|None|
@@ -64,12 +64,12 @@ MindIE\_LLM相关环境变量请参考**表3**。
 |MIES_USE_MB_SWAPPER|高性能Swap开关。|0：不开启<br>1：开启|0|
 |MINDIE_CHECK_INPUTFILES_PERMISSION|是否需要检验外部文件的权限信息，包括文件所有者和其他人对文件的写权限。|0：不需要检验外部文件的权限信息<br>其他值或None：需要检验外部文件的权限信息。|None|
 |MINDIE_LLM_BENCHMARK_ENABLE|是否开启MindIE LLM模块的Benchmark功能，开启后将会输出性能数据到指定文件路径。|0：不开启<br>1：开启|0|
-|MINDIE_LLM_BENCHMARK_FILEPATH|指定MindIE LLM模块的Benchmark功能输出的性能数据文件路径。|N/A|"{MINDIE_LLM_HOME_PATH}/logs/benchmark.jsonl"|
+|MINDIE_LLM_BENCHMARK_FILEPATH|指定MindIE LLM模块的Benchmark功能输出的性能数据文件路径。|N/A|"$MINDIE_LLM_HOME_PATH/logs/benchmark.jsonl"|
 |MINDIE_LLM_BENCHMARK_RESERVING_RATIO|当性能数据文件超过最大文件大小限制时，旧数据会被新数据覆盖。此环境变量指定保留旧数据的比例，默认为0.1。|[0.0, 1.0]|0.1|
 |NPU_DEVICE_IDS|使用的NPU卡号。|[0,卡号]<br>例：[0, 1, 2,...]|N/A|
-|NPU_MEMORY_FRACTION|NPU显存利用率，代表总显存分配给模型权重、kvcache和work space的比例。不包含HCCL和PyTorch申请的空间。建议将该值设置为可拉起服务的最小值。具体方法是：按照默认配置启动服务，若无法拉起服务，则上调参数至可拉起为止；若拉起服务成功，则下调该参数至刚好拉起服务为止。总之，在服务能正常拉起的前提下，更低的值可以保障更高的服务系统稳定性。|(0.0, 1.0]Kimi K2模型，推荐设置为0.9。|在ATB Models中默认值为1.0在MindIE LLM中默认值为0.8|
+|NPU_MEMORY_FRACTION|NPU显存利用率，代表总显存分配给模型权重、kvcache和work space的比例。不包含HCCL和PyTorch申请的空间。建议将该值设置为可拉起服务的最小值。具体方法是：按照默认配置启动服务，若无法拉起服务，则上调参数至可拉起为止；若拉起服务成功，则下调该参数至刚好拉起服务为止。总之，在服务能正常拉起的前提下，更低的值可以保障更高的服务系统稳定性。|(0.0, 1.0]<br>Kimi K2模型，推荐设置为0.9。|<ul><li>在ATB Models中默认值为1.0</li><li>在MindIE LLM中默认值为0.8</li></ul>|
 |PERFORMANCE_PREFIX_TREE_ENABLE|memory_decoding并行解码高性能前缀树实现开关。|0：不开启<br>1：开启|0|
-|POST_PROCESSING_SPEED_MODE_TYPE|指定后处理加速模式|0：不开启加速<br>1：开启top_p近似计算<br>2：开启索引加速<br>3：同时开启上top_p近似计算和索引加速|0|
+|POST_PROCESSING_SPEED_MODE_TYPE|指定后处理加速模式|0：不开启加速<br>1：开启top_p近似计算<br>2：开启索引加速<br>3：同时开启top_p近似计算和索引加速|0|
 |RANK|指示device的全局ID。|[0, ${WORLD_SIZE})|0|
 |SOURCE_DATE_EPOCH|消除whl包的bep差异。|N/A|N/A|
 |WORLD_SIZE|启用几张卡进行推理。|[1,1048576]|N/A|
@@ -140,4 +140,8 @@ ATB\_Models相关环境变量请参考**表4**。
 >
 >- “INF\_NAN\_MODE\_ENABLE”，“TASK\_QUEUE\_ENABLE”和“RANK\_TABLE\_FILE”等更多PyTorch环境变量，请参见《环境变量参考》中的“INF\_NAN\_MODE\_ENABLE”章节。
 >- 当BIND\_CPU环境变量开启时，会调用execute\_command方法执行以下命令：
-> **execute\_command\(\["npu-smi", "info", "-i", f"\{npu\_id\}", "-t", "memory"\]\).split\("\\n"\)\[1:\]execute\_command\(\["npu-smi", "info", "-i", f"\{npu\_id\}", "-t", "usages"\]\).split\("\\n"\)\[1:\]execute\_command\(\["npu-smi", "info", "-m"\]\).strip\(\).split\("\\n"\)\[1:\]execute\_command\(\["npu-smi", "info", "-t", "board", "-i", f"\{device\_info.npu\_id\}", -c", f"\{device\_info.chip\_id\}"\]\).strip\(\).split\("\\n"\)execute\_command\(\["lspci", "-s", f"\{pcie_no\}", "-vvv"\]\).split\("\\n"\)execute\_command\(\["lscpu"\]\).split\("\\n"\)**
+> execute\_command\(\["npu-smi", "info", "-i", f"\{npu\_id\}", "-t", "memory"\]\).split\("\\n"\)\[1:\]
+> execute\_command\(\["npu-smi", "info", "-i", f"\{npu\_id\}", "-t", "usages"\]\).split\("\\n"\)\[1:\]
+> execute\_command\(\["npu-smi", "info", "-m"\]\).strip\(\).split\("\\n"\)\[1:\]
+> execute\_command\(\["npu-smi", "info", "-t", "board", "-i", f"\{device\_info.npu\_id\}", "-c", f"\{device\_info.chip\_id\}"\]\).strip\(\).split\("\\n"\)
+> execute\_command\(\["lspci", "-s", f"\{pcie_no\}", "-vvv"\]\).split\("\\n"\)execute\_command\(\["lscpu"\]\).split\("\\n"\)**

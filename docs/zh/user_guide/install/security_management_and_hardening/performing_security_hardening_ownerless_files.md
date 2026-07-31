@@ -3,7 +3,7 @@
 用户可以执行如下命令，查找系统中的无属主文件。
 
 ```bash
-find / -nouser -o -nogroup
+find / -nouser -o -nogroup -print
 ```
 
 根据文件的UID和GID创建相应的用户和用户组，或者修改已有用户的UID、用户组的GID来适配，赋予文件属主，避免无属主文件给系统带来安全隐患。

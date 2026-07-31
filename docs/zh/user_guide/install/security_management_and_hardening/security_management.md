@@ -20,7 +20,7 @@
 
 ## 集合通信安全风险提醒
 
-目前Gloo、DataDist和HCCL的TLS认证功能存在安全风险：
+目前Gloo、DataDist和HCCL暂不支持TLS认证功能，存在通信安全风险：
 
 - 默认发布的PyTorch的Gloo通信库暂不支持TLS认证功能。
 - CANN的DataDist和HCCL通信暂不支持TLS认证功能。

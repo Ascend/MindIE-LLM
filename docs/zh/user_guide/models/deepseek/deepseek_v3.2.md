@@ -244,7 +244,7 @@ curl -H "Accept: application/json" -H "Content-type: application/json" -X POST -
 
 ### Atlas 800I A2 八机大 EP 部署
 
-参考 [MindIE-Motor](https://gitcode.com/Ascend/MindIE-Motor/blob/master/docs/zh/user_guide/service_deployment/pd_separation_service_deployment.md#%E5%AE%89%E8%A3%85%E9%83%A8%E7%BD%B2) 获取大 EP 初始化脚本，部署目录
+参考 [MindIE-Motor-CPP](https://gitcode.com/Ascend/MindIE-Motor-CPP/blob/v3.1.0/docs/zh/user_guide/service_deployment/pd_separation_service_deployment.md#%E4%BD%BF%E7%94%A8kubectl%E9%83%A8%E7%BD%B2%E5%8D%95%E6%9C%BApd%E5%88%86%E7%A6%BB%E6%9C%8D%E5%8A%A1%E7%A4%BA%E4%BE%8B) 获取大 EP 初始化脚本，部署目录
 结构如下：
 
 ```shell

@@ -70,7 +70,7 @@ torchrun --nproc_per_node 8 --master_port 20030 -m examples.run_pa \
 
 ### 服务化使用
 
-`lora_adapter.json`文件配置方式已日落，新的配置方式是在MindIE Motor的`config.json`文件中添加`LoraModules`字段开启Multi LoRA特性，详细操作步骤如下所示。
+`lora_adapter.json`文件配置方式已日落，新的配置方式是在MindIE Motor CPP的`config.json`文件中添加`LoraModules`字段开启Multi LoRA特性，详细操作步骤如下所示。
 
 以LLaMA3.1 70B模型为例，简单介绍Multi LoRA如何使用。
 

@@ -47,7 +47,7 @@
 
 **⚠️ 废弃通知**: `PYTHON_LOG_MAXSIZE` 将于 **2026年12月** 正式废弃，请改用 `MINDIE_LOG_ROTATE`。
 
-**🔄 兼容性规则**: 新旧环境变量同时配置时`MINDIE_LOG_ROTATE` 优先级更高
+**🔄 兼容性规则**: 新旧环境变量同时配置时，`MINDIE_LOG_ROTATE` 优先级更高
 
 ### Python 侧配置变更
 
@@ -100,7 +100,7 @@
 | MINDIE_LOG_PATH | 控制日志写入路径 | N/A | ~/mindie/log/debug | 正在使用 | 是 |
 | MINDIE_LOG_VERBOSE | 控制日志格式 | {0, 1, true, false} | true | 正在使用 | 是 |
 | MINDIE_LOG_ROTATE | 控制日志轮转 |-fs：每个进程日志文件轮转最大大小，当日志文件大小超过此数值时，当前文件会被保存为旧文件，并创建新文件继续记录日志，单位MB，取值范围[1, 500]<br>-r：每个进程轮转时可保留日志文件数量，超过此数量的旧日志文件会被自动删除，取值范围[1, 64] | -fs 20<br>-r 10 | 正在使用 | 是 |
-| PYTHON_LOG_MAXSIZE | ATB Python每个进程日志文件轮转最大大小 | [0, 524288000] 字节 | None | 将于2026年12月下线 | 仅作用ATB Python侧，与“MINDIE_LOG_ROTATE”中的“-fs”等效，若两个变量同时配置，“MINDIE_LOG_ROTATE”优先级更高 |
+| PYTHON_LOG_MAXSIZE | ATB Python每个进程日志文件轮转最大大小 | [0, 524288000] 字节 | None | 将于2026年12月下线 | 仅作用于ATB Python侧，与“MINDIE_LOG_ROTATE”中的“-fs”等效，若两个变量同时配置，“MINDIE_LOG_ROTATE”优先级更高 |
 
 注：
 mindie-llm-token默认每个进程日志文件轮转最大大小1MB，每个进程轮转时可保留日志文件数量2个，不受MINDIE_LOG_ROTATE控制；
@@ -143,7 +143,7 @@ mindie-llm-token日志仅可写入文件，不会输出到终端；
 - 不分组件设置MINDIE_LOG_PATH：
     （例如：export MINDIE_LOG_PATH='/path/to/log'）
     python侧同进程的llmmodels组件日志mindie-llmmodels_{pid}\_{datetime}.log会与llm组件日志mindie-llm_{pid}_
-    {datetime}.log写在同一个日志文件中，归一为mindie-llm_{pid}_{datetime}.log
+    {datetime}.log写在同一个日志文件中，统一为mindie-llm_{pid}_{datetime}.log
 
     | 组件 | 文件名 | 内容说明 |
     |------|--------|---------|
@@ -208,14 +208,12 @@ export MINDIE_LOG_VERBOSE='llm:true;llmmodels:false'
 
 # llm组件同进程日志文件轮转大小最大 1 MB，轮转 1 个；llmmodels组件同进程日志文件轮转大小最大 2 MB，轮转 2 个
 export MINDIE_LOG_ROTATE='llm:-fs 1 -r 1;llmmodels:-fs 2 -r 2'
-"""
-例：
-对于上述配置中的llmmodels组件，文件命名规则如下：
-mindie-llmmodels_{pid}_{datetime}.log       # 当前正在写入的日志文件（保留）
-mindie-llmmodels_{pid}_{datetime}.01.log    # 最新轮转的备份文件（保留）
-mindie-llmmodels_{pid}_{datetime}.02.log    # 最早的轮转文件（会被删除））
 
-"""
+# 例：
+# 对于上述配置中的llmmodels组件，文件命名规则如下：
+# mindie-llmmodels_{pid}_{datetime}.log       # 当前正在写入的日志文件（保留）
+# mindie-llmmodels_{pid}_{datetime}.01.log    # 最新轮转的备份文件（保留）
+# mindie-llmmodels_{pid}_{datetime}.02.log    # 最旧的轮转文件（会被删除）
 
 # ATB Python（llmmodels）同进程日志文件轮转大小最大 4096 Byte
 export PYTHON_LOG_MAXSIZE=4096
@@ -253,7 +251,7 @@ export MINDIE_LOG_TO_STDOUT=1 # 纯模型推理时建议打开，可看到推理
 
 - 开启MINDIE_LOG_TO_STDOUT会影响推理性能
 - 服务化场景建议默认关闭，仅在需要调试时开启
-- 纯模型推理场景看输出建议开启，否则关闭即可
+- 纯模型推理场景根据输出建议开启，否则关闭即可
 
 #### 配置优先级
 

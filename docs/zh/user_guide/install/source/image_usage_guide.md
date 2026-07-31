@@ -42,7 +42,7 @@ chmod +x Ascend-hdk-<chip_type>-npu-firmware_<version>.run
     **Atlas 800I A2/A3 推理服务器**
 
      ```bash
-     docker run -it -d --net=host --shm-size=500g \  # 对于多模态理解模型，若业务最大并发数较高，--shm-size建议设置不小于100g
+     docker run -it -d --net=host --shm-size=500g \  # 对于多模态理解模型，若业务最大并发数较高，--shm-size建议设置不小于500g
         --name <container-name> \
         -w /home \
         --device=/dev/davinci0:rwm \
@@ -129,7 +129,7 @@ chmod +x Ascend-hdk-<chip_type>-npu-firmware_<version>.run
     |-it|表示启动一个交互式终端（-i）并将其连接到容器的标准输入输出 （-t），能够与容器内部进行交互，如运行命令行操作。|
     |-d|表示容器将以后台模式运行，即容器在后台启动。使用该参数后不会阻塞当前终端的操作，可以在启动容器后继续进行其他操作。|
     |--net|表示容器将使用宿主机的网络配置（网络共享），使容器能够直接访问宿主机的网络接口，适用于需要进行低延迟、直接访问网络资源的场景。|
-    |--shm-size|表示指定容器的共享内存（/dev/shm）大小，用户可自行设置，1g为示例值。对于多模态理解模型，若业务最大并发数较高，--shm-size建议设置不小于100g。<br>该值不能超过宿主机剩余的物理内存总量，可使用`free -h`命令查看。当开启数据并行（即DP>1时），需要随DP增大调整共享内存大小：<br>当DP=2时，shm-size至少为2g<br>当DP=4时，shm-size至少为3g<br>当DP=8时，shm-size至少为5g<br>当DP=16时，shm-size至少为9g|
+    |--shm-size|表示指定容器的共享内存（/dev/shm）大小，用户可自行设置，500g为示例值。对于多模态理解模型，若业务最大并发数较高，--shm-size建议设置不小于500g。<br>该值不能超过宿主机剩余的物理内存总量，可使用`free -h`命令查看。当开启数据并行（即DP>1时），需要随DP增大调整共享内存大小：<br>当DP=2时，shm-size至少为2g<br>当DP=4时，shm-size至少为3g<br>当DP=8时，shm-size至少为5g<br>当DP=16时，shm-size至少为9g|
     |--name|表示给容器指定一个名称。\<container-name\>是容器的标识符，可以自行设置，且在当前系统中具有唯一性。如果不设置，Docker会自动分配一个随机名称。|
     |--device|表示将宿主机的设备映射到容器内。每个--device参数将宿主机设备（例如硬件加速卡或其他硬件设备）共享给容器，以便容器可以直接访问。<br>/dev/davinci_manager：davinci相关的管理设备。<br>/dev/hisi_hdc：hdc相关管理设备。<br>/dev/devmm_svm：内存管理相关设备。<br>/dev/ascend_manager：Ascend设备管理相关设备。<br>/dev/user_config：用户配置相关设备，Atlas 200I Pro 加速模块容器中执行npu-smi等命令时需挂载。<br>/dev/davinci*X*：NPU设备，*X*是ID号，如：davinci0。<br>可根据`ll /dev/ \| grep davinci`命令查询device个数及名称，根据需要绑定设备，修改上面命令中的"--device=****"。|
     |-v|表示将物理机的文件或目录映射到容器内的相应路径，并且使用ro参数将这些目录设置为只读权限。<br>/usr/local/Ascend/driver：该路径包含硬件驱动程序文件，驱动在宿主机上安装，将其映射到容器中，方可在容器中使用。请根据驱动所在实际路径修改。<br>/usr/local/sbin：该路径包含npu-smi等NPU状态查看命令，请根据实际路径修改。<br>/path-to-weights：该路径为设定权重挂载的路径，指向保存权重的目录，使容器能访问权重，请根据实际路径修改。（权重文件和数据集文件同时放置于该路径下）<br>对于Atlas 200I Pro 加速模块，需根据容器镜像操作系统额外挂载npu-smi相关命令依赖的文件或目录：<br>/etc/sys_version.conf：系统版本配置文件。<br>/etc/ld.so.conf.d/mind_so.conf：动态库搜索路径配置文件。<br>/etc/hdcBasic.cfg：hdc基础配置文件。<br>/var/dmp_daemon：dmp_daemon运行相关目录。<br>/usr/local/sbin/npu-smi：npu-smi命令。<br>/usr/local/Ascend/driver/lib64：驱动动态库目录。<br>/etc/slog.conf、/var/slogd：日志配置文件和日志运行目录。<br>/usr/lib64/libmmpa.so、/usr/lib64/libcrypto.so.1.1、/usr/lib64/libstackcore.so：npu-smi依赖的通用动态库。<br>/usr/lib/aarch64-linux-gnu/libyaml-0.so.2：Ubuntu 24.04镜像下npu-smi依赖的libyaml动态库。<br>/usr/lib64/libyaml-0.so.2.0.9：openEuler 24.03镜像下npu-smi依赖的libyaml动态库。<br>/usr/lib64/libsemanage.so.2：openEuler 24.03镜像下npu-smi依赖的libsemanage动态库。|
@@ -142,7 +142,7 @@ chmod +x Ascend-hdk-<chip_type>-npu-firmware_<version>.run
 
 3. 安装依赖。
 
-    使用模型进行推理前需要安装对应的依赖，各模型的依赖安装文件（requirements\__xxx_.txt）所在路径为/usr/local/Ascend/atb-models/requirements/models。以LLaMA3系列模型为例，使用以下命令安装依赖。
+    使用模型进行推理前需要安装对应的依赖，各模型的依赖安装文件（requirements__xxx_.txt）所在路径为/usr/local/Ascend/atb-models/requirements/models。以LLaMA3系列模型为例，使用以下命令安装依赖。
 
     ```bash
     cd /usr/local/Ascend/atb-models/requirements/models
@@ -183,5 +183,5 @@ chmod +x Ascend-hdk-<chip_type>-npu-firmware_<version>.run
     > [!NOTE]说明
     > “$ATB\_SPEED\_HOME\_PATH”已在“.bashrc”中设置好，无需自行设置。
 
-6. MindIE Motor是面向通用模型场景的推理服务化框架，通过开放，可扩展的推理服务化平台架构提供推理服务化能力，支持对接业界主流推理框架接口，满足大语言模型的高性能推理需求。
-    对接Motor的方法请参见[快速入门](../../quick_start/quick_start.md#模型推理)。
+6. MindIE Motor CPP是面向通用模型场景的推理服务化框架，通过开放，可扩展的推理服务化平台架构提供推理服务化能力，支持对接业界主流推理框架接口，满足大语言模型的高性能推理需求。
+    对接Motor CPP的方法请参见[快速入门](../../quick_start/quick_start.md#模型推理)。

@@ -53,8 +53,8 @@ systemd-coredump是由systemd提供的一个核心转储（core dump）处理与
     |Storage|<ul><li>none：不保存core dump文件。</li><li>external：将core dump文件保存至磁盘的/var/lib/systemd/coredump/目录，也可以使用coredumpctl命令进行查看。</li><li>journal：将core dump文件不保存到磁盘，仅写入systemd journal，可用coredumpctl命令进行查看。</li><li>both：同时保存到磁盘和journal。</li></ul>|配置core dump的保存位置，默认值：external。|
     |Compress|<ul><li>yes：开启。</li><li>no：不开启。</li></ul>|是否启用压缩功能。启用后，systemd-coredump会压缩core dump文件，默认值：yes。<ul><li>压缩率高达100~300倍（取决于压缩格式）。</li><li>Ubuntu通常以zstd格式压缩，OpenEuler以lz4格式压缩。</li></ul>|
     |ProcessSizeMax|-|允许处理的最大内存字节数。 超过此大小的内存转储有可能会被保存下来， 但是肯定不会生成回溯。<br>同时设置Storage=none与ProcessSizeMax=0时将会禁止处理一切内存转储，同时仅为每个内存转储事件记录一条简略的日志消息。|
-    |ExternalSizeMax|-|允许保存的最大内存字节数 (未压缩前)。<br>建议设为300G，MindIE程序实测中最大core dump约为120GB，可根据磁盘大小设置合适值。|
-    |JournalSizeMax|-|当参数Storage取值为journal或both时，限制core dump写入systemd journal的大小，当core dump超过设置的值就停着写入systemd journal。<br>当Storage配置为external时，该参数无效。|
+    |ExternalSizeMax|-|允许保存的最大内存字节数 (未压缩前)。<br>建议设为300G，MindIE程序实测中最大core dump约为120G，可根据磁盘大小设置合适值。|
+    |JournalSizeMax|-|当参数Storage取值为journal或both时，限制core dump写入systemd journal的大小，当core dump超过设置的值就停止写入systemd journal。<br>当Storage配置为external时，该参数无效。|
     |MaxUse|<ul><li>置空：不限制；（不推荐）</li><li>其他值：单位有K、M和G，如果设置为10G，表示/var/lib/systemd/coredump/目录最多占用10GB。</li></ul>|限制/var/lib/systemd/coredump/目录占用的最大空间，建议设置为10GB。<br>当超过该限制时，core dump文件就会以轮转模式存入。|
     |KeepFree|-|保留磁盘可用的空间阈值。<br>即使未到参数MaxUse设置的值，若磁盘剩余空间低于该值，则core dump文件就会以轮转模式存入。<br>例：KeepFree=2G，表示保证磁盘至少预留2GB的空闲空间。|
 
