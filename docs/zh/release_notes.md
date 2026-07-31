@@ -67,6 +67,8 @@
 
 ## v3.1.0 更新说明<a name="ZH-CN_TOPIC_0000002532737925"></a>
 
+MindIE LLM 组件将暂停后续功能演进，现有功能维持维护状态，不再新增特性。
+
 ### 新增特性<a name="ZH-CN_TOPIC_0000002532737923"></a>
 
 <a name="zh-cn_topic_0000002501057442_table1287mcpsimp"></a>
