@@ -4,7 +4,7 @@
 
 ### 前提条件
 
-已在环境上安装CANN、PyTorch、Torch-NPU和ATB Models，详情请参见《MindIE安装指南》。
+已在环境上安装CANN、PyTorch、TorchNPU和ATB Models，详情请参见《MindIE安装指南》。
 
 > [!NOTE]说明
 > 本次样例参考以下安装路径进行：
@@ -191,7 +191,7 @@
 
 ### 前提条件
 
-已在环境上安装CANN、PyTorch、Torch-NPU、ATB Models、MindIE LLM和MindIE Motor CPP，详情请参见《MindIE安装指南》。
+已在环境上安装CANN、PyTorch、TorchNPU、ATB Models、MindIE LLM和MindIE Motor CPP，详情请参见《MindIE安装指南》。
 
 ### 使用实例
 

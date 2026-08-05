@@ -52,7 +52,7 @@ MindIE当前支持两种负载均衡特性：静态冗余负载均衡和强制�
 
 采集热点信息后，每个NPU会生成一个.csv文件，文件中包含一个矩阵（num\_moe\_layer \* 单NPU专家数）。矩阵中的每个数字代表该layer中该专家所计算的token数，每8个token会在采集文件中追加该矩阵。
 
-根据采集的专家热点信息，可使用[msit工具](https://gitcode.com/Ascend/msit/blob/master/msit/docs/install/README.md)的“elb”组件生成冗余专家部署表。
+根据采集的专家热点信息，可使用[msit工具](https://gitcode.com/Ascend/msit/blob/master/msit/README.md)的“elb”组件生成冗余专家部署表。
 
 1. 安装“elb”组件，安装方法如下所示。
 

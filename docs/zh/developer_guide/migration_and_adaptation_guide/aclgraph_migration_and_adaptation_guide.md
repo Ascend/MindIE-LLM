@@ -45,7 +45,7 @@ mindie_llm/runtime/models/my_model/
 > - 框架读取 `model_type` 字段时会统一转换成小写进行匹配，**文件夹名、文件名前缀需与 `config.json` 中的 `model_type` 字段对应**
 > - 文件名统一使用小写加下划线的格式（snake_case），如 `model_type = "my_model"` → 文件路径 `my_model/my_model.py`
 > - 类名使用大驼峰命名法（PascalCase），如 `MyModelRouter`、`MyModelConfig`
-> [!TIP]
+>
 > 详细的匹配机制可参考 [mindie_llm/runtime/models/\_\_init\_\_.py](../../../../mindie_llm/runtime/models/__init__.py) 和 [mindie_llm/runtime/models/base/router.py](../../../../mindie_llm/runtime/models/base/router.py)。
 
 ---
@@ -227,8 +227,8 @@ MyModelForCausalLM (顶层，包含 LM Head)
 所有模型层都应该继承自 `nn.Module`，根据模型特性实现相应接口。每个模块的构造函数必须包含 `prefix` 参数，用于权重加载和量化配置匹配。
 
 > [!NOTE]
-> 在 forward 方法中，可以调用 layer 模块的 forward 实现，也可以使用 torch 和 torch_npu 的接口。
-> [!TIP]
+> 在 forward 方法中，可以调用 layer 模块的 forward 实现，也可以使用 torch 和 TorchNPU 的接口。
+>
 > **Layer 相关模块请参考**：
 >
 > - Linear Layer: [mindie_llm/runtime/layers/linear/](../../../../mindie_llm/runtime/layers/linear/)
@@ -457,7 +457,7 @@ MindIE-LLM 支持 AutoQuant 能力，目前已支持的量化方式请参考 [mi
 ### 9.2 相关文档
 
 - **CANN 文档**: [CANN-文档-昇腾社区](https://www.hiascend.com/cann/document)
-- **PyTorch 文档**: [Ascend Extension for PyTorch](https://www.hiascend.com/document/detail/zh/Pytorch/730/index/index.html)
+- **TorchNPU 文档**: [TorchNPU](https://www.hiascend.com/document/detail/zh/Pytorch/730/index/index.html)
 - **msmodelslim 文档**: [模型量化工具](https://gitcode.com/Ascend/msmodelslim)
 
 ---

@@ -15,22 +15,22 @@ source /usr/local/Ascend/nnal/atb/set_env.sh
 
 以上命令以root用户安装后的默认路径为例，请用户根据set_env.sh的实际路径进行替换。
 
-## 安装PyTorch和Torch NPU
+## 安装PyTorch和TorchNPU
 
-- 如果操作系统是ubuntu 22.04，请安装torch_npu 2.1.0；如果操作系统是ubuntu 24.04 LTS，请安装torch_npu 2.9.0。
-- 请参考《Ascend Extension for PyTorch 软件安装指南》中的“[安装PyTorch](https://www.hiascend.com/document/detail/zh/Pytorch/730/configandinstg/instg/docs/zh/installation_guide/installation_via_binary_package.md)”章节安装PyTorch框架和torch_npu插件。
+- 如果操作系统是ubuntu 22.04，请安装TorchNPU 2.1.0；如果操作系统是ubuntu 24.04 LTS，请安装TorchNPU 2.9.0。
+- 请参考《TorchNPU 软件安装指南》中的“[安装PyTorch](https://www.hiascend.com/document/detail/zh/Pytorch/730/configandinstg/instg/docs/zh/installation_guide/installation_via_binary_package.md)”章节安装PyTorch框架和TorchNPU插件。
 
-MindIE中各组件依赖PyTorch框架和torch_npu插件，依赖情况如下表所示，请用户依据实际使用需求安装。
+MindIE中各组件依赖PyTorch框架和TorchNPU插件，依赖情况如下表所示，请用户依据实际使用需求安装。
 
-**表 1** MindIE各组件依赖PyTorch框架和torch_npu插件说明表
+**表 1** MindIE各组件依赖PyTorch框架和TorchNPU插件说明表
 
-|组件名称|是否需要安装PyTorch框架|是否需要安装torch_npu插件|
+|组件名称|是否需要安装PyTorch框架|是否需要安装TorchNPU插件|
 |--|--|--|
 |MindIE Motor CPP|**必装**|**必装**|
 |MindIE LLM|**必装**|**必装**|
 |MindIE SD|**必装**|**必装**|
 
-> **注意**：使用 Python 3.10 环境编译，需配套 torch 2.9.0 版本 + torch_npu 2.9.0 版本,
+> **注意**：使用 Python 3.10 环境编译，需配套 torch 2.9.0 版本 + TorchNPU 2.9.0 版本,
 否则会导致 \_bz2 模块缺失，从而导致编译失败。
 
 ## 安装ATB Models

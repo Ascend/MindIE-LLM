@@ -34,7 +34,7 @@
 | ---     | ---  |
 | CANN    | 9.0.1 |
 | MindCluster | 26.0.0 |
-| Ascend Extension for PyTorch | 26.0.0 |
+| TorchNPU | 26.0.0 |
 | CCAE    | iMaster CCAE V100R026C10SPC100 |
 
 ## 版本兼容性说明<a name="ZH-CN_TOPIC_0000002532657965"></a>

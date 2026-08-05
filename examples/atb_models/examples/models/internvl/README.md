@@ -58,7 +58,7 @@
 
 - 1.Python 其他第三方库依赖，参考 [requirements_internvl.txt](../../../requirements/models/requirements_internvl.txt)
 - 2.参考[此 README 文件](../../../README.md)
-- 注意：保证先后顺序，首先安装 FrameworkPTAdapter 中的 pytorch 和 torch_npu，再安装其他的 python 依赖。
+- 注意：保证先后顺序，首先安装 FrameworkPTAdapter 中的 pytorch 和 TorchNPU，再安装其他的 python 依赖。
 
 ## 推理
 

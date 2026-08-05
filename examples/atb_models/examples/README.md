@@ -36,7 +36,7 @@
   | W8A8           | "w8a8"   |
   | W8A8S          | "w8a8s"  |
   | W8A8SC         | "w8a8sc" |
-  | W8A16          | "w8a16"  | 
+  | W8A16          | "w8a16"  |
 
   - 若模型涉及线性层量化，则需配置此字段
 
@@ -111,7 +111,7 @@
 >
 > 若需要将Megatron训练后权重转换为safetensors格式
 
-- 请移步ModelLink仓库的[权重转换](https://gitee.com/ascend/ModelLink/blob/master/examples/README.md)第2.2章节，按照ModelLink开发指南先将训练后权重格式转换为bin格式的权重文件，再进行上一步safetensors权重转换
+- 请移步[MindSpeed LLM](https://gitcode.com/Ascend/MindSpeed-LLM)仓库，按照指南先将训练后权重格式转换为bin格式的权重文件，再进行上一步safetensors权重转换
 
 ### 权重切分
 >
@@ -129,9 +129,9 @@
   | tp             | 否        | string  |        | 张量并行度     |
   | sp             | 否        | string  |        | 序列并行度     |
   | cp             | 否        | string  |        | 上下文并行度   |
-  | moe_tp         | 否        | string  |        | moe张量并行度  |  
+  | moe_tp         | 否        | string  |        | moe张量并行度  |
   | moe_ep         | 否        | string  |        | moe专家并行度  |
-  | save_directory | 是        | string  |        | 切分权重保存路径  |  
+  | save_directory | 是        | string  |        | 切分权重保存路径  |
 
 - 示例
 在双机场景下，按照dp=2，tp=8，moe_tp=4，moe_ep=4的并行策略切分权重
@@ -143,7 +143,7 @@
 
 ### 权重量化
 
-权重量化依赖msModelSlim工具，下载及安装方式见[README](https://gitcode.com/ascend/msit/blob/master/msmodelslim/README.md)
+权重量化依赖msModelSlim工具，下载及安装方式见[README](https://gitcode.com/Ascend/msmodelslim/blob/master/docs/zh/install_guide/install_guide.md)
 
 #### 量化脚本
 
@@ -194,7 +194,7 @@
 
 - 环境要求
   - 硬件环境：Atlas 800I A2或Atlas 300I DUO环境
-  - Pytorch、PTA配套在2.1版本及以上
+  - Pytorch、TorchNPU配套在2.1版本及以上
   - CANN >= 8.0.RC2.B010
   - accelerate >= 0.28.0
   - 关闭虚拟内存：`PYTORCH_NPU_ALLOC_CONF`环境变量需设置为`expandable_segments:False`
@@ -207,7 +207,7 @@
 
 - 脚本：`${llm_path}/examples/convert/model_slim/sparse_compressor.py`
 - 功能：加载权重并进行多卡切分，在切分后的权重上执行压缩算法
-- 运行前请参考[msmodelslim](https://gitcode.com/Ascend/msit/blob/master/msmodelslim/docs/%E5%AE%89%E8%A3%85%E6%8C%87%E5%8D%97.md)安装msModelSlim量化工具
+- 运行前请参考[msmodelslim](https://gitcode.com/Ascend/msmodelslim/blob/master/docs/zh/install_guide/install_guide.md)安装msModelSlim量化工具
 
 - 调用方法
 
@@ -374,7 +374,7 @@
 
 | 参数名称                 | 是否为必选  | 类型                  | 默认值                       | <div style="width:1000px">描述</div> |
   |-----------------------|-----------|----------------------|-----------------------------|--------------------------------------|
-  | device                | 是        | string                |                            | 指定devicee_id | 
+  | device                | 是        | string                |                            | 指定devicee_id |
   | model_name            | 是        | string                |                            | 模型名称 |
   | model_weights_path    | 是        | string                |                            | 权重路径 |
   | image_info            | 是        | string                |                            | predict_result.json的路径 |

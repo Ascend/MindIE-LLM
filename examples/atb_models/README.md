@@ -21,7 +21,7 @@
   - 驱动（HDK）
   - CANN
   - Python
-  - PTA
+  - TorchNPU
   - 开源软件依赖
 - 版本配套关系
   - 当前模型仓需基于CANN包8.0版本及以上，Python 3.10/3.11，torch 2.1.0/2.9.0进行环境部署与运行
@@ -130,7 +130,7 @@
 
 ### 1.3 安装PytorchAdapter
 
-先安装torch 再安装torch_npu
+先安装torch 再安装TorchNPU
 
 #### 1.3.1 安装torch
 
@@ -151,7 +151,7 @@
     pip install torch-2.9.0-cp311-cp311-linux_aarch64.whl
     ```
 
-#### 1.3.2 安装torch_npu
+#### 1.3.2 安装TorchNPU
 
 安装方法：
 
@@ -160,10 +160,10 @@
 | pytorch_v${version}_py311.tar.gz |
 | ...                         |
 
-- 安装选择与torch版本以及python版本一致的npu_torch版本
+- 安装选择与torch版本以及python版本一致的TorchNPU版本
 
 ```bash
-# 安装 torch_npu，以 torch 2.9.0，python 3.11 的版本为例
+# 安装 TorchNPU，以 torch 2.9.0，python 3.11 的版本为例
 tar -zxvf pytorch_v2.9.0_py311.tar.gz
 pip install torch*_aarch64.whl
 ```
@@ -282,7 +282,7 @@ pip install torch*_aarch64.whl
 ### 1.6 安装量化工具msModelSlim (可选)
 
   - 量化权重需使用该工具生成，具体生成方式详见各模型README文件
-  - 工具下载及安装方式见[README](https://gitcode.com/ascend/msit/blob/master/msmodelslim/README.md)
+  - 工具下载及安装方式见[README](https://gitcode.com/Ascend/msmodelslim/blob/master/README.md)
 
 ## 环境变量参考
 
@@ -419,9 +419,10 @@ source /usr/local/Ascend/atb-models/set_env.sh
 #### Dump Tensor
 
 - 适用于定位精度问题
-- msit推理工具提供dump tensor以及精度对比的能力
-  - 工具下载方式见[README](https://gitcode.com/ascend/msit/blob/master/msit/docs/install/README.md)
-  - 工具使用方式见[README](https://gitcode.com/ascend/msit/blob/master/msit/docs/llm/%E5%B7%A5%E5%85%B7-DUMP%E5%8A%A0%E9%80%9F%E5%BA%93%E6%95%B0%E6%8D%AE%E4%BD%BF%E7%94%A8%E8%AF%B4%E6%98%8E.md)
+- MindStudio Probe提供dump tensor以及精度对比的能力
+  - 工具安装见[msProbe工具安装指南](https://gitcode.com/Ascend/msprobe/blob/master/docs/zh/install_guide/msprobe_install_guide.md)
+  - 精度采集见[ATB场景精度数据采集](https://gitcode.com/Ascend/msprobe/blob/master/docs/zh/user_guide/dump/atb_data_dump_instruct.md)
+  - 精度比对见[ATB场景精度比对](https://gitcode.com/Ascend/msprobe/blob/master/docs/zh/user_guide/accuracy_compare/atb_data_compare_instruct.md)
 
 #### 溢出检查
 

@@ -132,10 +132,10 @@ python examples/models/internlmxcomposer2/convert_quant_weights.py --model_path 
   {"internlmxc2":"$weight_path"}
   ```
 
-**运行 Torch_npu FP16 前配置**
+**运行 TorchNPU FP16 前配置**
 
-- 运行 torch_npu 推理前应设置 `${weight_path}/build_mlp.py` 文件中的 vision_tower 为 `${vit_path}`
-- 运行 InternLM-XComposer2-4KHD-7B 模型的 Torch_npu 结果时，请修改为 `eager` 模式，修改 config.json 文件为：
+- 运行 TorchNPU 推理前应设置 `${weight_path}/build_mlp.py` 文件中的 vision_tower 为 `${vit_path}`
+- 运行 InternLM-XComposer2-4KHD-7B 模型的 TorchNPU 结果时，请修改为 `eager` 模式，修改 config.json 文件为：
 
   ```shell
   {
@@ -148,21 +148,21 @@ python examples/models/internlmxcomposer2/convert_quant_weights.py --model_path 
 
 ### 方案
 
-精度测试方案：使用同样的一组图片，分别执行 Torch_npu 和 加速库 路线，得到两组图片描述。 再使用 open_clip 模型作为裁判，对两组结果分别进行评分，以判断优劣。
+精度测试方案：使用同样的一组图片，分别执行 TorchNPU 和 加速库 路线，得到两组图片描述。 再使用 open_clip 模型作为裁判，对两组结果分别进行评分，以判断优劣。
 
 #### 实施
 
 1. 下载 [open_clip 的权重 open_clip_pytorch_model.bin](https://huggingface.co/laion/CLIP-ViT-H-14-laion2B-s32B-b79K/tree/main)，并把下载的权重放在 open_clip_path 目录下
    下载[测试图片（CoCotest 数据集）](https://cocodataset.org/#download)并随机抽取其中 100 张图片放入 `${image_path}` 目录下
 
-2. Torch_npu 路线，在 `${llm_path}` 目录下，运行脚本
+2. TorchNPU 路线，在 `${llm_path}` 目录下，运行脚本
 
    ```bash
    # 注意：300I Duo 场景下，InternLM-XComposer2-4KHD-7B 模型需修改 `${weight_path}/modeling_internlm_xcomposer2.py` 文件中 `img2emb` 函数中的 `image` 变量为 `image.cpu()` ，以转换到 cpu 侧执行
    python ${script_path}/precision/run_coco.py --model_path ${weight_path} --image_path ${image_path} (--trust_remote_code)
    ```
 
-   会在当前 `${llm_path}` 目录下生成 torch_npu_coco_predict.json 文件存储 torch_npu 推理结果
+   会在当前 `${llm_path}` 目录下生成 torch_npu_coco_predict.json 文件存储 TorchNPU 推理结果
 
 3. 加速库 路线,在 `${llm_path}` 目录下执行以下指令：
 

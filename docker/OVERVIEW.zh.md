@@ -2,7 +2,7 @@
 
 > [English](./OVERVIEW.md) | 中文
 
-提供自动化构建脚本和多阶段 Dockerfile，支持从编译包构建 MindIE 推理服务镜像。构建流程涵盖 Python 编译、CANN 工具链安装、PyTorch/torch_npu（PTA）部署、以及 MindIE 组件安装（LLM / SD / Motor），并支持 8 路并行下载加速。
+提供自动化构建脚本和多阶段 Dockerfile，支持从编译包构建 MindIE 推理服务镜像。构建流程涵盖 Python 编译、CANN 工具链安装、PyTorch/TorchNPU 部署、以及 MindIE 组件安装（LLM / SD / Motor），并支持 8 路并行下载加速。
 
 ## 快速参考
 
@@ -36,7 +36,7 @@
 | [build.sh](./build.sh) | 主入口脚本，负责参数解析、校验、下载编排与构建调用 |
 | [Dockerfile](./Dockerfile) | 多阶段 Docker 构建文件（7 个阶段） |
 | [modules/config.sh](./modules/config.sh) | 集中配置：URL 模板、日志、校验、架构检测、Chip/OS 元数据 |
-| [modules/download.sh](./modules/download.sh) | 下载层：8 路并行下载 PTA / Python / CANN / MindIE-LLM / MindIE-SD / MindIE-Motor 包 |
+| [modules/download.sh](./modules/download.sh) | 下载层：8 路并行下载 TorchNPU / Python / CANN / MindIE-LLM / MindIE-SD / MindIE-Motor 包 |
 | [modules/build_image.sh](./modules/build_image.sh) | 构建编排层：镜像 Tag 计算、Docker 构建、镜像导出 |
 
 ---
@@ -94,16 +94,16 @@ mindie:3.0.0-800I-A2-py3.11-ubuntu24.04-x86_64
 | `--arch` | 系统架构 | 是 | — | x86_64 / aarch64 |
 | `--mindie` | MindIE 版本号（驱动 LLM / SD / Motor） | 是 | — | 3.0.0 |
 | `--cann` | CANN 版本号 | 是 | — | 9.0.0 |
-| `--pta-tag` | PTA 发布 Tag | 是 | — | v26.0.0-pytorch2.9.0 |
+| `--pta-tag` | TorchNPU 发布 Tag | 是 | — | v26.0.0-pytorch2.9.0 |
 | `--type` | 包类型 | 否 | `whl` | whl / run |
 | `--python` | Python 版本 | 否 | `3.11.10` | 3.11.6 |
 | `--dry-run` | 仅校验参数并展示配置 | 否 | `false` | — |
 
 **注意：**
 
-1. cann 版本号参见[昇腾社区](https://www.hiascend.com/developer/download/community/result)
+1. CANN 版本号参见[昇腾社区](https://www.hiascend.com/developer/download/community/result)
 
-2. pta-tag 参见 [Pytorch-NPU 社区](https://gitcode.com/Ascend/pytorch/releases)
+2. TorchNPU 发布 Tag 参见 [TorchNPU 社区](https://gitcode.com/Ascend/pytorch/releases)
 
 3. mindie 版本号参见 [MindIE-LLM 社区](https://gitcode.com/Ascend/MindIE-LLM/releases) / [MindIE-SD 社区](https://gitcode.com/Ascend/MindIE-SD/releases) / [MindIE-Motor 社区](https://gitcode.com/Ascend/MindIE-Motor/releases)
 
@@ -161,7 +161,7 @@ bash build.sh \
 
 1. **参数解析与校验** — `build.sh` 解析命令行参数，调用 `config.sh` 校验 OS/Chip/Arch/Type 合法性。
 2. **并行下载（8 路）** — `download.sh` 并行下载以下组件：
-   - PTA（torch_npu wheel）
+   - TorchNPU wheel
    - Python 源码包（仅 Ubuntu，openEuler 跳过）
    - CANN Toolkit
    - CANN NNAL
@@ -174,7 +174,7 @@ bash build.sh \
    - **Stage 1b (base-openeuler):** OpenEuler 24.03 + 预装 Python
    - **Stage 2 (base):** 动态 OS 选择，导入所有下载包
    - **Stage 3 (cann):** 安装 CANN Toolkit + Kernels + NNAL
-   - **Stage 4 (pta):** 安装 PyTorch + torch_npu
+   - **Stage 4 (pta):** 安装 PyTorch + TorchNPU
    - **Stage 4.5 (mindstudio):** 安装开发工具（git, cmake, gcc, ffmpeg 等）
    - **Stage 5 (mindie):** 安装 MindIE 组件（LLM / SD / Motor）
 4. **镜像导出** — 将构建产物保存为 `output/` 目录下的 `.tar.gz` 文件。
@@ -196,7 +196,7 @@ base-openeuler┘
 | MindIE-LLM | `https://gitcode.com/Ascend/MindIE-LLM/releases/download` |
 | MindIE-SD | `https://gitcode.com/Ascend/MindIE-SD/releases/download` |
 | MindIE-Motor | `https://gitcode.com/Ascend/MindIE-Motor/releases/download` |
-| PTA (torch_npu) | `https://gitcode.com/Ascend/pytorch/releases/download` |
+| TorchNPU | `https://gitcode.com/Ascend/pytorch/releases/download` |
 | CANN | `https://ascend-repo.obs.cn-east-2.myhuaweicloud.com/CANN/CANN` |
 | Python 源码 | `https://mirrors.huaweicloud.com/python` |
 

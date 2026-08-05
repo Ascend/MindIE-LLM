@@ -28,7 +28,7 @@
 
 #### 环境准备
 
-请参考 [msmodelslim 安装指南](https://gitcode.com/Ascend/msmodelslim/blob/master/docs/zh/getting_started/install_guide.md) 安装 msModelSlim 量化工具。
+请参考 [msmodelslim 安装指南](https://gitcode.com/Ascend/msmodelslim/blob/master/docs/zh/install_guide/install_guide.md) 安装 msModelSlim 量化工具。
 
 #### 导出 w8a8 量化权重
 

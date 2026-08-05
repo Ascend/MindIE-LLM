@@ -38,7 +38,7 @@ chat接口激活的专家分布更均衡，但单卡激活的专家数更多，�
 
 ## 解决方案
 
-需要确认MindIE LLM和ATB，CANN，torch，torch\_npu是否匹配，ABI=0/1的选择是否正确 。
+需要确认MindIE LLM和ATB，CANN，torch，TorchNPU是否匹配，ABI=0/1的选择是否正确 。
 
 ## 多卡服务化分布式推理时缺失环境变量MASTER\_ADDR或MASTER\_PORT
 

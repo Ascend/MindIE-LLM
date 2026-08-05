@@ -68,7 +68,7 @@ bash quant_chatglm_w8a8.sh -src ${浮点权重路径} -dst ${量化权重保存�
 #### 导出稀疏量化权重
 
 > 运行前需要确保压缩工具编译过
-请参考 [msmodelslim 安装指南](https://gitcode.com/Ascend/msmodelslim/blob/master/docs/zh/getting_started/install_guide.md) 安装 msModelSlim 量化工具。
+请参考 [msmodelslim 安装指南](https://gitcode.com/Ascend/msmodelslim/blob/master/docs/zh/install_guide/install_guide.md) 安装 msModelSlim 量化工具。
 
 执行 generate_sparse.sh 导出稀疏量化权重（注意量化权重不要和浮点权重放在同一个目录下）：
 
