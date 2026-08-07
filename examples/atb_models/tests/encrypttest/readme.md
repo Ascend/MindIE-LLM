@@ -136,7 +136,7 @@ cd ${atb_models}
 torchrun --nproc_per_node 2 --master_port 20038 -m examples.run_pa --model_path ${encrypt_weight_path} --max_output_length 2048
 ```
 
-其余参数的解释请参考 `run_pa` 的[介绍文档](https://gitcode.com/Ascend/MindIE-LLM/blob/master/examples/atb_models/examples/README.md)。
+其余参数的解释请参考 `run_pa` 的[介绍文档](https://gitcode.com/Ascend/MindIE-LLM/blob/v3.1.0/examples/atb_models/examples/README.md)。
 
 #### 加密权重“服务化”推理示例
 
@@ -156,7 +156,7 @@ bash run.sh pa_fp16 full_TruthfulQA 4 llama /your/model/path 8
 
 ```
 
-参数的解释请参考modeltest下的[介绍文档](https://gitcode.com/Ascend/MindIE-LLM/blob/master/examples/atb_models/tests/modeltest/README.md) 中的  精度测试（下游数据集）章节。
+参数的解释请参考modeltest下的[介绍文档](https://gitcode.com/Ascend/MindIE-LLM/blob/v3.1.0/examples/atb_models/tests/modeltest/README.md) 中的  精度测试（下游数据集）章节。
 
 ## 传统路线权重加载方式加解密使用指导
 
@@ -262,7 +262,7 @@ torchrun --nproc_per_node 2 --master_port 20038 -m examples.run_pa --model_path 
 - encrypt_enable 参数控制是否可以加载加密的模型权重，默认为0。
 - key_path  密钥路径。
 
-其余参数的解释请参考 `run_pa` 的[介绍文档](https://gitcode.com/Ascend/MindIE-LLM/blob/master/examples/atb_models/examples/README.md)。
+其余参数的解释请参考 `run_pa` 的[介绍文档](https://gitcode.com/Ascend/MindIE-LLM/blob/v3.1.0/examples/atb_models/examples/README.md)。
 
 #### 服务化 运行
 
@@ -284,4 +284,4 @@ bash run.sh pa_fp16 full_TruthfulQA 4 llama /your/model/path '{"encrypt_enable":
 
 其中，encrypt_enable 参数控制是否可以加载加密的模型权重， key_path 表示加密权重的密钥路径。
 
-其余参数的解释请参考modeltest下的[介绍文档](https://gitcode.com/Ascend/MindIE-LLM/blob/master/examples/atb_models/tests/modeltest/README.md) 中的  精度测试（下游数据集）章节。
+其余参数的解释请参考modeltest下的[介绍文档](https://gitcode.com/Ascend/MindIE-LLM/blob/v3.1.0/examples/atb_models/tests/modeltest/README.md) 中的  精度测试（下游数据集）章节。

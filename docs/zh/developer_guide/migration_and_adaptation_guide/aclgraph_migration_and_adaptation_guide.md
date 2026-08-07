@@ -18,12 +18,10 @@
    └─ 加载模型权重并运行推理
 ```
 
-> [!IMPORTANT]
+> [!NOTE]说明
 >
 > - 如果模型需要支持 `/chat/completion` 接口、多轮对话或 ToolCall，需实现 `InputBuilder`
 > - 如果模型需要支持 ToolCall 能力，需实现 `ToolCallsProcessor`
-
----
 
 ## 1. 创建文件
 
@@ -39,16 +37,14 @@ mindie_llm/runtime/models/my_model/
 └── tool_calls_processor_my_model.py    # ToolCallsProcessor (可选)
 ```
 
-> [!NOTE]
+> [!NOTE]说明
 > **命名规范**：
 >
 > - 框架读取 `model_type` 字段时会统一转换成小写进行匹配，**文件夹名、文件名前缀需与 `config.json` 中的 `model_type` 字段对应**
 > - 文件名统一使用小写加下划线的格式（snake_case），如 `model_type = "my_model"` → 文件路径 `my_model/my_model.py`
 > - 类名使用大驼峰命名法（PascalCase），如 `MyModelRouter`、`MyModelConfig`
 >
-> 详细的匹配机制可参考 [mindie_llm/runtime/models/\_\_init\_\_.py](../../../../mindie_llm/runtime/models/__init__.py) 和 [mindie_llm/runtime/models/base/router.py](../../../../mindie_llm/runtime/models/base/router.py)。
-
----
+> 详细的匹配机制可参考 [mindie_llm/runtime/models/\_\_init\_\_.py](https://gitcode.com/Ascend/MindIE-LLM/blob/v3.1.0/mindie_llm/runtime/models/__init__.py) 和 [mindie_llm/runtime/models/base/router.py](https://gitcode.com/Ascend/MindIE-LLM/blob/v3.1.0/mindie_llm/runtime/models/base/router.py)。
 
 ## 2. 实现 Router
 
@@ -95,7 +91,7 @@ Router 是模型迁移的入口，负责协调 Config、Model 和其他组件的
 
 Router 需要继承 `BaseRouter` 。
 
-> [!NOTE]
+> [!NOTE]说明
 > **必需接口**：`__init__` - 继承基类即可，无需特殊实现
 >
 > **可扩展接口**（举例）：
@@ -134,8 +130,6 @@ class MyModelRouter(BaseRouter):
         return None
 ```
 
----
-
 ## 3. 实现 Config
 
 Config 负责解析和管理模型的超参数配置。
@@ -150,19 +144,19 @@ Config 负责解析和管理模型的超参数配置。
 
 `HuggingFaceConfig` 基类中提供了常见的超参配置，若模型存在新增的超参依赖，则在 `MyModelConfig` 中新增。
 
-> [!TIP]
-> 代码参考： [huggingface_config.py](../../../../mindie_llm/runtime/config/huggingface_config.py)
+> [!Note]说明
+> 代码参考： [huggingface_config.py](https://gitcode.com/Ascend/MindIE-LLM/blob/v3.1.0/mindie_llm/runtime/config/huggingface_config.py)
 
 ### 3.3 实现步骤
 
 Config 需要继承 `HuggingFaceConfig`。
 
-> [!NOTE]
+> [!NOTE]说明
 > **必需接口**：`__init__` - 调用父类初始化，处理模型特有的配置项
 >
 > **可扩展接口**（举例）：
 >
-> - `_create_rope_scaling()` - 自定义 RoPE 缩放配置，详细配置请参考 [RoPE 文档](../architecture_design/RoPEFactoryGuide.md)
+> - `_create_rope_scaling()` - 自定义 RoPE 缩放配置，详细配置请参考 [RoPE 文档](https://gitcode.com/Ascend/MindIE-LLM/blob/v3.1.0/docs/zh/developer_guide/architecture_design/RoPEFactoryGuide.md)
 
 **示例**：
 
@@ -189,8 +183,6 @@ class MyModelConfig(HuggingFaceConfig):
             max_position_embeddings=max_position_embeddings
         )
 ```
-
----
 
 ## 4. 实现 Model
 
@@ -226,16 +218,16 @@ MyModelForCausalLM (顶层，包含 LM Head)
 
 所有模型层都应该继承自 `nn.Module`，根据模型特性实现相应接口。每个模块的构造函数必须包含 `prefix` 参数，用于权重加载和量化配置匹配。
 
-> [!NOTE]
+> [!Note]说明
 > 在 forward 方法中，可以调用 layer 模块的 forward 实现，也可以使用 torch 和 TorchNPU 的接口。
 >
 > **Layer 相关模块请参考**：
 >
-> - Linear Layer: [mindie_llm/runtime/layers/linear/](../../../../mindie_llm/runtime/layers/linear/)
-> - Attention Layer: [mindie_llm/runtime/layers/attention/](../../../../mindie_llm/runtime/layers/attention/)
-> - MoE Layer: [mindie_llm/runtime/layers/fused_moe/](../../../../mindie_llm/runtime/layers/fused_moe/)
-> - Embedding Layer: [mindie_llm/runtime/layers/embedding/](../../../../mindie_llm/runtime/layers/embedding/)
-> - Normalization Layer: [mindie_llm/runtime/layers/normalization.py](../../../../mindie_llm/runtime/layers/normalization.py)
+> - Linear Layer: [mindie_llm/runtime/layers/linear/](https://gitcode.com/Ascend/MindIE-LLM/tree/v3.1.0/mindie_llm/runtime/layers/linear/)
+> - Attention Layer: [mindie_llm/runtime/layers/attention/](https://gitcode.com/Ascend/MindIE-LLM/tree/v3.1.0/mindie_llm/runtime/layers/attention/)
+> - MoE Layer: [mindie_llm/runtime/layers/fused_moe/](https://gitcode.com/Ascend/MindIE-LLM/tree/v3.1.0/mindie_llm/runtime/layers/fused_moe/)
+> - Embedding Layer: [mindie_llm/runtime/layers/embedding/](https://gitcode.com/Ascend/MindIE-LLM/tree/v3.1.0/mindie_llm/runtime/layers/embedding/)
+> - Normalization Layer: [mindie_llm/runtime/layers/normalization.py](https://gitcode.com/Ascend/MindIE-LLM/blob/v3.1.0/mindie_llm/runtime/layers/normalization.py)
 
 下面给出 MyModel 标准范式：
 
@@ -301,7 +293,7 @@ class MyModelForCausalLM(BaseModelForCausalLM):
         ...
 ```
 
-> [!IMPORTANT]
+> [!NOTE]说明
 > **权重加载注意事项**：
 >
 > 模块的权重名称优先使用 `prefix` 字段定义，如果 `prefix` 字段没有定义，则直接使用模块的属性名进行匹配。
@@ -313,13 +305,11 @@ class MyModelForCausalLM(BaseModelForCausalLM):
 >
 > - 图模式**不允许**在 forward 中包含日志打印、device/stream sync 等操作
 
----
-
 ## 5. 实现 InputBuilder (Optional)
 
 InputBuilder 负责处理用户输入，构建模型输入格式。如果模型有特殊的输入格式要求，或需要支持 Chat Template、Function Calling、Reasoning Mode，则需要实现 InputBuilder，InputBuilder 需要继承 `InputBuilder` 基类。
 
-> [!NOTE]
+> [!NOTE]说明
 > **必需接口**：
 >
 > - `__init__` - 初始化，接收 tokenizer 和可选参数
@@ -344,13 +334,11 @@ class MyModelInputBuilder(InputBuilder):
         return self.tokenizer.apply_chat_template(conversation, **kwargs)
 ```
 
----
-
 ## 6. 实现 ToolCalls 能力 (Optional)
 
 如果模型支持 Function Calling，需要实现 ToolCallsProcessor 来解析模型输出的工具调用信息。ToolCallsProcessor 需要继承相应的基类（如 `ToolCallsProcessorWithXml`），并使用装饰器注册。
 
-> [!NOTE]
+> [!NOTE]说明
 > **必需接口**：
 >
 > - `__init__` - 初始化，定义工具调用的正则表达式
@@ -398,20 +386,16 @@ class ToolCallsProcessorMyModel(ToolCallsProcessorWithXml):
         return self._tool_calls_regex
 ```
 
-> [!TIP]
+> [!Note]说明
 > 装饰器 `@ToolCallsProcessorManager.register_module(module_names=["my_model"])` 会将当前处理器注册到全局管理器中。Router 通过 `_get_tool_calls_parser()` 返回的名称（如 `"my_model"`）来查找对应的处理器。注册名称可以是一个或多个，例如 `module_names=["model_a", "model_b"]` 可让同一处理器支持多种模型。
-
----
 
 ## 7. 测试验证
 
-测试验证请参考 [快速开始文档](../../user_guide/quick_start/quick_start.md)。
-
----
+测试验证请参考 [快速开始文档](https://gitcode.com/Ascend/MindIE-LLM/blob/v3.1.0/docs/zh/user_guide/quick_start/quick_start.md)。
 
 ## 8. 常见问题 FAQ
 
-### 问题 1. 如何支持分布式推理?
+### 问题 1. 如何支持分布式推理？
 
 如果模型过大无法放入单个 Device，可以使用 Tensor Parallelism 来管理。为此，需要将模型的线性层和嵌入层替换为对应的 tensor-parallel 版本：
 
@@ -422,45 +406,38 @@ class ToolCallsProcessorMyModel(ToolCallsProcessorWithXml):
 - `MergedColumnParallelLinear`: 合并多个 `ColumnParallelLinear` 模块的列并行线性层。通常用于带加权激活函数（如 SiLU）的 FFN 第一层。
 - `QKVParallelLinear`: 多头和分组查询注意力机制的查询、键和值投影的并行线性层。当键值头数小于 world size 时，该类会正确复制键值头。
 
-> [!TIP]
+> [!Note]说明
 >
 > - `MergedColumnParallelLinear` 支持量化方式不一致的场景，当多个并行线性层的量化方式不统一时，会变成一个包含多个 `ColumnParallelLinear` 模块的列表。
 > - 框架提供 `ParallelInfoManager` 单例，用于获取并行数与 rank，通信域使用懒加载机制创建。可以通过 `get_parallel_info_manager().get(ParallelType.ATTN_TP).group_size` 获取并行信息。
 
-更多并行层的实现细节，请参考 [mindie_llm/runtime/layers/](../../../../mindie_llm/runtime/layers/) 目录下的源码。
+更多并行层的实现细节，请参考 [mindie_llm/runtime/layers/](https://gitcode.com/Ascend/MindIE-LLM/tree/v3.1.0/mindie_llm/runtime/layers) 目录下的源码。
 
-### 问题 2. MoE 模型如何配置专家并行?
+### 问题 2. MoE 模型如何配置专家并行？
 
 MindIE-LLM 自动处理 MoE 的专家并行：
 
 - 使用 `FusedMoE` 组件，框架会自动分配专家到不同设备
 - 通过 `assign_experts` 函数根据并行配置分配专家
 - 支持专家并行（EP）和混合并行策略
-- 详细配置请参考 [DeepSeek V3.2 实现](../../../../mindie_llm/runtime/models/deepseek_v32/)
+- 详细配置请参考 [DeepSeek V3.2 实现](https://gitcode.com/Ascend/MindIE-LLM/tree/v3.1.0/mindie_llm/runtime/models/deepseek_v32/)
 
-### 问题 3. 如何支持量化?
+### 问题 3. 如何支持量化？
 
-MindIE-LLM 支持 AutoQuant 能力，目前已支持的量化方式请参考 [mindie_llm/runtime/layers/quantization/](../../../../mindie_llm/runtime/layers/quantization/) 目录。使用 [msmodelslim](https://gitcode.com/Ascend/msmodelslim) 工具生成量化权重后，框架会自动识别并加载。
-
----
+MindIE-LLM 支持 AutoQuant 能力，目前已支持的量化方式请参考 [mindie_llm/runtime/layers/quantization/](https://gitcode.com/Ascend/MindIE-LLM/tree/v3.1.0/mindie_llm/runtime/layers/quantization/) 目录。使用 [msmodelslim](https://gitcode.com/Ascend/msmodelslim) 工具生成量化权重后，框架会自动识别并加载。
 
 ## 9. 参考资料
 
 ### 9.1 代码参考
 
-- **DeepSeek V3.2 实现**: [mindie_llm/runtime/models/deepseek_v32/](../../../../mindie_llm/runtime/models/deepseek_v32/)
-- **基类实现**: [mindie_llm/runtime/models/base/](../../../../mindie_llm/runtime/models/base/)
-- **并行层实现**: [mindie_llm/runtime/layers/](../../../../mindie_llm/runtime/layers/)
+- **DeepSeek V3.2 实现**: [mindie_llm/runtime/models/deepseek_v32/](https://gitcode.com/Ascend/MindIE-LLM/tree/v3.1.0/mindie_llm/runtime/models/deepseek_v32/)
+- **基类实现**: [mindie_llm/runtime/models/base/](https://gitcode.com/Ascend/MindIE-LLM/tree/v3.1.0/mindie_llm/runtime/models/base/)
+- **并行层实现**: [mindie_llm/runtime/layers/](https://gitcode.com/Ascend/MindIE-LLM/tree/v3.1.0/mindie_llm/runtime/layers/)
 
 建议参考 DeepSeek V3.2 的实现来了解完整的模型迁移流程。MindIE-LLM 已经支持多种模型架构，建议找到与您的模型类似的实现进行参考和适配。
 
 ### 9.2 相关文档
 
 - **CANN 文档**: [CANN-文档-昇腾社区](https://www.hiascend.com/cann/document)
-- **TorchNPU 文档**: [TorchNPU](https://www.hiascend.com/document/detail/zh/Pytorch/730/index/index.html)
+- **TorchNPU 文档**: [TorchNPU](https://www.hiascend.com/document/detail/zh/Pytorch/latest/index/index.html)
 - **msmodelslim 文档**: [模型量化工具](https://gitcode.com/Ascend/msmodelslim)
-
----
-
-**文档版本**: v1.0
-**最后更新**: 2026-03-20

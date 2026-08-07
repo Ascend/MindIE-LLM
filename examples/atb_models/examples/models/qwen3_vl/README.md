@@ -45,16 +45,16 @@ max_input_length长度设置可参考模型权重路径下config.json里的max_p
 
 **Dense架构模型**
 
-- 参考[Qwen3-VL 量化案例](https://gitcode.com/Ascend/msit/blob/master/msmodelslim/example/multimodal_vlm/Qwen3-VL/README.md)
+- 参考[Qwen3-VL 量化案例](https://gitcode.com/Ascend/msmodelslim/blob/26.1.0/example/multimodal_vlm/Qwen3-VL/README.md)
 
 **MoE架构模型**
 
-- 参考[Qwen3-VL-MoE 量化使用说明](https://gitcode.com/Ascend/msit/blob/master/msmodelslim/example/multimodal_vlm/Qwen3-VL-MoE/README.md)
+- 参考[Qwen3-VL-MoE 量化使用说明](https://gitcode.com/Ascend/msmodelslim/blob/26.1.0/example/multimodal_vlm/Qwen3-VL-MoE/README.md)
 
 注意：
 
 1. 仅300I DUO平台支持稀疏压缩量化（W8A8SC）
-2. 为保证模型精度和性能，在300I DUO平台使用的W8A8权重，需在800I A2平台量化完成后使用[deq_scale_cast.py](https://gitcode.com/Ascend/msit/blob/master/msmodelslim/example/deq_scale_cast.py)转换后使用
+2. 为保证模型精度和性能，在300I DUO平台使用的W8A8权重，需在800I A2平台量化完成后使用[deqscale2int64.py](https://gitcode.com/Ascend/msmodelslim/blob/26.1.0/example/deqscale2int64.py)转换后使用
 
 ### 昇腾原生量化权重下载
 

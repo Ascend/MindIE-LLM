@@ -128,7 +128,7 @@
         ./bin/mindieservice_daemon
         ```
 
-4. <a name="step4"></a>向服务发送请求，参数说明见《MindIE Motor CPP开发指南》中的“服务化接口 \> EndPoint业务面RESTful接口 \> 兼容OpenAI接口 \> 推理接口”章节。
+4. <a name="step4"></a>向服务发送请求，参数说明请参见“兼容OpenAI接口 \> [推理接口](https://www.hiascend.com/document/detail/zh/mindie/310/mindiellm/llmdev/mindie_llm0022.html)”章节。
 
     **请求样例：**
 

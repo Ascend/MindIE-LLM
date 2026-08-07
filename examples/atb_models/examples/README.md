@@ -143,7 +143,7 @@
 
 ### 权重量化
 
-权重量化依赖msModelSlim工具，下载及安装方式见[README](https://gitcode.com/Ascend/msmodelslim/blob/master/docs/zh/install_guide/install_guide.md)
+权重量化依赖msModelSlim工具，下载及安装方式见[README](https://gitcode.com/Ascend/msmodelslim)
 
 #### 量化脚本
 
@@ -207,7 +207,7 @@
 
 - 脚本：`${llm_path}/examples/convert/model_slim/sparse_compressor.py`
 - 功能：加载权重并进行多卡切分，在切分后的权重上执行压缩算法
-- 运行前请参考[msmodelslim](https://gitcode.com/Ascend/msmodelslim/blob/master/docs/zh/install_guide/install_guide.md)安装msModelSlim量化工具
+- 运行前请参考[msmodelslim](https://gitcode.com/Ascend/msmodelslim/blob/26.1.0/docs/zh/install_guide/install_guide.md)安装msModelSlim量化工具
 
 - 调用方法
 

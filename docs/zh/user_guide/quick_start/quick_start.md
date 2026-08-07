@@ -241,7 +241,7 @@
 
 5. 发送请求。
 
-    服务化 API 接口请参考《MindIE LLM 开发指南》中的[RESTFUL API 参考](https://www.hiascend.com/document/detail/zh/mindie/300/mindiellm/llmdev/mindie_service0065.html)章节。
+    服务化 API 接口请参见[服务化接口使用指导](https://www.hiascend.com/document/detail/zh/mindie/310/mindiellm/llmdev/mindie_llm/user_guide/user_manual/service_APIs_usage_guidance.md)。
 
     用户可使用 HTTPS 客户端（Linux `curl` 命令，Postman 工具等）发送 HTTPS 请求，此处以 Linux `curl` 命令为例进行说明。
 
@@ -406,7 +406,7 @@
     │ Total Token Throughput   │ total    │ 723.5273 token/s   │
     ```
 
-    性能测试结果主要关注 TTFT、TPOT、Request Throughput 和 Output Token Throughput 输出参数，参数详情信息请参见《MindIE Motor CPP开发指南》中的“配套工具 \> 性能/精度测试工具”章节的“表 2 性能测试结果指标对比”。
+    性能测试结果主要关注 TTFT、TPOT、Request Throughput 和 Output Token Throughput 输出参数，参数详情信息请参见《MindIE Motor CPP开发指南》中的“配套工具 \> [性能/精度测试工具](https://www.hiascend.com/document/detail/zh/mindie/310/mindiellm/llmdev/mindie_motor_cpp/user_guide/service_oriented_optimization_tool/performance_accuracy_test_tool.md)”章节的“表 2 性能测试结果指标对比”。
 
     > [!NOTE] 说明
     > 任务执行的过程最终会落盘在默认的输出路径，该输出路径在运行中的打印日志中有提示，日志内容如下所示：

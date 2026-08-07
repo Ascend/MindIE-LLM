@@ -282,7 +282,7 @@ pip install torch*_aarch64.whl
 ### 1.6 安装量化工具msModelSlim (可选)
 
   - 量化权重需使用该工具生成，具体生成方式详见各模型README文件
-  - 工具下载及安装方式见[README](https://gitcode.com/Ascend/msmodelslim/blob/master/README.md)
+  - 工具下载及安装方式见[README](https://gitcode.com/Ascend/msmodelslim)
 
 ## 环境变量参考
 
@@ -420,9 +420,9 @@ source /usr/local/Ascend/atb-models/set_env.sh
 
 - 适用于定位精度问题
 - MindStudio Probe提供dump tensor以及精度对比的能力
-  - 工具安装见[msProbe工具安装指南](https://gitcode.com/Ascend/msprobe/blob/master/docs/zh/install_guide/msprobe_install_guide.md)
-  - 精度采集见[ATB场景精度数据采集](https://gitcode.com/Ascend/msprobe/blob/master/docs/zh/user_guide/dump/atb_data_dump_instruct.md)
-  - 精度比对见[ATB场景精度比对](https://gitcode.com/Ascend/msprobe/blob/master/docs/zh/user_guide/accuracy_compare/atb_data_compare_instruct.md)
+  - 工具安装见[msProbe工具安装指南](https://gitcode.com/Ascend/msprobe/blob/26.1.0/docs/zh/install_guide/msprobe_install_guide.md)
+  - 精度采集见[ATB场景精度数据采集](https://gitcode.com/Ascend/msprobe/blob/26.1.0/docs/zh/user_guide/dump/atb_data_dump_instruct.md)
+  - 精度比对见[ATB场景精度比对](https://gitcode.com/Ascend/msprobe/blob/26.1.0/docs/zh/user_guide/accuracy_compare/atb_data_compare_instruct.md)
 
 #### 溢出检查
 

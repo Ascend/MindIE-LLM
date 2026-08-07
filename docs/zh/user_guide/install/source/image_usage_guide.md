@@ -4,7 +4,7 @@
 
 ## 前提条件
 
-- 宿主机已经安装过NPU驱动和固件。如未安装，下载[固件与驱动](https://hiascend.com/hardware/firmware-drivers/community)，根据产品系列和型号选择对应版本的社区版本或商用版本的固件与驱动。参考如下命令安装：
+- 宿主机已经安装过NPU驱动和固件。如未安装，下载[固件与驱动](https://www.hiascend.com/hardware/firmware-drivers)，根据产品系列和型号选择对应版本的社区版本或商用版本的固件与驱动。参考如下命令安装：
 
 ```shell
 chmod +x Ascend-hdk-<chip_type>-npu-driver_<version>_linux-<arch>.run
@@ -13,7 +13,7 @@ chmod +x Ascend-hdk-<chip_type>-npu-firmware_<version>.run
 ./Ascend-hdk-<chip_type>-npu-firmware_<version>.run --full
 ```
 
-- 用户在宿主机自行安装Docker（版本要求大于或等于24.x.x）。Docker的安装可参见[安装Docker](../source/docker_installation.md)。
+- 用户在宿主机自行安装Docker（版本要求大于或等于24.x.x）。Docker的安装可参见[安装Docker](https://gitcode.com/Ascend/MindIE-LLM/blob/v3.1.0/docs/zh/user_guide/install/source/docker_installation.md)。
 - 配置源之前，请确保安装环境能够连接网络。
 
 > [!NOTE]说明

@@ -61,7 +61,7 @@ python fp8_cast_bf16.py --input-fp8-hf-path {/path/to/DeepSeek-R1} --output-bf16
 
 目前支持：生成模型 W8A8 混合量化权重，使用 histogram 量化方式 (MLA:W8A8 量化，MOE:W8A8 dynamic pertoken 量化)。
 
-详情请参考 [DeepSeek 量化说明](https://gitcode.com/Ascend/msmodelslim/blob/master/example/DeepSeek/README.md)
+详情请参考 [DeepSeek 量化说明](https://gitcode.com/Ascend/msmodelslim/blob/26.1.0/example/DeepSeek/README.md)
 
 注意：DeepSeek-R1 模型权重较大，量化权重生成时间较久，请耐心等待；具体时间与校准数据集大小成正比，10 条数据大概需花费 3 小时。
 

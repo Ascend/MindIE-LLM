@@ -99,7 +99,7 @@ MindIE镜像获取请参见[镜像安装方式](../user_guide/install/source/ima
     export LD_LIBRARY_PATH=${ATB_LLM_PATH}/lib:${LD_LIBRARY_PATH}
     ```
 
-    > [!TIP]提示
+    > [!Note]说明
     > - 建议将以上命令写入 `~/.bashrc` 或启动脚本中，避免每次手动设置。
     > - MindIE 镜像内置该环境变量，如使用镜像则无需手动设置。
 

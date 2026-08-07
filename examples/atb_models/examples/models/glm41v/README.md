@@ -43,7 +43,7 @@ max_input_length 长度设置可参考模型权重路径下 config.json 里的 m
 
 **权重量化**
 
-- 参考 [msmodelslim](https://gitcode.com/Ascend/msmodelslim/blob/master/example/multimodal_vlm/GLM-4.1V/README.md)
+- 参考 [msmodelslim](https://gitcode.com/Ascend/msmodelslim/blob/26.1.0/example/multimodal_vlm/GLM-4.1V/README.md)
 - 800I A2 支持 w8a8 量化，命令如下
     python quant_glm4_1v.py --model_path {浮点权重路径} --save_directory {量化权重保存路径} --calib_images {校准图片路径} --w_bit 8 --a_bit 8 --device_type npu --anti_method m2 --torch_dtype bf16 --trust_remote_code True
 - 300I DUO 支持 w8a8sc 量化，命令如下

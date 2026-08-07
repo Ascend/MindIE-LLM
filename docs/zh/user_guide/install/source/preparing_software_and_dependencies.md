@@ -8,9 +8,9 @@ MindIE、CANN与TorchNPU版本必须配套使用。其配套关系如[表1](#tab
 
 **表 1**  版本配套列表 <a id="table1"></a>
 
-|MindIE|CANN|TorchNPU|
-|-----------|------------|----------|
-|3.0.0|8.5.1|7.3.0（torch、TorchNPU：2.9.0）（推荐）<br> 7.2.0（torch、TorchNPU：2.1.0）|
+| MindIE | CANN  | TorchNPU |
+| ------ | ----- | -------- |
+| 3.1.0  | 9.0.1 | 26.0.0   |
 
 > [!NOTE]说明
 > DeepSeek-V3.2不支持torch、TorchNPU 2.1.0。
@@ -35,8 +35,7 @@ whl包安装方式需要准备的软件包如[表2](#table2)所示。
 |CANN|Ascend-cann-<*chip_type>*-ops_<*version>*_linux-<*arch>*.run|CANN二进制算子包（ops）。<br> 安装ops前，需已安装同一版本的Toolkit软件包，请选择运行设备对应的ops软件包。|[获取链接](https://www.hiascend.com/developer/download/community/result?module=ie%2Bpt%2Bcann)|
 |CANN|Ascend-cann-nnal_<*version>*_linux-<*arch>*.run|CANN神经网络加速库（NNAL）。|[获取链接](https://www.hiascend.com/developer/download/community/result?module=ie%2Bpt%2Bcann)|
 |TorchNPU|torch_npu-<*torch_version>*.post<*post_id>*-cp*xxx*-cp*xxx*-manylinux_<*arch>*.whl|TorchNPU插件whl包。|[获取链接](https://www.hiascend.com/developer/download/community/result?module=ie%2Bpt%2Bcann)<ul><li>如需获取2.1.0版本的TorchNPU，请在社区版资源下载页面左上方“配套资源”中，选择PyTorch版本为7.2.0。</li><li>在PyTorch栏单击对应版本后方“获取源码”按钮，跳转至PyTorch的gitcode仓库发布页，然后在页面下方获取对应版本的TorchNPU。</li></ul>|
-|TorchNPU|apex-<*apex_version>*_ascend-cp*xxx*-cp*xxx*-<*arch*>.whl|APEX模块的whl包。|请参见《TorchNPU 软件安装指南》中的“[安装APEX模块](https://www.hiascend.com/document/detail/zh/Pytorch/730/configandinstg/instg/docs/installing_apex.md)”章节，根据Python3.11版本自行编译。|
-|TorchNPU|torch-<*torch_version>*+cpu-cp*xxx*-cp*xxx*-linux_<*arch>*.whl|PyTorch框架whl包。|<ul><li>PyTorch框架，TorchNPU 2.1.0版本，请从《TorchNPU 软件安装指南》中的“[安装PyTorch](https://www.hiascend.com/document/detail/zh/Pytorch/720/configandinstg/instg/insg_0004.html)”章节获取。</li><li>PyTorch框架，TorchNPU 2.9.0版本请从《TorchNPU 软件安装指南》中的“[安装PyTorch](https://www.hiascend.com/document/detail/zh/Pytorch/730/configandinstg/instg/docs/zh/installation_guide/installation_via_binary_package.md)”章节获取。</li></ul>|
+|TorchNPU|torch-<*torch_version>*+cpu-cp*xxx*-cp*xxx*-linux_<*arch>*.whl|PyTorch框架whl包。|<ul><li>PyTorch框架，TorchNPU 2.1.0版本，请从《TorchNPU 软件安装指南》中的“[安装PyTorch](https://www.hiascend.com/document/detail/zh/Pytorch/720/configandinstg/instg/insg_0004.html)”章节获取。</li><li>如需获取其他版本，请从上述链接页面左上角切换版本。</li></ul>| 
 
 ### run包安装方式
 
@@ -52,12 +51,11 @@ run包安装方式需要准备的软件包如[表3](#table3)所示。
 |CANN|Ascend-cann-<*chip_type>*-ops_<*version>*_linux-<*arch>*.run|CANN二进制算子包（ops）。<br> 安装ops前，需已安装同一版本的Toolkit软件包，请选择运行设备对应的ops软件包。|[获取链接](https://www.hiascend.com/developer/download/community/result?module=ie%2Bpt%2Bcann)|
 |CANN|Ascend-cann-nnal_<*version>*_linux-<*arch>*.run|CANN神经网络加速库（NNAL）。|[获取链接](https://www.hiascend.com/developer/download/community/result?module=ie%2Bpt%2Bcann)|
 |TorchNPU|torch_npu-<*torch_version>*.post<*post_id>*-cp*xxx*-cp*xxx*-manylinux_<*arch>*.whl|TorchNPU插件whl包。|[获取链接](https://www.hiascend.com/developer/download/community/result?module=ie%2Bpt%2Bcann)<ul><li>如需获取2.1.0版本的TorchNPU，请在社区版资源下载页面左上方“配套资源”中，选择PyTorch版本为7.2.0。</li><li>在PyTorch栏单击对应版本后方“获取源码”按钮，跳转至PyTorch的gitcode仓库发布页，然后在页面下方获取对应版本的TorchNPU。</li></ul>|
-|TorchNPU|apex-<*apex_version>*_ascend-cp*xxx*-cp*xxx*-<*arch*>.whl|APEX模块的whl包。|请参见《TorchNPU 软件安装指南》中的“[安装APEX模块](https://www.hiascend.com/document/detail/zh/Pytorch/730/configandinstg/instg/docs/installing_apex.md)”章节，根据Python3.11版本自行编译。|
-|TorchNPU|torch-<*torch_version>*+cpu-cp*xxx*-cp*xxx*-linux_<*arch>*.whl|PyTorch框架whl包。|<ul><li>PyTorch框架，TorchNPU 2.1.0版本，请从《TorchNPU 软件安装指南》中的“[安装PyTorch](https://www.hiascend.com/document/detail/zh/Pytorch/720/configandinstg/instg/insg_0004.html)”章节获取。</li><li>PyTorch框架，TorchNPU 2.9.0版本请从《TorchNPU 软件安装指南》中的“[安装PyTorch](https://www.hiascend.com/document/detail/zh/Pytorch/730/configandinstg/instg/docs/zh/installation_guide/installation_via_binary_package.md)”章节获取。</li></ul>|
+|TorchNPU|torch-<*torch_version>*+cpu-cp*xxx*-cp*xxx*-linux_<*arch>*.whl|PyTorch框架whl包。|<ul><li>PyTorch框架，TorchNPU 26.0.0版本，请从《TorchNPU 软件安装指南》中的“[安装PyTorch](https://www.hiascend.com/document/detail/zh/Pytorch/2600/configandinstg/instg/docs/zh/installation_guide/installation_via_binary_package.md)”章节获取。</li><li>如需获取其他版本，请从上述链接页面左上角切换版本。</li></ul>| 
 
 > [!NOTE]说明
 >
-> - <*version>*、<*torch_version*>和<*apex_version*>表示软件版本号
+> - <*version>*、<*torch_version*>表示软件版本号
 > - <*arch*>表示CPU架构
 > - <*chip_type*>表示处理器类型
 > - <*abi*>表示ABI版本

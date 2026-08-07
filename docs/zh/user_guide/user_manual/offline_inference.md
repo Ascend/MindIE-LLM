@@ -185,7 +185,7 @@
     耗时结果会显示在Console中，并保存在./benchmark\_result/benchmark.csv文件里。
 
     > [!NOTE]说明
-    > 性能测试后，可使用msprof工具，进行性能数据采集和性能数据分析，达到性能调优目的。msprof工具的使用可参见《性能调优工具》的“[msprof命令行工具](https://www.hiascend.com/document/detail/zh/mindstudio/700/T&ITools/Profiling/atlasprofiling_16_0010.html)”章节。
+    > 性能测试后，可使用msprof工具，进行性能数据采集和性能数据分析，达到性能调优目的。msprof工具的使用可参见《性能调优工具》的“[msprof命令行工具](https://www.hiascend.com/document/detail/zh/mindstudio/latest/msTT_msIT/msProf/docs/zh/profiling/msprof_cmd/general_collect_commands.md)”章节。
 
 ## ATB Models服务化使用
 
@@ -226,7 +226,7 @@
 
 2. 启动服务化并发送请求。
 
-    MindIE服务化使用方法请参考《MindIE Motor CPP开发指南》中的“快速入门 \> [启动服务](https://gitcode.com/Ascend/MindIE-Motor-CPP/blob/dev/docs/zh/user_guide/quick_start.md)”章节。服务化参数配置请参考[配置参数说明（服务化）](service_parameter_configuration.md)。
+    MindIE服务化使用方法请参考《MindIE Motor CPP开发指南》中的“快速入门 \> [启动服务](https://www.hiascend.com/document/detail/zh/mindie/310/mindiellm/llmdev/mindie_motor_cpp/user_guide/quick_start.md#启动服务)”章节。服务化参数配置请参考[配置参数说明（服务化）](service_parameter_configuration.md)。
 
     服务化配置中默认使用ATB Models作为模型后端。
 
@@ -246,7 +246,7 @@
     "backendType": "atb"
     ```
 
-    服务化API接口请参考《MindIE Motor CPP开发指南》中的“服务化接口”章节。
+    服务化API接口请参见[服务化接口使用指导](https://www.hiascend.com/document/detail/zh/mindie/310/mindiellm/llmdev/mindie_llm/user_guide/user_manual/service_APIs_usage_guidance.md)。
 
     用户可使用HTTPS客户端（Linux curl命令，Postman工具等）发送HTTPS请求，此处以Linux curl命令为例进行说明。重开一个窗口，使用以下命令发送请求。
 

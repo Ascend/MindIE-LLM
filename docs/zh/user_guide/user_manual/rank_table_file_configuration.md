@@ -30,7 +30,7 @@
 
 在配置 `rank_table_file.json` 之前，建议先检查各节点的 NPU 网络状态，确保物理链路连通、网络健康、网关和 TLS 配置正确。以下命令需要在每台机器上执行（以 A3 环境、每机 16 张 NPU 卡为例）。
 
-> [!NOTE]
+> [!NOTE]说明
 >
 > 以下命令均使用 `hccn_tool` 工具，该工具随 CANN 安装包提供。如果命令不可用，请检查 CANN 环境是否正确配置。
 
@@ -76,7 +76,7 @@
     for i in {0..15}; do hccn_tool -i $i -tls -s enable 0; done
     ```
 
-> [!NOTE]
+> [!NOTE]说明
 >
 > 建议统一将所有卡的 TLS 校验行为设置为 0，避免 HCCL 报错。
 
@@ -92,7 +92,7 @@ for i in {0..15}; do hccn_tool -i $i -ip -g; done
 
 执行后会输出每张卡的 IP 地址信息，请将结果记录下来，后续编写 `rank_table_file.json` 时需要使用。
 
-> [!NOTE]
+> [!NOTE]说明
 >
 > - 每张 NPU 卡都有一个独立的 RoCE（RDMA over Converged Ethernet）网口，拥有自己的 IP 地址，此 IP 地址用于卡间高速通信。
 > - 不同机器上的 NPU 卡数可能不同，请根据实际情况调整循环范围。例如，每机 8 卡时使用 `{0..7}`。
@@ -337,7 +337,7 @@ export MIES_CONTAINER_IP=xxx.xxx.xxx.xxx   # 本机 IP
 export MASTER_PORT=xxxx                    # 主机端口号，取值范围 [0, 65535]，且不与本机其他服务端口冲突
 ```
 
-> [!NOTE]
+> [!NOTE]说明
 >
 > - `MASTER_IP` 应填写 `server_list` 中第一个 server 的 `server_id` 值。
 > - `MIES_CONTAINER_IP` 应填写当前机器对应的 `server_id` 值。

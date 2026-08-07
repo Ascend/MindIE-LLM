@@ -96,4 +96,4 @@ MoE类模型支持Expert Parallel（EP，专家并行），通过将专家分别
 ## 执行推理<a name="section1271638122016"></a>
 
 1. 配置服务化参数。该特性需配合MindIE Motor CPP使用，按照[参数说明](#参数说明)在服务化的config.json文件中添加相应参数。服务化参数说明请参见[配置参数说明（服务化）](../user_manual/service_parameter_configuration.md)章节。
-2. 启动服务。具体请参考《MindIE Motor CPP开发指南》中的“快速入门 \> [启动服务](https://gitcode.com/Ascend/MindIE-Motor-CPP/blob/dev/docs/zh/user_guide/quick_start.md)”章节。
+2. 启动服务。具体请参考《MindIE Motor CPP开发指南》中的“快速入门 \> [启动服务](https://www.hiascend.com/document/detail/zh/mindie/310/mindiellm/llmdev/mindie_motor_cpp/user_guide/quick_start.md)”章节。

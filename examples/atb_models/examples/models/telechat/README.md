@@ -66,7 +66,7 @@ python examples/models/telechat/convert_quant_weights.py --model_path {浮点权
 
 ### 稀疏量化权重转换（W8A8SC）
 
-请参考 [msmodelslim 安装指南](https://gitcode.com/Ascend/msmodelslim/blob/master/docs/zh/install_guide/install_guide.md) 安装 msModelSlim 量化工具
+请参考 [msmodelslim 安装指南](https://gitcode.com/Ascend/msmodelslim/blob/26.1.0/docs/zh/install_guide/install_guide.md) 安装 msModelSlim 量化工具
 
 - Step 1
 

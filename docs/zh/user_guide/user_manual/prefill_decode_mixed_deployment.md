@@ -116,7 +116,7 @@
 8. 启动服务。
 
     > [!NOTE]说明
-    > 拉起服务前，建议用户使用MindStudio的预检工具进行配置文件字段校验，辅助校验配置的合法性，详情请参见[链接](https://gitcode.com/Ascend/msit/tree/master/msprechecker)。
+    > 拉起服务前，建议用户使用MindStudio的预检工具进行配置文件字段校验，辅助校验配置的合法性，详情请参见[链接](https://gitcode.com/Ascend/msit/tree/26.1.0/msprechecker)。
 
     直接启动服务。
 
@@ -261,7 +261,7 @@
 8. 启动服务。启动命令需在{MindIE安装目录}/latest/mindie-service目录中执行。
 
     > [!NOTE]说明
-    > 拉起服务前，建议用户使用MindStudio的预检工具进行配置文件字段校验，辅助校验配置的合法性，详情请参见[链接](https://gitcode.com/Ascend/msit/tree/master/msprechecker)。
+    > 拉起服务前，建议用户使用MindStudio的预检工具进行配置文件字段校验，辅助校验配置的合法性，详情请参见[链接](https://gitcode.com/Ascend/msit/tree/26.1.0/msprechecker)。
 
     -（推荐）：使用后台进程方式启动服务。后台进程方式启动服务后，关闭窗口时进程也会保留。
 

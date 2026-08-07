@@ -92,4 +92,4 @@ Data Parallel（DP，数据并行）将推理请求划分为多个批次，并�
         ./bin/mindieservice_daemon
         ```
 
-5. 发送推理请求。具体请参考《MindIE Motor CPP开发指南》中的“集群管理组件 \> 调度器（Coordinator） \> RESTful接口API \> 用户侧接口 \> OpenAI推理接口”章节。
+5. 发送推理请求。具体请参见“兼容OpenAI接口 \> [推理接口](https://www.hiascend.com/document/detail/zh/mindie/310/mindiellm/llmdev/mindie_llm0022.html)”章节。

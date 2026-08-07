@@ -28,7 +28,7 @@
 
 #### 环境准备
 
-请参考 [msmodelslim 安装指南](https://gitcode.com/Ascend/msmodelslim/blob/master/docs/zh/install_guide/install_guide.md) 安装 msModelSlim 量化工具。
+请参考 [msmodelslim 安装指南](https://gitcode.com/Ascend/msmodelslim/blob/26.1.0/docs/zh/install_guide/install_guide.md) 安装 msModelSlim 量化工具。
 
 #### 导出 w8a8 量化权重
 
@@ -53,7 +53,7 @@ bash quant_glm4_w8a8.sh -src ${浮点权重路径} -dst ${量化权重保存路�
 
 #### 导出 w8a8c8（kv cache 量化）权重
 
-请参考 [msmodelslim GLM 量化示例](https://gitcode.com/Ascend/msmodelslim/tree/master/example/GLM)。
+请参考 [msmodelslim GLM 量化示例](https://gitcode.com/Ascend/msmodelslim/tree/26.1.0/example/GLM)。
 
 #### 导出稀疏量化权重
 

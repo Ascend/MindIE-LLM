@@ -49,7 +49,7 @@ print(torch.allclose(torch.matmul(x, weight), out, rtol=1e-02, atol=1e-02))
 
 答案是，您当然可以用`torch`完成所有计算流程，但这样（在当前的ATB框架下）无法实现将多个算子组成一个图算子，而图算子在计算效率上有很大的优势。而使用上述方式，您可以在调用`get_default_net().mark_output`和`get_default_net().build_engine`之前（即示例代码中“调用算子”部分）定义复杂的计算流程，然后只需要调用一次`get_default_net().mark_output`和`get_default_net().build_engine`，即可完成对所有算子的自动图切分和组图！我们后续的介绍都是基于这一基础概念。
 
-除了简单的`linear`，在`atb_llm.layers`和`atb_llm.nn`中，我们已经实现了大量的torch-like API，例如在`linear`基础上包装了权重加载逻辑的`MergedColumnParallelLinear`（见[linear.py](../atb_llm/layers/linear/linear.py#L142)）、`RMSNorm`（见[normalization.py](../atb_llm/layers/norm/normalization.py#L13)等，我们非常建议您阅读它们的源码、源码的接口注释和**UT**（在[atb_models/tests/pythontest/atb_llm/nn](../tests/pythontest/atb_llm/nn/)和[atb_models/tests/pythontest/atb_llm/layers](../tests/pythontest/atb_llm/layers/)中），从而了解它们应该怎么被加到您接下来需要实现的模型迁移代码中，以及它们分别对应`torch`的哪些计算方法。
+除了简单的`linear`，在`atb_llm.layers`和`atb_llm.nn`中，我们已经实现了大量的torch-like API，例如在`linear`基础上包装了权重加载逻辑的`MergedColumnParallelLinear`（见[linear.py#L142](../atb_llm/layers/linear/linear.py)）、`RMSNorm`（见[normalization.py#L13](../atb_llm/layers/norm/normalization.py)等，我们非常建议您阅读它们的源码、源码的接口注释和**UT**（在[atb_models/tests/pythontest/atb_llm/nn](../tests/pythontest/atb_llm/nn/)和[atb_models/tests/pythontest/atb_llm/layers](../tests/pythontest/atb_llm/layers/)中），从而了解它们应该怎么被加到您接下来需要实现的模型迁移代码中，以及它们分别对应`torch`的哪些计算方法。
 
 ## 3. 迁移流程：必须实现的类和文件
 
@@ -325,9 +325,9 @@ class YourModelRouter(BaseRouter):
 
 + [如何运行对话测试](../examples/README.md#启动脚本)
 
-+ [如何采集profiling进行性能调优](../README.md#性能分析)
++ [如何采集profiling进行性能调优](../README.md#性能调优)
 
-+ [如何dump tensor以进行精度分析](../README.md#精度分析)
++ [如何dump tensor以进行精度分析](../README.md#精度问题定位)
 
 ## 5. 扩展知识
 

@@ -25,7 +25,7 @@ NPU 侧权重转换
 
 注意：
 
-- Kimi-K2 模型基本复用 DeepSeek-V3 的模型结构，量化过程同理可以参考 [DeepSeek 模型量化方法介绍](https://gitcode.com/Ascend/msmodelslim/blob/master/example/DeepSeek/README.md)
+- Kimi-K2 模型基本复用 DeepSeek-V3 的模型结构，量化过程同理可以参考 [DeepSeek 模型量化方法介绍](https://gitcode.com/Ascend/msmodelslim/blob/26.1.0/example/DeepSeek/README.md)
 
 ## 推理前置准备
 

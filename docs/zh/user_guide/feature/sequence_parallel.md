@@ -48,7 +48,7 @@ Sequence Parallel（SP，序列并行）通过对KV Cache进行切分，使得�
         vi conf/config.json
         ```
 
-2. 配置服务化参数。在Server的config.json文件添加"sp"字段，参数字段解释请参见[表1](#table1)。config.json文件的详细配置说明，PD分离场景请参考《MindIE Motor CPP开发指南》中的“集群服务部署 \> PD分离服务部署”章节；PD混部场景请参考_《MindIE安装指南》中的“配置MindIE \> 配置Server \> 多机推理”章节_。
+2. 配置服务化参数。在Server的config.json文件添加"sp"字段，参数字段解释请参见[表1](#table1)。config.json文件的详细配置说明请参见[配置参数说明（服务化）](../user_manual/service_parameter_configuration.md)。
 
     ```json
     "ModelDeployConfig" :

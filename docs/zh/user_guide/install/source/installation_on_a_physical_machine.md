@@ -22,7 +22,7 @@
    > [!NOTE]说明
    >
    > - 上方以mindie_llm包为例，如安装MindIE Motor CPP或MindIE SD，请替换为对应的whl包名。
-   > - 如果需要使用源码编译安装，请跳转到对应代码仓里获取编译指导。以MindIE-LLM为例，编译指导请[单击](../../../developer_guide/build_guide_llm.md)。
+   > - 如果需要使用源码编译安装，请跳转到对应代码仓里获取编译指导。以MindIE-LLM为例，编译指导请参见[MindIE LLM源码安装](../../../developer_guide/build_guide_llm.md)。
 
 3. 安装完成后，若打印如下信息，则说明软件安装成功：
 
