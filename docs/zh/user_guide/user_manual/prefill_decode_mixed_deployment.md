@@ -320,7 +320,7 @@
 
 ### 使用限制
 
-- 仅支持Atlas 800I A2 推理服务器环境，最大支持4机32卡的多机推理，多机推理支持的模型请参见[模型列表](../model_support_list.md)；不支持Atlas 300I Duo 推理卡环境。
+- 仅支持Atlas 800I A2 推理服务器环境，最大支持4机32卡的多机推理，多机推理支持的模型请参见[模型列表](https://gitcode.com/Ascend/MindIE-LLM/blob/v3.1.0/docs/zh/user_guide/model_support_list.md)；不支持Atlas 300I Duo 推理卡环境。
 - “maxLinkNum”默认值为1000，推荐设置为300。1000并发能力受模型性能影响受限支持，一般较小模型、较低序列长度下才可以使用1000并发。
 - 不同节点的权重的默认采样参数需要配置一致，否则在没有配置采样参数的情况下，推理服务可能卡死。
 

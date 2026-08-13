@@ -184,4 +184,4 @@ chmod +x Ascend-hdk-<chip_type>-npu-firmware_<version>.run
     > “$ATB\_SPEED\_HOME\_PATH”已在“.bashrc”中设置好，无需自行设置。
 
 6. MindIE Motor CPP是面向通用模型场景的推理服务化框架，通过开放，可扩展的推理服务化平台架构提供推理服务化能力，支持对接业界主流推理框架接口，满足大语言模型的高性能推理需求。
-    对接Motor CPP的方法请参见[快速入门](../../quick_start/quick_start.md#模型推理)。
+    对接Motor CPP的方法请参见[快速入门](https://gitcode.com/Ascend/MindIE-LLM/blob/v3.1.0/docs/zh/user_guide/quick_start/quick_start.md#%E6%A8%A1%E5%9E%8B%E6%8E%A8%E7%90%86)。
