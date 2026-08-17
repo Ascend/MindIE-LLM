@@ -7,7 +7,7 @@
 MindIE LLM 主要对外提供 **C++ 与 Python API**（Application Programming Interface），包括大模型推理、并发请求调度和 LLM Manager API 等，便于用户在业务系统中集成与调用。
 
 > [!NOTE]说明
-> MindIE LLM 组件将暂停后续功能演进，现有功能维持维护状态，不再新增特性。
+> MindIE LLM 组件将暂停后续功能演进，现有功能维持维护状态，不再支持新特性和新模型。推荐使用 MindIE Motor+vLLM Ascend 部署推理服务。关于 vLLM Ascend 的快速部署，请参阅官方文档的[快速开始](https://docs.vllm.ai/projects/ascend/zh-cn/v0.23.0/quick_start.html)章节。
 
 ## MindIE LLM架构图
 
