@@ -33,4 +33,4 @@
 
 1. 配置构建并发数，以cpu环境为例，打开`cpu\.devcontainer.json`
 2. 找到容器环境变量配置项`containerEnv`, 依据机器情况配置`MAX_COMPILE_CORE_NUM`，默认为2
-3. 参见[编译安装指南](../docs/zh/developer_guide/build_guide.md)，进行构建
+3. 参见[编译安装指南](../docs/zh/developer_guide/build_guide_llm.md)，进行构建

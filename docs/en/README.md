@@ -6,6 +6,8 @@ hide:
 
 # Welcome to MindIE-LLM
 
+English | [简体中文](../zh/README.md)
+
 <!-- md-trans-meta sourceCommit=unknown translatedAt=2026-06-04T12:37:15.277Z pushedAt=2026-06-05T01:09:38.095Z -->
 
 <div style="text-align: center; margin: 0.5rem 0 0.3rem 0; font-family: 'Avenir Next', 'Avenir', 'Century Gothic', 'Segoe UI', sans-serif;">

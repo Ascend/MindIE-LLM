@@ -6,6 +6,8 @@ hide:
 
 # 欢迎使用 MindIE-LLM
 
+简体中文 | [English](../en/README.md)
+
 <div style="text-align: center; margin: 0.5rem 0 0.3rem 0; font-family: 'Avenir Next', 'Avenir', 'Century Gothic', 'Segoe UI', sans-serif;">
   <span style="font-size: 4.5rem; font-weight: 300; letter-spacing: 0.02em;">MindIE-LLM</span>
 </div>

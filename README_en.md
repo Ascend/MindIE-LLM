@@ -20,6 +20,8 @@
 
 </div>
 
+English | [简体中文](./README.md)
+
 ## 📢 Latest News
 
 - [2026/04] 📖 The documentation site is now available! Welcome to the [MindIE-LLM Documentation Center](https://mindie-llm-doc.readthedocs.io/zh-cn/latest/) to read the complete documentation online.

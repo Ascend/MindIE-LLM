@@ -2,7 +2,7 @@
 
 [🌐 MindIE LLM官方repo](https://gitcode.com/ascend/MindIE-LLM.git)
 [📖 Modelers社区](https://modelers.cn/MindIE/data.git)
-[📘 ModelTest文档教程](./docs/get_started/)
+[📘 ModelTest文档教程](./docs/user_guides/)
 [🛠️ 数据集安装教程](./docs/user_guides/data_preparation.md)
 [🚩 ModelTest老版run.sh使用教程](./README.md)
 

@@ -18,6 +18,8 @@
 
 </div>
 
+简体中文 | [English](./README_en.md)
+
 ## 📢 Latest News
 
 - [2026/04] 📖 文档站点上线！欢迎访问 [MindIE-LLM 文档中心](https://mindie-llm-doc.readthedocs.io/zh-cn/latest/) 在线阅读完整文档。
@@ -63,7 +65,7 @@
 ## ⚡️ 环境部署
 
 - 通过软件包或镜像方式安装MindIE LLM，请参见[安装指南](https://mindie-llm-doc.readthedocs.io/zh-cn/latest/user_guide/install/menu_install/)。
-- 通过拉取最新代码编译安装MindIE LLM，请参见[编译安装指南](https://mindie-llm-doc.readthedocs.io/zh-cn/latest/developer_guide/build_guide/)。
+- 通过拉取最新代码编译安装MindIE LLM，请参见[编译安装指南](https://mindie-llm-doc.readthedocs.io/zh-cn/latest/developer_guide/build_guide_llm/)。
 
 ## ⚡️ 快速入门
 
