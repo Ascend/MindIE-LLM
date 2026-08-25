@@ -107,7 +107,7 @@
             },
     ```
 
-3. 拉起池化后端对应的中心化服务Master Service，具体安装和拉起命令，请参考[KV Cache池化使用指导](mempool.md)。
+3. 拉起池化后端对应的中心化服务Master Service，具体安装和拉起命令，请参考[KV Cache池化使用指导](https://gitcode.com/Ascend/MindIE-LLM/blob/v3.0.0/docs/zh/user_guide/feature/mempool.md)。
 4. 启动服务。
 
     - **whl包安装方式：**

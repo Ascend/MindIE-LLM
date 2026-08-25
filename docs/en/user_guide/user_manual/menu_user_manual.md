@@ -17,7 +17,7 @@
   - [Basic Features]()
     - [Multi-Lora](../feature/multi_loRA.md)
     - [MoE](../feature/moe.md)
-    - [MLA](../feature/mix_shared_routing.md)
+    - [MLA](../feature/mla.md)
     - [Load Balancing](../feature/expert_parallelism_load_balancer.md)
     - [External Shared Experts](../feature/mix_shared_routing.md)
     - [Expert Parallel](../feature/expert_parallel.md)

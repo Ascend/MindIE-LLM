@@ -132,7 +132,7 @@ SplitFuse特性的目的是将长prompt request分解成更小的块，并在多
         ./bin/mindieservice_daemon
         ```
 
-4. 使用AISBench工具进行性能测试，详情请参见《快速入门》中的“[性能测试](../quick_start/quick_start.md#性能测试)”章节。
+4. 使用AISBench工具进行性能测试，详情请参见《快速入门》中的“[性能测试](https://gitcode.com/Ascend/MindIE-LLM/blob/v3.0.0/docs/zh/user_guide/quick_start/quick_start.md#性能测试)”章节。
 
 5. 根据首Token时延和Decode时延的实际数据调整参数。
     - 首Token时延和Decode时延（均值，P90）都满足约束阈值，则加大“RequestRate“的值。

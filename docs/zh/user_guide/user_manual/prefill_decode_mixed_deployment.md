@@ -72,7 +72,7 @@
     > - HTTPS使用三面隔离时，HTTPS的业务面和管理面不建议使用同一套安全证书，使用同一套安全证书会存在较高的网络安全风险。
     > - HTTPS和GRPC不建议使用同一套安全证书，使用同一套安全证书会存在较高的网络安全风险。
     > - 导入证书时，对于用户导入CA证书的脚本权限要求为600，服务证书的脚本权限要求为600，私钥证书的脚本权限要求为400，吊销列表证书的脚本权限要求为600。
-    > - 如果导入证书超时，请参考[启动haveged服务](../install/faq_and_appendixes/starting_the_haveged_service.md)处理。
+    > - 如果导入证书超时，请参考[启动haveged服务](https://www.hiascend.com/document/detail/zh/mindie/300/envdeployment/instg/docs/zh/user_guide/install/faq_and_appendixes/starting_the_haveged_service.md)处理。
 
       表1 证书文件清单  <a id="table1"></a>
 
@@ -219,7 +219,7 @@
     > - HTTPS使用三面隔离时，HTTPS的业务面和管理面不建议使用同一套安全证书，使用同一套安全证书会存在较高的网络安全风险。
     > - HTTPS和GRPC不建议使用同一套安全证书，使用同一套安全证书会存在较高的网络安全风险。
     > - 导入证书时，对于用户导入CA证书的脚本权限要求为600，服务证书的脚本权限要求为600，私钥证书的脚本权限要求为400，吊销列表证书的脚本权限要求为600。
-    > - 如果导入证书超时，请参考[启动haveged服务](../install/faq_and_appendixes/starting_the_haveged_service.md)处理。
+    > - 如果导入证书超时，请参考[启动haveged服务](https://www.hiascend.com/document/detail/zh/mindie/300/envdeployment/instg/docs/zh/user_guide/install/faq_and_appendixes/starting_the_haveged_service.md)处理。
 
       表2 证书文件清单  <a id="table2"></a>
 
@@ -321,7 +321,7 @@
 
 ### 使用限制
 
-- 仅支持Atlas 800I A2 推理服务器环境，最大支持4机32卡的多机推理，多机推理支持的模型请参见[模型列表](../model_support_list.md)；不支持Atlas 300I Duo 推理卡环境。
+- 仅支持Atlas 800I A2 推理服务器环境，最大支持4机32卡的多机推理，多机推理支持的模型请参见[模型列表](https://gitcode.com/Ascend/MindIE-LLM/blob/v3.0.0/docs/zh/user_guide/model_support_list.md)；不支持Atlas 300I Duo 推理卡环境。
 - “maxLinkNum”默认值为1000，推荐设置为300。1000并发能力受模型性能影响受限支持，一般较小模型、较低序列长度下才可以使用1000并发。
 - 不同节点的权重的默认采样参数需要配置一致，否则在没有配置采样参数的情况下，推理服务可能卡死。
 
@@ -483,7 +483,7 @@ ranktable.json文件权限需要设置为640，详细内容请根据以下样例
       > - HTTPS使用三面隔离时，HTTPS的业务面和管理面不建议使用同一套安全证书，使用同一套安全证书会存在较高的网络安全风险。
       > - HTTPS和GRPC不建议使用同一套安全证书，使用同一套安全证书会存在较高的网络安全风险。
       > - 导入证书时，对于用户导入的CA文件证书工具要求的权限为600，服务证书文件证书工具要求的权限为600，私钥文件证书工具要求的权限要求为400，吊销列表证书工具要求的权限为600。
-      > - 如果导入证书超时，请参考[启动haveged服务](../install/faq_and_appendixes/starting_the_haveged_service.md)处理。
+      > - 如果导入证书超时，请参考[启动haveged服务](https://www.hiascend.com/document/detail/zh/mindie/300/envdeployment/instg/docs/zh/user_guide/install/faq_and_appendixes/starting_the_haveged_service.md)处理。
 
     表4 证书文件信息    <a id="table4"></a>
 
@@ -510,7 +510,7 @@ ranktable.json文件权限需要设置为640，详细内容请根据以下样例
     > - HTTPS使用三面隔离时，HTTPS的业务面和管理面不建议使用同一套安全证书，使用同一套安全证书会存在较高的网络安全风险。
     > - HTTPS和GRPC不建议使用同一套安全证书，使用同一套安全证书会存在较高的网络安全风险。
     > - 导入证书时，对于用户导入CA证书的脚本权限要求为600，服务证书的脚本权限要求为600，私钥证书的脚本权限要求为400，吊销列表证书的脚本权限要求为600。
-    > - 如果导入证书超时，请参考[启动haveged服务](../install/faq_and_appendixes/starting_the_haveged_service.md)处理。
+    > - 如果导入证书超时，请参考[启动haveged服务](https://www.hiascend.com/document/detail/zh/mindie/300/envdeployment/instg/docs/zh/user_guide/install/faq_and_appendixes/starting_the_haveged_service.md)处理。
 
       表5 证书文件清单  <a id="table5"></a>
 
@@ -694,7 +694,7 @@ ranktable.json文件权限需要设置为640，详细内容请根据以下样例
       > - HTTPS使用三面隔离时，HTTPS的业务面和管理面不建议使用同一套安全证书，使用同一套安全证书会存在较高的网络安全风险。
       > - HTTPS和GRPC不建议使用同一套安全证书，使用同一套安全证书会存在较高的网络安全风险。
       > - 导入证书时，对于用户导入的CA文件证书工具要求的权限为600，服务证书文件证书工具要求的权限为600，私钥文件证书工具要求的权限要求为400，吊销列表证书工具要求的权限为600。
-      > - 如果导入证书超时，请参考[启动haveged服务](../install/faq_and_appendixes/starting_the_haveged_service.md)处理。
+      > - 如果导入证书超时，请参考[启动haveged服务](https://www.hiascend.com/document/detail/zh/mindie/300/envdeployment/instg/docs/zh/user_guide/install/faq_and_appendixes/starting_the_haveged_service.md)处理。
 
     表7 证书文件信息    <a id="table7"></a>
 
@@ -721,7 +721,7 @@ ranktable.json文件权限需要设置为640，详细内容请根据以下样例
     > - HTTPS使用三面隔离时，HTTPS的业务面和管理面不建议使用同一套安全证书，使用同一套安全证书会存在较高的网络安全风险。
     > - HTTPS和GRPC不建议使用同一套安全证书，使用同一套安全证书会存在较高的网络安全风险。
     > - 导入证书时，对于用户导入CA证书的脚本权限要求为600，服务证书的脚本权限要求为600，私钥证书的脚本权限要求为400，吊销列表证书的脚本权限要求为600。
-    > - 如果导入证书超时，请参考[启动haveged服务](../install/faq_and_appendixes/starting_the_haveged_service.md)处理。
+    > - 如果导入证书超时，请参考[启动haveged服务](https://www.hiascend.com/document/detail/zh/mindie/300/envdeployment/instg/docs/zh/user_guide/install/faq_and_appendixes/starting_the_haveged_service.md)处理。
 
       表8 证书文件清单  <a id="table8"></a>
 

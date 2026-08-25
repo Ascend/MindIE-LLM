@@ -44,7 +44,7 @@ mindie_llm/runtime/models/my_model/
 > - 文件名统一使用小写加下划线的格式（snake_case），如 `model_type = "my_model"` → 文件路径 `my_model/my_model.py`
 > - 类名使用大驼峰命名法（PascalCase），如 `MyModelRouter`、`MyModelConfig`
 > 
->   详细的匹配机制可参考 [mindie_llm/runtime/models/\_\_init\_\_.py](../../../../mindie_llm/runtime/models/__init__.py) 和 [mindie_llm/runtime/models/base/router.py](../../../../mindie_llm/runtime/models/base/router.py)。
+>   详细的匹配机制可参考 [mindie_llm/runtime/models/\_\_init\_\_.py](https://gitcode.com/Ascend/MindIE-LLM/blob/v3.0.0/mindie_llm/runtime/models/__init__.py) 和 [mindie_llm/runtime/models/base/router.py](https://gitcode.com/Ascend/MindIE-LLM/blob/v3.0.0/mindie_llm/runtime/models/base/router.py)。
 
 ## 2. 实现 Router
 
@@ -146,7 +146,7 @@ Config 负责解析和管理模型的超参数配置。
 `HuggingFaceConfig` 基类中提供了常见的超参配置，若模型存在新增的超参依赖，则在 `MyModelConfig` 中新增。
 
 > [!NOTE]说明
-> 代码参考： [huggingface_config.py](../../../../mindie_llm/runtime/config/huggingface_config.py)
+> 代码参考： [huggingface_config.py](https://gitcode.com/Ascend/MindIE-LLM/blob/v3.0.0/mindie_llm/runtime/config/huggingface_config.py)
 
 ### 3.3 实现步骤
 
@@ -158,7 +158,7 @@ Config 需要继承 `HuggingFaceConfig`。
 >
 > - **可扩展接口**（举例）：
 >
->   `_create_rope_scaling()` - 自定义 RoPE 缩放配置，详细配置请参考 [RoPE 文档](../architecture_design/RoPEFactoryGuide.md)
+>   `_create_rope_scaling()` - 自定义 RoPE 缩放配置，详细配置请参考 [RoPE 文档](https://gitcode.com/Ascend/MindIE-LLM/blob/v3.0.0/docs/zh/developer_guide/architecture_design/RoPEFactoryGuide.md)
 
 **示例**：
 
@@ -225,11 +225,11 @@ MyModelForCausalLM (顶层，包含 LM Head)
 >
 > **Layer 相关模块请参考**：
 >
-> - Linear Layer: [mindie_llm/runtime/layers/linear/](../../../../mindie_llm/runtime/layers/linear/)
-> - Attention Layer: [mindie_llm/runtime/layers/attention/](../../../../mindie_llm/runtime/layers/attention/)
-> - MoE Layer: [mindie_llm/runtime/layers/fused_moe/](../../../../mindie_llm/runtime/layers/fused_moe/)
-> - Embedding Layer: [mindie_llm/runtime/layers/embedding/](../../../../mindie_llm/runtime/layers/embedding/)
-> - Normalization Layer: [mindie_llm/runtime/layers/normalization.py](../../../../mindie_llm/runtime/layers/normalization.py)
+> - Linear Layer: [mindie_llm/runtime/layers/linear/](https://gitcode.com/Ascend/MindIE-LLM/tree/v3.0.0/mindie_llm/runtime/layers/linear/)
+> - Attention Layer: [mindie_llm/runtime/layers/attention/](https://gitcode.com/Ascend/MindIE-LLM/tree/v3.0.0/mindie_llm/runtime/layers/attention/)
+> - MoE Layer: [mindie_llm/runtime/layers/fused_moe/](https://gitcode.com/Ascend/MindIE-LLM/tree/v3.0.0/mindie_llm/runtime/layers/fused_moe/)
+> - Embedding Layer: [mindie_llm/runtime/layers/embedding/](https://gitcode.com/Ascend/MindIE-LLM/tree/v3.0.0/mindie_llm/runtime/layers/embedding/)
+> - Normalization Layer: [mindie_llm/runtime/layers/normalization.py](https://gitcode.com/Ascend/MindIE-LLM/blob/v3.0.0/mindie_llm/runtime/layers/normalization.py)
 
 下面给出 MyModel 标准范式：
 
@@ -393,7 +393,7 @@ class ToolCallsProcessorMyModel(ToolCallsProcessorWithXml):
 
 ## 7. 测试验证
 
-测试验证请参考 [快速开始文档](../../user_guide/quick_start/quick_start.md)。
+测试验证请参考 [快速开始文档](https://gitcode.com/Ascend/MindIE-LLM/blob/v3.0.0/docs/zh/user_guide/quick_start/quick_start.md)。
 
 ## 8. 常见问题 FAQ
 
@@ -413,7 +413,7 @@ class ToolCallsProcessorMyModel(ToolCallsProcessorWithXml):
 > - `MergedColumnParallelLinear` 支持量化方式不一致的场景，当多个并行线性层的量化方式不统一时，会变成一个包含多个 `ColumnParallelLinear` 模块的列表。
 > - 框架提供 `ParallelInfoManager` 单例，用于获取并行数与 rank，通信域使用懒加载机制创建。可以通过 `get_parallel_info_manager().get(ParallelType.ATTN_TP).group_size` 获取并行信息。
 
-更多并行层的实现细节，请参考 [mindie_llm/runtime/layers/](../../../../mindie_llm/runtime/layers/) 目录下的源码。
+更多并行层的实现细节，请参考 [mindie_llm/runtime/layers/](https://gitcode.com/Ascend/MindIE-LLM/tree/v3.0.0/mindie_llm/runtime/layers/) 目录下的源码。
 
 ### 问题 2. MoE 模型如何配置专家并行?
 
@@ -422,19 +422,19 @@ MindIE-LLM 自动处理 MoE 的专家并行：
 - 使用 `FusedMoE` 组件，框架会自动分配专家到不同设备
 - 通过 `assign_experts` 函数根据并行配置分配专家
 - 支持专家并行（EP）和混合并行策略
-- 详细配置请参考 [DeepSeek V3.2 实现](../../../../mindie_llm/runtime/models/deepseek_v32/)
+- 详细配置请参考 [DeepSeek V3.2 实现](https://gitcode.com/Ascend/MindIE-LLM/tree/v3.0.0/mindie_llm/runtime/models/deepseek_v32/)
 
 ### 问题 3. 如何支持量化?
 
-MindIE-LLM 支持 AutoQuant 能力，目前已支持的量化方式请参考 [mindie_llm/runtime/layers/quantization/](../../../../mindie_llm/runtime/layers/quantization/) 目录。使用 [msmodelslim](https://gitcode.com/Ascend/msmodelslim) 工具生成量化权重后，框架会自动识别并加载。
+MindIE-LLM 支持 AutoQuant 能力，目前已支持的量化方式请参考 [mindie_llm/runtime/layers/quantization/](https://gitcode.com/Ascend/MindIE-LLM/tree/v3.0.0/mindie_llm/runtime/layers/quantization/) 目录。使用 [msmodelslim](https://gitcode.com/Ascend/msmodelslim) 工具生成量化权重后，框架会自动识别并加载。
 
 ## 9. 参考资料
 
 ### 9.1 代码参考
 
-- **DeepSeek V3.2 实现**: [mindie_llm/runtime/models/deepseek_v32/](../../../../mindie_llm/runtime/models/deepseek_v32/)
-- **基类实现**: [mindie_llm/runtime/models/base/](../../../../mindie_llm/runtime/models/base/)
-- **并行层实现**: [mindie_llm/runtime/layers/](../../../../mindie_llm/runtime/layers/)
+- **DeepSeek V3.2 实现**: [mindie_llm/runtime/models/deepseek_v32/](https://gitcode.com/Ascend/MindIE-LLM/tree/v3.0.0/mindie_llm/runtime/models/deepseek_v32/)
+- **基类实现**: [mindie_llm/runtime/models/base/](https://gitcode.com/Ascend/MindIE-LLM/tree/v3.0.0/mindie_llm/runtime/models/base/)
+- **并行层实现**: [mindie_llm/runtime/layers/](https://gitcode.com/Ascend/MindIE-LLM/tree/v3.0.0/mindie_llm/runtime/layers/)
 
 建议参考 DeepSeek V3.2 的实现来了解完整的模型迁移流程。MindIE-LLM 已经支持多种模型架构，建议找到与您的模型类似的实现进行参考和适配。
 
