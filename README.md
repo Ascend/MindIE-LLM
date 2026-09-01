@@ -18,6 +18,8 @@
 
 </div>
 
+简体中文 | [English](./README_en.md)
+
 ## 📢 Latest News
 
 - [2026/04] 📖 文档站点上线！欢迎访问 [MindIE-LLM 文档中心](https://mindie-llm-doc.readthedocs.io/zh-cn/latest/) 在线阅读完整文档。

@@ -73,7 +73,7 @@ chmod +x Ascend-hdk-<chip_type>-npu-firmware_<version>.run
     - Ubuntu 24.04镜像：
 
         ```bash
-        docker run -it -d --net=host --shm-size=1g \  # 对于多模态理解模型，若业务最大并发数较高，--shm-size建议设置不小于100g
+        docker run -it -d --net=host --shm-size=100g \  # 对于多模态理解模型，若业务最大并发数较高，--shm-size建议设置不小于100g
            --name <container-name> \
            --device=/dev/davinci0:/dev/davinci0 \
            --device=/dev/davinci_manager \
@@ -98,7 +98,7 @@ chmod +x Ascend-hdk-<chip_type>-npu-firmware_<version>.run
     - openEuler 24.03镜像：
 
         ```bash
-        docker run -it -d --net=host --shm-size=1g \  # 对于多模态理解模型，若业务最大并发数较高，--shm-size建议设置不小于100g
+        docker run -it -d --net=host --shm-size=100g \  # 对于多模态理解模型，若业务最大并发数较高，--shm-size建议设置不小于100g
            --name <container-name> \
            --device=/dev/davinci0:/dev/davinci0 \
            --device=/dev/davinci_manager \

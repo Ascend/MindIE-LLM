@@ -1,0 +1,156 @@
+nav:
+  - Home: README.md
+
+  - User Guide:
+    - Quick Start: user_guide/quick_start/quick_start.md
+    - Installation Guide:
+      - Installation Overview: user_guide/install/menu_install.md
+      - Installation Introduction: user_guide/install/installation_introduction.md
+      - Installing MindIE: user_guide/install/installing_MindIE.md
+      - Environment Preparation: user_guide/install/environment_preparation.md
+      - Image Installation:
+        - Image Usage Guide: user_guide/install/source/image_usage_guide.md
+        - Docker Installation: user_guide/install/source/docker_installation.md
+      - Physical Machine Installation:
+        - Preparing Software Packages and Dependencies: user_guide/install/source/preparing_software_and_dependencies.md
+        - Installing Software Packages and Dependencies: user_guide/install/source/installing_software_and_dependencies.md
+        - Installing MindIE on a Physical Machine: user_guide/install/source/installation_on_a_physical_machine.md
+      - Containerized Installation: user_guide/install/source/installation_in_containerized.md
+      - Upgrade: user_guide/install/source/upgrade.md
+      - Uninstallation: user_guide/install/source/uninstallation.md
+      - FAQs and Appendixes:
+        - Software Package Parameters: user_guide/install/faq_and_appendixes/software_package_options.md
+        - Password Complexity Requirements: user_guide/install/faq_and_appendixes/password_complexity_requirement.md
+        - Setting User Validity Period: user_guide/install/faq_and_appendixes/setting_validity_of_account.md
+        - Starting the haveged Service: user_guide/install/faq_and_appendixes/starting_the_haveged_service.md
+        - curl Command Error: user_guide/install/faq_and_appendixes/curl_command_failed.md
+        - libboost Thread Error: user_guide/install/faq_and_appendixes/error_libboost_thread_motor_started.md
+      - Security Management and Hardening:
+        - Security Management: user_guide/install/security_management_and_hardening/security_management.md
+        - Security Hardening Precautions: user_guide/install/security_management_and_hardening/security_hardening_precautions.md
+        - Notification of Data Disclosure Risks: user_guide/install/security_management_and_hardening/notification_of_data_disclosure_risks.md
+        - Server Security Hardening:
+          - Server Security Hardening: user_guide/install/security_management_and_hardening/server_security_hardening.md
+          - Directory Permission Security Hardening: user_guide/install/security_management_and_hardening/directory_permission_security_hardening.md
+          - Buffer Overflow Protection: user_guide/install/security_management_and_hardening/preventing_buffer_overflow.md
+          - Using Linux ASLR and KASLR: user_guide/install/security_management_and_hardening/using_ASLR_and_KASLR_provided_by_linux.md
+          - Setting umask: user_guide/install/security_management_and_hardening/setting_umask.md
+          - Security Hardening for Ownerless Files: user_guide/install/security_management_and_hardening/performing_security_hardening_ownerless_files.md
+          - Prohibiting Files Without Owners: user_guide/install/security_management_and_hardening/prohibiting_files_without_owners.md
+          - Enforcing root Exclusivity and UID Uniqueness: user_guide/install/security_management_and_hardening/enforcing_root_exclusivity_and_UID_uniqueness.md
+          - Prohibiting SetUID/SetGID Shell Scripts: user_guide/install/security_management_and_hardening/prohibiting_the_shell_scripts_with_setUID_setGID.md
+          - Prohibiting Executable Files with High-Risk Capabilities: user_guide/install/security_management_and_hardening/prohibiting_executable_files_with_highrisk_capabilities.md
+          - Prohibiting root Remote Access: user_guide/install/security_management_and_hardening/prohibiting_the_root_user_from_remotely.md
+          - Python Security Hardening: user_guide/install/security_management_and_hardening/python_security_hardening.md
+          - Installing systemd-coredump: user_guide/install/security_management_and_hardening/(optional)installing_systemd_coredump.md
+        - Docker and Container Security:
+          - Docker Daemon Security Hardening: user_guide/install/security_management_and_hardening/security_hardening_on_the_docker_daemon.md
+          - Docker Container Running Security Hardening: user_guide/install/security_management_and_hardening/security_hardening_for_docker_container_running.md
+          - Kubernetes Security Hardening: user_guide/install/security_management_and_hardening/kubernetes_security_hardening.md
+          - Enabling Docker Audit: user_guide/install/security_management_and_hardening/enabling_docker_audit.md
+          - Enabling live-restore: user_guide/install/security_management_and_hardening/enabling_live_restore.md
+          - Docker Configuration File Permissions: user_guide/install/security_management_and_hardening/setting_permissions_for_docker_configuration_files.md
+          - Creating a Separate Partition for Docker: user_guide/install/security_management_and_hardening/creating_separate_partition_for_docker.md
+          - Image Vulnerabilities: user_guide/install/security_management_and_hardening/image_vulnerabilities.md
+        - Network and Access Control:
+          - Firewall Configuration: user_guide/install/security_management_and_hardening/configuring_firewall.md
+          - Port Scanning: user_guide/install/security_management_and_hardening/scanning_ports.md
+          - Anti-DoS Attack: user_guide/install/security_management_and_hardening/defending_against_dos_attacks.md
+          - TLS Authentication for TCP Remote Access: user_guide/install/security_management_and_hardening/enabling_tls_authentication_for_tcpremote.md
+          - Disabling Device SSH Service: user_guide/install/security_management_and_hardening/disabling_the_device_ssh_service.md
+          - Enabling Trustlist Verification: user_guide/install/security_management_and_hardening/enabling_trustlist_verification_for_device.md
+        - Other Security Hardening Measures: user_guide/install/security_management_and_hardening/other_measures_for_security_hardening.md
+    - Examples: user_guide/examples.md
+    - Model Support List: user_guide/model_support_list.md
+    - Communication Matrix: user_guide/communication_matrix.md
+    - Model Deployment:
+      - DeepSeek-V3.2: user_guide/models/deepseek/deepseek_v3.2.md
+    - Optimization and Tuning: user_guide/optimization_and_tuning.md
+    - Log:
+      - Log Reference: user_guide/log/menu_log.md
+      - Usage Instructions: user_guide/log/introduction.md
+      - Log Overview: user_guide/log/log_overview.md
+      - Viewing Logs: user_guide/log/log_viewing.md
+      - Other Operations:
+        - Setting Log Level: user_guide/log/setting_log_level.md
+        - Setting Log Display Mode: user_guide/log/setting_log_display.md
+        - Configuring Log Path: user_guide/log/setting_log_path.md
+        - Configuring Log Content: user_guide/log/configuring_log_content.md
+        - Configuring Log Rotation: user_guide/log/configuring_log_rotation.md
+    - User Manual:
+      - Introduction: user_guide/user_manual/introduction.md
+      - User Manual Overview: user_guide/user_manual/menu_user_manual.md
+      - Offline Inference: user_guide/user_manual/offline_inference.md
+      - Service Parameter Configuration: user_guide/user_manual/service_parameter_configuration.md
+      - Service API Usage Guide: user_guide/user_manual/service_APIs_usage_guidance.md
+      - Model Parameter Configuration: user_guide/user_manual/model_parameter_configuration.md
+      - Environment Variables: user_guide/user_manual/environment_variable.md
+      - Logging Configuration: user_guide/user_manual/logging_configuration.md
+      - Performance Tuning: user_guide/user_manual/performance_tuning.md
+      - Compatibility Tool Configuration: user_guide/user_manual/compatibility_tool_configuration.md
+      - Prefill/Decode Mixed Deployment: user_guide/user_manual/prefill_decode_mixed_deployment.md
+      - Manual CPU Binding for Virtual Machines: user_guide/user_manual/introduction_to_manual_cpu_binding_for_virtual_machines.md
+      - Rank Table File Configuration: user_guide/user_manual/rank_table_file_configuration.md
+    - Features:
+      - Features Overview: user_guide/feature/README.md
+      - Quantization:
+        - W8A8: user_guide/feature/w8a8.md
+        - W8A16: user_guide/feature/w8a16.md
+        - W16A16SC: user_guide/feature/w16a16sc.md
+        - W8A8SC: user_guide/feature/w8a8sc.md
+        - W4A8 Mixed Precision Quantization: user_guide/feature/w4a8_mixed_precision_quantization.md
+        - FA3 Quantization: user_guide/feature/fa3_quantization.md
+        - Anti-Outlier: user_guide/feature/anti_outlier.md
+        - Attention Quantization: user_guide/feature/attention_quantization.md
+        - PDMix Quantization: user_guide/feature/pdmix.md
+        - KV Cache INT8: user_guide/feature/kv_cache_int8.md
+      - Parallelism:
+        - Tensor Parallelism: user_guide/feature/tensor_parallel.md
+        - Data Parallelism: user_guide/feature/data_parallel.md
+        - Expert Parallelism: user_guide/feature/expert_parallel.md
+        - Context Parallelism: user_guide/feature/context_parallel.md
+        - Sequence Parallelism: user_guide/feature/sequence_parallel.md
+      - Scheduling:
+        - Asynchronous Scheduling: user_guide/feature/asynchronous_scheduling.md
+        - SplitFuse: user_guide/feature/split_fuse.md
+        - Speculative Decoding: user_guide/feature/speculative_decoding.md
+        - SLO-Aware Scheduling Optimization: user_guide/feature/slo_aware_scheduling_optimization.md
+        - Load Balancing: user_guide/feature/expert_parallelism_load_balancer.md
+      - Parsing:
+        - Prefix Cache: user_guide/feature/prefix_cache.md
+        - KV Cache Pooling: user_guide/feature/kv_cache_pool.md
+        - MemPool: user_guide/feature/mempool.md
+        - Offline Weight Partitioning: user_guide/feature/offline_weight_partitioning.md
+      - Model Features:
+        - MoE: user_guide/feature/moe.md
+        - MLA: user_guide/feature/mla.md
+        - MTP: user_guide/feature/mtp.md
+        - Function Call: user_guide/feature/function_call.md
+        - Long Sequence: user_guide/feature/long_sequence.md
+        - Inference Switch: user_guide/feature/enable_reasoning.md
+        - Shared Expert Externalization: user_guide/feature/mix_shared_routing.md
+        - Micro Batch: user_guide/feature/micro_batch.md
+        - Multi-LoRA: user_guide/feature/multi_lora.md
+        - Thinking Reasoning Function Stream: user_guide/feature/thinking_reasoning_function_stream.md
+        - Structured Output: user_guide/feature/structured_output.md
+        - Thinking Budget: user_guide/feature/thinking_budget.md
+
+  - Developer Guide:
+    - Architecture Overview: developer_guide/architecture_design/architecture_overview.md
+    - Architecture Design:
+      - MTP: developer_guide/architecture_design/mtp.md
+    - Design Documents:
+      - MicroBatch: developer_guide/architecture_design/MicroBatch.md
+      - MultiLora: developer_guide/architecture_design/MultiLora.md
+      - MoE: developer_guide/architecture_design/MoE.md
+      - RoPEFactory: developer_guide/architecture_design/RoPEFactoryGuide.md
+    - Build and Installation: developer_guide/build_guide_llm.md
+    - Building MkDocs Documentation Locally: build_mkdocs.md
+    - Testing: developer_guide/test.md
+    - Migration and Adaptation:
+      - ACLGraph Migration: developer_guide/migration_and_adaptation_guide/aclgraph_migration_and_adaptation_guide.md
+      - Multimodal Understanding Migration: developer_guide/migration_and_adaptation_guide/multimodal_understanding_migration_and_adaptation_guide.md
+
+  - FAQ: faq/faq.md
+
+  - Release Notes: release_notes.md

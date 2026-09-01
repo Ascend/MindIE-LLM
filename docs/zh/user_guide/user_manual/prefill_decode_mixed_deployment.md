@@ -407,7 +407,7 @@ ranktable.json文件权限需要设置为640，详细内容请根据以下样例
     以下启动命令仅供参考，可根据需求自行修改。
 
     ```bash
-       docker run -it -d --net=host --shm-size=1g \
+       docker run -it -d --net=host --shm-size=500g \  # For multimodal understanding models with high maximum concurrency, it is recommended to set --shm-size to no less than 500 GB
        --name container_name \
        --device=/dev/davinci_manager \
        --device=/dev/hisi_hdc \
@@ -605,7 +605,7 @@ find /dev/shm -name 'llm_tokenizer_shared_memory_*' -type f -delete
     以下启动命令仅供参考，可根据需求自行修改。
 
     ```bash
-       docker run -it -d --net=host --shm-size=1g \
+       docker run -it -d --net=host --shm-size=500g \  # For multimodal understanding models with high maximum concurrency, it is recommended to set --shm-size to no less than 500 GB
        --name container_name \
        --device=/dev/davinci_manager \
        --device=/dev/hisi_hdc \
