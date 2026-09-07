@@ -1,9 +1,8 @@
 # MoE Communication Mechanism Details
-<!-- md-trans-meta sourceCommit=unknown translatedAt=2026-05-28T08:46:15.375Z pushedAt=2026-05-29T03:18:57.492Z -->
 
 ## 1. Why Does MoE Require Communication?
 
-The core idea of the Mixture of Experts (MoE) model is to distribute model capacity across multiple "Expert" sub-networks. During training or inference, not all experts are activated; instead, different tokens are assigned to different experts for processing based on the decisions of the gating network (Gate).
+The core idea of the Mixture-of-Experts (MoE) model is to distribute model capacity across multiple "Expert" sub-networks. During training or inference, not all experts are activated; instead, different tokens are assigned to different experts for processing based on the decisions of the gating network (Gate).
 
 Due to memory limitations, we often cannot place all experts on a single card, thus requiring **Expert Parallelism**. This introduces the need for communication.
 

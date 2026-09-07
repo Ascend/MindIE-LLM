@@ -1,7 +1,5 @@
 # cURL Command Fails After Installing MindIE
 
-<!-- md-trans-meta sourceCommit=unknown translatedAt=2026-05-28T08:55:44.297Z pushedAt=2026-06-01T09:45:39.189Z -->
-
 ## Symptom
 
 After sourcing the MindIE environment variable script using the following command, a symbol lookup error occurs:  

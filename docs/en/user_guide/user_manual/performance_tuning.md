@@ -46,7 +46,7 @@ Run the following commands on the bare-metal server (BMS) to enable high-perform
      >
      >2. Run the `taskset -c` command to bind the service process to an odd-numbered CPU core and start the service.
      >
-         > ```
+         > ```bash
          > taskset -c $cpus ./bin/mindieservice_daemon
          > ```
      >

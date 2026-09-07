@@ -144,4 +144,4 @@ For more ATB-related environment variables, see "[Environment Variables](https:/
 > execute\_command\(\["npu-smi", "info", "-i", f"\{npu\_id\}", "-t", "usages"\]\).split\("\\n"\)\[1:\]
 > execute\_command\(\["npu-smi", "info", "-m"\]\).strip\(\).split\("\\n"\)\[1:\]
 > execute\_command\(\["npu-smi", "info", "-t", "board", "-i", f"\{device\_info.npu\_id\}", "-c", f"\{device\_info.chip\_id\}"\]\).strip\(\).split\("\\n"\)
-> execute\_command\(\["lspci", "-s", f"\{pcie_no\}", "-vvv"\]\).split\("\\n"\)execute\_command\(\["lscpu"\]\).split\("\\n"\)**
+> execute\_command\(\["lspci", "-s", f"\{pcie_no\}", "-vvv"\]\).split\("\\n"\)execute\_command\(\["lscpu"\]\).split\("\\n"\)

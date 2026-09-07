@@ -19,7 +19,7 @@ Mind Inference Engine for Large Language Models (MindIE LLM), as a key component
 
   - KV connector: Enables cross-card and cross-device KV cache linking and transfer, supporting various pooling backends.
 
-- **Text Generator**: inference engine execution layer, which a unified preprocess, inference, and postprocess workflow. It also supports inference acceleration features such as SpecDecoding and ChunkPrefill.
+- **Text Generator**: inference engine execution layer, which has a unified preprocess, inference, and postprocess workflow. It also supports inference acceleration features such as SpecDecoding and ChunkPrefill.
 
   - Preprocess: Provides preprocessing interfaces to handle all necessary data preparation steps for moving raw data from host to device before inference.
   - Generate: Orchestrates the inference workflow based on engine configuration, managing model forward and sampling calls.

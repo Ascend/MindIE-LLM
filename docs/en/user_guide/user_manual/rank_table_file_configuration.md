@@ -1,7 +1,5 @@
 # rank_table_file.json Configuration Guide
 
-<!-- md-trans-meta sourceCommit=unknown translatedAt=2026-06-03T07:48:04.132Z pushedAt=2026-06-03T08:31:00.548Z -->
-
 ## Overview
 
 In multi-node inference, MindIE-LLM relies on Huawei Collective Communication Library (HCCL) for collective communication across nodes. To enable NPU cards on different nodes to discover each other and establish communication, a `rank_table_file.json` must be provided. This file describes the topology information of each card in the cluster.

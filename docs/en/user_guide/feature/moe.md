@@ -27,7 +27,7 @@ For details about how to configure the inherent parameters of each model, see th
 
 ## Inference
 
-The inference method for MoE models is identical to that of other models. You can follow the traditional LLM method during inference without setting any additional parameters.
+The inference method for MoE models is identical to that of other models. You can adopt the traditional LLM method during inference without setting any additional parameters.
 
 The following uses DeepSeek-16B-MoE as an example. You can run the following commands to perform a dialog test. The inference content is "What's deep learning".
 

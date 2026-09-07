@@ -14,8 +14,8 @@ For details about related parameters, see [Table 1](#table1).
 
 |Parameter|Description|
 |--|--|
-|-d--lastday|Displays the date when the valid period was changed the last time.|
-|-E--expiredate|Displays the date when a user account expires. The user account is unavailable when the account validity period has expired.|
+|-d--lastday|The date when the valid period was changed the last time.|
+|-E--expiredate|The date when a user account expires. The user account is unavailable when the account validity period has expired.|
 |-h--help|Displays the help information about the command.|
 |-I--inactive|Specifies the inactive period. After the specified time period has expired, a password will be invalid.|
 |-l--list|Lists the current settings. It helps non-privileged users to confirm the time when their passwords or accounts expire.|

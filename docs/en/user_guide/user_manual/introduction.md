@@ -1,7 +1,5 @@
 # Introduction to MindIE LLM
 
-<!-- md-trans-meta sourceCommit=unknown translatedAt=2026-05-28T09:09:27.771Z pushedAt=2026-06-02T09:01:43.815Z -->
-
 ## Overview
 
 **Mind Inference Engine for Large Language Models (MindIE LLM)** is a inference acceleration suite for large language models (LLMs) on Ascend hardware. It delivers specialized performance and usability improvements through deeply optimized model libraries and inference optimizers. It delivers general-purpose LLM inference on Ascend hardware, supporting concurrent request scheduling with acceleration features such as Continuous Batching, PagedAttention, and FlashDecoding to meet high-performance inference needs.
@@ -41,7 +39,7 @@ MindIE LLM provides C++ and Python APIs for LLM inference, concurrent request sc
 
 - **Modeling**: Provides performance-tuned operator modules and built-in model implementations, with support for Ascend Transformer Boost Models (ATB Models).
 
-  - Built-in modules include Attention, Embedding, ColumnLinear, RowLinear, Multi-Layer Perceptron (MLP), and Mixture of Experts (MoE). These modules support online tensor sharding and weight loading.
+  - Built-in modules include Attention, Embedding, ColumnLinear, RowLinear, Multilayer Perceptron (MLP), and Mixture-of-Experts (MoE). These modules support online tensor sharding and weight loading.
 
   - Built-in models support full network construction and composition using the above modules, along with tensor sharding. They also support multiple quantization methods. Users can also refer to examples to build and customize model architectures using the built-in modules.
 

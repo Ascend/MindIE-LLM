@@ -1,7 +1,5 @@
 # Combined Use and Activation Methods of Thinking, Enable_reasoning, Function Call, and Stream
 
-<!-- md-trans-meta sourceCommit=unknown translatedAt=2026-05-28T08:55:07.450Z pushedAt=2026-06-01T08:41:28.899Z -->
-
 This document describes how to enable and combine the four key features of MindIE: Thinking, Enable_reasoning, Function Call, and Stream. It covers their usage, priority, and interaction.
 
 [Constraints] The Atlas 800I A2 inference server, Atlas 800I A3 SuperPoD server, and Atlas 300I duo inference card support the above features.

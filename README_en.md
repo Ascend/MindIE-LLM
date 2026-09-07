@@ -1,5 +1,3 @@
-<!-- md-trans-meta sourceCommit=unknown translatedAt=2026-06-04T12:38:26.960Z pushedAt=2026-06-05T02:45:37.309Z -->
-
 <h1 align="center" style="font-size: 3.5rem;">MindIE-LLM</h1>
 
 <p align="center"><b>Ascend Large Language Model Inference Engine</b></p>

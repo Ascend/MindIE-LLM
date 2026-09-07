@@ -1,7 +1,5 @@
 # Environment Setup
 
-<!-- md-trans-meta sourceCommit=unknown translatedAt=2026-05-28T09:06:57.868Z pushedAt=2026-06-01T09:38:20.271Z -->
-
 Describes the environment preparation for image installation and offline installation.
 
 ## Image Installation

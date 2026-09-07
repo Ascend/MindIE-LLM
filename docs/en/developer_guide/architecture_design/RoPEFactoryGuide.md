@@ -1,5 +1,4 @@
 # get_rope Usage Guide
-<!-- md-trans-meta sourceCommit=unknown translatedAt=2026-05-28T08:44:42.860Z pushedAt=2026-05-29T06:25:44.192Z -->
 
 ## Overview
 

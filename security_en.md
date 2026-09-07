@@ -1,14 +1,12 @@
 # Security Statement
 
-<!-- md-trans-meta sourceCommit=2f5815d26f09af0d270e7649cb84023e1ffe7d9c translatedAt=2026-08-24T09:02:50.835Z pushedAt=2026-08-24T10:21:08.473Z -->
-
 ## Security Precautions
 
 When using MindIE, to ensure security, users should review the network security hardening measures of the entire system based on their own services and perform relevant configurations according to the security policies of their organization, including but not limited to software versions, password complexity requirements, security configurations (protocols, cipher suites, key lengths, etc.), permission configurations, and firewall settings. For more security statements and recommendations, refer to [MindIE Security Management and Hardening on Ascend Community](https://www.hiascend.com/document/detail/zh/mindie/22RC1/envdeployment/instg/mindie_instg_0041.html), subject to the latest version on the community.
 
 ## Recommended Operating Environment
 
-- To reduce potential security risks, it is recommended to use non-root, non-administrator accounts to perform system operations, ensure that only root is the highest-privilege user of the system, ensure that the UIDs of all system accounts are different, and follow the principle of least privilege.
+- To reduce potential security risks, it is recommended to use non-root, non-administrator accounts to perform system operations, ensure that only root is the highest-privilege user of the system, ensure that the UIDs of all system accounts are different, and adhere to the principle of least privilege.
 
 - Perform regular antivirus scans on the cluster. Routine antivirus checks help protect the cluster from viruses, malicious code, spyware, and programs, reducing risks such as system crashes and information leakage. You can use mainstream industry antivirus software for antivirus checks.
 

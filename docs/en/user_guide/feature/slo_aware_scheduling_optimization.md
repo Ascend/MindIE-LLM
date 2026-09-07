@@ -73,7 +73,7 @@ This section describes how to use the SLO tuning optimization function.
 
 4. Start tuning. This example uses the AISBench tool and GSM8K dataset, with concurrency set to `500`. The AISBench tool is configured as follows. For details, see "[Performance Test](https://gitcode.com/Ascend/MindIE-LLM/blob/v3.1.0/docs/zh/user_guide/quick_start/quick_start.md#%E6%80%A7%E8%83%BD%E6%B5%8B%E8%AF%95)" in *Quick Start*.
 
-    ```pyshon
+    ```python
     models = [
         dict(
             attr="service",

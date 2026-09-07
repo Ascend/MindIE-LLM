@@ -2,7 +2,7 @@
 
 ## Overview
 
-Flash Attention 3 (FA3) quantization is similar to attention quantization. The difference is that DeepSeek uses the MLA algorithm and the value of K RoPE changes too much, which is not suitable for quantization. Therefore, in this quantization method, the non-rope tensor of k is quantized to 8bits, and the rope tensor of k is not quantized. The currently used quantization scheme is perhead quantization. Partial quantization of k is performed to reduce the graphics memory usage of the KV cache, optimize the speed of the attention operator in the decode phase, and improve the throughput.
+Flash Attention 3 (FA3) quantization is similar to attention quantization. The difference is that DeepSeek uses the MLA algorithm and the value of K RoPE changes too much, which is not suitable for quantization. Therefore, in this quantization method, the non-rope tensor of k is quantized to 8-bit, and the rope tensor of k is not quantized. The currently used quantization scheme is perhead quantization. Partial quantization of k is performed to reduce the graphics memory usage of the KV cache, optimize the speed of the attention operator in the decode phase, and improve the throughput.
 
 > [!NOTE]
 >

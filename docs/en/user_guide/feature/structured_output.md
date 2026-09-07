@@ -1,10 +1,8 @@
 # Structured Output
 
-<!-- md-trans-meta sourceCommit=unknown translatedAt=2026-05-28T08:53:48.902Z pushedAt=2026-06-01T07:15:05.203Z -->
-
 ## Overview
 
-Structured Output is a constrained decoding feature in MindIE LLM. It enforces model outputs to follow a strict format, such as JSON Schema. Built on the xgrammar constraint backend, this feature constrains the model's generation space token by token during inference, ensuring valid and directly parseable JSON output.
+Structured Output is a constrained decoding feature in MindIE LLM. It enforces model outputs to adhere to a strict format, such as JSON Schema. Built on the xgrammar constraint backend, this feature constrains the model's generation space token by token during inference, ensuring valid and directly parseable JSON output.
 
 **Applicable Scenarios:**
 
@@ -190,7 +188,7 @@ Constrains the model to output any valid JSON object.
 | `json_schema.name` | String | Required | Schema name (non-empty string, used for identification) |
 | `json_schema.schema` | Object | Optional | Standard JSON Schema object; defaults to a generic JSON object constraint if not specified |
 
-`json_schema.schema` follows the standard JSON Schema specification and supports the following keywords:
+`json_schema.schema` adheres to the standard JSON Schema specification and supports the following keywords:
 
 | Keyword | Description |
 |--------|------|

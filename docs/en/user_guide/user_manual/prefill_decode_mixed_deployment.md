@@ -60,9 +60,9 @@
     vim config.json
     ```
 
-   b. Press **i** to enter the insert mode and modify parameters as required. For details about the parameters, see [Configuration Parameters (Serving)](service_parameter_configuration.md).
+   b. Press `i` to enter the insert mode and modify parameters as required. For details about the parameters, see [Configuration Parameters (Serving)](service_parameter_configuration.md).
 
-   c. Press **Esc**, type **:wq!**, and press **Enter** to save the settings and exit.
+   c. Press `Esc`, type `:wq!`, and press `Enter` to save the settings and exit.
 
 4. (Optional) Enable HTTPS authentication (that is, set `httpsEnabled` to `true`).
 
@@ -206,9 +206,9 @@
     vim config.json
     ```
 
-   b. Press **i** to enter the insert mode and modify parameters as required. For details about the parameters, see [Configuration Parameters (Serving)](service_parameter_configuration.md).
+   b. Press `i` to enter the insert mode and modify parameters as required. For details about the parameters, see [Configuration Parameters (Serving)](service_parameter_configuration.md).
 
-   c. Press **Esc**, type **:wq!**, and press **Enter** to save the settings and exit.
+   c. Press `Esc`, type `:wq!`, and press `Enter` to save the settings and exit.
 
 4. (Optional) Enable HTTPS authentication (that is, set `httpsEnabled` to `true`).
 

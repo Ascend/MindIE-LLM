@@ -1,7 +1,5 @@
 # Thinking Budget
 
-<!-- md-trans-meta sourceCommit=unknown translatedAt=2026-05-28T08:54:14.128Z pushedAt=2026-06-01T07:39:08.493Z -->
-
 Some large models include their reasoning process in the output. This feature limits the model's thinking depth: when the reasoning exceeds the `thinking_budget`, the system truncates the chain of thought using a prompt, encouraging the model to stop reasoning early. This is useful for scenarios requiring a flexible trade-off between response speed and answer quality.
 
 ## Constraints

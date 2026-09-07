@@ -47,7 +47,7 @@ Kubernetes needs to be hardened as follows:
       ```
 
       > [!NOTE]
-      > Kubernetes v1.19 and later versions support TLS v1.3 cipher suites. It is recommended that TLS v1.3 cipher suites be added when Kubernetes of a later version is used.
+      > Kubernetes v1.19 and later versions support TLS 1.3 cipher suites. It is recommended that TLS 1.3 cipher suites be added when Kubernetes of a later version is used.
 
 - If the OS kernel version used by the Kubernetes cluster is 4.6 or later, manually enable AppArmor or SELinux after Kubernetes is installed.
 - To make the bandwidth limit of the inference service pod take effect, install the bandwidth plugin in the CNI bin directory (`/opt/cni/bin` by default), modify the CNI configuration file (`/etc/cni/net.d` by default), and add `bandwidth` to `plugins`.

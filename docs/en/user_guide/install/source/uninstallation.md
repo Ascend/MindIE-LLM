@@ -38,21 +38,21 @@ You can run the uninstallation script to uninstall the software.
 
     `<path>` indicates the installation path of the software package. `<version>` indicates the software package version. Replace them as required.
 
-2. Run the ```./uninstall.sh``` command to execute the script.
+2. Run the `./uninstall.sh` command to execute the script.
 If the following information is printed, the software is successfully uninstalled:
 
-```text
-[INFO] xxx uninstall success
-```
+    ```text
+    [INFO] xxx uninstall success
+    ```
 
-```xxx``` indicates the name of a software package to be uninstalled.
+    ```xxx``` indicates the name of a software package to be uninstalled.
 
 > [!NOTE]
-> After the uninstallation is complete, you are advised to run the following command to cancel the configuration of the **TUNE_BANK_PATH** environment variable:
+> After the uninstallation is complete, you are advised to run the following command to cancel the configuration of the `TUNE_BANK_PATH` environment variable:
 >
 > ```bash
->unset TUNE_BANK_PATH
->```
+> unset TUNE_BANK_PATH
+> ```
 
 ### Method 2: Package-based Uninstallation
 
@@ -80,10 +80,10 @@ If the following information is printed, the software is successfully uninstalle
 [INFO] xxx uninstall success
 ```
 
-```xxx``` indicates the name of the software package to be uninstalled.
+`xxx` indicates the name of the software package to be uninstalled.
 
 > [!NOTE]
-> After the uninstallation is complete, you are advised to run the following command to cancel the configuration of the TUNE_BANK_PATH environment variable:
+> After the uninstallation is complete, you are advised to run the following command to cancel the configuration of the `TUNE_BANK_PATH` environment variable:
 >
 > ```bash
 > unset TUNE_BANK_PATH

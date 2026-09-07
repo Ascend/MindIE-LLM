@@ -1,5 +1,4 @@
 # MTP Overview
-<!-- md-trans-meta sourceCommit=unknown translatedAt=2026-05-28T08:45:26.055Z pushedAt=2026-05-29T03:18:57.453Z -->
 
 Multi-Token Prediction (MTP) is a parallel decoding method proposed in DeepSeek for generating multiple tokens each time. The core idea of MTP parallel decoding is to predict several tokens simultaneously during inference, thereby significantly improving model generation speed.
 

@@ -62,7 +62,7 @@ This quantization mode supports quantization of the original weights of the floa
 
 **Table 2** dtype and shape information after bfloat16 weight quantization (assuming that shape of the original weight is `[n, k]`)
 
-|Tensor Information|weight|weight_scale|weight_scale_second|scale_bias|
+|Tensor|weight|weight_scale|weight_scale_second|scale_bias|
 |--|--|--|--|--|
 |dtype|int4|bfloat32|bfloat32|uint64|
 |shape|[n, k]|[n, 1]|[n, group_num]|[n,group_num]|

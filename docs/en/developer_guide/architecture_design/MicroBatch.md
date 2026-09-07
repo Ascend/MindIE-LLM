@@ -32,7 +32,7 @@ Data streams are synchronized using the event mechanism, ensuring that computati
     vi conf/config.json
     ```
 
-2. Set serving parameters. Add the `"micro_batch"` field to the Server `config.json` file as shown in the example below. For parameter descriptions, refer to Table 1 Micro Batch parameter: `models` in `ModelConfig`. For serving parameters, see "Configuration Parameters (Serving)". Below is an example configuration:
+2. Set serving parameters. Add the `micro_batch` field to the Server `config.json` file as shown in the example below. For parameter descriptions, refer to Table 1 Micro Batch parameter: `models` in `ModelConfig`. For serving parameters, see "Configuration Parameters (Serving)". Below is an example configuration:
 
     ```json
     "ModelDeployConfig": {

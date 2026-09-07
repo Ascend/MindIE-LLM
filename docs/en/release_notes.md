@@ -1,7 +1,5 @@
 # Release Notes
 
-<!-- md-trans-meta sourceCommit=8f7656df9ba3aaa7896222e69f8c8f1b1ed9dd9d translatedAt=2026-08-24T08:29:21.081Z pushedAt=2026-08-24T08:29:50.855Z -->
-
 ## Version Description<a name="ZH-CN_TOPIC_0000002532737933"></a>
 
 ### Product Version Information<a name="ZH-CN_TOPIC_0000002532737927"></a>

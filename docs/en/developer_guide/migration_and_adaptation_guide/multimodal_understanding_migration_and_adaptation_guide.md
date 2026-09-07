@@ -396,7 +396,7 @@ class InternvlConfig(BaseConfig):
 
 ### `Flash{model}ForCausalLM` Class Adaptation
 
-The `Flash{model}ForCausalLM` class implements model initialization, weight loading, and forward inference. This class is stored in `{llm_path}/atb_llm/models/{model}/flash_causal_{model}_.py`.
+The `Flash{model}ForCausalLM` class implements model initialization, weight loading, and forward inference. This class is stored in `{llm_path}/atb_llm/models/{model}/flash_causal_{model}.py`.
 
 The following uses InternVL2.5 as an example:
 

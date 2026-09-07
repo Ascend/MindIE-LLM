@@ -1,7 +1,5 @@
 # Security and Hardening
 
-<!-- md-trans-meta sourceCommit=c917800035fe8b2d8ecc73ad3d3b382932a64dc1 translatedAt=2026-08-24T03:24:16.244Z pushedAt=2026-08-24T03:26:22.728Z -->
-
 - [Security Management](./security_management.md)
 
 - [Risk of Information Leakage](./notification_of_data_disclosure_risks.md)

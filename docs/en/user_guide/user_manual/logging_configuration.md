@@ -1,7 +1,5 @@
 # MindIE Logging Guide
 
-<!-- md-trans-meta sourceCommit=unknown translatedAt=2026-05-28T09:09:32.950Z pushedAt=2026-06-02T09:05:51.588Z -->
-
 ## Logging Configuration Change Notes
 
 You can skip these configuration change notes and go directly to the [Logging Configuration Guide](#logging-configuration-guide)

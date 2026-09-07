@@ -1,7 +1,5 @@
 # MindIE-LLM Ascend C Custom Operator (mie_ops) Adaptation Guide
 
-<!-- md-trans-meta sourceCommit=fbb10397fd8aad33b72ee3b1e06c1b3a786f9bd6 translatedAt=2026-08-21T08:59:37.078Z pushedAt=2026-08-21T09:04:59.373Z -->
-
 ## Background
 
 During the iterative development of MindIE versions paired with stable CANN versions, when new requirements for operators arise, you can introduce Ascend C operator source code to integrate operators. This document focuses on the integration methods and process.
@@ -255,6 +253,6 @@ Verify the functionality, precision, and performance of the model after the new 
 
 ## FAQ
 
-- **Q: What Should I Do When the Custom Operator Name Conflicts with an Existing Operator Name in the Cann Package, Causing Incorrect Operator Invocation?**
+- **Q: What Should I Do When the Custom Operator Name Conflicts with an Existing Operator Name in the CANN Package, Causing Incorrect Operator Invocation?**
 
   A: You can avoid this by modifying the custom operator name. For example, add a `_mie` or `Mie` suffix according to the existing naming style to indicate that it is a mie_ops custom operator and avoid conflicts; note that you need to modify the operator directory name, file name, OP_NAME and OPTYPE in `CMakeLists.txt`, and the operator name in the operator source code at the same time.

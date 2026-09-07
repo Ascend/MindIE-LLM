@@ -6,7 +6,7 @@ Multi-head latent attention (MLA) uses the low-rank key-value joint compression 
 
 CANN and ATB Models have been installed in the environment. For details, see *MindIE Installation Guide*.
 
-The inference method of models supporting MLA is identical to that of other models. You can follow the traditional LLM method during inference without setting any additional parameters.
+The inference method of models supporting MLA is identical to that of other models. You can adopt the traditional LLM method during inference without setting any additional parameters.
 
 The following uses DeepSeek-V2-Chat as an example. You can run the following commands to perform a dialog test. The inference content is "What's deep learning".
 

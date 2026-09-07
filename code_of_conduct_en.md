@@ -1,7 +1,5 @@
 # Ascend Open-Source Project Code of Conduct
 
-<!-- md-trans-meta sourceCommit=2f5815d26f09af0d270e7649cb84023e1ffe7d9c translatedAt=2026-08-24T09:02:39.674Z pushedAt=2026-08-24T10:21:08.468Z -->
-
 All developers participating in open-source contributions under the Ascend organization shall comply with the Code of Conduct set forth in this document. To report insults, harassment, or other unacceptable behavior, you may send an email to <contact@ascend.osinfra.cn> to contact the operations team for handling.
 
 ## Our Pledge
@@ -35,4 +33,4 @@ This Code of Conduct applies within all project spaces, and it also applies when
 
 ## Enforcement
 
-Instances of abusive, harassing, or otherwise unacceptable behavior may be reported by contacting the project team at <contact@ascend.osinfra.cn>. The maintenance team will review and investigate all complaints, and will respond in a way that it deems appropriate to the circumstances. The project team is obligated to maintain confidentiality with regard to the reporter of an incident. Further details of specific enforcement policies may be posted separately. Project maintenance personnel who do not follow or enforce this Code of Conduct in good faith may face temporary or permanent repercussions as determined by the project lead or other members of the project's leadership.
+Instances of abusive, harassing, or otherwise unacceptable behavior may be reported by contacting the project team at <contact@ascend.osinfra.cn>. The maintenance team will review and investigate all complaints, and will respond in a way that it deems appropriate to the circumstances. The project team is obligated to maintain confidentiality with regard to the reporter of an incident. Further details of specific enforcement policies may be posted separately. Project maintenance personnel who do not comply with or enforce this Code of Conduct in good faith may face temporary or permanent repercussions as determined by the project lead or other members of the project's leadership.

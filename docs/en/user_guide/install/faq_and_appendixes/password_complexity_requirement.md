@@ -1,7 +1,5 @@
 # Password Complexity Requirements
 
-<!-- md-trans-meta sourceCommit=unknown translatedAt=2026-05-28T08:55:55.213Z pushedAt=2026-06-01T09:53:55.544Z -->
-
 Passwords must meet at least the following requirements:
 
 1. The password must be at least 8 characters in length.

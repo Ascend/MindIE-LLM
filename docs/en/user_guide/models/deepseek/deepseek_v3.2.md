@@ -748,7 +748,7 @@ The performance test is successful if the command output is as follows (example 
 
 ## Typical Configuration
 
-The typical deployment modes of DeepSeek V3.2 are as follows:
+The typical deployment modes of DeepSeek-V3.2 are as follows:
 
 | Deployment Configuration|Deployment Mode|  Machine Quantity| Card Quantity| Maximum Context Length| Parallelism Strategy| MTP Quantization<br>mtp=2 | chunked prefill | HCCL_BUFFSIZE (MB)|  NPU_MEM_FRACTION |
 |:--|:--|:--|:--|:--|:--|:--|:--|:--|:--|

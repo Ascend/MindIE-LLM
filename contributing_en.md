@@ -1,7 +1,5 @@
 # Contribution Guide
 
-<!-- md-trans-meta sourceCommit=a3f0271da232a25dbecc55ad6d31fa9f3fcbb8f1 translatedAt=2026-08-24T09:02:32.312Z pushedAt=2026-08-24T10:21:08.466Z -->
-
 - [Issue Submission Guide](https://gitcode.com/Ascend/community/blob/master/docs/contributor/issue-guide.md)
 
 - [Community Issue Workflow Guidelines](https://gitcode.com/Ascend/community/blob/master/docs/contributor/issue-workflow-guidelines.md)

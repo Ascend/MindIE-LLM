@@ -60,7 +60,7 @@ The Router is the entry point for model porting, coordinating the loading and in
 - Dynamically imports the corresponding Config and Model classes.
 - Automatically loads the HuggingFace tokenizer.
 
-**Extensible interfaces:**:
+**Extensible interfaces**:
 
 To customize behaviors, `BaseRouter` provides extensible interfaces, for example:
 

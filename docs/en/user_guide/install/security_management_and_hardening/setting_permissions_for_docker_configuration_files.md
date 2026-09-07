@@ -8,7 +8,7 @@
 
     You can perform the following operations to set the file owner and permission:
 
-    1. Run the following command to set the owner and owner group of the file to **root**:
+    1. Run the following command to set the owner and owner group of the file to `root`:
 
         ```bash
         chown root:root {path to TLS CA certificate file}

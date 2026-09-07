@@ -1,7 +1,5 @@
 # Installing MindIE
 
-<!-- md-trans-meta sourceCommit=unknown translatedAt=2026-05-28T09:07:29.510Z pushedAt=2026-06-02T01:23:03.689Z -->
-
 MindIE supports three installation methods: image, physical machine , and container.
 
 ## Image

@@ -130,7 +130,7 @@ The following part uses Llama 3.1 70B as an example to describe how to use Multi
                 }]
             }
         }
-        }
+    }
     ```
 
 3. Start the service.
@@ -155,7 +155,7 @@ The following part uses Llama 3.1 70B as an example to describe how to use Multi
     - **Unloading request**:
 
     ```bash
-    curl -X POST http:127.0.0.2:1026/v1/unload_lora_adapter \
+    curl -X POST http://127.0.0.2:1026/v1/unload_lora_adapter \
       -d '{
             "lora_name": "adapter2"
           }'
