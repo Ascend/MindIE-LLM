@@ -17,7 +17,7 @@
 
 ## 限制与约束
 
-- Atlas 800I A2 推理服务器、Atlas 800I A3 超节点服务器和Atlas 300I Duo 推理卡支持此特性。
+- Atlas 800I A2推理服务器、Atlas 800I A3超节点服务器和Atlas 300I Duo推理卡支持此特性。
 - 当前ChatGLM3-6B、Qwen3-32B、Qwen3-235B-A22B、Qwen3-30B-A3B、DeepSeek-R1-0528、Qwen2.5-Instruct和DeepSeek-V3.1系列模型支持此特性。
 - 使用Function Call特性，DeepSeek-V3.1系列模型必须配置[参数说明](#table1)中参数，其余模型可以不配置。
 - 当前仅支持OpenAI chat接口。
@@ -128,7 +128,7 @@
         ./bin/mindieservice_daemon
         ```
 
-4. <a name="step4"></a>向服务发送请求，参数说明见《MindIE Motor开发指南》中的“服务化接口 \> EndPoint业务面RESTful接口 \> 兼容OpenAI接口 \> 推理接口”章节。
+4. <a name="step4"></a>向服务发送请求，参数说明请参见“兼容OpenAI接口 \> [推理接口](https://www.hiascend.com/document/detail/zh/mindie/310/mindiellm/llmdev/mindie_llm0022.html)”章节。
 
     **请求样例：**
 

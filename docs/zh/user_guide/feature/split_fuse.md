@@ -25,7 +25,7 @@ SplitFuse特性的目的是将长prompt request分解成更小的块，并在多
 
 ## 限制与约束
 
-- Atlas 800I A2 推理服务器和 Atlas 800I A3 超节点服务器支持此特性。
+- Atlas 800I A2推理服务器和 Atlas 800I A3超节点服务器支持此特性。
 - LLaMA3.1-70B浮点模型，Qwen2，Qwen2.5，Qwen3系列模型支持此特性。
 - 该特性支持的量化特性：W8A8，其他量化特性暂不支持。
 - 该特性不能和Multi-LoRA、Function Call、并行解码、MTP、长序列特性同时使用。
@@ -132,7 +132,7 @@ SplitFuse特性的目的是将长prompt request分解成更小的块，并在多
         ./bin/mindieservice_daemon
         ```
 
-4. 使用AISBench工具进行性能测试，详情请参见《快速入门》中的“[性能测试](../quick_start/quick_start.md#性能测试)”章节。
+4. 使用AISBench工具进行性能测试，详情请参见《快速入门》中的“[性能测试](https://gitcode.com/Ascend/MindIE-LLM/blob/v3.1.0/docs/zh/user_guide/quick_start/quick_start.md)”章节。
 
 5. 根据首Token时延和Decode时延的实际数据调整参数。
     - 首Token时延和Decode时延（均值，P90）都满足约束阈值，则加大“RequestRate“的值。

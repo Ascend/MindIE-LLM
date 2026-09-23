@@ -40,7 +40,7 @@
 
 -注意：
 max_input_length 长度设置可参考模型权重路径下 config.json 里的 max_position_embeddings 参数值
-如果是在 Atlas 800I A2 硬件上跑 13B 模型，可适当减小该值防止出现 OOM 错误
+如果是在 Atlas 800I A2推理服务器上跑 13B 模型，可适当减小该值防止出现 OOM 错误
 
 ## 权重
 
@@ -155,7 +155,7 @@ max_input_length 长度设置可参考模型权重路径下 config.json 里的 m
 
 ## 性能测试
 
-性能测试时需要在 `${image_path}` 下仅存放一张图片，使用以下命令运行 `run_pa.sh`，会自动输出 batchsize 为 1-10 时，输出 token 长度为 256 时的吞吐。Atlas 800I A2 上硬件只能跑单 batch，如果需要多跑 batch，可以尝试用多张卡跑。
+性能测试时需要在 `${image_path}` 下仅存放一张图片，使用以下命令运行 `run_pa.sh`，会自动输出 batchsize 为 1-10 时，输出 token 长度为 256 时的吞吐。Atlas 800I A2推理服务器上硬件只能跑单 batch，如果需要多跑 batch，可以尝试用多张卡跑。
 
 ```shell
 bash ${script_path}/run_pa.sh --performance (--trust_remote_code) ${weight_path} ${image_path} ${video_frames} ${max_batch_size} ${max_input_length} ${max_output_length}

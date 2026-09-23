@@ -1,7 +1,7 @@
 # Server安全加固
 
 > [!NOTE]说明
-> Server仅提供部分流控能力，且不直接对接公网，Server流控和公网、局域网隔离由用户保证。如可以使用开源软件Nginx进行保障，用户可参照[Nginx官方文档](http://nginx.org/en/docs/)进行Nginx的部署。
+> Server仅提供部分流控能力，且不直接对接公网，Server流控和公网、局域网隔离由用户保证。如可以使用开源软件Nginx进行保障，用户可参照[Nginx官方文档](https://nginx.org/en/docs/)进行Nginx的部署。
 
 以Nginx为例进行Nginx的配置。
 

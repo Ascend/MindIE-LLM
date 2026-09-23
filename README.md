@@ -63,7 +63,7 @@
 ## ⚡️ 环境部署
 
 - 通过软件包或镜像方式安装MindIE LLM，请参见[安装指南](https://mindie-llm-doc.readthedocs.io/zh-cn/latest/user_guide/install/menu_install/)。
-- 通过拉取最新代码编译安装MindIE LLM，请参见[编译安装指南](https://mindie-llm-doc.readthedocs.io/zh-cn/latest/developer_guide/build_guide/)。
+- 通过拉取最新代码编译安装MindIE LLM，请参见[编译安装指南](./docs/zh/developer_guide/build_guide_llm.md)。
 
 ## ⚡️ 快速入门
 

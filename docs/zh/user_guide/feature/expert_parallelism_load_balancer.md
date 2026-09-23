@@ -12,7 +12,7 @@ MindIE当前支持两种负载均衡特性：静态冗余负载均衡和强制�
 
 ## 限制与约束
 
-- Atlas 800I A2/A3 推理服务器支持此特性。
+- Atlas 800I A2推理服务器和Atlas 800I A3超节点服务器支持此特性。
 - DeepSeek R1/V3、Qwen-moe模型支持此特性。
 - 当前只支持在MOE为All2All集合通信场景下使用（模型配置文件中的“ep\_level”参数为“2”）。PD分离场景，由于Prefill和Decode通常采用不同的集合通信方式，负载均衡的配置参数需分别设置。
 - 强制负载均衡只能作为负载均衡的理论上限，不能在正式业务中使用。
@@ -52,7 +52,7 @@ MindIE当前支持两种负载均衡特性：静态冗余负载均衡和强制�
 
 采集热点信息后，每个NPU会生成一个.csv文件，文件中包含一个矩阵（num\_moe\_layer \* 单NPU专家数）。矩阵中的每个数字代表该layer中该专家所计算的token数，每8个token会在采集文件中追加该矩阵。
 
-根据采集的专家热点信息，可使用[msit工具](https://gitcode.com/Ascend/msit/blob/master/msit/docs/install/README.md)的“elb”组件生成冗余专家部署表。
+根据采集的专家热点信息，可使用[msit工具](https://gitcode.com/Ascend/msit/blob/26.1.0/msit/README.md)的“elb”组件生成冗余专家部署表。
 
 1. 安装“elb”组件，安装方法如下所示。
 
@@ -96,7 +96,7 @@ MindIE当前支持两种负载均衡特性：静态冗余负载均衡和强制�
     2025-07-16 15:08:58,632 - 36266 - msit_llm_logger - INFO -   OK
     ```
 
-3. 参见[负载均衡亲和专家寻优指南](https://gitcode.com/Ascend/msit/blob/master/msit/docs/expert_load_balancing/%E5%B7%A5%E5%85%B7-%E8%B4%9F%E8%BD%BD%E5%9D%87%E8%A1%A1%E4%BA%B2%E5%92%8C%E4%B8%93%E5%AE%B6%E5%AF%BB%E4%BC%98.md)，使用“elb”组件生成冗余专家部署表。8机64卡典型配置如下：
+3. 参见[负载均衡亲和专家寻优指南](https://gitcode.com/Ascend/msit/blob/26.1.0/msit/docs/expert_load_balancing/%E5%B7%A5%E5%85%B7-%E8%B4%9F%E8%BD%BD%E5%9D%87%E8%A1%A1%E4%BA%B2%E5%92%8C%E4%B8%93%E5%AE%B6%E5%AF%BB%E4%BC%98.md)，使用“elb”组件生成冗余专家部署表。8机64卡典型配置如下：
 
     ```bash
     msit elb -icp input_dir_path -o output_file_path -nre 64 -nd 8 -nn 64 -al 5 -dt a2

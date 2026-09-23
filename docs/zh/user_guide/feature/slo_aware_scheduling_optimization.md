@@ -12,7 +12,7 @@ SLO（Service Level Objective，服务级别目标）指在设定时间段内为
 
 ## 限制与约束
 
-- 仅Atlas 800I A2 推理服务器支持此特性。
+- 仅Atlas 800I A2推理服务器支持此特性。
 - DeepSeek-R1、DeepSeek-V3、Qwen系列模型支持对接此特性。
 - 仅适用于PD混部场景，无法与SplitFuse特性同时打开。
 - 此特性的收益场景主要在短输出（256以下）场景，随着输出长度变长，吞吐收益会下降。
@@ -34,7 +34,7 @@ SLO（Service Level Objective，服务级别目标）指在设定时间段内为
 
 本章节简单介绍如何使用SLO调度优化功能。
 
-1. 打开MindIE Motor的config.json文件。
+1. 打开MindIE Motor CPP的config.json文件。
 
     - **whl包安装方式：**
 
@@ -73,7 +73,7 @@ SLO（Service Level Objective，服务级别目标）指在设定时间段内为
         ./bin/mindieservice_daemon
         ```
 
-4. 以AISBench工具、GSM8K数据集和并发500为例展示调优方式。AISBench工具配置如下，详情请参见《快速入门》中的“[性能测试](../quick_start/quick_start.md#性能测试)”章节。
+4. 以AISBench工具、GSM8K数据集和并发500为例展示调优方式。AISBench工具配置如下，详情请参见《快速入门》中的“[性能测试](https://gitcode.com/Ascend/MindIE-LLM/blob/v3.1.0/docs/zh/user_guide/quick_start/quick_start.md#%E6%80%A7%E8%83%BD%E6%B5%8B%E8%AF%95)”章节。
 
     ```text
     models = [

@@ -6,7 +6,7 @@ Flash Attention 3（FA3）量化，类似Attention量化，不同之处在于Dee
 
 > [!NOTE]说明
 >
->- Atlas 800I A2 推理服务器，Atlas 800I A3 超节点服务器支持FA3量化。
+>- Atlas 800I A2推理服务器，Atlas 800I A3超节点服务器支持FA3量化。
 >- 支持W8A8配合使用。
 >- 仅支持DeepSeek R1，DeepSeek V3，DeepSeek-R1-0528。
 >- 仅支持float16。
@@ -73,8 +73,8 @@ FA3量化搭配W8A8量化后权重目录结构：
 
 ## 生成权重
 
-1. 请参见[msModelSlim工具](https://gitcode.com/Ascend/msit/blob/master/msmodelslim/docs/%E5%AE%89%E8%A3%85%E6%8C%87%E5%8D%97.md)，安装**msModelSlim**工具。
-2. 请参见[msModelSlim的量化说明](https://gitcode.com/Ascend/msit/blob/master/msmodelslim/example/DeepSeek/README.md)，完成**DeepSeek-V3/R1运行前必检内容**。
+1. 请参见[msModelSlim工具](https://gitcode.com/Ascend/msmodelslim/blob/26.1.0/docs/zh/install_guide/install_guide.md)，安装**msModelSlim**工具。
+2. 请参见[msModelSlim的量化说明](https://gitcode.com/Ascend/msmodelslim/blob/26.1.0/example/DeepSeek/README.md)，完成**DeepSeek-V3/R1运行前必检内容**。
 3. 进入“msmodelslim/example/DeepSeek/”目录，执行如下量化命令。
 
     ```bash

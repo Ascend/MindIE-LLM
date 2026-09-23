@@ -21,5 +21,5 @@ live-restore选项有助于减少由于守护进程崩溃、计划中断或升�
 使用以下命令手动启用live-restore。
 
 ```bash
-dockerd --live-restore systemd
+dockerd --live-restore
 ```

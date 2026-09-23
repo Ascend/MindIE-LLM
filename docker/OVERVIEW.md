@@ -2,7 +2,7 @@
 
 > English | [中文](./OVERVIEW.zh.md)
 
-Provides automated build scripts and a multi-stage Dockerfile for building MindIE inference service images from compiled packages. The build pipeline covers Python compilation, CANN toolchain installation, PyTorch/torch_npu (PTA) deployment, and MindIE component installation (LLM / SD / Motor), with 8-way parallel downloads for acceleration.
+Provides automated build scripts and a multi-stage Dockerfile for building MindIE inference service images from compiled packages. The build pipeline covers Python compilation, CANN toolchain installation, PyTorch/TorchNPU deployment, and MindIE component installation (LLM / SD / Motor), with 8-way parallel downloads for acceleration.
 
 ## Quick Reference
 
@@ -36,7 +36,7 @@ MindIE is Huawei Atlas's inference acceleration suite. It leverages a highly opt
 | [build.sh](./build.sh) | Main entry point — argument parsing, validation, download orchestration, and build invocation |
 | [Dockerfile](./Dockerfile) | Multi-stage Docker build file (7 stages) |
 | [modules/config.sh](./modules/config.sh) | Central configuration: URL templates, logging, validation, arch detection, Chip/OS metadata |
-| [modules/download.sh](./modules/download.sh) | Download layer: 8 parallel downloads for PTA / Python / CANN / MindIE-LLM / MindIE-SD / MindIE-Motor packages |
+| [modules/download.sh](./modules/download.sh) | Download layer: 8 parallel downloads for TorchNPU / Python / CANN / MindIE-LLM / MindIE-SD / MindIE-Motor packages |
 | [modules/build_image.sh](./modules/build_image.sh) | Build orchestration layer: image tag computation, Docker build, image export |
 
 ---
@@ -94,7 +94,7 @@ Build parameters are passed as command-line arguments to `build.sh`:
 | `--arch` | System architecture | Yes | — | x86_64 / aarch64 |
 | `--mindie` | MindIE version (drives LLM / SD / Motor) | Yes | — | 3.0.0 |
 | `--cann` | CANN version | Yes | — | 9.0.0 |
-| `--pta-tag` | PTA release tag | Yes | — | v26.0.0-pytorch2.9.0 |
+| `--pta-tag` | TorchNPU release tag | Yes | — | v26.0.0-pytorch2.9.0 |
 | `--type` | Package type | No | `whl` | whl / run |
 | `--python` | Python version | No | `3.11.10` | 3.11.6 |
 | `--dry-run` | Validate and show config only | No | `false` | — |
@@ -103,7 +103,7 @@ Build parameters are passed as command-line arguments to `build.sh`:
 
 1. CANN version: see [Atlas Community](https://www.hiascend.com/developer/download/community/result)
 
-2. PTA tag: see [Pytorch-NPU Community](https://gitcode.com/Ascend/pytorch/releases)
+2. TorchNPU release tag: see [TorchNPU Community](https://gitcode.com/Ascend/pytorch/releases)
 
 3. MindIE version: see [MindIE-LLM Community](https://gitcode.com/Ascend/MindIE-LLM/releases) / [MindIE-SD Community](https://gitcode.com/Ascend/MindIE-SD/releases) / [MindIE-Motor Community](https://gitcode.com/Ascend/MindIE-Motor/releases)
 
@@ -161,7 +161,7 @@ The build process runs through the following steps in order:
 
 1. **Argument Parsing & Validation** — `build.sh` parses CLI arguments and calls `config.sh` to validate OS/Chip/Arch/Type values.
 2. **Parallel Downloads (8-way)** — `download.sh` downloads the following components in parallel:
-   - PTA (torch_npu wheel)
+   - TorchNPU wheel
    - Python source tarball (Ubuntu only; openEuler skips)
    - CANN Toolkit
    - CANN NNAL
@@ -174,7 +174,7 @@ The build process runs through the following steps in order:
    - **Stage 1b (base-openeuler):** OpenEuler 24.03 + pre-installed Python
    - **Stage 2 (base):** Dynamic OS selection, import all downloaded packages
    - **Stage 3 (cann):** Install CANN Toolkit + Kernels + NNAL
-   - **Stage 4 (pta):** Install PyTorch + torch_npu
+   - **Stage 4 (pta):** Install PyTorch + TorchNPU
    - **Stage 4.5 (mindstudio):** Install dev tools (git, cmake, gcc, ffmpeg, etc.)
    - **Stage 5 (mindie):** Install MindIE components (LLM / SD / Motor)
 4. **Image Export** — Save the built image as a `.tar.gz` file in the `output/` directory.
@@ -196,7 +196,7 @@ base-openeuler┘
 | MindIE-LLM | `https://gitcode.com/Ascend/MindIE-LLM/releases/download` |
 | MindIE-SD | `https://gitcode.com/Ascend/MindIE-SD/releases/download` |
 | MindIE-Motor | `https://gitcode.com/Ascend/MindIE-Motor/releases/download` |
-| PTA (torch_npu) | `https://gitcode.com/Ascend/pytorch/releases/download` |
+| TorchNPU | `https://gitcode.com/Ascend/pytorch/releases/download` |
 | CANN | `https://ascend-repo.obs.cn-east-2.myhuaweicloud.com/CANN/CANN` |
 | Python Source | `https://mirrors.huaweicloud.com/python` |
 

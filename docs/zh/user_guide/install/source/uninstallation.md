@@ -12,7 +12,7 @@ pip uninstall mindie_llm-{version}-{python_tag}-{platform_tag}.whl
 ```
 
 > [!NOTE]说明
-> 上述以mindie_llm包为例，如卸载MindIE Motor或MindIE SD，请替换为对应的whl包名。
+> 上述以mindie_llm包为例，如卸载MindIE Motor CPP或MindIE SD，请替换为对应的whl包名。
 
 卸载完成后，若输出如下信息，则说明软件卸载成功：
 
@@ -36,7 +36,7 @@ pip uninstall mindie_llm-{version}-{python_tag}-{platform_tag}.whl
     cd <path>/mindie/<version>/scripts
     ```
 
-    其中<path\>为软件包的安装路径，<version\>为软件包版本，请用户根据实际情况替换。
+    其中`<path>`为软件包的安装路径，`<version>`为软件包版本，请用户根据实际情况替换。
 
 2. 执行`./uninstall.sh`命令运行脚本，完成卸载。
 

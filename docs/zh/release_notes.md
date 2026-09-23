@@ -34,7 +34,7 @@
 | ---     | ---  |
 | CANN    | 9.0.1 |
 | MindCluster | 26.0.0 |
-| Ascend Extension for PyTorch | 26.0.0 |
+| TorchNPU | 26.0.0 |
 | CCAE    | iMaster CCAE V100R026C10SPC100 |
 
 ## 版本兼容性说明<a name="ZH-CN_TOPIC_0000002532657965"></a>
@@ -66,6 +66,8 @@
 无
 
 ## v3.1.0 更新说明<a name="ZH-CN_TOPIC_0000002532737925"></a>
+
+MindIE LLM 组件将暂停后续功能演进，现有功能维持维护状态，不再支持新特性和新模型。推荐使用 MindIE Motor+vLLM Ascend 部署推理服务。关于 vLLM Ascend 的快速部署，请参阅官方文档的[快速开始](https://docs.vllm.ai/projects/ascend/zh-cn/v0.23.0/quick_start.html)章节。
 
 ### 新增特性<a name="ZH-CN_TOPIC_0000002532737923"></a>
 

@@ -20,6 +20,7 @@
 
 在“run\_pa.sh”脚本中修改“max\_input\_length”，根据实际应用场景，设置一个更大的值。
 
+<!-- npu="A3" id1 -->
 ## 单机Atlas 800I A3 超节点服务器进行PD混部服务部署时，出现chat接口性能劣化
 
 ### 问题现象描述
@@ -33,12 +34,13 @@ chat接口激活的专家分布更均衡，但单卡激活的专家数更多，�
 ### 解决措施
 
 这个是chat/no chat接口导致的固有差异，属于正常现象。
+<!-- end id1 -->
 
 ## 当出现undefinedsymbols: xxx这样的报错如何定位
 
 ## 解决方案
 
-需要确认MindIE LLM和ATB，CANN，torch，torch\_npu是否匹配，ABI=0/1的选择是否正确 。
+需要确认MindIE LLM和ATB，CANN，torch，TorchNPU是否匹配，ABI=0/1的选择是否正确 。
 
 ## 多卡服务化分布式推理时缺失环境变量MASTER\_ADDR或MASTER\_PORT
 
@@ -104,7 +106,7 @@ Service侧加载模型后快速退出程序，出现“Socket bind failed”报�
 
 ### 原因分析
 
-MindIE Motor使用HTTP或者HTTPS协议进行通信，让客户端先断开连接可以减少服务器的负担，保证资源的合理释放，包括端口资源等。
+MindIE Motor CPP使用HTTP或者HTTPS协议进行通信，让客户端先断开连接可以减少服务器的负担，保证资源的合理释放，包括端口资源等。
 
 ### 解决措施
 
@@ -934,3 +936,69 @@ ERROR failed to connect, willRetry=1, retry=2, retryLimit=3, rank=1, size=2, loc
 ### 验证
 
 设置完成后重新启动服务，检查是否仍出现Gloo连接错误。
+
+## 启动MindIE Motor CPP服务时，出现找不到libboost\_thread.so.1.82.0报错
+
+### 问题描述
+
+启动MindIE Motor CPP服务的时候，出现找不到libboost\_thread.so.1.82.0的报错，如下图所示。
+
+![](../user_guide/install/figures/faq_error_libboost_1.png)
+
+### 原因分析
+
+由于mindieservice\_daemon没有正确链接到动态依赖的so，导致服务启动失败。
+
+### 解决步骤
+
+1. 查询mindieservice\_daemon具体的so。
+
+    此处以_\{MindIE安装目录\}_/latest/mindie-service为例。
+
+    ```bash
+    ldd ./bin/mindieservice_daemon
+    ```
+
+    ![](../user_guide/install/figures/faq_error_libboost_2.png)
+
+2. 执行**source set\_env.sh**命令，使mindieservice\_daemon正确链接到动态依赖的so。
+
+    ```bash
+    source set_env.sh
+    ```
+
+    ![](../user_guide/install/figures/faq_error_libboost_3.png)
+
+## 安装MindIE后，使用curl命令报错
+
+### 问题描述
+
+使用以下命令执行MindIE环境变量文件后报错：symbol lookup error: /usr/lib64/libldap.so.2: undefined symbol: EVP\_md2，如下图所示。
+
+```bash
+source /usr/local/Ascend/mindie/set_env.sh
+```
+
+![](../user_guide/install/figures/faq_curl_command_failed_1.png)
+
+### 原因分析
+
+函数EVP\_md2是个不安全函数，MindIE编译时依赖Openssl，默认没有开启legacy编译选项，所以不提供EVP\_md2函数。source MindIE环境变量后，MindIE安装包提供的libcrypto.so优先级更高，curl命令依赖EVP\_md2函数，由于找不到EVP\_md2函数，所以执行报错。
+
+### 解决步骤
+
+- 方式一：
+
+    重新打开一个终端执行curl命令。如果终端自动执行source MindIE的环境变量文件set\_env.sh，则可以尝试使用unset LD\_LIBRARY\_PATH命令，避免优先查找安装包中的libcrypto.so。
+
+- 方式二：
+
+    在其他主机或curl功能正常的容器执行curl命令。
+
+- 方式三：
+
+    使用LD\_PRELOAD，指定系统中原有的libcrypto.so.3，示例如下所示：
+
+    ```bash
+    LD_PRELOAD=/usr/lib64/libssl.so.3:/usr/lib64/libcrypto.so.3 curl http://<ip>:<port>/<your_path>
+    ```

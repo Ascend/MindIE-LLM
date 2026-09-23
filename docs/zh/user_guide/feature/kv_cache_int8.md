@@ -6,7 +6,7 @@
 
 > [!NOTE]说明
 >
->- 仅Atlas 800I A2 推理服务器支持KV Cache int8量化。
+>- 仅Atlas 800I A2推理服务器支持KV Cache int8量化。
 >- 仅支持搭配W8A8使用。
 >- 仅支持LLaMA3.1-70B，Qwen2-72B，Qwen2.5-72B-Instruct。
 >- 仅支持float16数据类型。

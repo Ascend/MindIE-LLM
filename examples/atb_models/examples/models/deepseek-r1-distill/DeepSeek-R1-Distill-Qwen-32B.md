@@ -34,12 +34,12 @@ DeepSeek-R1-Distill-Qwen-32B 为 DeepSeek 利用由 DeepSeek-R1 生成的推理�
 
 ## 权重量化
 
-### Atlas 800I A2 w8a8 量化
+### Atlas 800I A2推理服务器 w8a8 量化
 
-W8A8 量化权重可通过 [msmodelslim Qwen](https://gitcode.com/Ascend/msmodelslim/tree/master/example/Qwen)（昇腾模型压缩工具）实现。
+W8A8 量化权重可通过 [msmodelslim Qwen](https://gitcode.com/Ascend/msmodelslim/tree/26.1.0/example/Qwen)（昇腾模型压缩工具）实现。
 
-- 注意该量化方式仅支持在 Atlas 800I A2 服务器上运行
-- 请参考 [msmodelslim](https://gitcode.com/Ascend/msmodelslim/blob/master/docs/zh/getting_started/install_guide.md) 安装 msModelSlim 量化工具
+- 注意该量化方式仅支持在 Atlas 800I A2推理服务器上运行
+- 请参考 [msmodelslim](https://gitcode.com/Ascend/msmodelslim/blob/26.1.0/docs/zh/install_guide/install_guide.md) 安装 msModelSlim 量化工具
 - 进入到 msmodelslim/example/Qwen 的目录 `cd msmodelslim/example/Qwen`；并在进入的 Qwen 目录下，运行量化转换脚本
 
 ```bash
@@ -59,14 +59,14 @@ export PYTORCH_NPU_ALLOC_CONF=expandable_segments:False
 - Step 1
   - 注意该量化方式仅支持在 Atlas 300I DUO/Atlas 300I Pro/Atlas 300V 卡上运行
   - 修改模型权重 config.json 中 `torch_dtype` 字段为 `float16`
-  - 请参考 [msmodelslim](https://gitcode.com/Ascend/msmodelslim/blob/master/docs/zh/getting_started/install_guide.md) 安装 msModelSlim 量化工具
+  - 请参考 [msmodelslim](https://gitcode.com/Ascend/msmodelslim/blob/26.1.0/docs/zh/install_guide/install_guide.md) 安装 msModelSlim 量化工具
   - 进入到 msmodelslim/example/Qwen 的目录 `cd msmodelslim/example/Qwen`；并在进入的 Qwen 目录下，运行量化转换脚本
 
 > 注： 安装完 CANN 后 需要执行 source ${HOME}/Ascend/cann/set_env.sh 声明 ASCEND_HOME_PATH 值 后续安装 msmodelslim 前需保证其不为空
 > 安装 CANN 时，如果用户未指定安装路径，则软件会安装到默认路径下，默认安装路径如下:root 用户：“/usr/local/Ascend”，非 root 用户：“${HOME}/Ascend”，${HOME} 为当前用户目录。
 
 32B 模型建议在 800I A2 上生成 W8A8S 量化权重后，将权重复制到其他机器。
-**Atlas 800I A2** 使用以下方式生成 W8A8S 量化权重
+**Atlas 800I A2推理服务器**使用以下方式生成 W8A8S 量化权重
 
   ```shell
       export ASCEND_RT_VISIBLE_DEVICES=0,1,2,3
@@ -80,7 +80,7 @@ export PYTORCH_NPU_ALLOC_CONF=expandable_segments:False
       python3 quant_qwen.py --model_path {浮点权重路径} --save_directory {W8A8S 量化权重路径} --calib_file ../common/cn_en.jsonl --w_bit 4 --a_bit 8 --fraction 0.011 --co_sparse True --device_type cpu --use_sigma True --is_lowbit True --sigma_factor 4.0 --anti_method m4
   ```
 
-> Atlas 300I DUO/Atlas 300I Pro/Atlas 300V 量化过程耗时较长，预计 10 小时左右，可以在 Atlas 800I A2 上先生成 W8A8S 量化权重路径，再搬运到 Atlas 300I DUO/Atlas 300I Pro/Atlas 300V 执行后续步骤。
+> Atlas 300I DUO/Atlas 300I Pro/Atlas 300V 量化过程耗时较长，预计 10 小时左右，可以在 Atlas 800I A2推理服务器上先生成 W8A8S 量化权重路径，再搬运到 Atlas 300I DUO/Atlas 300I Pro/Atlas 300V 执行后续步骤。
 
 - Step 2：量化权重切分及压缩
 

@@ -119,7 +119,7 @@ Paged Attention 场景需要.safetensors 格式的权重，如果没有，参考
 source /usr/local/Ascend/cann/set_env.sh
 ```
 
-需要安装 CANN（已包含 msmodelslim 工具） 以及 pytorch 和 pytorch-npu
+需要安装 CANN（已包含 msmodelslim 工具） 以及 pytorch 和 TorchNPU
 以及相关的 python 库
 
 ```shell
@@ -277,7 +277,7 @@ bash examples/models/qwen/convert_quant_weight.sh -src ${浮点权重路径} -ds
 - 下载 msmodelslim 量化工具
 - 下载地址为<https://gitcode.com/Ascend/msmodelslim>
 - 根据 msmodelslim 量化工具 readme 进行相关操作
-- 阅读 msmodelslim 仓中的 [FA 量化使用说明](https://gitcode.com/Ascend/msmodelslim/blob/master/docs/zh/quantization_algorithms/quantization_algorithms/fa3_quant.md) 生成权重，或者直接问 msModelSlim 团队索要。
+- 阅读 msmodelslim 仓中的 [FA 量化使用说明](https://gitcode.com/Ascend/msmodelslim/blob/26.1.0/docs/zh/user_guide/quantization_algorithms/quantization_algorithms/fa3_quant.md) 生成权重，或者直接问 msModelSlim 团队索要。
 - ModelSlim 团队会提供 `quant_model_description_w8a8.json` 和 `quant_model_weight_w8a8.safetensors` 两个文件。
 
 - 通过 `${llm_path}/examples/models/qwen/convert_quant_weight.sh` 脚本导出 Qwen2.5-72B 模型 FA3 的量化权重（注意量化权重不要和浮点权重放在同一个目录下）。命令如下：
@@ -551,7 +551,7 @@ pip install tiktoken
     ```
 
 - 约束与限制
-  - 仅支持在 Atlas 800I A2 上运行
+  - 仅支持在 Atlas 800I A2推理服务器上运行
   - Lora 权重不支持热加载，如果未获取到 `adapter_id`，将会默认使用 `base`
   - 仅支持浮点模型
   - `lora_adapter.json` 文件中的键就是 `input_dict` 参数的键 `adapter` 的值，也叫 `adapter_id`。

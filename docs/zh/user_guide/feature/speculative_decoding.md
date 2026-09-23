@@ -23,7 +23,7 @@
 
 ## 限制与约束
 
-- Atlas 800I A2 推理服务器和Atlas 300I Duo 推理卡支持此特性。
+- Atlas 800I A2推理服务器和Atlas 300I Duo推理卡支持此特性。
 - LLaMA3系列、Qwen2系列、Qwen2.5系列、Qwen3-14B和Qwen3-32B模型支持对接此特性。
 - 并行解码支持的量化特性：W8A8量化与稀疏量化，其他量化特性暂不支持。
 - 该特性不能和PD分离、Multi-LoRA、SplitFuse、长序列、MTP、异步调度以及多机推理特性同时使用。

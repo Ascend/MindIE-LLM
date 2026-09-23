@@ -2,7 +2,7 @@
 
 ## 环境准备
 
-本文档以 Atlas 800I A2 推理服务器和 Qwen2-7B 模型为例，让开发者快速开始使用 MindIE 进行大模型推理流程。
+本文档以 Atlas 800I A2推理服务器和 Qwen2-7B 模型为例，让开发者快速开始使用 MindIE 进行大模型推理流程。
 
 ### 前提条件
 
@@ -18,11 +18,11 @@
 
     ![npu-smi 回显信息](./figures/command_output.png "回显信息")
 
-    **表 1** Atlas A2 推理系列产品 <a id="table1"></a>
+    **表 1** Atlas 800I A2推理服务器 <a id="table1"></a>
 
     | 产品型号      | 参考文档                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
     | ------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-    | Atlas 800I A2 | 下载[固件与驱动](https://hiascend.com/hardware/firmware-drivers/community)，安装请参考《CANN 软件安装》中的"[安装 NPU 驱动和固件](https://www.hiascend.com/document/detail/zh/canncommercial/850/softwareinst/instg/instg_0005.html?Mode=PmIns&InstallType=local&OS=openEuler)"章节（商用版）或"[安装 NPU 驱动和固件](https://www.hiascend.com/document/detail/zh/CANNCommunityEdition/850/softwareinst/instg/instg_0005.html?Mode=PmIns&InstallType=local&OS=openEuler)"章节（社区版）。 |
+    | Atlas 800I A2推理服务器 | 下载[固件与驱动](https://hiascend.com/hardware/firmware-drivers/community)，安装请参考《CANN 软件安装》中的"[安装 NPU 驱动和固件](https://www.hiascend.com/document/detail/zh/CANNCommunityEdition/latest/softwareinst/instg/instg_0005.html?OS=openEuler&InstallType=local)"章节。 |
 
 - 执行以下命令查看 Docker 是否已安装并启动。Docker 的安装可参见[安装 Docker](../install/source/docker_installation.md)。
 
@@ -92,22 +92,22 @@
     > [!NOTE] 说明
     > - `{IMAGE_ID}` 为镜像 ID，镜像安装完成后，执行 `docker images` 命令，即可查看对应 ID，替换在上述命令中即可。
     > - 对于 `--device` 参数，挂载权限设置为 `rwm`，而非权限较小的 `rw` 或 `r`，原因如下：
-    > - 对于 Atlas 800I A2 推理服务器，若设置挂载权限为 `rw`，可以正常进入容器，同时也可以使用 `npu-smi` 命令查看 npu 占用信息，并正常运行 MindIE 业务；但如果挂载的 npu（即对应挂载选项中的 `davinci_xxx_`，如 `npu0` 对应 `davinci0`）上有其它任务占用，则使用 `npu-smi` 命令会打印报错，且无法运行 MindIE 任务（此时 `torch.npu.set_device()` 会失败）。
-    > - 对于 Atlas 800I A3 超节点服务器，若设置挂载权限为 `rw`，进入容器后，使用 `npu-smi` 命令会打印报错，且无法运行 MindIE 任务（此时 `torch.npu.set_device()` 会失败）。
+    > - 对于 Atlas 800I A2推理服务器，若设置挂载权限为 `rw`，可以正常进入容器，同时也可以使用 `npu-smi` 命令查看 npu 占用信息，并正常运行 MindIE 业务；但如果挂载的 npu（即对应挂载选项中的 `davinci_xxx_`，如 `npu0` 对应 `davinci0`）上有其它任务占用，则使用 `npu-smi` 命令会打印报错，且无法运行 MindIE 任务（此时 `torch.npu.set_device()` 会失败）。
+    > - 对于 Atlas 800I A3超节点服务器，若设置挂载权限为 `rw`，进入容器后，使用 `npu-smi` 命令会打印报错，且无法运行 MindIE 任务（此时 `torch.npu.set_device()` 会失败）。
 
     **表 1**  参数说明
 
-    | 参数                                                    | 参数说明                                                                                                                                                                                                                                                                                                                                                                                                                              |
-    | ------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-    | -it                                                     | 表示启动一个交互式终端（`-i`）并将其连接到容器的标准输入输出（`-t`），能够与容器内部进行交互，如运行命令行操作。                                                                                                                                                                                                                                                                                                                      |
-    | -d                                                      | 表示容器将以后台模式运行，即容器在后台启动。使用该参数后不会阻塞当前终端的操作，可以在启动容器后继续进行其他操作。                                                                                                                                                                                                                                                                                                                    |
-    | --net                                                   | 表示容器将使用宿主机的网络配置（网络共享），使容器能够直接访问宿主机的网络接口，适用于需要进行低延迟、直接访问网络资源的场景。                                                                                                                                                                                                                                                                                                        |
-    | --shm-size                                              | 表示指定容器的共享内存（`/dev/shm`）大小，用户可自行设置，`1g` 为示例值。对于多模态理解模型，若业务最大并发数较高，`--shm-size` 建议设置不小于 `100g`。<br>该值不能超过宿主机剩余的物理内存总量，可使用 `free -h` 命令查看。当开启数据并行（即 DP > 1 时），需要随 DP 增大调整共享内存大小：<br>当 DP=2 时，shm-size 至少为 2g<br>当 DP=4 时，shm-size 至少为 3g<br>当 DP=8 时，shm-size 至少为 5g<br>当 DP=16 时，shm-size 至少为 9g |
-    | --name                                                  | 表示给容器指定一个名称。`<container-name>` 是容器的标识符，可以自行设置，且在当前系统中具有唯一性。如果不设置，Docker 会自动分配一个随机名称。                                                                                                                                                                                                                                                                                        |
-    | --device                                                | 表示映射的设备，可以挂载一个或者多个设备。<br>需要挂载的设备如下：<ul><li>`/dev/davinci*X*`：NPU 设备，X 是 ID 号，如：`davinci0`。</li><li>`/dev/davinci_manager`：davinci 相关的管理设备。</li><li>`/dev/hisi_hdc`：hdc 相关管理设备。</li><li>`/dev/devmm_svm`：内存管理相关设备。</li></ul>可根据 `ll /dev/ \| grep davinci` 命令查询 device 个数及名称，根据需要绑定设备，修改上面命令中的 `--device=****`。                     |
-    | -v /usr/local/Ascend/driver:/usr/local/Ascend/driver:ro | 将宿主机目录 `/usr/local/Ascend/driver` 挂载到容器，请根据驱动所在实际路径修改。                                                                                                                                                                                                                                                                                                                                                      |
-    | -v /usr/local/sbin:/usr/local/sbin:ro                   | 将宿主机工具 `/usr/local/sbin/` 以只读模式挂载到容器中，请根据实际情况修改。                                                                                                                                                                                                                                                                                                                                                          |
-    | -v /home/weight:/home/weight:ro                         | 设定权重挂载的路径，需要根据用户的情况修改。请将权重文件和数据集文件同时放置于该路径下。                                                                                                                                                                                                                                                                                                                                              |
+     |参数|参数说明|
+    |--|--|
+    |-it|表示启动一个交互式终端（-i）并将其连接到容器的标准输入输出 （-t），能够与容器内部进行交互，如运行命令行操作。|
+    |-d|表示容器将以后台模式运行，即容器在后台启动。使用该参数后不会阻塞当前终端的操作，可以在启动容器后继续进行其他操作。|
+    |--net|表示容器将使用宿主机的网络配置（网络共享），使容器能够直接访问宿主机的网络接口，适用于需要进行低延迟、直接访问网络资源的场景。|
+    |--shm-size|表示指定容器的共享内存（/dev/shm）大小，用户可自行设置，500g为示例值。对于多模态理解模型，若业务最大并发数较高，--shm-size建议设置不小于500g。<br>该值不能超过宿主机剩余的物理内存总量，可使用`free -h`命令查看。当开启数据并行（即DP>1时），需要随DP增大调整共享内存大小：<br>当DP=2时，shm-size至少为2g<br>当DP=4时，shm-size至少为3g<br>当DP=8时，shm-size至少为5g<br>当DP=16时，shm-size至少为9g|
+    |--name|表示给容器指定一个名称。<*container-name*>是容器的标识符，可以自行设置，且在当前系统中具有唯一性。如果不设置，Docker会自动分配一个随机名称。|
+    |--device|表示映射的设备，可以挂载一个或者多个设备。<br>需要挂载的设备如下：<ul><li>/dev/davinci*X*：NPU设备，X是ID号，如：davinci0。</li><li>/dev/davinci_manager：davinci相关的管理设备。</li><li>/dev/hisi_hdc：hdc相关管理设备。</li><li>/dev/devmm_svm：内存管理相关设备。</li></ul>可根据`ll /dev/ \| grep davinci`命令查询device个数及名称，根据需要绑定设备，修改上面命令中的"--device=****"。|
+    |-v /usr/local/Ascend/driver:/usr/local/Ascend/driver:ro|将宿主机目录“/usr/local/Ascend/driver”挂载到容器，请根据驱动所在实际路径修改。|
+    |-v /usr/local/sbin:/usr/local/sbin:ro|将宿主机工具“/usr/local/sbin/”以只读模式挂载到容器中，请根据实际情况修改。|
+    |-v /home/weight:/home/weight:ro|设定权重挂载的路径，需要根据用户的情况修改。请将权重文件和数据集文件同时放置于该路径下。|
 
 2. 执行以下命令进入容器。
 
@@ -150,7 +150,7 @@
     vim config.json
     ```
 
-    b. 按 `i` 进入编辑模式，根据实际情况修改 `config.json` 中的配置参数。（以下已 Qwen2-7B 为例，需要修改的配置参数已加粗）
+    b. 按 `i` 进入编辑模式，根据实际情况修改 `config.json` 中的配置参数。（以下以 Qwen2-7B 为例，需要修改的配置参数已加粗）
 
     ``` json
 
@@ -179,14 +179,14 @@
 
     如上的参数说明如下，更多 `config.json` 的参数说明请参考[配置参数说明（服务化）](../user_manual/service_parameter_configuration.md)。
 
-    | 配置项          | 取值类型                      | 取值范围                                                                                                               | 配置说明                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
-    | --------------- | ----------------------------- | ---------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-    | httpsEnabled    | bool                          | true（开启）false（关闭）                                                                                              | 是否开启 HTTPS 通信安全认证。`true`：开启 HTTPS 通信。`false`：关闭 HTTPS 通信。如果网络环境不安全，不开启 HTTPS 通信，即 `httpsEnabled` = `false` 时，会存在较高的网络安全风险。                                                                                                                                                                                                                                                                                                                                        |
-    | npuDeviceIds    | std::vector<std::set<size_t>> | 根据模型和环境的实际情况来决定。                                                                                       | 表示启用哪几张卡。对于每个模型实例分配的 `npuIds`，使用芯片逻辑 ID 表示。在未配置 `ASCEND_RT_VISIBLE_DEVICES` 环境变量时，每张卡对应的逻辑 ID 可使用 `npu-smi info -m` 指令进行查询。若配置 `ASCEND_RT_VISIBLE_DEVICES` 环境变量时，可见芯片的逻辑 ID 按照 `ASCEND_RT_VISIBLE_DEVICES` 中配置的顺序从 0 开始计数。例如：`ASCEND_RT_VISIBLE_DEVICES=1,2,3,4` 则以上可见芯片的逻辑 ID 按顺序依次为 0,1,2,3。多机推理场景下该值无效，每个节点上使用的 `npuDeviceIds` 根据 `ranktable` 计算获得。必填，默认值：[[0,1,2,3]]。 |
-    | modelName       | string                        | 由大写字母、小写字母、数字、中划线、点和下划线组成，且不以中划线、点和下划线作为开头和结尾，字符串长度小于或等于 256。 | 模型名称。必填，默认值：`llama_65b`。                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
-    | modelWeightPath | std::string                   | 文件绝对路径长度的上限与操作系统的设置（Linux 为 `PATH_MAX`）有关，最小值为 1。                                        | 模型权重路径。程序会读取该路径下的 `config.json` 中 `torch_dtype` 和 `vocab_size` 字段的值，需保证路径和相关字段存在。必填，默认值：`/data/atb_testdata/weights/llama1-65b-safetensors`。该路径会进行安全校验，需要和执行用户的属组和权限保持一致。                                                                                                                                                                                                                                                                      |
-    | worldSize       | uint32_t                      | 根据模型实际情况来决定。每一套模型参数中 `worldSize` 必须与使用的 NPU 数量相等。                                       | 启用几张卡推理。必填，默认值：4。                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
-    | trustRemoteCode | bool                          | truefalse                                                                                                              | 是否信任远程代码。`false`：不信任远程代码。`true`：信任远程代码。选填，默认值：`false`。如果设置为 `true`，会存在信任远程代码行为，可能会导致恶意代码注入风险，请自行保障代码注入安全风险。                                                                                                                                                                                                                                                                                                                              |
+    |配置项|取值类型|取值范围|配置说明|
+    |--|--|--|--|
+    |httpsEnabled|bool|<ul><li>true（开启）</li><li>false（关闭）</li></ul>|是否开启HTTPS通信安全认证。<ul><li>true：开启HTTPS通信。</li><li>false：关闭HTTPS通信。</li></ul>如果网络环境不安全，不开启HTTPS通信，即“httpsEnabled”=“false”时，会存在较高的网络安全风险。|
+    |npuDeviceIds|std::vector<std::set<size_t>>|根据模型和环境的实际情况来决定。|表示启用哪几张卡。对于每个模型实例分配的npuIds，使用芯片逻辑ID表示。<ul><li>在未配置ASCEND_RT_VISIBLE_DEVICES环境变量时，每张卡对应的逻辑ID可使用"npu-smi info -m"指令进行查询。</li><li>若配置ASCEND_RT_VISIBLE_DEVICES环境变量时，可见芯片的逻辑ID按照ASCEND_RT_VISIBLE_DEVICES中配置的顺序从0开始计数。</li></ul>例如：<br>ASCEND_RT_VISIBLE_DEVICES=1,2,3,4<br>则以上可见芯片的逻辑ID按顺序依次为0,1,2,3。<br>多机推理场景下该值无效，每个节点上使用的npuDeviceIds根据ranktable计算获得。<br>必填，默认值：[[0,1,2,3]]。|
+    |modelName|string|由大写字母、小写字母、数字、中划线、点和下划线组成，且不以中划线、点和下划线作为开头和结尾，字符串长度小于或等于256。|模型名称。<br>必填，默认值："llama_65b"。|
+    |modelWeightPath|std::string|文件绝对路径长度的上限与操作系统的设置（Linux为PATH_MAX）有关，最小值为1。|模型权重路径。<br>程序会读取该路径下的config.json中torch_dtype和vocab_size字段的值，需保证路径和相关字段存在。<br>必填，默认值："/data/atb_testdata/weights/llama1-65b-safetensors"。<br>该路径会进行安全校验，需要和执行用户的属组和权限保持一致。|
+    |worldSize|uint32_t|根据模型实际情况来决定。每一套模型参数中worldSize必须与使用的NPU数量相等。|启用几张卡推理。<br>必填，默认值：4。|
+    |trustRemoteCode|bool|<ul><li>true</li><li>false</li></ul>|是否信任远程代码。<ul><li>false：不信任远程代码。</li><li>true：信任远程代码。</li></ul>选填，默认值：false。<br>如果设置为true，会存在信任远程代码行为，可能会导致恶意代码注入风险，请自行保障代码注入安全风险。|
 
     c. 按 `Esc`，输入`:wq!`，按 `Enter` 保存并退出编辑。
 
@@ -241,7 +241,7 @@
 
 5. 发送请求。
 
-    服务化 API 接口请参考《MindIE LLM 开发指南》中的[RESTFUL API 参考](https://www.hiascend.com/document/detail/zh/mindie/300/mindiellm/llmdev/mindie_service0065.html)章节。
+    服务化 API 接口请参见[服务化接口使用指导](https://www.hiascend.com/document/detail/zh/mindie/310/mindiellm/llmdev/mindie_llm/user_guide/user_manual/service_APIs_usage_guidance.md)。
 
     用户可使用 HTTPS 客户端（Linux `curl` 命令，Postman 工具等）发送 HTTPS 请求，此处以 Linux `curl` 命令为例进行说明。
 
@@ -406,7 +406,7 @@
     │ Total Token Throughput   │ total    │ 723.5273 token/s   │
     ```
 
-    性能测试结果主要关注 TTFT、TPOT、Request Throughput 和 Output Token Throughput 输出参数，参数详情信息请参见《MindIE Motor 开发指南》中的“配套工具 \> 性能/精度测试工具”章节的“表 2 性能测试结果指标对比”。
+    性能测试结果主要关注 TTFT、TPOT、Request Throughput 和 Output Token Throughput 输出参数，参数详情信息请参见《MindIE Motor CPP开发指南》中的“配套工具 \> [性能/精度测试工具](https://www.hiascend.com/document/detail/zh/mindie/310/mindiellm/llmdev/mindie_motor_cpp/user_guide/service_oriented_optimization_tool/performance_accuracy_test_tool.md)”章节的“表 2 性能测试结果指标对比”。
 
     > [!NOTE] 说明
     > 任务执行的过程最终会落盘在默认的输出路径，该输出路径在运行中的打印日志中有提示，日志内容如下所示：

@@ -6,7 +6,7 @@
 
 > [!NOTE]说明
 >
->- 仅Atlas 800I A2 推理服务器支持Attention量化。
+>- 仅Atlas 800I A2推理服务器支持Attention量化。
 >- 仅支持W8A8配合使用。
 >- 仅支持LLaMA3.1-70B。
 >- 仅支持和长序列特性、Function Call配合使用。

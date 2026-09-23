@@ -12,7 +12,7 @@
 
 **表1** 硬件支持
 
-|模型|Atlas 800I A2|Atlas 800I A3|Atlas 300I Duo 推理卡|
+|模型|Atlas 800I A2|Atlas 800I A3|Atlas 300I Duo推理卡|
 |:-----:|:--------:|:-----------:|:------------------:|
 |DeepSeek-V3.2|四机 32 卡部署|双机 16 卡部署|❌|
 
@@ -111,7 +111,7 @@ MindIE-LLM 安装请参见[安装指南](../../install/installing_MindIE.md)，�
 
 ## 服务化推理
 
-### Atlas 800I A3 双机部署
+### Atlas 800I A3超节点服务器双机部署
 
 #### 配置服务化环境变量
 
@@ -149,7 +149,7 @@ unset http_proxy https_proxy
 说明：
 
 - `MIES_CONTAINER_IP` 优先级高于配置文件中的 `ipAddress`，设置后发送请求时，以主节点的 `MIES_CONTAINER_IP` 为准。
-- `GLOO_SOCKET_IFNAME` 需要根据 MIES_CONTAINER_IP 对应的网卡名，可以通过 `ifconfig` 查看网卡列表，设置为对应的网卡名，参考[FAQ](https://gitcode.com/Ascend/MindIE-LLM/blob/master/docs/zh/faq/faq.md#gloo%E8%BF%9E%E6%8E%A5%E5%A4%B1%E8%B4%A5%E6%8A%A5%E9%94%99%EF%BC%9Aerror-failed-to-connect-errorso_error-connection-refused)。
+- `GLOO_SOCKET_IFNAME` 需要根据 MIES_CONTAINER_IP 对应的网卡名，可以通过 `ifconfig` 查看网卡列表，设置为对应的网卡名，参考[FAQ](https://gitcode.com/Ascend/MindIE-LLM/blob/v3.1.0/docs/zh/faq/faq.md#gloo%E8%BF%9E%E6%8E%A5%E5%A4%B1%E8%B4%A5%E6%8A%A5%E9%94%99%EF%BC%9Aerror-failed-to-connect-errorso_error-connection-refused)。
 - MindIE-LLM 支持编译 run 包和 whl 包，两者的安装路径有所不同，发布的镜像中默认安装的是 run 包。run 包默认将二进制文件存储在 `/usr/local/Ascend/mindie` 目录下，并将 Python 文件存储在 Python whl 包默认安装目录（如 `/usr/local/lib/python3.11/site-packages/mindie_llm`）；whl 包将二进制文件和 Python 文件都存储在 Python 包默认安装目录。
 
 #### 配置服务化参数
@@ -242,9 +242,9 @@ curl -H "Accept: application/json" -H "Content-type: application/json" -X POST -
 {"id":"endpoint_common_1","object":"chat.completion","created":1774785542,"model":"DeepSeek-V3.2","choices":[{"index":0,"message":{"role":"assistant","content":"Deep learning is a subset of machine learning that uses artificial neural networks with multiple layers to","tool_calls":[]},"logprobs":null,"finish_reason":"length"}],"usage":{"prompt_tokens":9,"prompt_tokens_details":{"cached_tokens":0},"completion_tokens":20,"completion_tokens_details":{"reasoning_tokens":0},"total_tokens":29}}
 ```
 
-### Atlas 800I A2 八机大 EP 部署
+### Atlas 800I A2推理服务器八机大 EP 部署
 
-参考 [MindIE-Motor](https://gitcode.com/Ascend/MindIE-Motor/blob/master/docs/zh/user_guide/service_deployment/pd_separation_service_deployment.md#%E5%AE%89%E8%A3%85%E9%83%A8%E7%BD%B2) 获取大 EP 初始化脚本，部署目录
+参考 [MindIE-Motor-CPP](https://gitcode.com/Ascend/MindIE-Motor-CPP/blob/v3.1.0/docs/zh/user_guide/service_deployment/pd_separation_service_deployment.md#%E4%BD%BF%E7%94%A8kubectl%E9%83%A8%E7%BD%B2%E5%8D%95%E6%9C%BApd%E5%88%86%E7%A6%BB%E6%9C%8D%E5%8A%A1%E7%A4%BA%E4%BE%8B) 获取大 EP 初始化脚本，部署目录
 结构如下：
 
 ```shell

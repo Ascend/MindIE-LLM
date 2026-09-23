@@ -1,6 +1,20 @@
 # LLM用户指南
 
-- [简介](./introduction.md)
+- [MindIE LLM简介](./introduction.md)
+- [快速入门](../quick_start/quick_start.md)
+- [安装指南]()
+  - [安装说明](../install/installation_introduction.md)
+  - [方式一：镜像安装](../install/source/image_usage_guide.md)
+  - [方式二：离线安装]()
+    - [准备软件包和依赖](../install/source/preparing_software_and_dependencies.md)
+    - [（可选）启动容器](../install/source/installation_in_containerized.md)
+    - [安装软件包和依赖](../install/source/installing_software_and_dependencies.md)
+    - [安装MindIE软件包](../install/source/installation_on_a_physical_machine.md)
+  - [方式三：源码安装]()
+    - [MindIE LLM源码安装](../../developer_guide/build_guide_llm.md)
+    - [MindIE Motor CPP源码安装](https://gitcode.com/Ascend/MindIE-Motor-CPP/blob/v3.1.0/docs/zh/developer_guide/build_guide.md)
+  - [升级](../install/source/upgrade.md)
+  - [卸载](../install/source/uninstallation.md)
 - [AclGraph 模型迁移指南](../../developer_guide/migration_and_adaptation_guide/aclgraph_migration_and_adaptation_guide.md)
 - [核心概念与配置]()
   - [配置参数说明（服务化）](service_parameter_configuration.md)
@@ -18,39 +32,91 @@
     - [Multi-Lora](../feature/multi_lora.md)
     - [MoE](../feature/moe.md)
     - [MLA](../feature/mix_shared_routing.md)
+    <!-- npu="A3,910b" id4 -->
     - [负载均衡](../feature/expert_parallelism_load_balancer.md)
+    <!-- end id4 -->
     - [共享专家外置](../feature/mix_shared_routing.md)
     - [Expert Parallel](../feature/expert_parallel.md)
+    <!-- npu="A3,910b" id3 -->
     - [Data Parallel](../feature/data_parallel.md)
+    <!-- end id3 -->
+    <!-- npu="A3,910b" id12 -->
     - [Tensor Parallel](../feature/tensor_parallel.md)
+    <!-- end id12 -->
   - [量化特性]()
     - [Anti-Outlier离群值抑制](../feature/anti_outlier.md)
     - [PDMIX量化](../feature/pdmix.md)
     - [W8A8量化](../feature/w8a8.md)
     - [W4A8混合量化](../feature/w4a8_mixed_precision_quantization.md)
+    <!-- npu="910b" id13 -->
     - [W8A16量化](../feature/w8a16.md)
+    <!-- end id13 -->
+    <!-- npu="910b" id1 -->
     - [Attention量化](../feature/attention_quantization.md)
+    <!-- end id1 -->
+    <!-- npu="A3,910b" id5 -->
     - [FA3量化](../feature/fa3_quantization.md)
+    <!-- end id5 -->
+    <!-- npu="910b" id7 -->
     - [KV Cache int8](../feature/kv_cache_int8.md)
+    <!-- end id7 -->
     - [W8A8SC稀疏量化](../feature/w8a8sc.md)
     - [W16A16SC稀疏量化](../feature/w16a16sc.md)
   - [长序列特性]()
+    <!-- npu="A3,910b" id2 -->
     - [Context Parallel](../feature/context_parallel.md)
+    <!-- end id2 -->
+    <!-- npu="A3,910b" id9 -->
     - [Sequence Parallel](../feature/sequence_parallel.md)
+    <!-- end id9 -->
   - [调度特性]()
     - [异步调度](../feature/asynchronous_scheduling.md)
+    <!-- npu="A3,910b" id11 -->
     - [SplitFuse](../feature/split_fuse.md)
+    <!-- end id11 -->
+    <!-- npu="910b" id10 -->
     - [SLO调度优化](../feature/slo_aware_scheduling_optimization.md)
+    <!-- end id10 -->
   - [加速特性]()
     - [Micro Batch](../feature/micro_batch.md)
     - [并行解码](../feature/speculative_decoding.md)
+    <!-- npu="A3,910b" id8 -->
     - [MTP](../feature/mtp.md)
+    <!-- end id8 -->
     - [Prefix Cache](../feature/prefix_cache.md)
     - [KV Cache池化](../feature/kv_cache_pool.md)
   - [交互特性]()
+    <!-- npu="A3,910b" id6 -->
     - [Function Call](../feature/function_call.md)
+    <!-- end id6 -->
     - [思考解析](../feature/enable_reasoning.md)
     - [思考预算](../feature/thinking_budget.md)
 - [附录]()
   - [FAQ](../../faq/faq.md)
   - [环境变量说明](environment_variable.md)
+  - [密码复杂度要求](../install/faq_and_appendixes/password_complexity_requirement.md)
+  - [设置用户有效期](../install/faq_and_appendixes/setting_validity_of_account.md)
+  - [软件包参数说明](../install/faq_and_appendixes/software_package_options.md)
+  - [启动haveged服务](../install/faq_and_appendixes/starting_the_haveged_service.md)
+  - [MindIE Motor CPP用户指南]()
+    - [简介](https://gitcode.com/Ascend/MindIE-Motor-CPP/blob/v3.1.0/docs/zh/user_guide/introduction.md)
+    - [快速入门](https://gitcode.com/Ascend/MindIE-Motor-CPP/blob/v3.1.0/docs/zh/user_guide/quick_start.md)
+    - [集群服务部署]()
+      - [环境准备](https://gitcode.com/Ascend/MindIE-Motor-CPP/blob/v3.1.0/docs/zh/user_guide/service_deployment/environment_preparation.md)
+      - [准备MindIE镜像](https://gitcode.com/Ascend/MindIE-Motor-CPP/blob/v3.1.0/docs/zh/user_guide/service_deployment/preparing_mindie_image.md)
+      - [单机（非分布式）服务部署](https://gitcode.com/Ascend/MindIE-Motor-CPP/blob/v3.1.0/docs/zh/user_guide/service_deployment/single_machine_service_deployment.md)
+      - [PD分离服务部署](https://gitcode.com/Ascend/MindIE-Motor-CPP/blob/v3.1.0/docs/zh/user_guide/service_deployment/pd_separation_service_deployment.md)
+    - [集群管理组件]()
+      - [概述](https://gitcode.com/Ascend/MindIE-Motor-CPP/blob/v3.1.0/docs/zh/user_guide/cluster_management_component/general_comments.md)
+      - [控制器（Controller）](https://gitcode.com/Ascend/MindIE-Motor-CPP/blob/v3.1.0/docs/zh/user_guide/cluster_management_component/controller.md)
+      - [调度器（Coordinator）](https://gitcode.com/Ascend/MindIE-Motor-CPP/blob/v3.1.0/docs/zh/user_guide/cluster_management_component/coordinator.md)
+      - [日志配置](https://gitcode.com/Ascend/MindIE-Motor-CPP/blob/v3.1.0/docs/zh/user_guide/cluster_management_component/log_configuration.md)
+    - [配套工具]()
+      - [性能/精度测试工具](https://gitcode.com/Ascend/MindIE-Motor-CPP/blob/v3.1.0/docs/zh/user_guide/service_oriented_optimization_tool/performance_accuracy_test_tool.md)
+      - [MindIE探针工具](https://gitcode.com/Ascend/MindIE-Motor-CPP/blob/v3.1.0/docs/zh/user_guide/service_oriented_optimization_tool/mindie_probe_tool.md)
+      - [服务化调优工具](https://gitcode.com/Ascend/MindIE-Motor-CPP/blob/v3.1.0/docs/zh/user_guide/service_oriented_optimization_tool/service_oriented_optimization_tool.md)
+      - [MindIE Service Tools](https://gitcode.com/Ascend/MindIE-Motor-CPP/blob/v3.1.0/docs/zh/user_guide/service_oriented_optimization_tool/mindie_service_tools.md)
+    - [附录]()
+      - [RESTful响应状态码](https://gitcode.com/Ascend/MindIE-Motor-CPP/blob/v3.1.0/docs/zh/user_guide/appendix/restful_response_status_codes.md)
+      - [启动haveged服务](https://gitcode.com/Ascend/MindIE-Motor-CPP/blob/v3.1.0/docs/zh/user_guide/appendix/start_haveged_service.md)
+      - [大规模专家并行方案典型配置](https://gitcode.com/Ascend/MindIE-Motor-CPP/blob/v3.1.0/docs/zh/user_guide/performance_tuning.md)

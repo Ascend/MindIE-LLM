@@ -45,16 +45,16 @@ max_input_length长度设置可参考模型权重路径下config.json里的max_p
 
 **Dense架构模型**
 
-- 参考[Qwen3-VL 量化案例](https://gitcode.com/Ascend/msit/blob/master/msmodelslim/example/multimodal_vlm/Qwen3-VL/README.md)
+- 参考[Qwen3-VL 量化案例](https://gitcode.com/Ascend/msmodelslim/blob/26.1.0/example/multimodal_vlm/Qwen3-VL/README.md)
 
 **MoE架构模型**
 
-- 参考[Qwen3-VL-MoE 量化使用说明](https://gitcode.com/Ascend/msit/blob/master/msmodelslim/example/multimodal_vlm/Qwen3-VL-MoE/README.md)
+- 参考[Qwen3-VL-MoE 量化使用说明](https://gitcode.com/Ascend/msmodelslim/blob/26.1.0/example/multimodal_vlm/Qwen3-VL-MoE/README.md)
 
 注意：
 
 1. 仅300I DUO平台支持稀疏压缩量化（W8A8SC）
-2. 为保证模型精度和性能，在300I DUO平台使用的W8A8权重，需在800I A2平台量化完成后使用[deq_scale_cast.py](https://gitcode.com/Ascend/msit/blob/master/msmodelslim/example/deq_scale_cast.py)转换后使用
+2. 为保证模型精度和性能，在300I DUO平台使用的W8A8权重，需在800I A2平台量化完成后使用[deqscale2int64.py](https://gitcode.com/Ascend/msmodelslim/blob/26.1.0/example/deqscale2int64.py)转换后使用
 
 ### 昇腾原生量化权重下载
 
@@ -67,9 +67,9 @@ max_input_length长度设置可参考模型权重路径下config.json里的max_p
 - [Qwen3-VL-32B-Instruct-w8a8s-310](https://www.modelscope.cn/models/Eco-Tech/Qwen3-VL-32B-Instruct-w8a8s-310)
 - [Qwen3-VL-30B-A3B-Instruct-w8a8-QuaRot-310](https://www.modelscope.cn/models/Eco-Tech/Qwen3-VL-30B-A3B-Instruct-w8a8-QuaRot-310)
 
-- 注意：  
-稀疏压缩权重需根据实际使用TP数自主压缩，压缩命令：  
-torchrun --nproc_per_node {TP数} -m examples.convert.model_slim.sparse_compressor --model_path {W8A8S量化权重路径} --save_directory {W8A8SC量化权重路径} --multiprocess_num 4  
+- 注意：
+稀疏压缩权重需根据实际使用TP数自主压缩，压缩命令：
+torchrun --nproc_per_node {TP数} -m examples.convert.model_slim.sparse_compressor --model_path {W8A8S量化权重路径} --save_directory {W8A8SC量化权重路径} --multiprocess_num 4
 权重压缩后，需手动将浮点权重路径下的chat_template.json，preprocessor_config.json，video_preprocessor_config.json三个文件拷贝至W8A8SC量化权重路径下。
 
 **800I A2**

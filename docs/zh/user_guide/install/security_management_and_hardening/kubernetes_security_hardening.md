@@ -18,7 +18,7 @@ Kubernetes需要进行如下加固：
 
   - 手动修改configmap中的“nodePortAddresses“参数为CIDR格式的节点IP。
   - 手动修改configmap中的“healthzBindAddress“参数为CIDR格式的节点IP。
-  - 将上述配置应用到k8s proxy，用户可直接删除K8s中名字带kube-proxy的所有Pod任务，后续K8s会直接重新拉起proxy服务。
+  - 将上述配置应用到k8s proxy，用户可直接删除K8s中名字带kube-proxy的所有Pod任务，后续K8s会直接重新启动proxy服务。
 
         ```linux
         kubectl delete pod {kube-proxy pod名称} -n kube-system
@@ -30,10 +30,7 @@ Kubernetes需要进行如下加固：
   - 修改或增加启动参数“--tls-cipher-suites“，避免使用不安全的TLS加密套件带来风险，设置如下所示：
 
         ```text
-        --tls-cipher-suites=TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_RSA_WITH_AES_128_GCM
-        _SHA256,TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305,TLS_ECDHE_RSA_WITH_AES_256_GC
-        M_SHA384,TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305,TLS_ECDHE_ECDSA_WITH_AES_256_G
-        CM_SHA384
+        --tls-cipher-suites=TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305,TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305,TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384
         ```
 
   - 修改或增加启动参数“--tls-min-version“，取值示例：--tls-min-version=VersionTLS13，用于配置apiserver时使用TLS1.3安全协议对通信进行加密。
@@ -46,26 +43,23 @@ Kubernetes需要进行如下加固：
   - 修改或增加启动参数“--tls-cipher-suites“，避免使用不安全的TLS加密套件带来风险，设置如下所示：
 
         ```text
-        --tls-cipher-suites=TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_RSA_WITH_AES_128_GCM
-        _SHA256,TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305,TLS_ECDHE_RSA_WITH_AES_256_GC
-        M_SHA384,TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305,TLS_ECDHE_ECDSA_WITH_AES_256_G
-        CM_SHA384
+        --tls-cipher-suites=TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305,TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305,TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384
         ```
 
         > [!NOTE]说明
         > Kubernetes v1.19及以上版本支持TLSv1.3的加密套件，建议使用高版本的Kubernetes时，加上TLSv1.3的加密套件。
 
-- 若Kubernetes集群使用的OS kernel内核版本大于等于4.6，安装完Kubernetes后手动开启AppArmor或者SELinux。
+- 若Kubernetes集群使用的OS内核版本大于等于4.6，安装完Kubernetes后手动开启AppArmor或者SELinux。
 - 为使推理服务Pod的带宽限制生效，需要安装bandwidth插件到CNI bin目录中（默认为/opt/cni/bin），并修改CNI配置文件（默认路径：/etc/cni/net.d），在plugins中加入bandwidth。
 
-    ```json
-
-    {
-    "type": "bandwidth",
-    "capabilities": {"bandwidth": true}
-    }
-
-    ```
+      ```json
+      {
+      "type": "bandwidth",
+      "capabilities": {
+        "bandwidth": true
+        }
+      }
+      ```
 
 - 工作负载安全：
   - 禁止使用特权容器启动Pod。

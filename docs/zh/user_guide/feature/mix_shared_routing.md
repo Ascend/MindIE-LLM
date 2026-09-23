@@ -15,9 +15,14 @@
 ## 限制与约束
 
 - 仅支持DeepSeek V3/R1。
-- 仅Atlas 800I A3 超节点服务器的144卡场景，支持单独设置共享专家外置。如果该场景搭配负载均衡使用，则性能更优。
+- 仅Atlas 800I A3超节点服务器的144卡场景，支持单独设置共享专家外置。如果该场景搭配负载均衡使用，则性能更优。
 - 共享专家混置可单独设置，如果该场景搭配负载均衡使用，则性能更优。
-- 共享专家外置只支持Atlas 800I A3 超节点服务器；共享专家混置同时支持Atlas 800I A2 推理服务器和Atlas 800I A3 超节点服务器。
+<!-- npu="A3" id2 -->
+- 共享专家外置只支持Atlas 800I A3超节点服务器。
+<!-- end id2 -->
+<!-- npu="A3,910b" id3 -->
+- 共享专家混置同时支持Atlas 800I A2推理服务器和Atlas 800I A3 超节点服务器。
+<!-- end id3 -->
 
 ## 使用样例
 
@@ -37,7 +42,8 @@
                 }
         ```
 
-- Atlas 800I A3 超节点服务器的144卡单独使用共享专家外置，且不搭配专家负载均衡。
+<!-- npu="A3" id4 -->
+- Atlas 800I A3超节点服务器的144卡单独使用共享专家外置，且不搭配专家负载均衡。
 
     在配置文件中修改如下参数。
 
@@ -49,6 +55,7 @@
               }
              }
     ```
+<!-- end id4 -->
 
 - 单独设置共享专家混置：
 
@@ -65,4 +72,4 @@
 ## 执行推理
 
 1. 配置服务化参数。服务化的config.json文件路径的详细说明请参考[配置参数说明（服务化）](../user_manual/service_parameter_configuration.md)。具体参数配置请参见[使用样例](#使用样例)。
-2. 启动服务。具体请参考《MindIE Motor开发指南》中的“快速入门 \> [启动服务](https://gitcode.com/Ascend/MindIE-Motor/blob/dev/docs/zh/user_guide/quick_start.md)”章节。
+2. 启动服务。具体请参考《MindIE Motor CPP开发指南》中的“快速入门 \> [启动服务](https://www.hiascend.com/document/detail/zh/mindie/310/mindiellm/llmdev/mindie_motor_cpp/user_guide/quick_start.md)”章节。

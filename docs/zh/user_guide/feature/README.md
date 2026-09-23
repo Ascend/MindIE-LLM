@@ -97,7 +97,7 @@ MindIE LLM 支持的特性包括基础特性、量化特性、长序列特性、
         <td>思考解析</td><td>对大模型的输出内容进行结构化解析，将思考过程和输出结果进行分离。详见 <a href="./enable_reasoning.md">思考解析</a>。</td><td>提升复杂场景推理性能</td>
     </tr>
     <tr>
-        <td>思考预算</td><td>控制模型思考深度，当思考内容超过设定的thinking_budget时，系统会使用提示词对思考过程进行截断。详见 <a href="./thinking_budget.md">思考解析</a>。</td><td>提升复杂场景推理性能</td>
+        <td>思考预算</td><td>控制模型思考深度，当思考内容超过设定的thinking_budget时，系统会使用提示词对思考过程进行截断。详见 <a href="./thinking_budget.md">思考预算</a>。</td><td>提升复杂场景推理性能</td>
     </tr>
     <tr>
         <td rowspan="1">其他</td><td>权重离线切分</td><td>通过预切分权重至tmpfs，优化大规模模型加载效率，减少NPU传输时间。详见 <a href="./offline_weight_partitioning.md">权重离线切分</a>。</td><td>降低权重加载耗时</td>

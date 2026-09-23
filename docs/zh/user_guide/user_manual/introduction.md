@@ -1,4 +1,4 @@
-# 简介
+# MindIE LLM简介
 
 ## 概述
 
@@ -6,16 +6,14 @@
 
 MindIE LLM 主要对外提供 **C++ 与 Python API**（Application Programming Interface），包括大模型推理、并发请求调度和 LLM Manager API 等，便于用户在业务系统中集成与调用。
 
+> [!NOTE]说明
+> MindIE LLM 组件将暂停后续功能演进，现有功能维持维护状态，不再支持新特性和新模型。推荐使用 MindIE Motor+vLLM Ascend 部署推理服务。关于 vLLM Ascend 的快速部署，请参阅官方文档的[快速开始](https://docs.vllm.ai/projects/ascend/zh-cn/v0.23.0/quick_start.html)章节。
+
 ## MindIE LLM架构图
 
 **图1** MindIE LLM架构图
 
 ![](./figures/mindie_llm_architecture_diagram.png)
-
-    - Engine：负责将scheduler，executor，worker等协同串联起来，利用组件间的协同，实现多场景下请求的推理处理能力。
-    - Scheduler: 在1个DP域内，将多条请求在Prefill或者Decode阶段组成batch，实现计算和通信的充分利用。
-    - Block Manager：管理在DP内的kv资源，支持池化后，支持对offload的kv位置感知。
-    - Executor：将调度完成的信息分发给Text Generator模块。支持跨机、跨卡的任务下发。
 
 - **Server**：推理服务层，对外提供模型推理的服务化能力与统一接入能力。Endpoint 面向推理服务开发者提供 RESTful 接口，同时，Endpoint 负责推理服务化协议与接口的封装，并兼容 Triton/OpenAI/TGI/vLLM 等主流推理框架的请求接口。
 

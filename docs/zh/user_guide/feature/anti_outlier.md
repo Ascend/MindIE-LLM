@@ -1,6 +1,6 @@
 # Anti-Outlier 离群值抑制
 
-> [!TIP] 同义术语
+> [!Note]同义术语
 > 本特性在不同文档或工具日志中可能被称为：**离群值抑制**、**异常值抑制**、**Anti-Outlier** 或 **AntiOutlier**。
 
 ## 特性简介
@@ -62,7 +62,7 @@
 
 ## 生成权重
 
-您可以使用msModelSlim工具生成量化权重：[msModelSlim](https://gitcode.com/Ascend/msit/blob/master/msmodelslim/README.md)
+您可以使用msModelSlim工具生成量化权重：[msModelSlim](https://gitcode.com/Ascend/msmodelslim)
 
 以Qwen3-14B为例，安装msModelSlim工具后，可以使用如下命令快速生成一份带有离群值抑制的W8A8PDMIX量化权重：
 

@@ -2,7 +2,7 @@
 
 本文档介绍 MindIE 中 Thinking（思考）、Enable_reasoning（思考解析）、Function Call（函数调用）和 Stream（流式输出）四大特性的开启方式、优先级关系及叠加使用说明。
 
-【限制与约束】Atlas 800I A2 推理服务器、Atlas 800I A3 超节点服务器和 Atlas 300I Duo 推理卡支持以上特性。
+【限制与约束】Atlas 800I A2推理服务器、Atlas 800I A3超节点服务器和 Atlas 300I Duo推理卡支持以上特性。
 
 ## 特性开启方式总览
 
@@ -12,7 +12,7 @@
 |------|------|------------------------|-----------------------------------|----------------------|----------------|
 | **请求级** | 发送的请求体中 |添加`"chat_template_kwargs": {"enable_thinking": true/false}` | NA | 传入 `"tools": [...]` 参数，且模型决定触发工具调用 | `"stream": true/false`（默认 false） |
 | **服务级** |服务化配置文件：`/usr/local/lib/python3.11/site-packages/mindie_llm/conf/config.json`  |NA |  `models` 下配置  `"enable_reasoning": true/false`  | NA | NA |
-| **权重维度** | 模型权重目录下的 tokenizer_config.json文件 | 添加 `"enable_thinking": true/false`（不同模型字段名称不一样，详见下文） | NA | NA | NA | NA |
+| **权重维度** | 模型权重目录下的 tokenizer_config.json文件 | 添加 `"enable_thinking": true/false`（不同模型字段名称不一样，详见下文） | NA | NA | NA |
 
 ---
 

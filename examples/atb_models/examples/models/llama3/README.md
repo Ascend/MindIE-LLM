@@ -102,7 +102,7 @@
 - Attention 量化权重请使用以下指令生成
   - 当前仅支持基于 BF16 权重生成量化权重
   - 当前仅 Llama3.1-70B-Instruct W8A8 量化支持搭配 Attention 量化
-  - 需修改 `modeling_llama.py` 文件和 `config.json` 文件，配置方法参考 [msmodelslim FA 量化说明](https://gitcode.com/Ascend/msmodelslim/blob/master/docs/zh/feature_guide/traditional_quantization_v0/README.md)。
+  - 需修改 `modeling_llama.py` 文件和 `config.json` 文件，配置方法参考 [msmodelslim FA 量化说明](https://gitcode.com/Ascend/msmodelslim/tree/26.1.0/docs/zh/user_guide/feature_guide/traditional_quantization_v0)。
   - 相比于 W8A8 量化，需额外设置 `use_fa_quant` 参数为 True, 需增加参数`-trust_remote_code`
 
     ```shell
@@ -261,7 +261,7 @@
     ```
 
 - 约束与限制
-  - 仅支持在 Atlas 800I A2 上运行
+  - 仅支持在 Atlas 800I A2推理服务器上运行
   - Lora 权重不支持热加载
   - 在显存充足的情况下至多加载 10 个 Lora 权重
   - 仅支持浮点模型

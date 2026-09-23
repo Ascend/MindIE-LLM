@@ -98,7 +98,7 @@
 
 ## 前提条件
 
-在使用稀疏量化脚本之前，需要安装压缩工具msModelSlim，安装步骤参见《msModelSlim工具》的“[msModelSlim安装](https://gitcode.com/Ascend/msit/blob/master/msmodelslim/docs/%E5%AE%89%E8%A3%85%E6%8C%87%E5%8D%97.md)”章节。
+在使用稀疏量化脚本之前，需要安装压缩工具msModelSlim，安装步骤参见《msModelSlim工具》的“[msModelSlim安装](https://gitcode.com/Ascend/msmodelslim/blob/26.1.0/docs/zh/install_guide/install_guide.md)”章节。
 
 ## 生成权重
 

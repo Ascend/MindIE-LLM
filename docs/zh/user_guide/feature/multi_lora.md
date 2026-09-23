@@ -15,7 +15,7 @@ LoRA权重中需包含"adapter\_config.json"和"adapter\_model.safetensors"文�
 
 ## 限制与约束
 
-- Atlas 800I A2 推理服务器、Atlas 800I A3 超节点服务器和Atlas 300I Duo 推理卡支持此特性。
+- Atlas 800I A2推理服务器、Atlas 800I A3超节点服务器和Atlas 300I Duo推理卡支持此特性。
 - LoRA权重个数上限受硬件显存限制，建议数量为小于等于10个。
 - 仅在ATB Models使用Python组图时支持LoRA权重动态加载和卸载。
 - 支持线性层携带LoRA权重。
@@ -64,7 +64,7 @@ LoRA权重中需包含"adapter\_config.json"和"adapter\_model.safetensors"文�
 - 服务化使用：
 
     > [!NOTE]说明
-    > lora\_adapter.json文件配置方式已下线，新的配置方式是在MindIE Motor的config.json文件中添加LoraModules字段开启Multi LoRA特性，详细操作步骤如下所示。
+    > lora\_adapter.json文件配置方式已下线，新的配置方式是在MindIE Motor CPP的config.json文件中添加LoraModules字段开启Multi LoRA特性，详细操作步骤如下所示。
 
     以LLaMA3.1 70B模型为例，简单介绍Multi LoRA如何使用。
 
