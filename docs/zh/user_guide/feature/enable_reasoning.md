@@ -7,7 +7,7 @@
 
 ## 限制与约束
 
-- Atlas 800I A2 推理服务器、Atlas 800I A3 超节点服务器和Atlas 300I Duo 推理卡支持此特性。
+- Atlas 800I A2推理服务器、Atlas 800I A3超节点服务器和Atlas 300I Duo推理卡支持此特性。
 - 当前仅Qwen3-32B、Qwen3-235B-A22B、Qwen3-30B-A3B、DeepSeek-R1和DeepSeek-V3.1模型支持此特性。
 - DeepSeek-V3.1模型开启思考解析时，需在请求中传入如下字段："chat\_template\_kwargs": \{"enable\_thinking":  _<bool\>_\}，或者在tokenizer\_config.json中添加"enable\_thinking": <bool\>
 - 当前仅支持OpenAI推理接口。

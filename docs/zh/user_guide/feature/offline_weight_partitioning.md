@@ -6,13 +6,14 @@ MindIE在权重加载过程中，默认实现为首先完整加载safetensors格
 
 - 仅DeepSeek-R1和DeepSeek-V3模型支持此特性。
 - 权重离线切分时的配置需和模型推理运行时的配置保持一致。
-- 仅Atlas 800I A2 推理服务器双机场景、Atlas 800I A3 超节点服务器单机场景支持此特性。
+- 仅Atlas 800I A2推理服务器双机场景、Atlas 800I A3超节点服务器单机场景支持此特性。
 - 不支持与共享专家和路由专家合并特性同时开启。
 - 不支持和动态负载均衡特性同时开启。
 
 ## 权重离线切分
 
-以Atlas 800I A3 超节点服务器单机为例，您可以使用以下脚本完成权重切分。
+<!-- npu="A3" id1 -->
+以Atlas 800I A3超节点服务器单机为例，您可以使用以下脚本完成权重切分。
 
 ```bash
 # 如在线服务化运行场景使能MTP权重，请设置以下环境变量
@@ -20,8 +21,10 @@ export DEEPSEEK_MTP=1
 # 权重切分
 torchrun --nproc_per_node 16 --master_port 20030 -m examples.convert.weight_sharder --model_path {完整权重路径} --dp 2 --tp 8 --moe_tp 4 --moe_ep 4 --save_directory {切分后权重文件保存路径}
 ```
+<!-- end id1 -->
 
-以Atlas 800I A2 推理服务器双机为例，您可以使用以下脚本完成权重切分。
+<!-- npu="910b" id2 -->
+以Atlas 800I A2推理服务器双机为例，您可以使用以下脚本完成权重切分。
 
 ```bash
 # 如在线服务化运行场景使能MTP权重，请设置以下环境变量
@@ -32,6 +35,7 @@ torchrun --nnodes=2 --nproc_per_node 8 --node_rank=0 --master_addr="主节点IP"
 
 torchrun --nnodes=2 --nproc_per_node 8 --node_rank=1 --master_addr="主节点IP" --master_port 20030 -m examples.convert.weight_sharder --model_path {完整权重路径} --dp 2 --tp 8 --moe_tp 4 --moe_ep 4 --save_directory {切分后权重文件保存路径}
 ```
+<!-- end id2 -->
 
 切分后的权重目录结构：
 

@@ -2,7 +2,7 @@
 
 本文档介绍 MindIE 中 Thinking（思考）、Enable_reasoning（思考解析）、Function Call（函数调用）和 Stream（流式输出）四大特性的开启方式、优先级关系及叠加使用说明。
 
-【限制与约束】Atlas 800I A2 推理服务器、Atlas 800I A3 超节点服务器和 Atlas 300I Duo 推理卡支持以上特性。
+【限制与约束】Atlas 800I A2推理服务器、Atlas 800I A3超节点服务器和 Atlas 300I Duo推理卡支持以上特性。
 
 ## 特性开启方式总览
 

@@ -551,7 +551,7 @@ pip install tiktoken
     ```
 
 - 约束与限制
-  - 仅支持在 Atlas 800I A2 上运行
+  - 仅支持在 Atlas 800I A2推理服务器上运行
   - Lora 权重不支持热加载，如果未获取到 `adapter_id`，将会默认使用 `base`
   - 仅支持浮点模型
   - `lora_adapter.json` 文件中的键就是 `input_dict` 参数的键 `adapter` 的值，也叫 `adapter_id`。

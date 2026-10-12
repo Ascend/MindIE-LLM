@@ -30,7 +30,7 @@ MTP与以下特性可支持在部分场景叠加
 
 ## 限制与约束
 
-- Atlas 800I A2 推理服务器和Atlas 800I A3 超节点服务器支持此特性。
+- Atlas 800I A2推理服务器和Atlas 800I A3超节点服务器支持此特性。
 - 当前仅DeepSeek-R1和DeepSeek-V3的W8A8量化模型、KV Cache int8量化模型支持此特性。
 - 该特性支持W4A8量化。
 - 该特性不能和并行解码、Multi-LoRA、SplitFuse同时使用。

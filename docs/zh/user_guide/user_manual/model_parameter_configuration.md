@@ -126,9 +126,9 @@
 |topk_scaling_factor|float|(0,1]|topk截断参数。<ul><li>“ep_level”=“1”时，每台设备的hidden_states后段部分为无效数据，可设置截断参数减小显存开销。</li><li>需同时配置 "enable_init_routing_cutoff"="true"。</li></ul>|
 |enable_init_routing_cutoff|bool|<ul><li>true</li><li>false</li></ul>|是否允许topk截断。<ul><li>默认值：false（关闭）</li><li>“ep_level”=“1”时，可配置该参数。</li></ul>|
 |alltoall_ep_buffer_scale_factors|list[list[int, float]]|列表每个成员包含两个数：第一个数为非负整数，第二个数为大于0的浮点数。<br>排列顺序按照第一个数的大小降序排列。|AllToAll通信buffer大小，第二层list包含两个元素，第一个数为序列长度、第二个数为buffer系数。序列长度为buffer系数的选择判断条件。示例：<br>[[1048576, 1.32], [524288, 1.4], [262144, 1.53], [131072, 1.8], [32768, 3.0], [8192, 5.2], [0, 8.0]]<ul><li>“ep_level”=“2”时，且用户需要精细化地管理显存的时候建议配置该项。</li><li>“ep_level”=“1”时该参数配置不生效。</li></ul>|
-|num_dangling_shared_experts|int|非负整数|共享专家外置的数量。<br>当前只支持Atlas 800I A3 超节点服务器 144卡且不开负载均衡的场景。建议配置成32。<br>默认值：0（关闭）|
+|num_dangling_shared_experts|int|非负整数|共享专家外置的数量。<br>当前只支持Atlas 800I A3超节点服务器144卡且不开负载均衡的场景。建议配置成32。<br>默认值：0（关闭）|
 |enable_mlapo_prefetch|bool|<ul><li>true</li><li>false</li></ul>|控制是否开启mlapo预取。<ul><li>true：开启</li><li>false：关闭</li></ul>默认值：false|
-|enable_oproj_prefetch|bool|<ul><li>true</li><li>false</li></ul>|控制是否开启oproj预取。<br>Atlas 800I A2 推理服务器不建议开启。Atlas 800I A3 超节点服务器建议与o_proj_local_tp同时开启，推荐o_proj_local_tp设置为2。<ul><li>true：开启</li><li>false：关闭</li></ul>默认值：false|
+|enable_oproj_prefetch|bool|<ul><li>true</li><li>false</li></ul>|控制是否开启oproj预取。<br>Atlas 800I A2推理服务器不建议开启。Atlas 800I A3超节点服务器建议与o_proj_local_tp同时开启，推荐o_proj_local_tp设置为2。<ul><li>true：开启</li><li>false：关闭</li></ul>默认值：false|
 |**eplb**|-|-|-|
 |level|int|[0, 3]|<ul><li>0 : 不开启负载均衡</li><li>1 : 开启静态冗余负载均衡</li><li>2 : 开启动态冗余负载均衡（暂不支持）</li><li>3 : 开启强制负载均衡</li></ul>默认值：0|
 |expert_map_file|string|文件路径|静态冗余负载专家部署表路径。<br>默认值：""|

@@ -193,7 +193,7 @@
 #### NPU量化
 
 - 环境要求
-  - 硬件环境：Atlas 800I A2或Atlas 300I DUO环境
+  - 硬件环境：Atlas 800I A2推理服务器或Atlas 300I DUO推理卡环境
   - Pytorch、TorchNPU配套在2.1版本及以上
   - CANN >= 8.0.RC2.B010
   - accelerate >= 0.28.0
@@ -233,7 +233,7 @@
   - `ASCEND_RT_VISIBLE_DEVICES`
     - 指定当前机器上可用的逻辑NPU核心，多个核心间使用逗号相连
     - 核心编号需要通过 npu-smi info 指令查阅
-    - Atlas 800I A2服务器需基于输出的 NPU 列查阅
+    - Atlas 800I A2推理服务器需基于输出的 NPU 列查阅
         ![npu_smi_info](../images/npu_smi_info_800i_a2.png)
     - Atlas 300I DUO服务器需基于输出的 Device 列查阅
         ![npu_smi_info](../images/npu_smi_info_300i_duo.png)

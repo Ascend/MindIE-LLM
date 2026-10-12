@@ -4,7 +4,7 @@ Sequence Parallel（SP，序列并行）通过对KV Cache进行切分，使得�
 
 ## 限制与约束
 
-- Atlas 800I A2 推理服务器和Atlas 800I A3 超节点服务器支持此特性。
+- Atlas 800I A2推理服务器和Atlas 800I A3超节点服务器支持此特性。
 - 当前仅DeepSeek-R1的W8A8量化模型、DeepSeek-R1的W4A8量化模型、 DeepSeek-V3的W4A8量化模型和DeepSeek-V3.1的W4A8量化模型支持此特性。
 - 支持PD分离场景和PD混部场景。
 - SP必须等于TP。

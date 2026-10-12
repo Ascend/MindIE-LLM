@@ -157,7 +157,7 @@ export BAD_CASE_LOGITS_DUMP = "[True/False]"
 export LOGITS_DUMP_TOKEN_MAX_LENGTH = "[int]"
 
 # modeltest开启Logits dump功能后，指定推理和dump的具体Case，需要配合BAD_CASE_LOGITS_DUMP使用.例如export BAD_CASE_LIST="[0,2,4]"，选择推理和dump在整体数据集中下标为0、2、4的Case
-export BAD_CASE_LIST = "[int, int, int, ...]" 
+export BAD_CASE_LIST = "[int, int, int, ...]"
 ```
 
 ##### NPU场景下以下环境变量默认设置

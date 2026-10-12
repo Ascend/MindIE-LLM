@@ -12,14 +12,14 @@ MoE结构的典型代表模型有Mixtral 8\*7B，Mixtral 8\*22B，DeepSeek-16B-M
 
 |已支持模型|数据格式|量化|并行方式|硬件平台|多机多卡推理|
 |--|--|--|--|--|--|
-|Mixtral 8*7B|FP16|暂不支持|TP|Atlas 800I A2 推理服务器|不支持|
-|Mixtral 8*22B|FP16|暂不支持|TP|Atlas 800I A2 推理服务器|不支持|
-|DeepSeek-16B-MoE|FP16|暂不支持|TP|Atlas 800I A2 推理服务器|不支持|
-|DeepSeek-V2|BF16|支持|TP、EP|Atlas 800I A2 推理服务器|支持|
-|DeepSeek-V3|BF16|支持|TP、EP|Atlas 800I A2 推理服务器|支持|
-|DeepSeek-R1|BF16|支持|TP、EP|Atlas 800I A2 推理服务器|支持|
-|Qwen3-30B-A3B|BF16|支持|TP|Atlas 800I A2 推理服务器|不支持|
-|Qwen3-235B-A22B|BF16|支持|TP|Atlas 800I A2 推理服务器|支持|
+|Mixtral 8*7B|FP16|暂不支持|TP|Atlas 800I A2推理服务器|不支持|
+|Mixtral 8*22B|FP16|暂不支持|TP|Atlas 800I A2推理服务器|不支持|
+|DeepSeek-16B-MoE|FP16|暂不支持|TP|Atlas 800I A2推理服务器|不支持|
+|DeepSeek-V2|BF16|支持|TP、EP|Atlas 800I A2推理服务器|支持|
+|DeepSeek-V3|BF16|支持|TP、EP|Atlas 800I A2推理服务器|支持|
+|DeepSeek-R1|BF16|支持|TP、EP|Atlas 800I A2推理服务器|支持|
+|Qwen3-30B-A3B|BF16|支持|TP|Atlas 800I A2推理服务器|不支持|
+|Qwen3-235B-A22B|BF16|支持|TP|Atlas 800I A2推理服务器|支持|
 
 **模型配置参数**
 

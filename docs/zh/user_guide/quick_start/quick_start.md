@@ -2,7 +2,7 @@
 
 ## 环境准备
 
-本文档以 Atlas 800I A2 推理服务器和 Qwen2-7B 模型为例，让开发者快速开始使用 MindIE 进行大模型推理流程。
+本文档以 Atlas 800I A2推理服务器和 Qwen2-7B 模型为例，让开发者快速开始使用 MindIE 进行大模型推理流程。
 
 ### 前提条件
 
@@ -18,11 +18,11 @@
 
     ![npu-smi 回显信息](./figures/command_output.png "回显信息")
 
-    **表 1** Atlas A2 推理系列产品 <a id="table1"></a>
+    **表 1** Atlas 800I A2推理服务器 <a id="table1"></a>
 
     | 产品型号      | 参考文档                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
     | ------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-    | Atlas 800I A2 | 下载[固件与驱动](https://hiascend.com/hardware/firmware-drivers/community)，安装请参考《CANN 软件安装》中的"[安装 NPU 驱动和固件](https://www.hiascend.com/document/detail/zh/CANNCommunityEdition/latest/softwareinst/instg/instg_0005.html?OS=openEuler&InstallType=local)"章节。 |
+    | Atlas 800I A2推理服务器 | 下载[固件与驱动](https://hiascend.com/hardware/firmware-drivers/community)，安装请参考《CANN 软件安装》中的"[安装 NPU 驱动和固件](https://www.hiascend.com/document/detail/zh/CANNCommunityEdition/latest/softwareinst/instg/instg_0005.html?OS=openEuler&InstallType=local)"章节。 |
 
 - 执行以下命令查看 Docker 是否已安装并启动。Docker 的安装可参见[安装 Docker](../install/source/docker_installation.md)。
 
@@ -92,8 +92,8 @@
     > [!NOTE] 说明
     > - `{IMAGE_ID}` 为镜像 ID，镜像安装完成后，执行 `docker images` 命令，即可查看对应 ID，替换在上述命令中即可。
     > - 对于 `--device` 参数，挂载权限设置为 `rwm`，而非权限较小的 `rw` 或 `r`，原因如下：
-    > - 对于 Atlas 800I A2 推理服务器，若设置挂载权限为 `rw`，可以正常进入容器，同时也可以使用 `npu-smi` 命令查看 npu 占用信息，并正常运行 MindIE 业务；但如果挂载的 npu（即对应挂载选项中的 `davinci_xxx_`，如 `npu0` 对应 `davinci0`）上有其它任务占用，则使用 `npu-smi` 命令会打印报错，且无法运行 MindIE 任务（此时 `torch.npu.set_device()` 会失败）。
-    > - 对于 Atlas 800I A3 超节点服务器，若设置挂载权限为 `rw`，进入容器后，使用 `npu-smi` 命令会打印报错，且无法运行 MindIE 任务（此时 `torch.npu.set_device()` 会失败）。
+    > - 对于 Atlas 800I A2推理服务器，若设置挂载权限为 `rw`，可以正常进入容器，同时也可以使用 `npu-smi` 命令查看 npu 占用信息，并正常运行 MindIE 业务；但如果挂载的 npu（即对应挂载选项中的 `davinci_xxx_`，如 `npu0` 对应 `davinci0`）上有其它任务占用，则使用 `npu-smi` 命令会打印报错，且无法运行 MindIE 任务（此时 `torch.npu.set_device()` 会失败）。
+    > - 对于 Atlas 800I A3超节点服务器，若设置挂载权限为 `rw`，进入容器后，使用 `npu-smi` 命令会打印报错，且无法运行 MindIE 任务（此时 `torch.npu.set_device()` 会失败）。
 
     **表 1**  参数说明
 

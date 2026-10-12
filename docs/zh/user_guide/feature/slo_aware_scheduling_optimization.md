@@ -12,7 +12,7 @@ SLO（Service Level Objective，服务级别目标）指在设定时间段内为
 
 ## 限制与约束
 
-- 仅Atlas 800I A2 推理服务器支持此特性。
+- 仅Atlas 800I A2推理服务器支持此特性。
 - DeepSeek-R1、DeepSeek-V3、Qwen系列模型支持对接此特性。
 - 仅适用于PD混部场景，无法与SplitFuse特性同时打开。
 - 此特性的收益场景主要在短输出（256以下）场景，随着输出长度变长，吞吐收益会下降。

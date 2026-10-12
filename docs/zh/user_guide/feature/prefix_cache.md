@@ -14,7 +14,7 @@ Prefix Cache通过哈希表保留session结束后的KV Cache，新的session请�
 
 ## 限制与约束
 
-- Atlas 800I A2 推理服务器、Atlas 300I Duo 推理卡和Atlas 800I A3 超节点服务器支持此特性。
+- Atlas 800I A2推理服务器、Atlas 300I Duo推理卡和Atlas 800I A3超节点服务器支持此特性。
 - Qwen2系列、Qwen2.5系列、Qwen3系列、DeepSeek-R1和DeepSeek-V3/V3.1模型支持对接此特性。
 - 当跨session公共前缀Token数大于等于block size时，才会进行公共前缀Token的KV Cache复用。
 - Prefix Cache支持的量化特性：W4A8量化、W8A8量化、PDMIX量化与稀疏量化，其他量化特性暂不支持。

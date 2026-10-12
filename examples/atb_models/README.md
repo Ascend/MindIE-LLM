@@ -13,9 +13,9 @@
 ### 依赖版本
 
 - 模型仓代码配套可运行的硬件型号
-  - Atlas 800I A3（64GB显存）
-  - Atlas 800I A2（32GB/64GB显存）
-  - Atlas 300I DUO（96GB显存）
+  - Atlas 800I A3超节点服务器（64GB显存）
+  - Atlas 800I A2推理服务器（32GB/64GB显存）
+  - Atlas 300I DUO推理卡（96GB显存）
 - 模型仓代码运行相关配套软件
   - 系统OS
   - 驱动（HDK）
@@ -38,8 +38,8 @@
 
 | 包名                                     | 硬件型号     |
 | ---------------------------------------- | ------------ |
-| Ascend-hdk-*-npu-firmware_${version}.run | Atlas 800I A2 |
-| Ascend-A3-hdk-npu-firmware_${version}.run | Atlas 800I A3 |
+| Ascend-hdk-*-npu-firmware_${version}.run | Atlas 800I A2推理服务器 |
+| Ascend-A3-hdk-npu-firmware_${version}.run | Atlas 800I A3超节点服务器 |
 
 - 根据芯片型号下载对应的安装包
 
@@ -432,7 +432,7 @@ source /usr/local/Ascend/atb-models/set_env.sh
 export INF_NAN_MODE_ENABLE=1
 ```
 
-- 注意：Atlas 800I A2服务器若需要强制对溢出值进行截断（即`export INF_NAN_MODE_ENABLE=0`），需要额外将`INF_NAN_MODE_FORCE_DISABLE`环境变量设置为1。
+- 注意：Atlas 800I A2推理服务器若需要强制对溢出值进行截断（即`export INF_NAN_MODE_ENABLE=0`），需要额外将`INF_NAN_MODE_FORCE_DISABLE`环境变量设置为1。
 
 ### 性能调优
 

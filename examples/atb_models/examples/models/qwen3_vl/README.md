@@ -67,9 +67,9 @@ max_input_length长度设置可参考模型权重路径下config.json里的max_p
 - [Qwen3-VL-32B-Instruct-w8a8s-310](https://www.modelscope.cn/models/Eco-Tech/Qwen3-VL-32B-Instruct-w8a8s-310)
 - [Qwen3-VL-30B-A3B-Instruct-w8a8-QuaRot-310](https://www.modelscope.cn/models/Eco-Tech/Qwen3-VL-30B-A3B-Instruct-w8a8-QuaRot-310)
 
-- 注意：  
-稀疏压缩权重需根据实际使用TP数自主压缩，压缩命令：  
-torchrun --nproc_per_node {TP数} -m examples.convert.model_slim.sparse_compressor --model_path {W8A8S量化权重路径} --save_directory {W8A8SC量化权重路径} --multiprocess_num 4  
+- 注意：
+稀疏压缩权重需根据实际使用TP数自主压缩，压缩命令：
+torchrun --nproc_per_node {TP数} -m examples.convert.model_slim.sparse_compressor --model_path {W8A8S量化权重路径} --save_directory {W8A8SC量化权重路径} --multiprocess_num 4
 权重压缩后，需手动将浮点权重路径下的chat_template.json，preprocessor_config.json，video_preprocessor_config.json三个文件拷贝至W8A8SC量化权重路径下。
 
 **800I A2**

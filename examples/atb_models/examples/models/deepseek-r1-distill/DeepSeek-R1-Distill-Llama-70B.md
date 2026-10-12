@@ -29,12 +29,12 @@ DeepSeek-R1-Distill-Llama-70B 为 DeepSeek 利用由 DeepSeek-R1 生成的推理
 
 ## 量化权重生成
 
-### Atlas 800I A2 w8a8 量化
+### Atlas 800I A2推理服务器 w8a8 量化
 
 - 生成量化权重依赖 msModelSlim 工具，安装方式见 [msmodelslim](https://gitcode.com/Ascend/msmodelslim)
 - 进入到 `msmodelslim/example/Llama` 目录执行量化脚本
 - W8A8 量化权重请使用以下指令生成
-  - 注意该量化方式仅支持在 Atlas 800I A2 服务器上运行
+  - 注意该量化方式仅支持在 Atlas 800I A2推理服务器上运行
 
 ```shell
 # 设置 CANN 包的环境变量

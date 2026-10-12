@@ -93,7 +93,7 @@ class YourModelAttention(Attention):
         # 初始化q、k、v、o等线性层
         self.qkv = ...
         self.dense = ...
-    
+
     def forward(...):
         # 我们在Attention基类中已经实现了forward，如果有需要的话，您也可以重写该函数。
         q, k, v = self.qkv(...)
@@ -132,7 +132,7 @@ class YourModelMlp(Mlp):
         # 初始化gate up 和 down
         self.gate_up = ...
         self.down = ...
-    
+
     def forward(...):
         # 我们在Mlp基类中已经实现了forward，如果有需要的话，您也可以重写该函数。
         gate_up_out = self.gate_up(...)
@@ -169,8 +169,8 @@ class YourModelLayer(BaseLayer):
         self.mlp = YourModelMlp(...)
         self.input_layer_norm = RmsNorm(...)
         self.post_attention_layernorm = RmsNorm(...)
-        
-    
+
+
     def forward(...):
         norm_out = self.input_layernorm(inputs)
         attn_out = self.self_attn(...)
@@ -213,7 +213,7 @@ class YourModelModel(BaseModel): # 是的，这个名字很怪：—)
             ]
         )
         self.norm = RmsNorm(...)
-    
+
     def forward(...):
         hidden_states = self.embed_tokens(...)
         cos_emb = nn.functional.gather(...)
@@ -253,10 +253,10 @@ class FlashYourModelForCausalLMV3(FlashCausalLMV3):
             **kwargs
         )
         self.lm_head = ColumnParallelLinear(...)
-    
+
     def forward(self, **kwargs):
         is_prefill = kwargs.get("is_prefill", True)
-            
+
         if is_prefill:
             lm_head_indices = kwargs.get("lm_head_indices")
             hidden_states = self.model(**kwargs)

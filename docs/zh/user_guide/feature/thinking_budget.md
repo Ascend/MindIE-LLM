@@ -4,7 +4,7 @@
 
 ## 限制与约束
 
-- Atlas 800I A2 推理服务器、Atlas 800I A3 超节点服务器和Atlas 300I Duo 推理卡支持此特性。
+- Atlas 800I A2推理服务器、Atlas 800I A3超节点服务器和Atlas 300I Duo推理卡支持此特性。
 - 当前仅Qwen3-32B、Qwen3-235B-A22B和Qwen3-30B-A3B模型支持此特性。
 - 开启thinking_budget需在请求中传入如下字段："chat\_template\_kwargs": \{"thinking\_budget":  _<uint32_t\>_\}, 取值范围为[1, MAX_UINT32_T]。
 - 当前仅支持OpenAI推理接口。

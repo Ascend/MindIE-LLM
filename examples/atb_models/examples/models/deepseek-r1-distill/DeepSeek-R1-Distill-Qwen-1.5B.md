@@ -34,11 +34,11 @@ DeepSeek-R1-Distill-Qwen-1.5B 为 DeepSeek 利用由 DeepSeek-R1 生成的推理
 
 ## 权重量化
 
-### Atlas 800I A2 w8a8 量化
+### Atlas 800I A2推理服务器 w8a8 量化
 
 W8A8 量化权重可通过 [msmodelslim Qwen](https://gitcode.com/Ascend/msmodelslim/tree/26.1.0/example/Qwen)（昇腾模型压缩工具）实现。
 
-- 注意该量化方式仅支持在 Atlas 800I A2 服务器上运行
+- 注意该量化方式仅支持在 Atlas 800I A2推理服务器上运行
 - 请参考 [msmodelslim 安装指南](https://gitcode.com/Ascend/msmodelslim/blob/26.1.0/docs/zh/install_guide/install_guide.md) 安装 msModelSlim 量化工具
 - 进入到 `msmodelslim/example/Qwen` 目录，运行量化转换脚本
 

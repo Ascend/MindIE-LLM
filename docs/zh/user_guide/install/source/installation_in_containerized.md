@@ -43,14 +43,14 @@
 
     > [!NOTE]说明
     > 对于--device参数，挂载权限设置为rwm，而非权限较小的rw或r，原因如下：
-    >- 对于Atlas 800I A2 推理服务器，若设置挂载权限为rw，可以正常进入容器，同时也可以使用npu-smi命令查看npu占用信息，并正常运行MindIE业务；但如果挂载的npu（即对应挂载选项中的davinci_xxx_，如npu0对应davinci0）上有其它任务占用，则使用npu-smi命令会打印报错，且无法运行MindIE任务（此时torch.npu.set\_device\(\)会失败）。
-    >- 对于Atlas 800I A3 超节点服务器，若设置挂载权限为rw，进入容器后，使用npu-smi命令会打印报错，且无法运行MindIE任务（此时torch.npu.set_device()会失败）。
+    >- 对于Atlas 800I A2推理服务器，若设置挂载权限为rw，可以正常进入容器，同时也可以使用npu-smi命令查看npu占用信息，并正常运行MindIE业务；但如果挂载的npu（即对应挂载选项中的davinci_xxx_，如npu0对应davinci0）上有其它任务占用，则使用npu-smi命令会打印报错，且无法运行MindIE任务（此时torch.npu.set\_device\(\)会失败）。
+    >- 对于Atlas 800I A3超节点服务器，若设置挂载权限为rw，进入容器后，使用npu-smi命令会打印报错，且无法运行MindIE任务（此时torch.npu.set\_device\(\)会失败）。
 
     **表 1**  参数说明
 
     |参数|参数说明|
     |--|--|
-    |--pids-limit -1|表示解除进程数限制。<br>当Atlas 800I A2 推理服务器使用Alibaba Cloud Linux 3.2104 U10操作系统时，启动容器命令中必须使用该参数解除进程数限制。|
+    |--pids-limit -1|表示解除进程数限制。<br>当Atlas 800I A2推理服务器使用Alibaba Cloud Linux 3.2104 U10操作系统时，启动容器命令中必须使用该参数解除进程数限制。|
     |--shm-size=1g|表示指定容器的共享内存（/dev/shm）大小，用户可自行设置，500g为示例值。对于多模态理解模型，若业务最大并发数较高，--shm-size建议设置不小于500g。<br>该值不能超过宿主机剩余的物理内存总量，可使用`free -h`命令查看。当开启数据并行（即DP>1）时，需要随DP增大调整共享内存大小：<ul><li>当DP=2时，shm-size至少为2g;</li><li>当DP=4时，shm-size至少为3g;</li><li>当DP=8时，shm-size至少为5g;</li><li>当DP=16时，shm-size至少为9g。</li></ul>|
     |--name|容器名，请根据需要自行设定。|
     |--device|表示映射的设备，可以挂载一个或者多个设备。<br>需要挂载的设备如下：<ul><li>/dev/davinci_manager：davinci相关的管理设备。</li><li>/dev/hisi_hdc：hdc相关管理设备。</li><li>/dev/devmm_svm：内存管理相关设备。</li><li>/dev/davinci0：需要挂载的卡号。</li></ul><br>可根据`ll \/dev\/ \| grep davinci`命令查询device个数及名称方式，根据需要绑定设备，修改上面命令中的"--device=****"。|

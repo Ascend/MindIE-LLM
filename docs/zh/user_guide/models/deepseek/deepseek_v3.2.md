@@ -12,7 +12,7 @@
 
 **表1** 硬件支持
 
-|模型|Atlas 800I A2|Atlas 800I A3|Atlas 300I Duo 推理卡|
+|模型|Atlas 800I A2|Atlas 800I A3|Atlas 300I Duo推理卡|
 |:-----:|:--------:|:-----------:|:------------------:|
 |DeepSeek-V3.2|四机 32 卡部署|双机 16 卡部署|❌|
 
@@ -111,7 +111,7 @@ MindIE-LLM 安装请参见[安装指南](../../install/installing_MindIE.md)，�
 
 ## 服务化推理
 
-### Atlas 800I A3 双机部署
+### Atlas 800I A3超节点服务器双机部署
 
 #### 配置服务化环境变量
 
@@ -242,7 +242,7 @@ curl -H "Accept: application/json" -H "Content-type: application/json" -X POST -
 {"id":"endpoint_common_1","object":"chat.completion","created":1774785542,"model":"DeepSeek-V3.2","choices":[{"index":0,"message":{"role":"assistant","content":"Deep learning is a subset of machine learning that uses artificial neural networks with multiple layers to","tool_calls":[]},"logprobs":null,"finish_reason":"length"}],"usage":{"prompt_tokens":9,"prompt_tokens_details":{"cached_tokens":0},"completion_tokens":20,"completion_tokens_details":{"reasoning_tokens":0},"total_tokens":29}}
 ```
 
-### Atlas 800I A2 八机大 EP 部署
+### Atlas 800I A2推理服务器八机大 EP 部署
 
 参考 [MindIE-Motor-CPP](https://gitcode.com/Ascend/MindIE-Motor-CPP/blob/v3.1.0/docs/zh/user_guide/service_deployment/pd_separation_service_deployment.md#%E4%BD%BF%E7%94%A8kubectl%E9%83%A8%E7%BD%B2%E5%8D%95%E6%9C%BApd%E5%88%86%E7%A6%BB%E6%9C%8D%E5%8A%A1%E7%A4%BA%E4%BE%8B) 获取大 EP 初始化脚本，部署目录
 结构如下：

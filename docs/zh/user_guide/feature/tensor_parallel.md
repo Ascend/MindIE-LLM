@@ -4,7 +4,7 @@ TP（Tensor Parallel，张量并行）是一种模型并行的策略，它通过
 
 ## 限制与约束
 
-- Atlas 800I A2 推理服务器和Atlas 800I A3 超节点服务器支持此特性。
+- Atlas 800I A2推理服务器和Atlas 800I A3超节点服务器支持此特性。
 - DeepSeek-V3和DeepSeek-R1模型支持“Lmhead矩阵local tp切分”、“O project矩阵local tp切分”、“tp大于1”。
 - PD分离且D节点是分布式的场景，支持Lmhead矩阵local tp切分和O project矩阵local tp切分，减少矩阵计算时间，降低推理时延。
 - PD分离且D节点是分布式低时延场景，当tp大于1时支持MLA的tp切分，小batch低时延场景能减少decode推理时延。

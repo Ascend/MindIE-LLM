@@ -51,11 +51,11 @@ class CustomEncrypt(Encrypt):
 ```
 
 * 用户需要在`generate_keys`方法中自行实现安全生成秘钥的逻辑，并在`encrypt`方法中实现对传入的某个Tensor加密的逻辑。
-  
+
 * 生成的加密后权重主目录需以“crypt”作为后缀。例如加密前的权重目录为“Qwen2.5-7B-Instruct”，则加密后的权重目录应为“Qwen2.5-7B-Instruct-crypt”。
-  
+
 * 如用户对自定义加密的具体实现感到疑惑，可参考下方 `传统路线权重加载方式加密脚本介绍` 中的示例文件（`${atb_models}/tests/encrypttest/encrypt.py`的`EncryptTools`类来模拟实现自定义加密。
-  
+
 * 注意，示例文件仅为用户理解加密方法使用，请在**安全**的**离线开发环境**模拟使用。在生产环境中，用户**不可直接照搬示例的加密方式**，必须自行实现**安全的加密逻辑**。
 
 ### 解密脚本介绍
@@ -210,7 +210,7 @@ class DecryptTools(Decrypt):
 
     def decrypt(self, encrypted_tensor: torch.Tensor):
         """
-        输入是加密tensor，输出是解密tensor。 
+        输入是加密tensor，输出是解密tensor。
         保证解密前后，encrypted_tensor和decrypted_tensor的shape一致。
         """
     return decrypted_tensor

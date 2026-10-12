@@ -6,7 +6,7 @@ Flash Attention 3（FA3）量化，类似Attention量化，不同之处在于Dee
 
 > [!NOTE]说明
 >
->- Atlas 800I A2 推理服务器，Atlas 800I A3 超节点服务器支持FA3量化。
+>- Atlas 800I A2推理服务器，Atlas 800I A3超节点服务器支持FA3量化。
 >- 支持W8A8配合使用。
 >- 仅支持DeepSeek R1，DeepSeek V3，DeepSeek-R1-0528。
 >- 仅支持float16。

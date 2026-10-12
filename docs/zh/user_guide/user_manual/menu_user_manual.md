@@ -32,37 +32,63 @@
     - [Multi-Lora](../feature/multi_lora.md)
     - [MoE](../feature/moe.md)
     - [MLA](../feature/mix_shared_routing.md)
+    <!-- npu="A3,910b" id4 -->
     - [负载均衡](../feature/expert_parallelism_load_balancer.md)
+    <!-- end id4 -->
     - [共享专家外置](../feature/mix_shared_routing.md)
     - [Expert Parallel](../feature/expert_parallel.md)
+    <!-- npu="A3,910b" id3 -->
     - [Data Parallel](../feature/data_parallel.md)
+    <!-- end id3 -->
+    <!-- npu="A3,910b" id12 -->
     - [Tensor Parallel](../feature/tensor_parallel.md)
+    <!-- end id12 -->
   - [量化特性]()
     - [Anti-Outlier离群值抑制](../feature/anti_outlier.md)
     - [PDMIX量化](../feature/pdmix.md)
     - [W8A8量化](../feature/w8a8.md)
     - [W4A8混合量化](../feature/w4a8_mixed_precision_quantization.md)
+    <!-- npu="910b" id13 -->
     - [W8A16量化](../feature/w8a16.md)
+    <!-- end id13 -->
+    <!-- npu="910b" id1 -->
     - [Attention量化](../feature/attention_quantization.md)
+    <!-- end id1 -->
+    <!-- npu="A3,910b" id5 -->
     - [FA3量化](../feature/fa3_quantization.md)
+    <!-- end id5 -->
+    <!-- npu="910b" id7 -->
     - [KV Cache int8](../feature/kv_cache_int8.md)
+    <!-- end id7 -->
     - [W8A8SC稀疏量化](../feature/w8a8sc.md)
     - [W16A16SC稀疏量化](../feature/w16a16sc.md)
   - [长序列特性]()
+    <!-- npu="A3,910b" id2 -->
     - [Context Parallel](../feature/context_parallel.md)
+    <!-- end id2 -->
+    <!-- npu="A3,910b" id9 -->
     - [Sequence Parallel](../feature/sequence_parallel.md)
+    <!-- end id9 -->
   - [调度特性]()
     - [异步调度](../feature/asynchronous_scheduling.md)
+    <!-- npu="A3,910b" id11 -->
     - [SplitFuse](../feature/split_fuse.md)
+    <!-- end id11 -->
+    <!-- npu="910b" id10 -->
     - [SLO调度优化](../feature/slo_aware_scheduling_optimization.md)
+    <!-- end id10 -->
   - [加速特性]()
     - [Micro Batch](../feature/micro_batch.md)
     - [并行解码](../feature/speculative_decoding.md)
+    <!-- npu="A3,910b" id8 -->
     - [MTP](../feature/mtp.md)
+    <!-- end id8 -->
     - [Prefix Cache](../feature/prefix_cache.md)
     - [KV Cache池化](../feature/kv_cache_pool.md)
   - [交互特性]()
+    <!-- npu="A3,910b" id6 -->
     - [Function Call](../feature/function_call.md)
+    <!-- end id6 -->
     - [思考解析](../feature/enable_reasoning.md)
     - [思考预算](../feature/thinking_budget.md)
 - [附录]()

@@ -39,7 +39,8 @@ chmod +x Ascend-hdk-<chip_type>-npu-firmware_<version>.run
 
 1. 根据设备形态执行以下对应命令启动容器，容器启动命令仅供参考，可根据需求自行修改，命令参数介绍如[表1](#table1)所示。
 
-    **Atlas 800I A2/A3 推理服务器**
+    <!-- npu="A3,910b" id1 -->
+    **Atlas 800I A2推理服务器 / Atlas 800I A3超节点服务器**
 
      ```bash
      docker run -it -d --net=host --shm-size=500g \  # 对于多模态理解模型，若业务最大并发数较高，--shm-size建议设置不小于500g
@@ -63,8 +64,9 @@ chmod +x Ascend-hdk-<chip_type>-npu-firmware_<version>.run
     > [!NOTE]说明
     >- `{IMAGE_ID}` 为镜像 ID，镜像安装完成后，执行 `docker images` 命令，即可查看对应 ID，替换在上述命令中即可。
     >- 对于 `--device` 参数，挂载权限设置为 `rwm`，而非权限较小的 `rw` 或 `r`，原因如下：
-        >- 对于 Atlas 800I A2 推理服务器，若设置挂载权限为 `rw`，可以正常进入容器，同时也可以使用 `npu-smi` 命令查看 npu 占用信息，并正常运行 MindIE 业务；但如果挂载的 npu（即对应挂载选项中的 `davinci_xxx_`，如 `npu0` 对应 `davinci0`）上有其它任务占用，则使用 `npu-smi` 命令会打印报错，且无法运行 MindIE 任务（此时 `torch.npu.set_device()` 会失败）。
-        >- 对于 Atlas 800I A3 超节点服务器，若设置挂载权限为 `rw`，进入容器后，使用 `npu-smi` 命令会打印报错，且无法运行 MindIE 任务（此时 `torch.npu.set_device()` 会失败）。
+        >- 对于 Atlas 800I A2推理服务器，若设置挂载权限为 `rw`，可以正常进入容器，同时也可以使用 `npu-smi` 命令查看 npu 占用信息，并正常运行 MindIE 业务；但如果挂载的 npu（即对应挂载选项中的 `davinci_xxx_`，如 `npu0` 对应 `davinci0`）上有其它任务占用，则使用 `npu-smi` 命令会打印报错，且无法运行 MindIE 任务（此时 `torch.npu.set_device()` 会失败）。
+        >- 对于 Atlas 800I A3超节点服务器，若设置挂载权限为 `rw`，进入容器后，使用 `npu-smi` 命令会打印报错，且无法运行 MindIE 任务（此时 `torch.npu.set_device()` 会失败）。
+    <!-- end id1 -->
 
     **Atlas 200I Pro 加速模块**
 
@@ -125,7 +127,7 @@ chmod +x Ascend-hdk-<chip_type>-npu-firmware_<version>.run
 
     |参数|说明|
     |----|----|
-    |--pids-limit -1|表示解除进程数限制。<br>当Atlas 800I A2 推理服务器使用Alibaba Cloud Linux 3.2104 U10操作系统时，启动容器命令中必须使用该参数解除进程数限制。|
+    |--pids-limit -1|表示解除进程数限制。<br>当Atlas 800I A2推理服务器使用Alibaba Cloud Linux 3.2104 U10操作系统时，启动容器命令中必须使用该参数解除进程数限制。|
     |-it|表示启动一个交互式终端（-i）并将其连接到容器的标准输入输出 （-t），能够与容器内部进行交互，如运行命令行操作。|
     |-d|表示容器将以后台模式运行，即容器在后台启动。使用该参数后不会阻塞当前终端的操作，可以在启动容器后继续进行其他操作。|
     |--net|表示容器将使用宿主机的网络配置（网络共享），使容器能够直接访问宿主机的网络接口，适用于需要进行低延迟、直接访问网络资源的场景。|

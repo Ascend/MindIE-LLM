@@ -17,7 +17,7 @@
 
 ## 限制与约束
 
-- Atlas 800I A2 推理服务器、Atlas 800I A3 超节点服务器和Atlas 300I Duo 推理卡支持此特性。
+- Atlas 800I A2推理服务器、Atlas 800I A3超节点服务器和Atlas 300I Duo推理卡支持此特性。
 - 当前ChatGLM3-6B、Qwen3-32B、Qwen3-235B-A22B、Qwen3-30B-A3B、DeepSeek-R1-0528、Qwen2.5-Instruct和DeepSeek-V3.1系列模型支持此特性。
 - 使用Function Call特性，DeepSeek-V3.1系列模型必须配置[参数说明](#table1)中参数，其余模型可以不配置。
 - 当前仅支持OpenAI chat接口。
