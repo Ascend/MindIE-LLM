@@ -6,15 +6,15 @@ Provides automated build scripts and a multi-stage Dockerfile for building MindI
 
 ## Quick Reference
 
-- MindIE is maintained by the [MindIE community](https://www.hiascend.com/cn/developer/software/mindie)
+- MindIE is maintained by the [MindIE community](https://www.hiascend.com/eng/developer/software/mindie)
 
 - Where to get help
 
-    - [MindIE Image Registry](https://www.hiascend.com/developer/ascendhub/detail/af85b724a7e5469ebd7ea13c3439d48f)
+    - [MindIE Image Registry](https://www.hiascend.com/en/developer/ascendhub/detail/af85b724a7e5469ebd7ea13c3439d48f)
     - [MindIE-LLM Repository](https://gitcode.com/Ascend/MindIE-LLM)
     - [MindIE-SD Repository](https://gitcode.com/Ascend/MindIE-SD)
     - [MindIE-Motor Repository](https://gitcode.com/Ascend/MindIE-Motor)
-    - [Developer Community](https://www.hiascend.com/developer)
+    - [Developer Community](https://www.hiascend.com/en)
     - [Issue Tracker](https://gitcode.com/Ascend/MindIE-LLM/issues)
 
 ---
@@ -101,7 +101,7 @@ Build parameters are passed as command-line arguments to `build.sh`:
 
 **Note:**
 
-1. CANN version: see [Atlas Community](https://www.hiascend.com/developer/download/community/result)
+1. CANN version: see [Atlas Community](https://www.hiascend.com/en/cann/download?versionId=791&ids=d806%2Ch0501%2Ch0601%2Ch0703)
 
 2. PTA tag: see [Pytorch-NPU Community](https://gitcode.com/Ascend/pytorch/releases)
 
