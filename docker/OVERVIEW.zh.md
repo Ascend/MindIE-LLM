@@ -1,6 +1,6 @@
 # MindIE Docker
 
-> [English](./OVERVIEW.md) | 中文
+> [English](https://gitcode.com/Ascend/MindIE-LLM/blob/master/docker/OVERVIEW.md) | 中文
 
 提供自动化构建脚本和多阶段 Dockerfile，支持从编译包构建 MindIE 推理服务镜像。构建流程涵盖 Python 编译、CANN 工具链安装、PyTorch/torch_npu（PTA）部署、以及 MindIE 组件安装（LLM / SD / Motor），并支持 8 路并行下载加速。
 
@@ -33,11 +33,11 @@
 
 | 文件 | 说明 |
 |------|------|
-| [build.sh](./build.sh) | 主入口脚本，负责参数解析、校验、下载编排与构建调用 |
-| [Dockerfile](./Dockerfile) | 多阶段 Docker 构建文件（7 个阶段） |
-| [modules/config.sh](./modules/config.sh) | 集中配置：URL 模板、日志、校验、架构检测、Chip/OS 元数据 |
-| [modules/download.sh](./modules/download.sh) | 下载层：8 路并行下载 PTA / Python / CANN / MindIE-LLM / MindIE-SD / MindIE-Motor 包 |
-| [modules/build_image.sh](./modules/build_image.sh) | 构建编排层：镜像 Tag 计算、Docker 构建、镜像导出 |
+| [build.sh](https://gitcode.com/Ascend/MindIE-LLM/blob/master/docker/build.sh) | 主入口脚本，负责参数解析、校验、下载编排与构建调用 |
+| [Dockerfile](https://gitcode.com/Ascend/MindIE-LLM/blob/master/docker/Dockerfile) | 多阶段 Docker 构建文件（7 个阶段） |
+| [modules/config.sh](https://gitcode.com/Ascend/MindIE-LLM/blob/master/docker/modules/config.sh) | 集中配置：URL 模板、日志、校验、架构检测、Chip/OS 元数据 |
+| [modules/download.sh](https://gitcode.com/Ascend/MindIE-LLM/blob/master/docker/modules/download.sh) | 下载层：8 路并行下载 PTA / Python / CANN / MindIE-LLM / MindIE-SD / MindIE-Motor 包 |
+| [modules/build_image.sh](https://gitcode.com/Ascend/MindIE-LLM/blob/master/docker/modules/build_image.sh) | 构建编排层：镜像 Tag 计算、Docker 构建、镜像导出 |
 
 ---
 
@@ -80,6 +80,16 @@ mindie:3.0.0-800I-A2-py3.11-ubuntu24.04-x86_64
 | `310` | `300I-Duo` | Atlas 300I Duo |
 | `910` | `800I-A2` | Atlas 800I A2 |
 | `A3` | `800I-A3` | Atlas 800I A3 |
+
+### 版本 Dockerfile 目录
+
+MindIE 镜像由 [Dockerfile](https://gitcode.com/Ascend/MindIE-LLM/blob/master/docker/Dockerfile) 多阶段构建，文件位于 MindIE-LLM 源码仓库的 [docker](https://gitcode.com/Ascend/MindIE-LLM/blob/master/docker) 目录。操作系统和芯片通过构建参数传入。
+
+| 示例 Tag | Dockerfile |
+|----------|------------|
+| `3.1.0-cann9.1.0-torch_npu2.9.0.post6-950-openeuler24.03_lts_sp4-py3.11`<br>`3.1.0-cann9.0.1-torch_npu2.9.0.post4-a3-openeuler24.03_lts-py3.11`<br>`3.1.0-cann9.0.1-torch_npu2.9.0.post4-910b-openeuler24.03_lts-py3.11`<br>`3.1.0-cann9.0.1-torch_npu2.9.0.post4-310p-openeuler24.03_lts-py3.11` | [Dockerfile](https://gitcode.com/Ascend/MindIE-LLM/blob/master/docker/Dockerfile) |
+
+镜像 Tag 见 [support_tag.md](https://gitcode.com/Ascend/MindIE-LLM/blob/master/docker/support_tag.md)。
 
 ---
 
@@ -202,16 +212,6 @@ base-openeuler┘
 
 ---
 
-## 支持的硬件
-
-| 芯片系列 | 产品示例 | 架构 |
-|----------|----------|------|
-| 昇腾 910 | Atlas 800I A2 | ARM64 |
-| 昇腾 A3 | Atlas 800I A3 | ARM64 |
-| 昇腾 310 | Atlas 300I Duo | ARM64 / x86_64 |
-
----
-
 ## 环境变量（容器内）
 
 构建过程中 Dockerfile 会设置以下关键环境变量：
@@ -229,6 +229,6 @@ base-openeuler┘
 
 ## 许可证
 
-查看 MindIE 的[许可证信息](../LICENSE.md)。
+查看 MindIE 的[许可证信息](https://gitcode.com/Ascend/MindIE-LLM/blob/master/LICENSE.md)。
 
 与所有容器镜像一样，预装软件包（Python、系统库等）可能受其自身许可证约束。

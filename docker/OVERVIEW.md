@@ -1,6 +1,6 @@
 # MindIE Docker
 
-> English | [中文](./OVERVIEW.zh.md)
+> English | [中文](https://gitcode.com/Ascend/MindIE-LLM/blob/master/docker/OVERVIEW.zh.md)
 
 Provides automated build scripts and a multi-stage Dockerfile for building MindIE inference service images from compiled packages. The build pipeline covers Python compilation, CANN toolchain installation, PyTorch/torch_npu (PTA) deployment, and MindIE component installation (LLM / SD / Motor), with 8-way parallel downloads for acceleration.
 
@@ -33,11 +33,11 @@ MindIE is Huawei Atlas's inference acceleration suite. It leverages a highly opt
 
 | File | Description |
 |------|-------------|
-| [build.sh](./build.sh) | Main entry point — argument parsing, validation, download orchestration, and build invocation |
-| [Dockerfile](./Dockerfile) | Multi-stage Docker build file (7 stages) |
-| [modules/config.sh](./modules/config.sh) | Central configuration: URL templates, logging, validation, arch detection, Chip/OS metadata |
-| [modules/download.sh](./modules/download.sh) | Download layer: 8 parallel downloads for PTA / Python / CANN / MindIE-LLM / MindIE-SD / MindIE-Motor packages |
-| [modules/build_image.sh](./modules/build_image.sh) | Build orchestration layer: image tag computation, Docker build, image export |
+| [build.sh](https://gitcode.com/Ascend/MindIE-LLM/blob/master/docker/build.sh) | Main entry point — argument parsing, validation, download orchestration, and build invocation |
+| [Dockerfile](https://gitcode.com/Ascend/MindIE-LLM/blob/master/docker/Dockerfile) | Multi-stage Docker build file (7 stages) |
+| [modules/config.sh](https://gitcode.com/Ascend/MindIE-LLM/blob/master/docker/modules/config.sh) | Central configuration: URL templates, logging, validation, arch detection, Chip/OS metadata |
+| [modules/download.sh](https://gitcode.com/Ascend/MindIE-LLM/blob/master/docker/modules/download.sh) | Download layer: 8 parallel downloads for PTA / Python / CANN / MindIE-LLM / MindIE-SD / MindIE-Motor packages |
+| [modules/build_image.sh](https://gitcode.com/Ascend/MindIE-LLM/blob/master/docker/modules/build_image.sh) | Build orchestration layer: image tag computation, Docker build, image export |
 
 ---
 
@@ -80,6 +80,16 @@ mindie:3.0.0-800I-A2-py3.11-ubuntu24.04-x86_64
 | `310` | `300I-Duo` | Atlas 300I Duo |
 | `910` | `800I-A2` | Atlas 800I A2 |
 | `A3` | `800I-A3` | Atlas 800I A3 |
+
+### Version Dockerfile Directory
+
+The MindIE image is built from the multi-stage [Dockerfile](https://gitcode.com/Ascend/MindIE-LLM/blob/master/docker/Dockerfile) in the MindIE-LLM repository [docker](https://gitcode.com/Ascend/MindIE-LLM/blob/master/docker) directory. OS and chip are passed in as build arguments.
+
+| Example Tag | Dockerfile |
+|-------------|------------|
+| `3.1.0-cann9.1.0-torch_npu2.9.0.post6-950-openeuler24.03_lts_sp4-py3.11`<br>`3.1.0-cann9.0.1-torch_npu2.9.0.post4-a3-openeuler24.03_lts-py3.11`<br>`3.1.0-cann9.0.1-torch_npu2.9.0.post4-910b-openeuler24.03_lts-py3.11`<br>`3.1.0-cann9.0.1-torch_npu2.9.0.post4-310p-openeuler24.03_lts-py3.11` | [Dockerfile](https://gitcode.com/Ascend/MindIE-LLM/blob/master/docker/Dockerfile) |
+
+Image tags are listed in [support_tag.md](https://gitcode.com/Ascend/MindIE-LLM/blob/master/docker/support_tag.md).
 
 ---
 
@@ -202,16 +212,6 @@ base-openeuler┘
 
 ---
 
-## Supported Hardware
-
-| Chip Series | Product Examples | Architecture |
-|-------------|-----------------|--------------|
-| Atlas 910 | Atlas 800I A2 | ARM64 |
-| Atlas A3 | Atlas 800I A3 | ARM64 |
-| Atlas 310 | Atlas 300I Duo | ARM64 / x86_64 |
-
----
-
 ## Container Environment Variables
 
 The following key environment variables are set during the Docker build:
@@ -229,6 +229,6 @@ The following key environment variables are set during the Docker build:
 
 ## License
 
-View the MindIE [license information](../LICENSE.md).
+View the MindIE [license information](https://gitcode.com/Ascend/MindIE-LLM/blob/master/LICENSE.md).
 
 As with all container images, pre-installed software packages (Python, system libraries, etc.) may be subject to their own licenses.
