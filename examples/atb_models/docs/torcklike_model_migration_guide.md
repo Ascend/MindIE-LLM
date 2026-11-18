@@ -276,7 +276,7 @@ class FlashYourModelForCausalLMV3(FlashCausalLMV3):
 
 **位置**： `config_你的模型.py`
 
-**作用**：读取和管理huggin face权重config.json中的配置。
+**作用**：读取和管理hugging face权重config.json中的配置。
 
 示例代码：
 
@@ -288,7 +288,7 @@ from atb_llm.models.base.config import BaseConfig
 @dataclass
 class YourModelConfig(BaseConfig):
     model_type = "your_model"
-    # 根据huggin face权重config.json中的字段进行配置
+    # 根据hugging face权重config.json中的字段进行配置
     vocab_size = ...
     hidden_size = ...
     num_hidden_layers ...
@@ -325,9 +325,9 @@ class YourModelRouter(BaseRouter):
 
 + [如何运行对话测试](../examples/README.md#启动脚本)
 
-+ [如何采集profiling进行性能调优](../README.md#性能分析)
++ [如何采集profiling进行性能调优](../README.md#性能调优)
 
-+ [如何dump tensor以进行精度分析](../README.md#精度分析)
++ [如何dump tensor以进行精度分析](../README.md#Dump-Tensor)
 
 ## 5. 扩展知识
 

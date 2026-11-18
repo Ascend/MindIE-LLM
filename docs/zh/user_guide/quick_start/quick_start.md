@@ -159,14 +159,14 @@
 
 4. 配置服务化参数。
 
-    a. 进入conf目录，打开“config.json“文件。
+    a. 进入conf目录，打开`config.json`文件。
 
     ```bash
     cd mindie-service/conf
     vim config.json
     ```
 
-    b. 按“i”进入编辑模式，根据实际情况修改“config.json“中的配置参数。（以下已Qwen2-7B为例，需要修改的配置参数已加粗）
+    b. 按“i”进入编辑模式，根据实际情况修改`config.json`中的配置参数。（以下以Qwen2-7B为例，需要修改的配置参数已加粗）
 
     ``` json
 
@@ -193,7 +193,7 @@
     }
     ```
 
-    如上的参数说明如下，更多“config.json“的参数说明请参考[配置参数说明（服务化）](../user_manual/service_parameter_configuration.md)。
+    如上的参数说明如下，更多`config.json`的参数说明请参考[配置参数说明（服务化）](../user_manual/service_parameter_configuration.md)。
 
     |配置项|取值类型|取值范围|配置说明|
     |--|--|--|--|
