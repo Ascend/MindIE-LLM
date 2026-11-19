@@ -9,12 +9,12 @@
 |--|--|--|--|--|--|--|--|--|--|--|--|--|--|--|
 |MindIE LLM mempool-Mooncake模块|客户端通信IP地址|随机端口，由Mooncake分配，端口从8790开始。|Mooncake Master服务端|由用户拉起Mooncake Master Server时配置决定。|由用户拉起Mooncake Master Server时配置决定。|TCP|用于Mooncake池化client端与mooncake master server端通信。|是|证书认证|TLS1.3|数据面|MindIE 3.0.0|无|无|
 |MindIE LLM mempool-Mooncake模块|客户端通信IP地址|用户自定义配置|Mooncake Metadata服务端|由用户拉起Mooncake Master Server时配置决定。|由用户拉起Mooncake Master Server时配置决定。|TCP|用于Mooncake池化client端与mooncake metadata server端通信。|是|证书认证|TLS1.3|数据面|MindIE 3.0.0|无|无|
-|推理服务器|本机通信IIP地址|动态端口（1024~65535）|NPU|device侧IP地址|默认1024|TCP|hdk kmsagent组件监听端口，负责注册混淆因子。|是|证书认证|TLS1.3|数据面|MindIE 3.0.0|无|无|
-|NPU|device侧IP地址|默认1024|推理服务器|本机通信IIP地址|动态端口（1024~65535）|TCP|hdk kmsagent组件监听端口，负责注册混淆因子。|是|证书认证|TLS1.3|数据面|MindIE 3.0.0|无|无|
+|推理服务器|本机通信IP地址|动态端口（1024~65535）|NPU|device侧IP地址|默认1024|TCP|hdk kmsagent组件监听端口，负责注册混淆因子。|是|证书认证|TLS1.3|数据面|MindIE 3.0.0|无|无|
+|NPU|device侧IP地址|默认1024|推理服务器|本机通信IP地址|动态端口（1024~65535）|TCP|hdk kmsagent组件监听端口，负责注册混淆因子。|是|证书认证|TLS1.3|数据面|MindIE 3.0.0|无|无|
 |多机下的次节点客户端|客户端通信IP地址|环境变量"MASTER_PORT"配置|多机下的主节点客户端|推理服务环境变量MASTER_IP字段对应的IP地址（管理面和业务使用不同的IP地址场景）。|根据现网客户实际要求配置的固定端口，对应环境变量MASTER_PORT字段（管理面与业务面使用不同端口场景），可配范围为1024~65535，不配默认配置为None。|TCP|用pytorch的init_process_group函数发送请求，用于流水线并行不同机器之间的数据通信|是|证书认证|TLS1.3|数据面|MindIE 3.0.0|无|无|
 |多机下的主节点客户端|推理服务环境变量MASTER_IP字段对应的IP地址（管理面和业务使用不同的IP地址场景）。|根据现网客户实际要求配置的固定端口，对应环境变量MASTER_PORT字段（管理面与业务面使用不同端口场景），可配范围为1024~65535，不配默认配置为None。|多机下的次节点客户端|客户端通信IP地址|环境变量"MASTER_PORT"配置|TCP|用pytorch的init_process_group函数发送请求，用于流水线并行不同机器之间的数据通信|是|证书认证|TLS1.3|数据面|MindIE 3.0.0|无|无|
-|推理服务器|本机通信IP地址|随机端口|huggin face服务器|huggin face服务器ip|随机端口|不涉及|trust_remote_code可配置为true（默认为false），此时会使用权重文件夹中的代码文件，如果文件不存在可能触发下载。|不涉及|证书认证|TLS1.3|数据面|MindIE 3.0.0|无|无|
-|MindIE Sever服务端|部署的MindIE Sever服务端Pod IP|随机端口（由操作系统自动分配），默认范围32768~60999。|MindIE Sever服务端|部署的MindIE集群服务服务端Pod IP|随机端口（由操作系统自动分配），默认范围32768~60999。|TCP|MindIE Sever服务端的多DP进程间通信，共dp_size个port|否|无|无|数据面|MindIE 3.0.0|无|无|
+|推理服务器|本机通信IP地址|随机端口|Hugging Face服务器|Hugging Face服务器ip|随机端口|不涉及|trust_remote_code可配置为true（默认为false），此时会使用权重文件夹中的代码文件，如果文件不存在可能触发下载。|不涉及|证书认证|TLS1.3|数据面|MindIE 3.0.0|无|无|
+|MindIE Server服务端|部署的MindIE Server服务端Pod IP|随机端口（由操作系统自动分配），默认范围32768~60999。|MindIE Server服务端|部署的MindIE集群服务服务端Pod IP|随机端口（由操作系统自动分配），默认范围32768~60999。|TCP|MindIE Server服务端的多DP进程间通信，共dp_size个port|否|无|无|数据面|MindIE 3.0.0|无|无|
 |分布式边云协同数据传输服务端|推理服务config.json配置文件中layerwiseDisaggregatedMasterIpAddress字段对应的IP地址。|可配范围（1024~65535），默认配置为10000|分布式边云协同云侧（slave）设备|分布式边云协同云侧（slave）设备服务器IP，与推理服务config.json配置文件中layerwiseDisaggregatedSlaveIpAddress的IP对应|随机端口（由操作系统自动分配）|TCP|分布式边云协同中边云hidden数据传输|是|证书认证|TLS1.3|数据面|MindIE 3.0.0|无|无|
 |分布式边云协同数据传输客户端|推理服务config.json配置文件中layerwiseDisaggregatedSlaveIpAddress字段对应的IP地址。|随机端口（由操作系统自动分配）|分布式边云协同边侧（master）设备|分布式边云协同边侧（master）设备服务器IP，与推理服务config.json配置文件中layerwiseDisaggregatedMasterIpAddress的IP对应|可配范围（1024~65535），默认配置为10000|TCP|分布式边云协同中边云hidden数据传输|是|证书认证|TLS1.3|数据面|MindIE 3.0.0|无|无|
 |分布式边云协同控制信号传输服务端|推理服务config.json配置文件中layerwiseDisaggregatedSlaveIpAddress字段对应的IP地址。|可配范围（1024~65535），默认配置为10001（prefill控制信号端口）、10002（decode控制信号端口）|分布式边云协同边侧（master）设备|分布式边云协同边侧（master）设备服务器IP，与推理服务config.json配置文件中layerwiseDisaggregatedMasterIpAddress的IP对应|随机端口（由操作系统自动分配）|TCP|分布式边云协同中边云TCP控制信号传输|是|证书认证|TLS1.3|数据面|MindIE 3.0.0|无|无|

@@ -25,32 +25,32 @@ Run the following commands on the bare-metal server (BMS) to enable high-perform
      > The service process may compete with model execution processes for CPU resources, leading to fluctuations in performance and latency. To mitigate the impact of CPU contention, you can manually bind the service process to an odd-numbered CPU core when starting the service. The detailed method is as follows:
      >1. Run the `lscpu` command to check the CPU configuration of the system.
      >
-         > ```bash
-         > lscpu
-         >  ```
->
-     > Information similar to the following is displayed:
+     >    ```bash
+     >    lscpu
+     >     ```
      >
-         > ```text
-         > NUMA:                   
-         > NUMA node(s):         8
-         > NUMA node0 CPU(s):    0-23
-         > NUMA node1 CPU(s):    24-47
-         > NUMA node2 CPU(s):    48-71
-         > NUMA node3 CPU(s):    72-95
-         > NUMA node4 CPU(s):    96-119
-         > NUMA node5 CPU(s):    120-143
-         > NUMA node6 CPU(s):    144-167
-         > NUMA node7 CPU(s):    168-191
-         > ```
+     >    Information similar to the following is displayed:
+     >
+     >    ```text
+     >    NUMA:                   
+     >    NUMA node(s):         8
+     >    NUMA node0 CPU(s):    0-23
+     >    NUMA node1 CPU(s):    24-47
+     >    NUMA node2 CPU(s):    48-71
+     >    NUMA node3 CPU(s):    72-95
+     >    NUMA node4 CPU(s):    96-119
+     >    NUMA node5 CPU(s):    120-143
+     >    NUMA node6 CPU(s):    144-167
+     >    NUMA node7 CPU(s):    168-191
+     >    ```
      >
      >2. Run the `taskset -c` command to bind the service process to an odd-numbered CPU core and start the service.
      >
-         > ```bash
-         > taskset -c $cpus ./bin/mindieservice_daemon
-         > ```
+     >    ```bash
+     >    taskset -c $cpus ./bin/mindieservice_daemon
+     >    ```
      >
-     > `$cpus`: The value of `node1`, `node3`, `node5`, or `node7` in the CPU configuration echo.
+     >    `$cpus`: The value of `node1`, `node3`, `node5`, or `node7` in the CPU configuration echo.
 
 ## Enabling jemalloc Optimization
 

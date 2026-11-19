@@ -15,7 +15,7 @@ The following describes containerized installation. Before that, ensure that the
     docker pull ubuntu:22.04
     ```
 
-    Ubuntu 22.04 is used as an example. You may use other supported OS versions, but ensure the image complies with the requirements. For supported operating systems, refer to the [Compatibility Checker](https://www.hiascend.com/en/hardware/compatibility).
+    Ubuntu 22.04 is used as an example. You may use other supported OS versions, but ensure the image complies with the requirements. For supported operating systems, refer to the [Compatibility Checker](https://www.hiascend.com/hardware/compatibility).
 
     > [!NOTE]
     > - For TorchNPU 2.1.0, pull Ubuntu 22.04; for TorchNPU 2.9.0, pull Ubuntu 24.04 LTS.

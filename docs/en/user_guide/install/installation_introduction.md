@@ -1,6 +1,6 @@
 # Installation Guide
 
-For supported hardware and operating systems, refer to the [Compatibility Checker](https://www.hiascend.com/en/hardware/compatibility).
+For supported hardware and operating systems, refer to the [Compatibility Checker](https://www.hiascend.com/hardware/compatibility).
 
 MindIE LLM and MindIE Motor CPP support installation via container image, offline package, and source code.
 

@@ -18,7 +18,7 @@ CANN provides a script for process-level environment variable setting. In traini
 ## Installing PyTorch and Torch NPU
 
 - If the OS is Ubuntu 22.04, install TorchNPU 2.1.0. If the OS is Ubuntu 24.04 LTS, install TorchNPU 2.9.0.
-- Install the PyTorch framework and TorchNPU plugin by referring to section "Installing PyTorch" in [TorchNPU Software Installation Guide](https://www.hiascend.com/document/detail/en/Pytorch/730/configandinstg/instg/docs/en/installation_guide/installation_via_binary_package.md).
+- Install the PyTorch framework and TorchNPU plugin by referring to section "Installing PyTorch" in [TorchNPU Software Installation Guide](https://www.hiascend.com/document/detail/zh/Pytorch/730/configandinstg/instg/docs/en/installation_guide/installation_via_binary_package.md).
 
 MindIE components depend on PyTorch and TorchNPU. Refer to the following table to install them as required.
 
